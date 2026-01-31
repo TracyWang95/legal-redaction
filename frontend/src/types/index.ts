@@ -1,7 +1,6 @@
 // 实体类型枚举
 export enum EntityType {
   PERSON = 'PERSON',
-  ORG = 'ORG',
   ID_CARD = 'ID_CARD',
   PHONE = 'PHONE',
   ADDRESS = 'ADDRESS',

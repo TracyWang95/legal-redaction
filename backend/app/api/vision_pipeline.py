@@ -47,11 +47,7 @@ PRESET_OCR_HAS_TYPES: List[PipelineTypeConfig] = [
         examples=["张三", "李四"], color="#3B82F6", order=10,
     ),
     
-    # ===== 组织机构 =====
-    PipelineTypeConfig(
-        id="ORG", name="组织机构", description="政府机关、事业单位、社会团体等",
-        examples=["国务院", "北京市教育局"], color="#10B981", order=20,
-    ),
+    # ===== 公司 =====
     PipelineTypeConfig(
         id="COMPANY", name="公司名", description="公司全称或简称",
         examples=["腾讯", "深圳市腾讯计算机系统有限公司", "阿里巴巴"], color="#14B8A6", order=21,

@@ -190,14 +190,13 @@ export const Playground: React.FC = () => {
       console.error('获取实体类型失败', err);
       setEntityTypes([
         { id: 'PERSON', name: '人名', color: '#3B82F6' },
-        { id: 'ORG', name: '机构名称', color: '#10B981' },
         { id: 'ID_CARD', name: '身份证号', color: '#EF4444' },
         { id: 'PHONE', name: '电话号码', color: '#F97316' },
         { id: 'ADDRESS', name: '地址', color: '#6366F1' },
         { id: 'BANK_CARD', name: '银行卡号', color: '#EC4899' },
         { id: 'CASE_NUMBER', name: '案件编号', color: '#8B5CF6' },
       ]);
-      setSelectedTypes(['PERSON', 'ORG', 'ID_CARD', 'PHONE', 'ADDRESS', 'BANK_CARD', 'CASE_NUMBER']);
+      setSelectedTypes(['PERSON', 'ID_CARD', 'PHONE', 'ADDRESS', 'BANK_CARD', 'CASE_NUMBER']);
     }
   };
 

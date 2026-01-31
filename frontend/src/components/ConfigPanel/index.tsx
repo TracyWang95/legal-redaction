@@ -6,7 +6,6 @@ import clsx from 'clsx';
 
 const ENTITY_TYPE_CONFIG = [
   { type: EntityType.PERSON, label: '人名', description: '识别姓名' },
-  { type: EntityType.ORG, label: '机构/公司', description: '识别组织名称' },
   { type: EntityType.ID_CARD, label: '身份证号', description: '18位身份证' },
   { type: EntityType.PHONE, label: '电话号码', description: '手机号/座机' },
   { type: EntityType.ADDRESS, label: '地址', description: '详细地址' },

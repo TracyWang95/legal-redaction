@@ -12,7 +12,6 @@ import clsx from 'clsx';
 
 const ENTITY_TYPE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
   PERSON: { label: '人名', color: 'text-amber-700', bgColor: 'bg-amber-100' },
-  ORG: { label: '机构', color: 'text-blue-700', bgColor: 'bg-blue-100' },
   ID_CARD: { label: '身份证', color: 'text-red-700', bgColor: 'bg-red-100' },
   PHONE: { label: '电话', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
   ADDRESS: { label: '地址', color: 'text-violet-700', bgColor: 'bg-violet-100' },

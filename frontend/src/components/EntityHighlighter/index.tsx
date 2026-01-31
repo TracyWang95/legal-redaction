@@ -95,7 +95,6 @@ interface EntityTagProps {
 const EntityTag: React.FC<EntityTagProps> = ({ entity, onClick }) => {
   const typeLabels: Record<string, string> = {
     PERSON: '人名',
-    ORG: '机构',
     ID_CARD: '身份证',
     PHONE: '电话',
     ADDRESS: '地址',
