@@ -1,6 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import ImageBBoxEditor from '../components/ImageBBoxEditor';
+import { 
+  getEntityRiskConfig, 
+  getEntityTypeName,
+  getEntityGroup,
+  ENTITY_GROUPS,
+  type EntityGroup,
+} from '../config/entityTypes';
 
 // 类型定义
 interface FileInfo {
@@ -143,6 +150,10 @@ export const Playground: React.FC = () => {
   const [selectedTypeId, setSelectedTypeId] = useState<string>('');
   const [selectedOverlapIds, setSelectedOverlapIds] = useState<string[]>([]);
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // 点击实体弹出确认框
+  const [clickedEntity, setClickedEntity] = useState<Entity | null>(null);
+  const [entityPopupPos, setEntityPopupPos] = useState<{ x: number; y: number } | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBox[]>([]);
@@ -559,6 +570,10 @@ export const Playground: React.FC = () => {
   // 处理文本选择
   const handleTextSelect = () => {
     if (isImageMode) return;
+    
+    // 如果有实体弹窗打开，不处理文本选择
+    if (clickedEntity) return;
+    
     const selection = window.getSelection();
     if (!selection || !contentRef.current) {
       setSelectedText(null);
@@ -602,6 +617,7 @@ export const Playground: React.FC = () => {
       return;
     }
     
+    // 查找重叠的实体
     const overlaps = entities.filter(e =>
       (e.start <= start && e.end > start) || (e.start < end && e.end >= end)
     );
@@ -612,7 +628,11 @@ export const Playground: React.FC = () => {
       y: rect.top - 8,
     });
     setSelectedOverlapIds(overlaps.map(e => e.id));
-    if (!selectedTypeId) {
+    
+    // 默认类型：如果有重叠实体，使用第一个重叠实体的类型；否则使用上次选择的类型或第一个可用类型
+    if (overlaps.length > 0) {
+      setSelectedTypeId(overlaps[0].type);
+    } else if (!selectedTypeId) {
       const firstType = entityTypes.find(t => selectedTypes.includes(t.id))?.id || entityTypes[0]?.id;
       if (firstType) setSelectedTypeId(firstType);
     }
@@ -894,7 +914,36 @@ export const Playground: React.FC = () => {
     ? visibleBoxes.filter(b => b.selected).length
     : entities.filter(e => e.selected).length;
 
-  // 渲染带下划线标记的内容
+  // 点击实体时弹出操作菜单
+  const handleEntityClick = (entity: Entity, event: React.MouseEvent) => {
+    event.stopPropagation();
+    const rect = (event.target as HTMLElement).getBoundingClientRect();
+    setEntityPopupPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8,
+    });
+    setClickedEntity(entity);
+    // 设置当前类型为该实体的类型（方便修改时默认选中）
+    setSelectedTypeId(entity.type);
+  };
+  
+  // 确认移除实体标注
+  const confirmRemoveEntity = () => {
+    if (clickedEntity) {
+      applyEntities(entities.filter(e => e.id !== clickedEntity.id));
+      showToast('已移除标注', 'info');
+    }
+    setClickedEntity(null);
+    setEntityPopupPos(null);
+  };
+  
+  // 关闭实体弹窗
+  const closeEntityPopup = () => {
+    setClickedEntity(null);
+    setEntityPopupPos(null);
+  };
+
+  // 渲染带下划线标记的内容 - 优化版
   const renderMarkedContent = () => {
     if (!content) return <p className="text-gray-400">暂无内容</p>;
     
@@ -912,21 +961,23 @@ export const Playground: React.FC = () => {
         );
       }
       
-      const config = getTypeConfig(entity.type);
+      // 使用风险等级配色
+      const riskConfig = getEntityRiskConfig(entity.type);
+      const typeName = getEntityTypeName(entity.type);
       const sourceLabel = entity.source === 'regex' ? '正则' : entity.source === 'manual' ? '手动' : 'AI';
       
+      // 所有实体都显示为高亮状态（点击弹出操作菜单）
       segments.push(
         <span
           key={entity.id}
-          onClick={() => toggleEntity(entity.id)}
-          className={`cursor-pointer transition-all border-b-2 hover:bg-opacity-20 ${
-            entity.selected ? '' : 'opacity-40'
-          }`}
+          onClick={(e) => handleEntityClick(entity, e)}
+          className="cursor-pointer transition-all inline-flex items-center gap-0.5 rounded px-0.5 -mx-0.5 hover:ring-2 hover:ring-offset-1 hover:shadow-sm"
           style={{
-            borderColor: entity.selected ? config.color : '#9ca3af',
-            backgroundColor: entity.selected ? `${config.color}15` : 'transparent',
+            backgroundColor: riskConfig.bgColor,
+            borderBottom: `2.5px solid ${riskConfig.color}`,
+            color: riskConfig.textColor,
           }}
-          title={`${config.name} [${sourceLabel}] - 点击切换`}
+          title={`${riskConfig.icon} ${typeName} [${sourceLabel}] - 点击编辑或移除`}
         >
           {content.slice(entity.start, entity.end)}
         </span>
@@ -1168,7 +1219,11 @@ export const Playground: React.FC = () => {
             <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-shrink-0">
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold text-gray-900 text-sm truncate">{fileInfo?.filename}</h3>
-                <p className="text-xs text-gray-500">选中文字后弹出快捷操作 | 点击标记切换选中</p>
+                <p className="text-xs text-gray-500">
+                  {isImageMode 
+                    ? '拖拽框选添加区域 | 点击区域切换脱敏状态' 
+                    : '点击高亮文字切换脱敏状态 | 划选文字添加新标记'}
+                </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isImageMode && (
@@ -1240,57 +1295,174 @@ export const Playground: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap text-sm text-gray-800 leading-7">
-                  {renderMarkedContent()}
+                <div className="flex-1 overflow-auto min-h-0">
+                  <div className="whitespace-pre-wrap text-[15px] text-gray-800 leading-8 p-4">
+                    {renderMarkedContent()}
+                  </div>
                 </div>
               )}
+              {/* 划词添加/修改弹窗 - 二级标签选择器 */}
               {!isImageMode && selectedText && selectionPos && (
                 <div
-                  className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[220px]"
+                  className="fixed z-50 bg-white border border-gray-200 rounded-2xl shadow-2xl p-4 min-w-[320px] max-w-[400px]"
                   style={{
-                    left: selectionPos.x,
+                    left: Math.min(selectionPos.x, window.innerWidth - 420),
                     top: selectionPos.y,
                     transform: 'translate(-50%, -100%)',
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   onMouseUp={(e) => e.stopPropagation()}
                 >
-                  <div className="text-[10px] text-gray-500 mb-1">选中文本</div>
-                  <div className="text-xs text-gray-800 bg-gray-50 rounded px-2 py-1 mb-2 max-w-[260px] truncate">
-                    {selectedText.text}
+                  {/* 选中文本预览 */}
+                  <div className="mb-3">
+                    <div className="text-[11px] text-gray-500 mb-1 font-medium">选中文本</div>
+                    <div className="text-sm text-gray-800 bg-gray-50 rounded-lg px-3 py-2 max-w-full break-all border border-gray-100">
+                      {selectedText.text}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-gray-500 mb-1">类型</div>
-                  <select
-                    value={selectedTypeId}
-                    onChange={(e) => setSelectedTypeId(e.target.value)}
-                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {entityTypes.filter(t => selectedTypes.includes(t.id)).map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                  </select>
-                  <div className="flex gap-2">
+                  
+                  {/* 二级标签选择器 */}
+                  <div className="mb-3">
+                    <div className="text-[11px] text-gray-500 mb-2 font-medium">选择类型</div>
+                    <div className="max-h-[240px] overflow-auto space-y-2 pr-1">
+                      {ENTITY_GROUPS.filter(group => 
+                        group.types.some(t => entityTypes.some(et => et.id === t.id))
+                      ).map(group => {
+                        const availableTypes = group.types.filter(t => 
+                          entityTypes.some(et => et.id === t.id)
+                        );
+                        if (availableTypes.length === 0) return null;
+                        
+                        return (
+                          <div key={group.id} className="rounded-lg border border-gray-100 overflow-hidden">
+                            {/* 一级分组标题 */}
+                            <div 
+                              className="px-2.5 py-1.5 text-[11px] font-semibold flex items-center gap-1.5"
+                              style={{ backgroundColor: group.bgColor, color: group.textColor }}
+                            >
+                              <span 
+                                className="w-2 h-2 rounded-full" 
+                                style={{ backgroundColor: group.color }}
+                              />
+                              {group.label}
+                            </div>
+                            {/* 二级类型列表 */}
+                            <div className="p-1.5 grid grid-cols-3 gap-1 bg-white">
+                              {availableTypes.map(type => {
+                                const isSelected = selectedTypeId === type.id;
+                                return (
+                                  <button
+                                    key={type.id}
+                                    onClick={() => setSelectedTypeId(type.id)}
+                                    className={`text-[12px] px-2 py-1.5 rounded-md text-left transition-all truncate ${
+                                      isSelected
+                                        ? 'font-semibold ring-2 ring-offset-1'
+                                        : 'hover:bg-gray-50'
+                                    }`}
+                                    style={isSelected ? {
+                                      backgroundColor: group.bgColor,
+                                      color: group.textColor,
+                                      ringColor: group.color,
+                                    } : {
+                                      color: '#374151',
+                                    }}
+                                    title={type.description}
+                                  >
+                                    {type.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* 操作按钮 */}
+                  <div className="flex gap-2 pt-2 border-t border-gray-100">
                     <button
                       onClick={() => addManualEntity(selectedTypeId)}
-                      className="flex-1 text-xs bg-blue-600 text-white rounded px-2 py-1"
+                      disabled={!selectedTypeId}
+                      className="flex-1 text-[13px] font-medium bg-gray-900 text-white rounded-lg px-3 py-2 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {selectedOverlapIds.length > 0 ? '更新标记' : '添加标记'}
                     </button>
                     {selectedOverlapIds.length > 0 && (
                       <button
                         onClick={removeSelectedEntities}
-                        className="text-xs text-red-600 border border-red-200 rounded px-2 py-1"
+                        className="text-[13px] font-medium text-red-600 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors"
                       >
                         删除
                       </button>
                     )}
                     <button
                       onClick={() => { setSelectedText(null); setSelectionPos(null); setSelectedOverlapIds([]); }}
-                      className="text-xs text-gray-500 border border-gray-200 rounded px-2 py-1"
+                      className="text-[13px] text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
                     >
                       取消
                     </button>
                   </div>
+                </div>
+              )}
+              
+              {/* 点击实体弹出的操作菜单 */}
+              {!isImageMode && clickedEntity && entityPopupPos && (
+                <div
+                  className="fixed z-50 bg-white border border-gray-200 rounded-xl shadow-2xl p-3 min-w-[200px]"
+                  style={{
+                    left: Math.min(entityPopupPos.x, window.innerWidth - 220),
+                    top: entityPopupPos.y,
+                    transform: 'translate(-50%, -100%)',
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseUp={(e) => e.stopPropagation()}
+                >
+                  {(() => {
+                    const riskConfig = getEntityRiskConfig(clickedEntity.type);
+                    const typeName = getEntityTypeName(clickedEntity.type);
+                    const group = getEntityGroup(clickedEntity.type);
+                    return (
+                      <>
+                        {/* 实体信息 */}
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span 
+                              className="text-[11px] font-semibold px-2 py-0.5 rounded"
+                              style={{ backgroundColor: riskConfig.bgColor, color: riskConfig.textColor }}
+                            >
+                              {group?.label} · {typeName}
+                            </span>
+                          </div>
+                          <div 
+                            className="text-sm font-medium px-2 py-1.5 rounded-lg break-all"
+                            style={{ backgroundColor: riskConfig.bgColor, color: riskConfig.textColor }}
+                          >
+                            {clickedEntity.text}
+                          </div>
+                        </div>
+                        
+                        {/* 操作按钮 */}
+                        <div className="space-y-1.5">
+                          <button
+                            onClick={confirmRemoveEntity}
+                            className="w-full text-[13px] font-medium text-red-600 border border-red-200 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            移除此标注
+                          </button>
+                          <button
+                            onClick={closeEntityPopup}
+                            className="w-full text-[13px] text-gray-500 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 transition-colors"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -1467,9 +1639,19 @@ export const Playground: React.FC = () => {
               )}
             </div>
 
-            {/* 划词添加提示 */}
-            <div className="bg-white rounded-xl border border-[#e5e5e5] p-3 text-[12px] text-[#737373]">
-              在正文中选中文本，会弹出快捷操作浮层，可直接修改/新增标记。
+            {/* 交互说明 */}
+            <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl border border-[#e5e5e5] p-3">
+              <div className="text-[12px] font-semibold text-gray-700 mb-2">💡 操作说明</div>
+              <div className="space-y-2 text-[12px] text-[#737373]">
+                <div className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded bg-red-50 text-red-600 flex items-center justify-center text-[10px] font-bold flex-shrink-0">点</span>
+                  <span>点击高亮文字 → 弹出菜单 → 确认移除</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] flex-shrink-0">选</span>
+                  <span>划选文字 → 选择类型 → 添加标记</span>
+                </div>
+              </div>
             </div>
 
             {/* 统计 */}
@@ -1500,15 +1682,47 @@ export const Playground: React.FC = () => {
                   </div>
                   {Object.keys(stats).length > 0 && (
                     <div className="space-y-2">
-                      {Object.entries(stats).map(([typeId, count]) => {
-                        const config = getTypeConfig(typeId);
+                      {/* 按分组统计 */}
+                      {ENTITY_GROUPS.map(group => {
+                        const groupStats = Object.entries(stats).filter(([typeId]) => {
+                          return group.types.some(t => t.id === typeId);
+                        });
+                        
+                        if (groupStats.length === 0) return null;
+                        
+                        const totalInGroup = groupStats.reduce((sum, [, c]) => sum + c.total, 0);
+                        const selectedInGroup = groupStats.reduce((sum, [, c]) => sum + c.selected, 0);
+                        
                         return (
-                          <div key={typeId} className="flex items-center justify-between text-[12px]">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: config.color }} />
-                              <span className="text-[#737373]">{config.name}</span>
+                          <div key={group.id} className="rounded-lg overflow-hidden border border-gray-100">
+                            <div 
+                              className="flex items-center justify-between px-2.5 py-1.5"
+                              style={{ backgroundColor: group.bgColor }}
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span 
+                                  className="w-2 h-2 rounded-full" 
+                                  style={{ backgroundColor: group.color }}
+                                />
+                                <span 
+                                  className="text-[11px] font-semibold"
+                                  style={{ color: group.textColor }}
+                                >
+                                  {group.label}
+                                </span>
+                              </div>
+                              <span className="text-[11px] font-medium" style={{ color: group.color }}>
+                                {selectedInGroup}/{totalInGroup}
+                              </span>
                             </div>
-                            <span className="text-[#0a0a0a] font-medium">{count.selected}/{count.total}</span>
+                            <div className="px-2.5 py-1.5 space-y-0.5 bg-white">
+                              {groupStats.map(([typeId, count]) => (
+                                <div key={typeId} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-[#737373]">{getEntityTypeName(typeId)}</span>
+                                  <span className="text-[#0a0a0a] tabular-nums">{count.selected}/{count.total}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         );
                       })}
@@ -1518,83 +1732,137 @@ export const Playground: React.FC = () => {
               )}
             </div>
 
-            {/* 实体列表 */}
+            {/* 实体列表 - 按分组显示 */}
             <div className="flex-1 bg-white rounded-xl border border-[#e5e5e5] overflow-hidden flex flex-col min-h-0">
-              <div className="px-4 py-2.5 border-b border-[#f0f0f0] bg-[#fafafa] text-[12px] font-semibold text-[#0a0a0a]">
-                {isImageMode ? '区域列表' : '实体列表'}
+              <div className="px-4 py-2.5 border-b border-[#f0f0f0] bg-[#fafafa] flex items-center justify-between">
+                <span className="text-[13px] font-semibold text-[#0a0a0a]">
+                  {isImageMode ? '区域列表' : '识别结果'}
+                </span>
+                <span className="text-[12px] text-gray-500">
+                  点击可编辑/移除
+                </span>
               </div>
-              <div className="flex-1 overflow-auto divide-y divide-gray-50">
+              <div className="flex-1 overflow-auto">
                 {isImageMode ? (
                   visibleBoxes.length === 0 ? (
-                    <p className="p-4 text-center text-sm text-gray-400">暂无识别结果</p>
+                    <p className="p-4 text-center text-[14px] text-gray-400">暂无识别结果</p>
                   ) : (
-                    visibleBoxes.map(box => (
-                      <div
-                        key={box.id}
-                        className={`px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${!box.selected ? 'opacity-50' : ''}`}
-                        onClick={() => toggleBox(box.id)}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={box.selected}
-                          onChange={() => {}}
-                          className="w-3.5 h-3.5 rounded"
-                        />
-                        <span className={`px-1 py-0.5 rounded text-[9px] font-bold text-white ${
-                          box.source === 'ocr_has' ? 'bg-blue-500' : 
-                          box.source === 'glm_vision' ? 'bg-purple-500' : 'bg-gray-400'
-                        }`}>
-                          {box.source === 'ocr_has' ? 'OCR' : box.source === 'glm_vision' ? 'VLM' : '手动'}
-                        </span>
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getVisionTypeConfig(box.type).color }} />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs text-gray-500">{getVisionTypeConfig(box.type).name}</span>
-                          <p className={`text-sm truncate ${box.selected ? 'text-gray-900' : 'text-gray-400'}`}>
-                            {box.text || '图像区域'}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )
-                ) : (
-                  entities.length === 0 ? (
-                    <p className="p-4 text-center text-sm text-gray-400">暂无识别结果</p>
-                  ) : (
-                    entities.map(entity => {
-                      const config = getTypeConfig(entity.type);
+                    visibleBoxes.map(box => {
+                      const riskConfig = getEntityRiskConfig(box.type);
+                      const group = getEntityGroup(box.type);
                       return (
                         <div
-                          key={entity.id}
-                          className={`px-3 py-2 flex items-center gap-2 cursor-pointer hover:bg-gray-50 ${!entity.selected ? 'opacity-50' : ''}`}
-                          onClick={() => toggleEntity(entity.id)}
+                          key={box.id}
+                          className="px-3 py-2.5 flex items-center gap-2 cursor-pointer border-b border-gray-50 transition-all hover:bg-gray-50"
+                          onClick={() => toggleBox(box.id)}
                         >
                           <input
                             type="checkbox"
-                            checked={entity.selected}
+                            checked={box.selected}
                             onChange={() => {}}
-                            className="w-3.5 h-3.5 rounded"
+                            className="w-4 h-4 rounded"
+                            style={{ accentColor: riskConfig.color }}
                           />
-                          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: config.color }} />
                           <div className="flex-1 min-w-0">
-                            <span className="text-xs text-gray-500">{config.name}</span>
-                            <p className={`text-sm truncate ${entity.selected ? 'text-gray-900' : 'text-gray-400'}`}>
-                              {entity.text}
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span 
+                                className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                                style={{ 
+                                  backgroundColor: riskConfig.bgColor, 
+                                  color: riskConfig.textColor 
+                                }}
+                              >
+                                {group?.label} · {getEntityTypeName(box.type)}
+                              </span>
+                              <span className={`px-1 py-0.5 rounded text-[9px] font-bold text-white ${
+                                box.source === 'ocr_has' ? 'bg-blue-500' : 
+                                box.source === 'glm_vision' ? 'bg-purple-500' : 'bg-gray-400'
+                              }`}>
+                                {box.source === 'ocr_has' ? 'OCR' : box.source === 'glm_vision' ? 'VLM' : '手动'}
+                              </span>
+                            </div>
+                            <p className="text-[14px] truncate text-gray-900">
+                              {box.text || '图像区域'}
                             </p>
-                            {entity.coref_id && (
-                              <p className="text-[10px] text-gray-400 mt-0.5">指代组: {entity.coref_id}</p>
-                            )}
                           </div>
-                          <span className="text-[10px] text-gray-400">
-                            {entity.source === 'regex' ? '正则' : entity.source === 'manual' ? '手动' : 'AI'}
-                          </span>
-                          <button
-                            onClick={e => { e.stopPropagation(); removeEntity(entity.id); }}
-                            className="p-1 text-gray-300 hover:text-red-500"
+                        </div>
+                      );
+                    })
+                  )
+                ) : (
+                  entities.length === 0 ? (
+                    <p className="p-4 text-center text-[14px] text-gray-400">暂无识别结果</p>
+                  ) : (
+                    // 按分组显示
+                    ENTITY_GROUPS.map(group => {
+                      const groupEntities = entities.filter(e => 
+                        group.types.some(t => t.id === e.type)
+                      );
+                      
+                      if (groupEntities.length === 0) return null;
+                      
+                      return (
+                        <div key={group.id}>
+                          {/* 分组标题 */}
+                          <div 
+                            className="px-3 py-2 flex items-center justify-between sticky top-0 z-10"
+                            style={{ backgroundColor: group.bgColor }}
                           >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                            <div className="flex items-center gap-1.5">
+                              <span 
+                                className="w-2.5 h-2.5 rounded-full" 
+                                style={{ backgroundColor: group.color }}
+                              />
+                              <span 
+                                className="text-[12px] font-semibold"
+                                style={{ color: group.textColor }}
+                              >
+                                {group.label}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-medium" style={{ color: group.textColor }}>
+                              {groupEntities.length}
+                            </span>
+                          </div>
+                          {/* 该分组下的实体 */}
+                          {groupEntities.map(entity => {
+                            const riskConfig = getEntityRiskConfig(entity.type);
+                            return (
+                              <div
+                                key={entity.id}
+                                className="px-3 py-2.5 flex items-center gap-2 cursor-pointer border-b border-gray-50 transition-all hover:bg-gray-50"
+                                onClick={(e) => handleEntityClick(entity, e)}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span 
+                                      className="text-[11px] font-medium px-1.5 py-0.5 rounded"
+                                      style={{ 
+                                        backgroundColor: riskConfig.bgColor, 
+                                        color: riskConfig.textColor 
+                                      }}
+                                    >
+                                      {getEntityTypeName(entity.type)}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">
+                                      {entity.source === 'regex' ? '正则' : entity.source === 'manual' ? '手动' : 'AI'}
+                                    </span>
+                                  </div>
+                                  <p className="text-[14px] truncate text-gray-900">
+                                    {entity.text}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={e => { e.stopPropagation(); removeEntity(entity.id); }}
+                                  className="p-1 text-gray-300 hover:text-red-500 flex-shrink-0"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })
