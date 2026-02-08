@@ -2,9 +2,10 @@
 视觉识别服务
 支持两种 Pipeline 模式:
 1. OCR + HaS: 本地模型，适合文字多的场景
-2. GLM Vision: 本地视觉大模型，适合公章、签字等场景
+2. GLM Vision: 视觉大模型，适合公章、签字等场景
 """
 import asyncio
+import time
 import base64
 import io
 import uuid
@@ -12,6 +13,7 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageOps
 
 from app.models.schemas import BoundingBox, FileType
+from app.core.config import settings
 from app.services.file_parser import FileParser
 from app.services.hybrid_vision_service import get_hybrid_vision_service
 
@@ -107,6 +109,16 @@ class VisionService:
         
         all_boxes: list[BoundingBox] = []
         
+        total_start = time.perf_counter()
+        
+        async def timed(label: str, coro):
+            start = time.perf_counter()
+            try:
+                return await coro
+            finally:
+                elapsed = time.perf_counter() - start
+                print(f"[PERF] {label} finished in {elapsed:.2f}s")
+        
         # 1. 并行运行 OCR + HaS 与 GLM Vision
         ocr_task = None
         glm_task = None
@@ -114,7 +126,7 @@ class VisionService:
         if ocr_has_types:
             print(f"[PIPE] Running OCR+HaS with {len(ocr_has_types)} types...")
             ocr_task = asyncio.create_task(
-                self._detect_with_ocr_has(image_data, page, ocr_has_types)
+                timed("ocr_has", self._detect_with_ocr_has(image_data, page, ocr_has_types))
             )
         else:
             print("[PIPE] OCR+HaS skipped (no types enabled)")
@@ -122,7 +134,7 @@ class VisionService:
         if glm_vision_types:
             print(f"[PIPE] Running GLM Vision with {len(glm_vision_types)} types...")
             glm_task = asyncio.create_task(
-                self._detect_with_glm(image_data, page, glm_vision_types)
+                timed("glm_vision", self._detect_with_glm(image_data, page, glm_vision_types))
             )
         else:
             print("[PIPE] GLM Vision skipped (no types enabled)")
@@ -149,6 +161,7 @@ class VisionService:
             print(f"[PIPE] {label} found {len(boxes)} regions")
         
         # 2.5 去重：如果 OCR 和 GLM 检测到重叠区域，优先保留 OCR 结果
+        pre_dedup = len(all_boxes)
         all_boxes = self._deduplicate_boxes(all_boxes)
         
         # 3. 在图片上绘制所有检测框
@@ -156,7 +169,8 @@ class VisionService:
         img = ImageOps.exif_transpose(img)
         result_image_base64 = self._draw_boxes_on_image(img, all_boxes)
         
-        print(f"[OK] Dual pipeline total: {len(all_boxes)} regions")
+        total_elapsed = time.perf_counter() - total_start
+        print(f"[OK] Dual pipeline total: {len(all_boxes)} regions, {total_elapsed:.2f}s")
         return all_boxes, result_image_base64
     
     def _calculate_iou(self, box1: BoundingBox, box2: BoundingBox) -> float:

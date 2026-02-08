@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import ImageBBoxEditor from '../components/ImageBBoxEditor';
 
@@ -29,11 +28,12 @@ interface BoundingBox {
   y: number;
   width: number;
   height: number;
-  page: number;
+  page?: number;
   type: string;
-  text?: string | null;
+  text?: string;
   selected: boolean;
-  source?: string;
+  confidence?: number;
+  source?: 'ocr_has' | 'glm_vision' | 'manual';
 }
 
 interface EntityTypeConfig {
@@ -93,12 +93,10 @@ async function runVisionDetection(
     id: b.id || `bbox_${idx}`,
     selected: true,
   }));
-  
   return { boxes, resultImage: data.result_image };
 }
 
 export const Playground: React.FC = () => {
-  const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('upload');
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [content, setContent] = useState('');
@@ -152,9 +150,9 @@ export const Playground: React.FC = () => {
   const [redoStack, setRedoStack] = useState<Entity[][]>([]);
   const [imageUndoStack, setImageUndoStack] = useState<BoundingBox[][]>([]);
   const [imageRedoStack, setImageRedoStack] = useState<BoundingBox[][]>([]);
-  const [imageRenderSize, setImageRenderSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-  const [imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
-  const [resultImage, setResultImage] = useState<string | null>(null);
+  const [_imageRenderSize, setImageRenderSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [_imageNaturalSize, setImageNaturalSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  const [_resultImage, setResultImage] = useState<string | null>(null);
 
   // 加载实体类型配置
   useEffect(() => {
@@ -209,8 +207,8 @@ export const Playground: React.FC = () => {
         p.mode === 'glm_vision'
           ? {
               ...p,
-              name: 'GLM Vision (本地)',
-              description: '使用本地 GLM-4.6V-Flash-Q4_K_M.gguf + mmproj-F16.gguf 识别视觉信息。',
+              name: 'GLM Vision',
+              description: '使用视觉语言模型识别签名、印章、手写等视觉信息。',
             }
           : p
       );
@@ -246,11 +244,15 @@ export const Playground: React.FC = () => {
         updateOcrHasTypes(ocrHasTypeIds);
       }
       // GLM 默认不选中，但从 localStorage 恢复用户之前的选择
+      const glmTypeIds = normalizedPipelines
+        .filter(p => p.mode === 'glm_vision' && p.enabled)
+        .flatMap(p => p.types.filter(t => t.enabled).map(t => t.id));
       const savedGlmTypes = localStorage.getItem('glmVisionTypes');
       if (savedGlmTypes) {
         try {
           const parsed = JSON.parse(savedGlmTypes);
-          updateGlmVisionTypes(parsed);
+          // 过滤掉已不存在的类型ID
+          updateGlmVisionTypes(parsed.filter((id: string) => glmTypeIds.includes(id)));
         } catch {
           updateGlmVisionTypes([]);
         }
@@ -478,7 +480,7 @@ export const Playground: React.FC = () => {
         const isImage = fileType === 'image' || isScanned;
         
         if (isImage) {
-          setLoadingMessage('正在进行图像识别...');
+          setLoadingMessage('正在进行图像识别（OCR+HaS & GLM Vision 双路并行）...');
           
           // 从 localStorage 读取 GLM 类型（最可靠的方式，绕过 React 闭包问题）
           const ocrTypes = latestOcrHasTypesRef.current;
@@ -687,7 +689,7 @@ export const Playground: React.FC = () => {
   const handleRerunNer = async () => {
     if (!fileInfo) return;
     setIsLoading(true);
-    setLoadingMessage('重新识别中...');
+    setLoadingMessage(isImageMode ? '重新识别中（OCR+HaS & GLM Vision 双路并行）...' : '重新识别中（正则+AI语义识别）...');
     
     try {
       if (isImageMode) {
@@ -977,102 +979,96 @@ export const Playground: React.FC = () => {
             </div>
           </div>
           
-          {/* 类型配置 */}
-          <div className="w-64 bg-white rounded-xl border border-gray-200 flex flex-col">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">识别类型</h3>
-              <p className="text-xs text-gray-500">选择要识别的敏感信息类型</p>
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => setTypeTab('text')}
-                  className={`text-xs px-2 py-1 rounded border ${
-                    typeTab === 'text'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
-                >
-                  文本
-                </button>
-                <button
-                  onClick={() => setTypeTab('vision')}
-                  className={`text-xs px-2 py-1 rounded border ${
-                    typeTab === 'vision'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
-                  title="仅图片/扫描件生效"
-                >
-                  图像
-                </button>
+          {/* 类型配置面板 */}
+          <div className="w-[300px] bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/60 flex flex-col shadow-sm">
+            {/* 头部 */}
+            <div className="px-4 py-3 border-b border-gray-100/80">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[13px] font-semibold text-gray-900 tracking-tight">识别类型</h3>
+                <div className="flex bg-gray-100 rounded-lg p-0.5">
+                  <button onClick={() => setTypeTab('text')} className={`text-[11px] px-2.5 py-1 rounded-md font-medium transition-all ${typeTab === 'text' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>文本</button>
+                  <button onClick={() => setTypeTab('vision')} className={`text-[11px] px-2.5 py-1 rounded-md font-medium transition-all ${typeTab === 'vision' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>图像</button>
+                </div>
               </div>
               {typeTab === 'text' && (
-                <div className="mt-3">
-                  <label className="text-xs text-gray-500">HaS 模式</label>
-                  <select
-                    value={hasMode}
-                    onChange={(e) => setHasMode(e.target.value as 'auto' | 'ner' | 'hide')}
-                    className="mt-1 w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="auto">自动融合（推荐）</option>
-                    <option value="ner">NER（快速）</option>
-                    <option value="hide">Hide（指代增强）</option>
-                  </select>
-                </div>
+                <select value={hasMode} onChange={(e) => setHasMode(e.target.value as 'auto' | 'ner' | 'hide')} className="mt-2 w-full text-[11px] border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-gray-300 bg-gray-50 cursor-pointer text-gray-600">
+                  <option value="auto">自动融合（推荐）</option>
+                  <option value="ner">NER 模式</option>
+                  <option value="hide">Hide 模式</option>
+                </select>
               )}
             </div>
-            <div className="flex-1 overflow-auto p-3">
+
+            {/* 内容区 */}
+            <div className="flex-1 overflow-auto">
               {typeTab === 'vision' ? (
                 pipelines.length === 0 ? (
-                  <p className="text-sm text-gray-400 p-2">加载中...</p>
+                  <p className="text-[11px] text-gray-400 text-center py-8">加载中...</p>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="p-3 space-y-4">
                     {pipelines.map(pipeline => {
-                      const isGlmVision = pipeline.mode === 'glm_vision';
-                      const displayName = isGlmVision ? 'GLM Vision (本地)' : pipeline.name;
+                      const isGlm = pipeline.mode === 'glm_vision';
+                      const types = pipeline.types.filter(t => t.enabled);
+                      const selectedSet = isGlm ? selectedGlmVisionTypes : selectedOcrHasTypes;
+                      const allSelected = types.length > 0 && types.every(t => selectedSet.includes(t.id));
+                      
+                      const presetGroups = isGlm ? [
+                        { label: '视觉元素', ids: ['SIGNATURE','FINGERPRINT','PHOTO','QR_CODE','HANDWRITING','WATERMARK','CHAT_BUBBLE','SENSITIVE_TABLE'] },
+                      ] : [
+                        { label: '个人身份', ids: ['PERSON','ID_CARD','PASSPORT','SOCIAL_SECURITY','QQ_WECHAT_ID'] },
+                        { label: '联系方式', ids: ['PHONE','EMAIL'] },
+                        { label: '金融信息', ids: ['BANK_CARD','BANK_ACCOUNT','BANK_NAME','AMOUNT','PROPERTY'] },
+                        { label: '机构与地址', ids: ['COMPANY','ORG','ADDRESS'] },
+                        { label: '时间与编号', ids: ['BIRTH_DATE','DATE','LICENSE_PLATE','CASE_NUMBER','CONTRACT_NO','COMPANY_CODE'] },
+                        { label: '诉讼参与人', ids: ['LEGAL_PARTY','LAWYER','JUDGE','WITNESS'] },
+                        { label: '其他', ids: ['SEAL'] },
+                      ];
+                      const allPresetIds = new Set(presetGroups.flatMap(g => g.ids));
+                      const customTypes = types.filter(t => !allPresetIds.has(t.id));
+                      const visionGroups = customTypes.length > 0
+                        ? [...presetGroups, { label: '自定义', ids: customTypes.map(t => t.id) }]
+                        : presetGroups;
+                      
                       return (
                         <div key={pipeline.mode}>
-                          <div className={`flex items-center gap-2 mb-2 px-2 py-1 rounded-lg ${
-                            pipeline.mode === 'ocr_has' ? 'bg-blue-50' : 'bg-purple-50'
-                          }`}>
-                            <span className={`text-xs font-medium ${
-                              pipeline.mode === 'ocr_has' ? 'text-blue-700' : 'text-purple-700'
-                            }`}>
-                              {pipeline.mode === 'ocr_has' ? '📝 ' : '🖥️ '}{displayName}
+                          <div className={`flex items-center justify-between mb-2.5 pb-1.5 border-b ${isGlm ? 'border-orange-200/60' : 'border-blue-200/60'}`}>
+                            <span className={`text-[10px] font-semibold tracking-wider uppercase ${isGlm ? 'text-orange-500' : 'text-blue-500'}`}>
+                              {isGlm ? 'GLM Vision' : 'OCR + HaS'}
                             </span>
-                            {!pipeline.enabled && (
-                              <span className="text-xs text-gray-400">(已禁用)</span>
-                            )}
+                            <button onClick={() => {
+                              const ids = types.map(t => t.id);
+                              if (allSelected) { if (isGlm) updateGlmVisionTypes([]); else updateOcrHasTypes([]); }
+                              else { if (isGlm) updateGlmVisionTypes(ids); else updateOcrHasTypes(ids); }
+                            }} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
+                              {allSelected ? '清空' : '全选'}
+                            </button>
                           </div>
-                          <div className="grid grid-cols-1 gap-1">
-                          {pipeline.types.filter(t => t.enabled).map(type => {
-                            const active = pipeline.mode === 'ocr_has' 
-                              ? selectedOcrHasTypes.includes(type.id)
-                              : selectedGlmVisionTypes.includes(type.id);
-                            return (
-                              <button
-                                key={type.id}
-                                onClick={() => toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'glm_vision')}
-                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-all text-left ${
-                                  active
-                                    ? pipeline.mode === 'ocr_has' 
-                                      ? 'border-blue-500 bg-blue-50' 
-                                      : 'border-purple-500 bg-purple-50'
-                                    : 'border-gray-200 bg-gray-50 opacity-50'
-                                }`}
-                              >
-                                <input 
-                                  type="checkbox" 
-                                  checked={active} 
-                                  onChange={() => {}}
-                                  className={`w-3.5 h-3.5 rounded ${
-                                    pipeline.mode === 'ocr_has' ? 'accent-blue-500' : 'accent-purple-500'
-                                  }`}
-                                />
-                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: type.color }} />
-                                <span className={`text-sm flex-1 ${active ? 'text-gray-700' : 'text-gray-400'}`}>{type.name}</span>
-                              </button>
-                            );
-                          })}
+                          <div className="space-y-2.5">
+                            {visionGroups.map(group => {
+                              const groupTypes = types.filter(t => group.ids.includes(t.id));
+                              if (groupTypes.length === 0) return null;
+                              return (
+                                <div key={group.label}>
+                                  <div className="text-[9px] text-gray-400/80 font-medium tracking-wider uppercase mb-1 pl-0.5">{group.label}</div>
+                                  <div className="grid grid-cols-3 gap-1">
+                                    {groupTypes.map(type => {
+                                      const active = selectedSet.includes(type.id);
+                                      return (
+                                        <button key={type.id} onClick={() => toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'glm_vision')}
+                                          className={`flex items-center justify-center gap-1 px-1.5 py-[5px] rounded-lg text-[11px] font-medium transition-all truncate ${
+                                            active
+                                              ? isGlm ? 'bg-orange-50 text-orange-800' : 'bg-blue-50 text-blue-800'
+                                              : 'text-[#86868b] hover:bg-[#e8e8ed]/50'
+                                          }`} title={type.description || type.name}>
+                                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? (isGlm ? 'bg-orange-500' : 'bg-blue-500') : 'bg-[#c7c7cc]'}`} />
+                                          <span className="truncate">{type.name}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -1080,39 +1076,85 @@ export const Playground: React.FC = () => {
                   </div>
                 )
               ) : sortedEntityTypes.length === 0 ? (
-                <p className="text-sm text-gray-400 p-2">加载中...</p>
-              ) : (
-                <div className="grid grid-cols-1 gap-2">
-                  {sortedEntityTypes.map(type => {
-                    const active = selectedTypes.includes(type.id);
-                    return (
-                      <button
-                        key={type.id}
-                        onClick={() => {
-                          setSelectedTypes(prev =>
-                            active ? prev.filter(t => t !== type.id) : [...prev, type.id]
-                          );
-                        }}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
-                          active
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: type.color }} />
-                        <span className="text-sm text-gray-700 flex-1">{type.name}</span>
-                        {type.regex_pattern && <span className="text-[10px] text-orange-500">正则</span>}
-                        {type.use_llm && <span className="text-[10px] text-purple-500">AI</span>}
+                <p className="text-[11px] text-gray-400 text-center py-8">加载中...</p>
+              ) : (() => {
+                // 文本模式分组
+                const presetTextGroups = [
+                  { label: '个人身份', ids: ['PERSON','ID_CARD','PASSPORT','SOCIAL_SECURITY','DRIVER_LICENSE','MILITARY_ID','BIOMETRIC','USERNAME_PASSWORD'] },
+                  { label: '联系通信', ids: ['PHONE','EMAIL','QQ_WECHAT_ID','IP_ADDRESS','MAC_ADDRESS','DEVICE_ID','URL_WEBSITE'] },
+                  { label: '金融财务', ids: ['BANK_CARD','BANK_ACCOUNT','BANK_NAME','PAYMENT_ACCOUNT','TAX_ID','AMOUNT','PROPERTY'] },
+                  { label: '机构与地址', ids: ['ORG','COMPANY_CODE','ADDRESS','POSTAL_CODE','GPS_LOCATION','WORK_UNIT'] },
+                  { label: '时间与编号', ids: ['BIRTH_DATE','DATE','TIME','LICENSE_PLATE','VIN','CASE_NUMBER','CONTRACT_NO','LEGAL_DOC_NO'] },
+                  { label: '人口统计', ids: ['AGE','GENDER','NATIONALITY','MARITAL_STATUS','OCCUPATION','EDUCATION'] },
+                  { label: '诉讼参与人', ids: ['LEGAL_PARTY','LAWYER','JUDGE','WITNESS'] },
+                  { label: '敏感信息', ids: ['HEALTH_INFO','MEDICAL_RECORD','CRIMINAL_RECORD','POLITICAL','RELIGION','SEXUAL_ORIENTATION'] },
+                ];
+                const allPresetTextIds = new Set(presetTextGroups.flatMap(g => g.ids));
+                const customTextTypes = sortedEntityTypes.filter(t => !allPresetTextIds.has(t.id));
+                const textGroups = customTextTypes.length > 0
+                  ? [...presetTextGroups, { label: '自定义', ids: customTextTypes.map(t => t.id) }]
+                  : presetTextGroups;
+                const allIds = sortedEntityTypes.map(t => t.id);
+                const allSelected = allIds.length > 0 && allIds.every(id => selectedTypes.includes(id));
+                return (
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-semibold tracking-wider uppercase text-[#007AFF]">正则</span>
+                        <span className="text-[10px] text-gray-300">+</span>
+                        <span className="text-[10px] font-semibold tracking-wider uppercase text-[#34C759]">AI</span>
+                      </div>
+                      <button onClick={() => setSelectedTypes(allSelected ? [] : allIds)} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors">
+                        {allSelected ? '清空' : '全选'}
                       </button>
-                    );
-                  })}
-                </div>
-              )}
+                    </div>
+                    {textGroups.map(group => {
+                      const groupTypes = sortedEntityTypes.filter(t => group.ids.includes(t.id));
+                      if (groupTypes.length === 0) return null;
+                      return (
+                        <div key={group.label}>
+                          <div className="text-[9px] text-gray-400/80 font-medium tracking-wider uppercase mb-1 pl-0.5">{group.label}</div>
+                          <div className="grid grid-cols-3 gap-1">
+                            {groupTypes.map(type => {
+                              const active = selectedTypes.includes(type.id);
+                              const isRegex = !!type.regex_pattern;
+                              const isLlm = !!type.use_llm;
+                              const isBoth = isRegex && isLlm;
+                              // 正则=蓝、AI=绿、混合=靛蓝（和图像Pipeline一样用不同色区分）
+                              const activeClass = isBoth
+                                ? 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
+                                : isRegex
+                                  ? 'bg-blue-50 text-blue-800 hover:bg-blue-100'
+                                  : 'bg-green-50 text-green-800 hover:bg-green-100';
+                              const dotClass = isBoth
+                                ? 'bg-indigo-500'
+                                : isRegex ? 'bg-[#007AFF]' : 'bg-[#34C759]';
+                              return (
+                                <button key={type.id} onClick={() => setSelectedTypes(prev => active ? prev.filter(t => t !== type.id) : [...prev, type.id])}
+                                  className={`flex items-center justify-center gap-1 px-1.5 py-[5px] rounded-lg text-[11px] font-medium transition-all truncate ${
+                                    active ? activeClass : 'text-[#86868b] hover:bg-[#f0f0f3]'
+                                  }`} title={type.description || type.name}>
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? dotClass : 'bg-[#c7c7cc]'}`} />
+                                  <span className="truncate">{type.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
-            <div className="p-3 border-t border-gray-100 text-xs text-gray-500">
-              {typeTab === 'vision'
-                ? `已选 ${selectedOcrHasTypes.length + selectedGlmVisionTypes.length} / ${visionTypes.length} 种类型`
-                : `已选 ${selectedTypes.length} / ${entityTypes.length} 种类型`}
+
+            {/* 底部 */}
+            <div className="px-4 py-2 border-t border-gray-100/80">
+              <div className="text-[10px] text-gray-400 text-center">
+                {typeTab === 'vision'
+                  ? `OCR ${selectedOcrHasTypes.length} · VLM ${selectedGlmVisionTypes.length}`
+                  : `${selectedTypes.length} / ${entityTypes.length} 已选`}
+              </div>
             </div>
           </div>
         </div>
@@ -1120,24 +1162,63 @@ export const Playground: React.FC = () => {
 
       {/* 预览编辑阶段 */}
       {stage === 'preview' && (
-        <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-          {/* 文档内容 */}
-          <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">{fileInfo?.filename}</h3>
+        <div className="flex-1 flex gap-3 p-3 overflow-hidden">
+          {/* 文档内容 - 占满中间区域 */}
+          <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden min-w-0">
+            <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between bg-gray-50 flex-shrink-0">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-gray-900 text-sm truncate">{fileInfo?.filename}</h3>
                 <p className="text-xs text-gray-500">选中文字后弹出快捷操作 | 点击标记切换选中</p>
               </div>
-              <button onClick={handleReset} className="text-xs text-gray-500 hover:text-blue-600">重新上传</button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {isImageMode && (
+                  <button
+                    onClick={() => {
+                      // 弹出新窗口编辑
+                      const editorWindow = window.open('', '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
+                      if (editorWindow) {
+                        editorWindow.document.write(`
+                          <!DOCTYPE html>
+                          <html>
+                          <head>
+                            <title>图像编辑 - ${fileInfo?.filename || '未命名'}</title>
+                            <style>
+                              * { margin: 0; padding: 0; box-sizing: border-box; }
+                              body { font-family: system-ui, -apple-system, sans-serif; background: #1a1a1a; }
+                              .container { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+                              img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+                              .hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.9); padding: 8px 16px; border-radius: 20px; font-size: 12px; color: #333; }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="container">
+                              <img src="${imageUrl}" alt="编辑图像" />
+                            </div>
+                            <div class="hint">在此窗口查看大图，编辑请在主窗口进行</div>
+                          </body>
+                          </html>
+                        `);
+                        editorWindow.document.close();
+                      }
+                    }}
+                    className="text-xs text-gray-500 hover:text-blue-600 px-2 py-1 rounded hover:bg-gray-100"
+                    title="在新窗口中查看大图"
+                  >
+                    🔍 新窗口
+                  </button>
+                )}
+                <button onClick={handleReset} className="text-xs text-gray-500 hover:text-blue-600">重新上传</button>
+              </div>
             </div>
             <div
               ref={contentRef}
               onMouseUp={handleTextSelect}
               onKeyUp={handleTextSelect}
-              className="flex-1 overflow-auto p-5 select-text"
+              className="flex-1 overflow-hidden select-text flex flex-col"
+              style={{ minHeight: 0 }}
             >
               {isImageMode ? (
-                <div className="relative max-w-full">
+                <div className="flex-1 min-h-0">
                   {fileInfo && (
                     <ImageBBoxEditor
                       imageSrc={imageUrl}
@@ -1215,36 +1296,31 @@ export const Playground: React.FC = () => {
             </div>
           </div>
 
-          {/* 右侧面板 */}
-          <div className="w-72 flex flex-col gap-4 overflow-hidden">
+          {/* 右侧面板 - 收窄 */}
+          <div className="w-[240px] flex-shrink-0 flex flex-col gap-2 overflow-hidden">
             {/* 类型配置 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-gray-700">识别类型</h3>
-                <button
-                  onClick={() => navigate('/settings')}
-                  className="text-[10px] text-blue-600 hover:text-blue-700"
-                >
-                  去管理
-                </button>
+            <div className="bg-white rounded-xl border border-[#e5e5e5] p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-[13px] font-semibold text-[#0a0a0a]">识别类型</h3>
+                <span className="text-[11px] text-[#737373]">选择要识别的敏感信息类型</span>
               </div>
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => setTypeTab('text')}
-                  className={`text-xs px-2 py-1 rounded border ${
+                  className={`text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                     typeTab === 'text'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-500'
+                      ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white'
+                      : 'border-[#e5e5e5] text-[#737373] hover:bg-[#f5f5f5]'
                   }`}
                 >
                   文本
                 </button>
                 <button
                   onClick={() => setTypeTab('vision')}
-                  className={`text-xs px-2 py-1 rounded border ${
+                  className={`text-[12px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                     typeTab === 'vision'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-500'
+                      ? 'border-[#0a0a0a] bg-[#0a0a0a] text-white'
+                      : 'border-[#e5e5e5] text-[#737373] hover:bg-[#f5f5f5]'
                   }`}
                   title="仅图片/扫描件生效"
                 >
@@ -1255,10 +1331,10 @@ export const Playground: React.FC = () => {
                 <button
                   onClick={handleUndo}
                   disabled={!canUndo}
-                  className={`text-xs px-2 py-1 rounded border ${
+                  className={`text-[12px] px-2.5 py-1 rounded-lg border transition-colors ${
                     !canUndo
-                      ? 'border-gray-200 text-gray-300'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      ? 'border-[#f0f0f0] text-[#d4d4d4] cursor-not-allowed'
+                      : 'border-[#e5e5e5] text-[#737373] hover:border-[#d4d4d4] hover:bg-[#fafafa]'
                   }`}
                 >
                   撤销
@@ -1266,22 +1342,22 @@ export const Playground: React.FC = () => {
                 <button
                   onClick={handleRedo}
                   disabled={!canRedo}
-                  className={`text-xs px-2 py-1 rounded border ${
+                  className={`text-[12px] px-2.5 py-1 rounded-lg border transition-colors ${
                     !canRedo
-                      ? 'border-gray-200 text-gray-300'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                      ? 'border-[#f0f0f0] text-[#d4d4d4] cursor-not-allowed'
+                      : 'border-[#e5e5e5] text-[#737373] hover:border-[#d4d4d4] hover:bg-[#fafafa]'
                   }`}
                 >
                   重做
                 </button>
               </div>
               {typeTab === 'vision' && (
-                <div className="mb-3 p-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
-                  <p className="text-[10px] text-gray-600">
-                    <span className="font-medium">自动双识别：</span>
-                    OCR+HaS（PaddleOCR-VL-1.5 + Qwen3-0.6B）+ GLM Vision（本地，GLM-4.6V-Flash-Q4_K_M.gguf + mmproj-F16.gguf）
+                <div className="mb-3 p-3 bg-[#f5f5f5] rounded-lg border border-[#e5e5e5]">
+                  <p className="text-[11px] text-[#262626] leading-relaxed">
+                    <span className="font-semibold">双模型并行：</span>
+                    OCR+HaS + GLM Vision
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[11px] text-[#737373] mt-1">
                     在设置中配置启用的类型
                   </p>
                 </div>
@@ -1291,7 +1367,7 @@ export const Playground: React.FC = () => {
                   <div className="space-y-3">
                     {pipelines.map(pipeline => {
                       const isGlmVision = pipeline.mode === 'glm_vision';
-                      const displayName = isGlmVision ? '🖥️ GLM Vision (本地)' : '📝 OCR+HaS';
+                      const displayName = isGlmVision ? '🔍 GLM Vision' : '📝 OCR+HaS';
                       return (
                         <div key={pipeline.mode}>
                           <div className={`text-[10px] font-medium mb-1 ${
@@ -1345,16 +1421,16 @@ export const Playground: React.FC = () => {
                             active ? prev.filter(t => t !== type.id) : [...prev, type.id]
                           );
                         }}
-                        className={`flex items-center gap-2 text-xs rounded-lg border px-2 py-2 text-left ${
+                        className={`flex items-center gap-2 text-[12px] rounded-lg border px-2.5 py-2 text-left transition-colors ${
                           active
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? 'border-[#0a0a0a] bg-[#fafafa]'
+                            : 'border-[#e5e5e5] hover:border-[#d4d4d4] hover:bg-[#fafafa]'
                         }`}
                       >
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: type.color }} />
-                        <span className="flex-1 text-gray-600">{type.name}</span>
-                        {type.regex_pattern && <span className="text-[10px] text-orange-500">正则</span>}
-                        {type.use_llm && <span className="text-[10px] text-purple-500">AI</span>}
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: type.color }} />
+                        <span className={`flex-1 ${active ? 'text-[#0a0a0a]' : 'text-[#737373]'}`}>{type.name}</span>
+                        {type.regex_pattern && <span className="text-[10px] text-[#f59e0b] font-medium">正则</span>}
+                        {type.use_llm && <span className="text-[10px] text-[#8b5cf6] font-medium">AI</span>}
                       </button>
                     );
                   })
@@ -1363,7 +1439,7 @@ export const Playground: React.FC = () => {
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={handleRerunNer}
-                  className="flex-1 text-xs bg-blue-600 text-white rounded-lg py-1.5"
+                  className="flex-1 text-[12px] font-medium bg-[#0a0a0a] text-white rounded-lg py-2 hover:bg-[#262626] transition-colors"
                 >
                   重新识别
                 </button>
@@ -1379,43 +1455,43 @@ export const Playground: React.FC = () => {
                       setSelectedTypes(entityTypes.map(t => t.id));
                     }
                   }}
-                  className="text-xs text-gray-500 border border-gray-200 rounded-lg px-2"
+                  className="text-[12px] text-[#737373] border border-[#e5e5e5] rounded-lg px-3 hover:bg-[#fafafa] hover:border-[#d4d4d4] transition-colors"
                 >
                   全选
                 </button>
               </div>
               {typeTab === 'text' && (
-                <p className="text-[10px] text-gray-400 mt-2">
+                <p className="text-[11px] text-[#a3a3a3] mt-2">
                   正则类默认已启用，按需勾选后点"重新识别"
                 </p>
               )}
             </div>
 
             {/* 划词添加提示 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4 text-xs text-gray-500">
+            <div className="bg-white rounded-xl border border-[#e5e5e5] p-3 text-[12px] text-[#737373]">
               在正文中选中文本，会弹出快捷操作浮层，可直接修改/新增标记。
             </div>
 
             {/* 统计 */}
-            <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="bg-white rounded-xl border border-[#e5e5e5] p-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900 text-sm">识别结果</h3>
-                <span className="text-xs text-gray-500">
+                <h3 className="text-[13px] font-semibold text-[#0a0a0a]">识别结果</h3>
+                <span className="text-[12px] text-[#737373] font-medium">
                   {selectedCount}/{isImageMode ? visibleBoxes.length : entities.length}
                 </span>
               </div>
               <div className="flex gap-2 mb-3">
-                <button onClick={selectAll} className="flex-1 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100">全选</button>
-                <button onClick={deselectAll} className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200">取消</button>
+                <button onClick={selectAll} className="flex-1 py-1.5 text-[12px] font-medium text-[#0a0a0a] bg-[#f5f5f5] rounded-lg hover:bg-[#e5e5e5] transition-colors">全选</button>
+                <button onClick={deselectAll} className="flex-1 py-1.5 text-[12px] font-medium text-[#737373] bg-white border border-[#e5e5e5] rounded-lg hover:bg-[#fafafa] transition-colors">取消</button>
               </div>
               {!isImageMode && (
                 <>
                   <div className="mb-3">
-                    <label className="block text-xs text-gray-500 mb-1">脱敏方式</label>
+                    <label className="block text-[11px] text-[#737373] mb-1.5 font-medium">脱敏方式</label>
                     <select
                       value={replacementMode}
                       onChange={(e) => setReplacementMode(e.target.value as 'structured' | 'smart' | 'mask')}
-                      className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full text-[13px] border border-[#e5e5e5] rounded-lg px-3 py-2 focus:outline-none focus:border-[#0a0a0a] bg-white cursor-pointer"
                     >
                       <option value="structured">结构化语义标签（推荐）</option>
                       <option value="smart">智能替换</option>
@@ -1423,16 +1499,16 @@ export const Playground: React.FC = () => {
                     </select>
                   </div>
                   {Object.keys(stats).length > 0 && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {Object.entries(stats).map(([typeId, count]) => {
                         const config = getTypeConfig(typeId);
                         return (
-                          <div key={typeId} className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: config.color }} />
-                              <span className="text-gray-600">{config.name}</span>
+                          <div key={typeId} className="flex items-center justify-between text-[12px]">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: config.color }} />
+                              <span className="text-[#737373]">{config.name}</span>
                             </div>
-                            <span className="text-gray-900 font-medium">{count.selected}/{count.total}</span>
+                            <span className="text-[#0a0a0a] font-medium">{count.selected}/{count.total}</span>
                           </div>
                         );
                       })}
@@ -1443,8 +1519,8 @@ export const Playground: React.FC = () => {
             </div>
 
             {/* 实体列表 */}
-            <div className="flex-1 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col min-h-0">
-              <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-700">
+            <div className="flex-1 bg-white rounded-xl border border-[#e5e5e5] overflow-hidden flex flex-col min-h-0">
+              <div className="px-4 py-2.5 border-b border-[#f0f0f0] bg-[#fafafa] text-[12px] font-semibold text-[#0a0a0a]">
                 {isImageMode ? '区域列表' : '实体列表'}
               </div>
               <div className="flex-1 overflow-auto divide-y divide-gray-50">
@@ -1531,10 +1607,10 @@ export const Playground: React.FC = () => {
             <button
               onClick={handleRedact}
               disabled={selectedCount === 0}
-              className={`py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+              className={`py-3 rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 transition-all ${
                 selectedCount > 0
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-[#0a0a0a] text-white hover:bg-[#262626]'
+                  : 'bg-[#f0f0f0] text-[#a3a3a3] cursor-not-allowed'
               }`}
             >
               开始脱敏 ({selectedCount})
@@ -1544,62 +1620,156 @@ export const Playground: React.FC = () => {
       )}
 
       {/* 结果阶段 */}
-      {stage === 'result' && (
-        <div className="flex-1 overflow-auto p-6">
-          <div className="bg-green-600 rounded-xl p-5 text-white flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+      {stage === 'result' && (() => {
+        // 为每个匹配生成唯一ID：orig-{key}-{序号}
+        const highlightText = (text: string, map: Record<string, string>, _prefix?: string) => {
+          if (!text || Object.keys(map).length === 0) return <span>{text}</span>;
+          const sortedKeys = Object.keys(map).sort((a, b) => b.length - a.length);
+          const regex = new RegExp(`(${sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
+          const parts = text.split(regex);
+          const counters: Record<string, number> = {};
+          return <>{parts.map((part, i) => {
+            if (map[part] !== undefined) {
+              const idx = counters[part] || 0;
+              counters[part] = idx + 1;
+              const safeKey = part.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+              return <mark key={i} data-match-key={safeKey} data-match-idx={idx}
+                className="result-mark-orig bg-amber-100/80 text-amber-900 px-0.5 rounded-sm transition-all duration-300">{part}</mark>;
+            }
+            return <span key={i}>{part}</span>;
+          })}</>;
+        };
+        const highlightRedacted = (text: string, map: Record<string, string>) => {
+          if (!text || Object.keys(map).length === 0) return <span>{text}</span>;
+          
+          // 建立 replacement → origKey[] 反向映射（一个replacement可对应多个原文）
+          const replToOrigKeys: Record<string, string[]> = {};
+          Object.entries(map).forEach(([origKey, repl]) => {
+            if (!replToOrigKeys[repl]) replToOrigKeys[repl] = [];
+            replToOrigKeys[repl].push(origKey);
+          });
+          
+          // 收集所有唯一的replacement，按长度降序（优先匹配长的）
+          const sortedRepls = Object.keys(replToOrigKeys).sort((a, b) => b.length - a.length);
+          
+          // 逐字符扫描匹配（避免正则特殊字符问题）
+          const segments: { text: string; isMatch: boolean; origKey: string }[] = [];
+          let pos = 0;
+          while (pos < text.length) {
+            let matched = false;
+            for (const repl of sortedRepls) {
+              if (pos + repl.length <= text.length && text.substring(pos, pos + repl.length) === repl) {
+                const origKeys = replToOrigKeys[repl];
+                segments.push({ text: repl, isMatch: true, origKey: origKeys[0] });
+                pos += repl.length;
+                matched = true;
+                break;
+              }
+            }
+            if (!matched) {
+              if (segments.length > 0 && !segments[segments.length - 1].isMatch) {
+                segments[segments.length - 1].text += text[pos];
+              } else {
+                segments.push({ text: text[pos], isMatch: false, origKey: '' });
+              }
+              pos++;
+            }
+          }
+          
+          const counters: Record<string, number> = {};
+          return <>{segments.map((seg, i) => {
+            if (seg.isMatch) {
+              const safeKey = seg.origKey.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+              const idx = counters[safeKey] || 0;
+              counters[safeKey] = idx + 1;
+              return <mark key={i} data-match-key={safeKey} data-match-idx={idx}
+                className="result-mark-redacted bg-blue-100/80 text-blue-800 px-0.5 rounded-sm transition-all duration-300">{seg.text}</mark>;
+            }
+            return <span key={i}>{seg.text}</span>;
+          })}</>;
+        };
+        // 每个映射项的点击计数器（循环切换出现位置）
+        const clickCounterRef: Record<string, number> = {};
+        // 点击映射项 → 两列同时滚动到第N次出现
+        const scrollToMatch = (orig: string, _repl: string) => {
+          const safeKey = orig.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+          // 查找所有匹配的原文标记
+          const origMarks = document.querySelectorAll(`.result-mark-orig[data-match-key="${safeKey}"]`);
+          const redactedMarks = document.querySelectorAll(`.result-mark-redacted[data-match-key="${safeKey}"]`);
+          const total = Math.max(origMarks.length, redactedMarks.length);
+          if (total === 0) return;
+          // 循环索引
+          const idx = (clickCounterRef[safeKey] || 0) % total;
+          clickCounterRef[safeKey] = idx + 1;
+          // 清除所有旧高亮
+          document.querySelectorAll('.result-mark-active').forEach(el => {
+            el.classList.remove('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-amber-400', 'ring-blue-400', 'scale-105');
+          });
+          // 滚动原文
+          const origEl = origMarks[Math.min(idx, origMarks.length - 1)] as HTMLElement;
+          if (origEl) {
+            origEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            origEl.classList.add('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-amber-400', 'scale-105');
+          }
+          // 滚动脱敏结果
+          const redEl = redactedMarks[Math.min(idx, redactedMarks.length - 1)] as HTMLElement;
+          if (redEl) {
+            redEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            redEl.classList.add('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-blue-400', 'scale-105');
+          }
+          // 2秒后清除
+          setTimeout(() => {
+            document.querySelectorAll('.result-mark-active').forEach(el => {
+              el.classList.remove('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-amber-400', 'ring-blue-400', 'scale-105');
+            });
+          }, 2500);
+        };
+        
+        return (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* 顶部状态栏 */}
+          <div className="flex-shrink-0 mx-4 mt-4 mb-3">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold">脱敏完成</p>
+                  <p className="text-gray-400 text-xs">{redactedCount} 处敏感信息已处理</p>
+                </div>
               </div>
-              <div>
-                <p className="text-lg font-semibold">脱敏完成</p>
-                <p className="text-sm text-green-100">共处理 {redactedCount} 处敏感信息</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStage('preview')} className="px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all">返回编辑</button>
+                <button onClick={handleReset} className="px-3 py-1.5 text-xs text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all">新文件</button>
+                {fileInfo && (
+                  <a href={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`} download className="px-4 py-1.5 text-xs font-medium text-gray-900 bg-white hover:bg-gray-100 rounded-lg transition-all">下载文件</a>
+                )}
               </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStage('preview')}
-                className="px-4 py-2 bg-white/20 rounded-lg text-sm hover:bg-white/30"
-              >
-                返回编辑
-              </button>
-              <button onClick={handleReset} className="px-4 py-2 bg-white/20 rounded-lg text-sm hover:bg-white/30">
-                处理新文件
-              </button>
-              {fileInfo && (
-                <a
-                  href={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`}
-                  download
-                  className="px-4 py-2 bg-white text-green-600 rounded-lg text-sm font-medium hover:bg-green-50"
-                >
-                  下载脱敏文件
-                </a>
-              )}
             </div>
           </div>
 
+          {/* 三列主体 */}
           {isImageMode ? (
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 text-sm font-semibold text-gray-700">
-                  原始图片 (可编辑区域)
+            <div className="flex-1 flex gap-3 px-4 pb-4 min-h-0">
+              {/* 左：原始图片 */}
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-xs font-semibold text-gray-700 tracking-tight">原始图片</span>
                 </div>
-                <div className="p-4">
+                <div className="flex-1 overflow-auto p-3">
                   {fileInfo && (
                     <ImageBBoxEditor
                       imageSrc={`/api/v1/files/${fileInfo.file_id}/download`}
                       boxes={visibleBoxes}
-                      onBoxesChange={(newBoxes) => {
-                        setBoundingBoxes(mergeVisibleBoxes(newBoxes));
-                      }}
+                      onBoxesChange={(newBoxes) => setBoundingBoxes(mergeVisibleBoxes(newBoxes))}
                       onBoxesCommit={(prevBoxes, nextBoxes) => {
-                        const prevAll = mergeVisibleBoxes(prevBoxes, nextBoxes);
-                        const nextAll = mergeVisibleBoxes(nextBoxes, prevBoxes);
-                        setImageUndoStack(prev => [...prev, prevAll]);
+                        setImageUndoStack(prev => [...prev, mergeVisibleBoxes(prevBoxes, nextBoxes)]);
                         setImageRedoStack([]);
-                        setBoundingBoxes(nextAll);
+                        setBoundingBoxes(mergeVisibleBoxes(nextBoxes, prevBoxes));
                       }}
                       getTypeConfig={getVisionTypeConfig}
                       availableTypes={visionTypes.map(t => ({ id: t.id, name: t.name, color: t.color }))}
@@ -1608,68 +1778,108 @@ export const Playground: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="bg-white rounded-xl border-2 border-green-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-green-100 bg-green-50 text-sm font-semibold text-green-700">
-                  脱敏后图片
+              {/* 中：脱敏后图片 */}
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-xs font-semibold text-gray-700 tracking-tight">脱敏结果</span>
                 </div>
-                <div className="p-4">
-                  {fileInfo && (
-                    <img
-                      src={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`}
-                      alt="redacted"
-                      className="max-w-full max-h-[600px] h-auto object-contain"
-                    />
-                  )}
+                <div className="flex-1 overflow-auto p-3">
+                  {fileInfo && <img src={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`} alt="redacted" className="max-w-full h-auto object-contain" />}
+                </div>
+              </div>
+              {/* 右：映射表 */}
+              <div className="w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-violet-400" />
+                    <span className="text-xs font-semibold text-gray-700 tracking-tight">脱敏记录</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 tabular-nums">{Object.keys(entityMap).length}</span>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  {Object.entries(entityMap).map(([orig, repl], i) => (
+                    <button key={i} onClick={() => scrollToMatch(orig, repl)}
+                      className="w-full text-left px-3 py-2 border-b border-gray-50 hover:bg-blue-50/50 transition-all group">
+                      <div className="text-[11px] text-amber-700 font-medium truncate group-hover:text-amber-800">{orig}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <svg className="w-2.5 h-2.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                        <span className="text-[11px] text-blue-600 truncate group-hover:text-blue-700">{repl}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {Object.keys(entityMap).length === 0 && <p className="text-xs text-gray-400 text-center py-6">暂无记录</p>}
                 </div>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 text-sm font-semibold text-gray-700">
-                  原始文档
+            <div className="flex-1 flex gap-3 px-4 pb-4 min-h-0">
+              {/* 左：原始文档 */}
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400" />
+                  <span className="text-xs font-semibold text-gray-700 tracking-tight">原始文档</span>
                 </div>
-                <div className="p-4 max-h-96 overflow-auto">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-600">{content}</pre>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border-2 border-green-200 overflow-hidden">
-                <div className="px-4 py-3 border-b border-green-100 bg-green-50 text-sm font-semibold text-green-700">
-                  脱敏后文档
-                </div>
-                <div className="p-4 max-h-96 overflow-auto">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-600">{redactedContent || content}</pre>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {Object.keys(entityMap).length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                <span className="text-sm font-semibold text-gray-700">脱敏映射表</span>
-                <span className="text-xs text-gray-500">{Object.keys(entityMap).length} 条</span>
-              </div>
-              <div className="divide-y divide-gray-100 max-h-60 overflow-auto">
-                {Object.entries(entityMap).map(([orig, repl], i) => (
-                  <div key={i} className="px-4 py-2 flex items-center gap-3 text-sm">
-                    <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded font-mono">{orig}</span>
-                    <span className="text-gray-400">→</span>
-                    <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded font-mono">{repl}</span>
+                <div className="flex-1 overflow-auto p-4" id="original-scroll">
+                  <div className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap font-[system-ui]">
+                    {highlightText(content, entityMap, 'orig')}
                   </div>
-                ))}
+                </div>
+              </div>
+              {/* 中：脱敏后文档 */}
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-xs font-semibold text-gray-700 tracking-tight">脱敏结果</span>
+                </div>
+                <div className="flex-1 overflow-auto p-4" id="redacted-scroll">
+                  <div className="text-[13px] leading-relaxed text-gray-800 whitespace-pre-wrap font-[system-ui]">
+                    {highlightRedacted(redactedContent || content, entityMap)}
+                  </div>
+                </div>
+              </div>
+              {/* 右：映射列表 */}
+              <div className="w-64 flex-shrink-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-violet-400" />
+                    <span className="text-xs font-semibold text-gray-700 tracking-tight">脱敏记录</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 tabular-nums">{Object.keys(entityMap).length}</span>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  {Object.entries(entityMap).map(([orig, repl], i) => {
+                    const count = (content || '').split(orig).length - 1;
+                    return (
+                      <button key={i} onClick={() => scrollToMatch(orig, repl)}
+                        className="w-full text-left px-3 py-2 border-b border-gray-50 hover:bg-blue-50/50 transition-all group">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-amber-700 font-medium truncate flex-1 group-hover:text-amber-800">{orig}</span>
+                          {count > 1 && <span className="text-[9px] text-gray-400 bg-gray-100 rounded px-1 flex-shrink-0">{count}处</span>}
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <svg className="w-2.5 h-2.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                          <span className="text-[11px] text-blue-600 truncate group-hover:text-blue-700">{repl}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {Object.keys(entityMap).length === 0 && <p className="text-xs text-gray-400 text-center py-8">暂无记录</p>}
+                </div>
               </div>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Loading */}
       {isLoading && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-gray-600">{loadingMessage}</p>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl shadow-2xl px-8 py-6 text-center max-w-sm">
+            <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-base font-medium text-gray-900 mb-1">{loadingMessage || '处理中...'}</p>
+            <p className="text-xs text-gray-400">图像识别可能需要10-30秒，请耐心等待</p>
           </div>
         </div>
       )}

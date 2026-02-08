@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     """应用配置"""
     
     # 应用基础配置
-    APP_NAME: str = "法律文件脱敏平台"
+    APP_NAME: str = "DataShield 智能数据脱敏平台"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = True
     
@@ -39,17 +39,15 @@ class Settings(BaseSettings):
     GLM_TOP_K: int = 2
     GLM_REPEAT_PENALTY: float = 1.1
     # RTX 4090：默认 16K，如需更快可降到 4096/8192
-    GLM_MAX_TOKENS: int = 16384
+    GLM_MAX_TOKENS: int = 4096
 
     # 本地持久化
     FILE_STORE_PATH: str = os.path.join(DATA_DIR, "file_store.json")
     PIPELINE_STORE_PATH: str = os.path.join(DATA_DIR, "pipelines.json")
 
-    # PaddleOCR 配置（用于图片OCR定位）
-    PADDLE_MODEL_DIR: Optional[str] = None
-    PADDLE_FONT_PATH: Optional[str] = None
-    PADDLE_USE_TEXTLINE_ORIENTATION: bool = False
-    PADDLE_DET_DB_UNCLIP_RATIO: float = 1.8
+    # PaddleOCR-VL 微服务配置（独立进程，端口8082）
+    OCR_BASE_URL: str = "http://127.0.0.1:8082"
+    OCR_TIMEOUT: float = 120.0  # OCR推理超时
     
     # HaS 本地模型配置（主力文本NER引擎）
     HAS_BASE_URL: str = "http://127.0.0.1:8080/v1"  # llama.cpp 服务地址

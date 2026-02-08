@@ -1,18 +1,13 @@
 """
 Hybrid Vision Service - 图像脱敏核心服务
-参考 document_redaction_vlm 项目架构
-采用 PaddleOCR-VL（文字检测）+ HaS 本地模型（敏感信息识别）混合模式
+PaddleOCR-VL（独立微服务@8082）+ HaS 本地模型（敏感信息识别）混合模式
 完全离线运行，不依赖云端 API
 """
 from __future__ import annotations
 
-# 重要：必须先导入 torch，否则 PaddleOCR 导入时会报 DLL 错误
-try:
-    import torch
-except ImportError:
-    pass
-
 import base64
+import asyncio
+import time
 import io
 import os
 import re
@@ -79,63 +74,21 @@ class HybridVisionService:
     """
     
     def __init__(self):
-        self._paddle_ocr = None
-        self._ocr_service = None
-        self._has_client = None
-        self._has_service = None
-        self._paddle_ready = False
+        self._ocr_service = None   # OCR HTTP 客户端
+        self._has_client = None    # HaS NER 客户端
         self._has_ready = False
         self._init_services()
     
     def _init_services(self):
         """初始化 OCR 和 HaS 服务"""
-        # 初始化 OCRService（PaddleOCR-VL）
+        # OCRService 现在是 HTTP 客户端，直接初始化（不检查可用性，运行时按需检查）
         try:
             from app.services.ocr_service import ocr_service
-            if ocr_service.is_available():
-                self._ocr_service = ocr_service
-                print("[OK] OCRService init success (PaddleOCR-VL)")
-            else:
-                self._ocr_service = None
+            self._ocr_service = ocr_service
+            print("[OK] OCR client initialized (will check availability at runtime)")
         except Exception as e:
-            print(f"[WARN] OCRService init failed: {e}")
+            print(f"[WARN] OCR client init failed: {e}")
             self._ocr_service = None
-
-        # 初始化 PaddleOCR
-        try:
-            # 设置 PaddleOCR 环境变量（需在 import 前设置）
-            if settings.PADDLE_MODEL_DIR and settings.PADDLE_MODEL_DIR.strip():
-                os.environ.setdefault("PADDLEOCR_MODEL_DIR", settings.PADDLE_MODEL_DIR.strip())
-            if settings.PADDLE_FONT_PATH and settings.PADDLE_FONT_PATH.strip() and os.path.exists(settings.PADDLE_FONT_PATH):
-                os.environ.setdefault("PADDLE_PDX_LOCAL_FONT_FILE_PATH", settings.PADDLE_FONT_PATH.strip())
-            else:
-                # 尽量使用系统字体，避免下载默认字体导致异常
-                font_candidates = [
-                    "C:/Windows/Fonts/msyh.ttc",
-                    "C:/Windows/Fonts/simhei.ttf",
-                    "C:/Windows/Fonts/simsun.ttc",
-                    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-                    "/System/Library/Fonts/PingFang.ttc",
-                ]
-                for font_path in font_candidates:
-                    if os.path.exists(font_path):
-                        os.environ.setdefault("PADDLE_PDX_LOCAL_FONT_FILE_PATH", font_path)
-                        break
-
-            from paddleocr import PaddleOCR
-            # 新版 PaddleOCR 3.x 参数
-            init_kwargs = {
-                "lang": "ch",
-                "use_doc_orientation_classify": False,
-                "use_doc_unwarping": False,
-                "use_textline_orientation": False,
-            }
-            self._paddle_ocr = PaddleOCR(**init_kwargs)
-            self._paddle_ready = True
-            print("[OK] PaddleOCR init success")
-        except Exception as e:
-            print(f"[WARN] PaddleOCR init failed: {e}")
-            self._paddle_ready = False
         
         # 初始化 HaS Client（本地模型）
         try:
@@ -164,83 +117,23 @@ class HybridVisionService:
     
     def _run_paddle_ocr(self, image: Image.Image) -> Tuple[List[OCRTextBlock], List[SensitiveRegion]]:
         """
-        运行 OCR 获取文字位置（优先 PaddleOCR-VL）
+        通过 HTTP 调用 PaddleOCR-VL 微服务(8082) 获取文字位置
         返回：(文本块列表, 视觉敏感区域如公章)
-        
-        新版 PaddleOCR 3.x 使用 predict() API
         """
-        # 优先使用 OCRService（PaddleOCR-VL）
-        if self._ocr_service and self._ocr_service.is_available():
-            blocks, visual_regions = self._run_ocr_service(image)
-            if blocks or visual_regions:
-                print(f"[OCR] PaddleOCR-VL found {len(blocks)} text blocks, {len(visual_regions)} visual regions")
-                return blocks, visual_regions
+        if not self._ocr_service:
+            print("[OCR] OCR client not initialized")
+            return [], []
 
-        if not self._paddle_ready or not self._paddle_ocr:
+        if not self._ocr_service.is_available():
+            print("[OCR] OCR microservice offline (8082)")
             return [], []
-        
-        try:
-            import numpy as np
-            import tempfile
-            
-            # 新版 PaddleOCR 需要文件路径或 URL
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-                temp_path = f.name
-                image.save(f, format='PNG')
-            
-            # 使用新版 predict API
-            result = self._paddle_ocr.predict(input=temp_path)
-            
-            # 清理临时文件
-            try:
-                os.remove(temp_path)
-            except:
-                pass
-            
-            blocks: List[OCRTextBlock] = []
-            
-            if result and len(result) > 0:
-                res = result[0]  # 第一个结果
-                
-                # 新版返回格式：{'rec_texts': [...], 'rec_polys': [...], 'rec_scores': [...]}
-                rec_texts = res.get('rec_texts', [])
-                rec_polys = res.get('rec_polys', [])
-                rec_scores = res.get('rec_scores', [])
-                
-                for i, text in enumerate(rec_texts):
-                    if not text or not text.strip():
-                        continue
-                    
-                    # 获取坐标（四边形顶点）
-                    if i < len(rec_polys):
-                        poly = rec_polys[i]
-                        # poly 是 numpy array，shape=(4, 2)
-                        polygon = [[int(p[0]), int(p[1])] for p in poly]
-                    else:
-                        continue
-                    
-                    # 获取置信度
-                    conf = rec_scores[i] if i < len(rec_scores) else 1.0
-                    
-                    blocks.append(OCRTextBlock(
-                        text=str(text),
-                        polygon=polygon,
-                        confidence=float(conf),
-                    ))
-            
-            print(f"[OCR] PaddleOCR found {len(blocks)} text blocks")
-            # 打印前几个识别结果
-            for b in blocks[:5]:
-                print(f"  - {b.text[:30]}... @ {b.bbox}")
-            
-            # PaddleOCR 基础版不识别公章，返回空的 visual_regions
-            return blocks, []
-            
-        except Exception as e:
-            print(f"[ERR] PaddleOCR exec failed: {e}")
-            import traceback
-            traceback.print_exc()
-            return [], []
+
+        blocks, visual_regions = self._run_ocr_service(image)
+        if blocks or visual_regions:
+            print(f"[OCR] Got {len(blocks)} text blocks, {len(visual_regions)} visual regions")
+        else:
+            print("[OCR] No results from OCR service")
+        return blocks, visual_regions
 
     def _run_ocr_service(self, image: Image.Image) -> Tuple[List[OCRTextBlock], List[SensitiveRegion]]:
         """
@@ -351,42 +244,64 @@ class HybridVisionService:
             
             print(f"[HaS] Analyzing {len(all_texts)} text blocks...")
             
-            # 类型 ID -> 中文名 映射（HaS NER 使用中文类型名）
-            # HaS 擅长语义理解，适合识别：人名、公司、组织、地址等需要上下文的实体
+            # =====================================================================
+            # 类型 ID -> 中文名 映射
+            # 基于 GB/T 37964-2019 标识符分类
+            # HaS 擅长语义理解，处理文字类敏感信息
+            # 视觉类（签名/印章/指纹等）由 GLM Vision 处理，HaS 跳过
+            # =====================================================================
             id_to_chinese = {
-                # 人员相关 - HaS 强项
+                # === 直接标识符 (GB/T 37964-2019 §3.6) ===
                 "PERSON": "人名",
-                
-                # 组织机构 - HaS 强项（能识别简称和全称）
-                "ORG": "组织机构",
-                "COMPANY": "公司名称",  # 包括简称如"腾讯"和全称如"深圳市腾讯计算机系统有限公司"
-                
-                # 银行账户相关 - HaS 强项
-                "ACCOUNT_NAME": "账户名",
-                "BANK_NAME": "开户行",
-                "ACCOUNT_NUMBER": "账号",
-                
-                # 地址 - HaS 强项（能理解语义）
-                "ADDRESS": "地址",
-                
-                # 日期 - HaS 强项
-                "DATE": "日期",
-                
-                # 联系方式 - 正则为主，HaS 补充
+                "ID_CARD": "身份证号",
+                "PASSPORT": "护照号",
                 "PHONE": "电话号码",
                 "EMAIL": "电子邮箱",
-                
-                # 证件号码 - 正则为主，HaS 补充
-                "ID_CARD": "身份证号",
                 "BANK_CARD": "银行卡号",
+                "BANK_ACCOUNT": "银行账号",
+                "BANK_NAME": "开户行",
+                "SOCIAL_SECURITY": "社保号",
+                
+                # === 准标识符 (GB/T 37964-2019 §3.7) ===
+                "COMPANY": "公司名称",
+                "ORG": "机构名称",
+                "ADDRESS": "详细地址",
+                "BIRTH_DATE": "出生日期",
+                "DATE": "日期",
+                "LICENSE_PLATE": "车牌号",
+                "CASE_NUMBER": "案件编号",
+                "CONTRACT_NO": "合同编号",
+                "COMPANY_CODE": "统一社会信用代码",
+                
+                # === 敏感属性 (GB/T 37964-2019 §3.8) ===
+                "AMOUNT": "金额",
+                
+                # === 法律文书特有 ===
+                "LEGAL_PARTY": "当事人",
+                "LAWYER": "律师",
+                "JUDGE": "法官",
+                "WITNESS": "证人",
+                
+                # === 兼容旧版 ID ===
+                "COMPANY": "机构名称",
+                "ACCOUNT_NAME": "账户名",
+                "BANK_NAME": "开户行",
+                "ACCOUNT_NUMBER": "银行账号",
+            }
+            
+            # GLM Vision 专属类型（HaS 不处理）
+            VISUAL_ONLY_TYPES = {
+                "SEAL", "SIGNATURE", "FINGERPRINT", "PHOTO",
+                "QR_CODE", "HANDWRITING", "WATERMARK",
+                "GLM_ID_CARD", "GLM_BANK_CARD",
             }
             
             # 根据用户配置生成中文类型列表
             if vision_types:
                 chinese_types = []
                 for vt in vision_types:
-                    # 跳过视觉类型（公章等），HaS 不处理
-                    if vt.id in ["SEAL", "SIGNATURE", "FINGERPRINT"]:
+                    # 跳过视觉类型，由 GLM Vision 处理
+                    if vt.id in VISUAL_ONLY_TYPES:
                         continue
                     # 优先用标准 ID 映射
                     if vt.id in id_to_chinese:
@@ -398,11 +313,18 @@ class HybridVisionService:
                 chinese_types = list(dict.fromkeys(chinese_types))
                 print(f"[HaS] Using types for NER: {chinese_types}")
             else:
-                # 默认类型 - 确保覆盖所有需要语义理解的类型
-                chinese_types = ["人名", "公司名称", "组织机构", "地址", "电话号码", "身份证号", "银行卡号", "账号", "账户名", "开户行"]
+                # 默认类型 - 基于国标覆盖主要标识符
+                chinese_types = [
+                    "人名", "身份证号", "电话号码", "电子邮箱",
+                    "银行卡号", "银行账号", "机构名称", "详细地址",
+                    "日期", "金额", "案件编号", "当事人", "律师",
+                ]
                 print(f"[HaS] Using default types: {chinese_types}")
             
-            ner_result = self._has_client.ner(text_content, chinese_types)
+            # HaS 的 httpx 同步调用会阻塞事件循环，放到线程池中
+            ner_result = await asyncio.to_thread(
+                self._has_client.ner, text_content, chinese_types
+            )
             
             # HaS ner() 返回格式：{类型: [实体列表]}，如 {"人名": ["张三"], "组织": ["腾讯"]}
             if not ner_result or not isinstance(ner_result, dict):
@@ -411,72 +333,77 @@ class HybridVisionService:
             
             print(f"[HaS] NER result: {ner_result}")
             
-            # 中文 -> 类型 ID 映射（用于返回）
-            # 注意：HaS 可能返回不同的中文表述，需要多种映射
+            # =====================================================================
+            # 中文 -> 类型 ID 反向映射（HaS 返回中文，需转回 ID）
+            # HaS 可能返回不同的中文表述，需要多种映射
+            # =====================================================================
             chinese_to_id = {
+                # === 直接标识符 ===
                 # 人名
-                "人名": "PERSON",
-                "姓名": "PERSON",
-                "名字": "PERSON",
+                "人名": "PERSON", "姓名": "PERSON", "名字": "PERSON",
+                # 身份证
+                "身份证号": "ID_CARD", "身份证": "ID_CARD", "身份证号码": "ID_CARD",
+                # 护照
+                "护照号": "PASSPORT", "护照": "PASSPORT", "护照号码": "PASSPORT",
+                # 电话
+                "电话号码": "PHONE", "电话": "PHONE", "手机号": "PHONE",
+                "联系方式": "PHONE", "手机": "PHONE",
+                # 邮箱
+                "电子邮箱": "EMAIL", "邮箱": "EMAIL", "邮件": "EMAIL",
+                # 银行卡
+                "银行卡号": "BANK_CARD", "银行卡": "BANK_CARD", "卡号": "BANK_CARD",
+                # 银行账号
+                "银行账号": "BANK_ACCOUNT", "账号": "BANK_ACCOUNT",
+                "账户号": "BANK_ACCOUNT", "账户号码": "BANK_ACCOUNT",
+                # 社保
+                "社保号": "SOCIAL_SECURITY", "社保卡号": "SOCIAL_SECURITY",
+                "医保号": "SOCIAL_SECURITY",
                 
-                # 公司
-                "公司名称": "COMPANY",
-                "公司": "COMPANY",
-                "公司名": "COMPANY",
-                "企业": "COMPANY",
-                "企业名称": "COMPANY",
+                # === 准标识符 ===
+                # 公司/企业
+                "公司名称": "COMPANY", "公司": "COMPANY", "公司名": "COMPANY",
+                "企业": "COMPANY", "企业名称": "COMPANY",
+                "甲方": "COMPANY", "乙方": "COMPANY", "丙方": "COMPANY",
+                "发包方": "COMPANY", "承包方": "COMPANY",
+                "出借人": "COMPANY", "借款人": "COMPANY",
+                "出卖人": "COMPANY", "买受人": "COMPANY",
+                "委托方": "COMPANY", "受托方": "COMPANY",
+                "供应商": "COMPANY", "承揽方": "COMPANY",
+                "转让方": "COMPANY", "受让方": "COMPANY",
+                # 机构（非企业）
+                "机构名称": "ORG", "组织机构": "ORG", "组织": "ORG",
+                "机构": "ORG", "单位": "ORG",
+                # 地址
+                "详细地址": "ADDRESS", "地址": "ADDRESS",
+                "住址": "ADDRESS", "居住地": "ADDRESS",
+                # 出生日期
+                "出生日期": "BIRTH_DATE", "生日": "BIRTH_DATE",
+                # 日期
+                "日期": "DATE", "时间": "DATE", "日期时间": "DATE",
+                # 车牌
+                "车牌号": "LICENSE_PLATE", "车牌": "LICENSE_PLATE",
+                # 案件编号
+                "案件编号": "CASE_NUMBER", "案号": "CASE_NUMBER",
+                # 合同编号
+                "合同编号": "CONTRACT_NO", "合同号": "CONTRACT_NO",
+                # 信用代码
+                "统一社会信用代码": "COMPANY_CODE", "信用代码": "COMPANY_CODE",
                 
-                # 组织
-                "组织机构": "ORG",
-                "组织": "ORG",
-                "机构": "ORG",
-                "单位": "ORG",
+                # === 敏感属性 ===
+                "金额": "AMOUNT", "数额": "AMOUNT", "款项": "AMOUNT",
                 
-                # 账户名
-                "账户名": "ACCOUNT_NAME",
-                "账户名称": "ACCOUNT_NAME",
-                "户名": "ACCOUNT_NAME",
+                # === 法律文书特有 ===
+                "当事人": "LEGAL_PARTY", "原告": "LEGAL_PARTY", "被告": "LEGAL_PARTY",
+                "律师": "LAWYER", "代理人": "LAWYER",
+                "法官": "JUDGE", "审判长": "JUDGE", "书记员": "JUDGE",
+                "证人": "WITNESS",
                 
                 # 开户行
-                "开户行": "BANK_NAME",
-                "开户银行": "BANK_NAME",
-                "银行名称": "BANK_NAME",
-                "银行": "BANK_NAME",
+                "开户行": "BANK_NAME", "开户银行": "BANK_NAME",
+                "银行名称": "BANK_NAME", "银行": "BANK_NAME",
                 
-                # 账号
-                "账号": "ACCOUNT_NUMBER",
-                "账户号": "ACCOUNT_NUMBER",
-                "账户号码": "ACCOUNT_NUMBER",
-                
-                # 地址
-                "地址": "ADDRESS",
-                "住址": "ADDRESS",
-                "居住地": "ADDRESS",
-                
-                # 日期
-                "日期": "DATE",
-                "时间": "DATE",
-                "日期时间": "DATE",
-                
-                # 电话
-                "电话号码": "PHONE",
-                "电话": "PHONE",
-                "手机号": "PHONE",
-                "联系方式": "PHONE",
-                
-                # 邮箱
-                "电子邮箱": "EMAIL",
-                "邮箱": "EMAIL",
-                
-                # 身份证
-                "身份证号": "ID_CARD",
-                "身份证": "ID_CARD",
-                "身份证号码": "ID_CARD",
-                
-                # 银行卡
-                "银行卡号": "BANK_CARD",
-                "银行卡": "BANK_CARD",
-                "卡号": "BANK_CARD",
+                # === 兼容旧版 ===
+                "账户名": "PERSON", "户名": "PERSON",
             }
             
             # 如果有用户自定义类型，也加入映射
@@ -524,6 +451,127 @@ class HybridVisionService:
             traceback.print_exc()
             return []
     
+    def _extract_table_cells(self, table_html: str, block: OCRTextBlock) -> List[OCRTextBlock]:
+        """
+        从 HTML 表格中提取各个单元格，创建虚拟 OCRTextBlock。
+        基于表格结构估算：
+        - 按行分配 Y 轴位置
+        - 按列分配 X 轴位置（支持简单 colspan）
+        """
+        import html
+        from html.parser import HTMLParser
+        
+        rows: List[List[tuple[str, int]]] = []
+        
+        class TableCellParser(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.in_cell = False
+                self.current_cell = ""
+                self.current_row: List[tuple[str, int]] = []
+                self.current_colspan = 1
+            
+            def handle_starttag(self, tag, attrs):
+                if tag == "tr":
+                    self.current_row = []
+                if tag in ("td", "th"):
+                    self.in_cell = True
+                    self.current_cell = ""
+                    self.current_colspan = 1
+                    for k, v in attrs:
+                        if k == "colspan":
+                            try:
+                                self.current_colspan = max(1, int(v))
+                            except Exception:
+                                self.current_colspan = 1
+            
+            def handle_endtag(self, tag):
+                if tag in ("td", "th") and self.in_cell:
+                    self.in_cell = False
+                    cell_text = html.unescape(self.current_cell).strip()
+                    self.current_row.append((cell_text, self.current_colspan))
+                if tag == "tr":
+                    if self.current_row:
+                        rows.append(self.current_row)
+                    self.current_row = []
+            
+            def handle_data(self, data):
+                if self.in_cell:
+                    self.current_cell += data
+        
+        try:
+            parser = TableCellParser()
+            parser.feed(table_html)
+            if getattr(parser, "current_row", None):
+                rows.append(parser.current_row)
+        except Exception as e:
+            print(f"[WARN] Failed to parse table HTML: {e}")
+            return []
+        
+        if not rows:
+            return []
+        
+        # 计算总行列数（基于 colspan 估算）
+        num_rows = len(rows)
+        num_cols = max(
+            (sum(max(1, span) for _, span in row) for row in rows),
+            default=0,
+        )
+        if num_rows == 0 or num_cols == 0:
+            return []
+        
+        row_height = max(block.height / num_rows, 1.0)
+        col_width = max(block.width / num_cols, 1.0)
+        
+        virtual_blocks: List[OCRTextBlock] = []
+        for r_idx, row in enumerate(rows):
+            col_idx = 0
+            for cell_text, colspan in row:
+                span = max(1, colspan)
+                if cell_text.strip():
+                    cell_left = block.left + col_idx * col_width
+                    cell_top = block.top + r_idx * row_height
+                    cell_width = col_width * span
+                    cell_height = row_height
+                    
+                    virtual_blocks.append(OCRTextBlock(
+                        text=cell_text,
+                        polygon=[
+                            [cell_left, cell_top],
+                            [cell_left + cell_width, cell_top],
+                            [cell_left + cell_width, cell_top + cell_height],
+                            [cell_left, cell_top + cell_height],
+                        ],
+                        confidence=block.confidence * 0.9,  # 略微降低置信度
+                    ))
+                col_idx += span
+        
+        return virtual_blocks
+
+    def _expand_table_blocks(self, ocr_blocks: List[OCRTextBlock]) -> List[OCRTextBlock]:
+        """将 HTML 表格块展开为单元格，降低噪音并提升匹配精度。"""
+        expanded: List[OCRTextBlock] = []
+        for block in ocr_blocks:
+            if block.text.startswith("<table") and "</table>" in block.text:
+                cell_blocks = self._extract_table_cells(block.text, block)
+                if cell_blocks:
+                    expanded.extend(cell_blocks)
+                    continue
+                # 解析失败时，尽量去掉 HTML 标签，避免超长文本影响 NER
+                plain = re.sub(r"<[^>]+>", " ", block.text)
+                plain = re.sub(r"\s+", " ", plain).strip()
+                if plain:
+                    expanded.append(OCRTextBlock(
+                        text=plain,
+                        polygon=block.polygon,
+                        confidence=block.confidence,
+                    ))
+                else:
+                    expanded.append(block)
+            else:
+                expanded.append(block)
+        return expanded
+    
     def _match_entities_to_ocr(
         self,
         ocr_blocks: List[OCRTextBlock],
@@ -532,8 +580,27 @@ class HybridVisionService:
         """
         将 HaS 识别的敏感实体匹配到 OCR 文本块
         用文字匹配获取精确坐标，支持子词级别定位
+        
+        特殊处理：
+        - HTML 表格：提取单元格后单独匹配
+        - 长文本块：跳过子词定位，使用整块
         """
         regions: List[SensitiveRegion] = []
+        
+        # 预处理：展开 HTML 表格为虚拟单元格块
+        expanded_blocks: List[OCRTextBlock] = []
+        for block in ocr_blocks:
+            if block.text.startswith("<table") and "</table>" in block.text:
+                # 提取表格单元格作为虚拟块
+                cell_blocks = self._extract_table_cells(block.text, block)
+                if cell_blocks:
+                    expanded_blocks.extend(cell_blocks)
+                    print(f"[TABLE] Expanded table into {len(cell_blocks)} cells")
+                else:
+                    # 解析失败，保留原块
+                    expanded_blocks.append(block)
+            else:
+                expanded_blocks.append(block)
         
         for entity in entities:
             entity_text = entity.get("text", "").strip()
@@ -553,9 +620,15 @@ class HybridVisionService:
             }
             normalized_type = type_mapping.get(entity_type, entity_type.upper())
             
-            # 在 OCR 块中查找匹配
-            for block in ocr_blocks:
+            matched = False
+            
+            # 在展开后的 OCR 块中查找匹配
+            for block in expanded_blocks:
                 block_text = block.text
+                
+                # 跳过 HTML 表格原始块（已展开为单元格）
+                if block_text.startswith("<table"):
+                    continue
                 
                 # 精确包含匹配
                 if entity_text in block_text:
@@ -564,9 +637,21 @@ class HybridVisionService:
                     text_len = len(block_text)
                     entity_len = len(entity_text)
                     
-                    if text_len > 0:
+                    # 多字段行（如“姓名：张三  电话：...”）子词定位误差大，直接用整块
+                    separator_count = (
+                        block_text.count("：")
+                        + block_text.count(":")
+                        + block_text.count("|")
+                    )
+                    is_multi_field = separator_count >= 2 or "  " in block_text or "\t" in block_text
+                    
+                    # 如果文本块太长（可能是表格或段落），或实体占比很小，或多字段行，
+                    # 直接使用整个块的坐标
+                    if text_len > 100 or entity_len / text_len < 0.1 or is_multi_field:
+                        sub_left = block.left
+                        sub_width = block.width
+                    elif text_len > 0:
                         # 根据字符位置比例计算像素位置
-                        # 假设等宽字体（实际中文基本等宽，英文略窄）
                         start_ratio = start_pos / text_len
                         width_ratio = entity_len / text_len
                         
@@ -577,18 +662,22 @@ class HybridVisionService:
                         if width_ratio > 0.8:
                             sub_left = block.left
                             sub_width = block.width
-                        
-                        regions.append(SensitiveRegion(
-                            text=entity_text,
-                            entity_type=normalized_type,
-                            left=sub_left,
-                            top=block.top,
-                            width=sub_width,
-                            height=block.height,
-                            confidence=1.0,
-                            source="text_match",
-                        ))
-                        print(f"  [MATCH] '{entity_text}' in '{block_text[:20]}...' @ ({sub_left}, {block.top}, {sub_width}, {block.height})")
+                    else:
+                        sub_left = block.left
+                        sub_width = block.width
+                    
+                    regions.append(SensitiveRegion(
+                        text=entity_text,
+                        entity_type=normalized_type,
+                        left=sub_left,
+                        top=block.top,
+                        width=sub_width,
+                        height=block.height,
+                        confidence=1.0,
+                        source="text_match",
+                    ))
+                    print(f"  [MATCH] '{entity_text}' in '{block_text[:20]}...' @ ({sub_left}, {block.top}, {sub_width}, {block.height})")
+                    matched = True
                     break
                     
                 # 模糊匹配（处理 OCR 可能的小错误）
@@ -604,6 +693,25 @@ class HybridVisionService:
                         source="fuzzy_match",
                     ))
                     print(f"  [MATCH] '{entity_text}' ~ '{block_text[:20]}...' (fuzzy)")
+                    matched = True
+                    break
+            
+            # 如果在展开块中没找到，尝试在原始块中查找
+            if not matched:
+                for block in ocr_blocks:
+                    # 特别处理表格：直接用整个表格框
+                    if block.text.startswith("<table") and entity_text in block.text:
+                        regions.append(SensitiveRegion(
+                            text=entity_text,
+                            entity_type=normalized_type,
+                            left=block.left,
+                            top=block.top,
+                            width=block.width,
+                            height=block.height,
+                            confidence=0.8,
+                            source="table_fallback",
+                        ))
+                        print(f"  [MATCH] '{entity_text}' in table @ ({block.left}, {block.top}, {block.width}, {block.height}) [fallback]")
                     break
         
         print(f"[MATCH] Matched {len(regions)} entities to OCR blocks")
@@ -872,6 +980,8 @@ class HybridVisionService:
         Returns:
             (敏感区域列表, base64编码的带框图像)
         """
+        perf_start = time.perf_counter()
+        
         # 准备图像
         image, width, height = self._prepare_image(image_bytes)
         print(f"[IMG] Image size: {width}x{height}")
@@ -887,7 +997,10 @@ class HybridVisionService:
                               "ACCOUNT_NUMBER", "ADDRESS", "DATE", "SEAL"]
         
         # 1. 运行 PaddleOCR-VL 提取文字和视觉元素（如公章）
-        ocr_blocks, visual_regions = self._run_paddle_ocr(image)
+        # OCR 推理较慢，放到线程池，避免阻塞 GLM Pipeline
+        ocr_start = time.perf_counter()
+        ocr_blocks, visual_regions = await asyncio.to_thread(self._run_paddle_ocr, image)
+        print(f"[PERF] OCR finished in {time.perf_counter() - ocr_start:.2f}s, blocks={len(ocr_blocks)}")
         
         all_regions: List[SensitiveRegion] = []
         
@@ -903,29 +1016,42 @@ class HybridVisionService:
             # 打印 OCR 识别到的所有文字（调试用）
             print(f"[OCR] All texts: {[b.text for b in ocr_blocks]}")
             
+            # 表格类 HTML 文本会严重拖慢 NER，先展开/清洗
+            ocr_blocks_for_ner = self._expand_table_blocks(ocr_blocks)
+            
             # 2. 用 HaS 本地模型分析 OCR 文字，识别敏感实体（完全离线！）
-            entities = await self._run_has_text_analysis(ocr_blocks, vision_types)
+            ner_start = time.perf_counter()
+            entities = await self._run_has_text_analysis(ocr_blocks_for_ner, vision_types)
+            print(f"[PERF] HaS NER finished in {time.perf_counter() - ner_start:.2f}s, entities={len(entities)}")
             
             # 3. 用文字匹配把敏感实体映射回 OCR 的精确坐标
             if entities:
+                match_start = time.perf_counter()
                 matched_regions = self._match_entities_to_ocr(ocr_blocks, entities)
                 all_regions.extend(matched_regions)
+                print(f"[PERF] OCR match finished in {time.perf_counter() - match_start:.2f}s, matches={len(matched_regions)}")
             
             # 4. 对 OCR 结果应用正则规则（补充检测）
-            regex_regions = self._apply_regex_rules(ocr_blocks, entity_type_ids)
+            regex_start = time.perf_counter()
+            regex_regions = self._apply_regex_rules(ocr_blocks_for_ner, entity_type_ids)
             all_regions = self._merge_regions(all_regions, regex_regions)
+            print(f"[PERF] Regex finished in {time.perf_counter() - regex_start:.2f}s, matches={len(regex_regions)}")
         else:
             print("[WARN] PaddleOCR returned no text blocks")
         
         print(f"[OK] Final detected {len(all_regions)} sensitive regions")
         
         # 5. 在图像上绘制
+        draw_start = time.perf_counter()
         result_image = self._draw_regions_on_image(image, all_regions)
+        print(f"[PERF] Draw finished in {time.perf_counter() - draw_start:.2f}s")
         
         # 6. 转换为 base64
         buffer = io.BytesIO()
         result_image.save(buffer, format="PNG")
         result_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        
+        print(f"[PERF] Hybrid total finished in {time.perf_counter() - perf_start:.2f}s")
         
         return all_regions, result_base64
     

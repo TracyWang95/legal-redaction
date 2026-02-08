@@ -21,8 +21,7 @@ from app.models.schemas import (
     APIResponse,
 )
 from app.services.file_parser import FileParser
-from app.services.ner_service import NERService
-from app.services.regex_service import regex_service
+from app.services.hybrid_ner_service import perform_hybrid_ner
 
 router = APIRouter()
 
@@ -281,11 +280,9 @@ async def extract_entities(file_id: str):
             entity_summary={},
         )
     
-    ner_service = NERService()
-    entities = await ner_service.extract_entities(
-        file_info["content"],
-        file_info.get("pages", []),
-    )
+    from app.api.entity_types import get_enabled_types
+    entity_types = get_enabled_types()
+    entities = await perform_hybrid_ner(file_info["content"], entity_types, has_mode="auto")
     
     # 统计各类型实体数量
     entity_summary = {}
@@ -335,11 +332,9 @@ async def extract_entities_with_config(
             entity_summary={},
         )
     
-    ner_service = NERService()
-    entities = await ner_service.extract_entities(
-        file_info["content"],
-        file_info.get("pages", []),
-    )
+    from app.api.entity_types import get_enabled_types
+    entity_types = get_enabled_types()
+    entities = await perform_hybrid_ner(file_info["content"], entity_types, has_mode="auto")
     
     # 统计各类型实体数量
     entity_summary = {}

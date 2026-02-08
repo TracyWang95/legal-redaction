@@ -8,6 +8,7 @@ import type {
   RedactionResult,
   CompareData,
   EntityTypeConfig,
+  EntityTypeConfigSimple,
   ReplacementModeConfig,
 } from '../types';
 
@@ -93,8 +94,8 @@ export const redactionApi = {
     return api.post(`/redaction/${fileId}/vision?page=${page}`);
   },
 
-  // 获取实体类型列表
-  getEntityTypes: async (): Promise<{ entity_types: EntityTypeConfig[] }> => {
+  // 获取实体类型列表（旧版兼容）
+  getEntityTypes: async (): Promise<{ entity_types: EntityTypeConfigSimple[] }> => {
     return api.get('/redaction/entity-types');
   },
 
@@ -103,5 +104,45 @@ export const redactionApi = {
     return api.get('/redaction/replacement-modes');
   },
 };
+
+// 实体类型管理 API - 基于 GB/T 37964-2019
+export const entityTypesApi = {
+  // 获取所有实体类型配置
+  getAll: async (enabledOnly: boolean = false): Promise<{ custom_types: EntityTypeConfig[], total: number }> => {
+    return api.get(`/custom-types?enabled_only=${enabledOnly}`);
+  },
+
+  // 获取单个实体类型
+  getById: async (typeId: string): Promise<EntityTypeConfig> => {
+    return api.get(`/custom-types/${typeId}`);
+  },
+
+  // 创建新的实体类型
+  create: async (data: Partial<EntityTypeConfig>): Promise<EntityTypeConfig> => {
+    return api.post('/custom-types', data);
+  },
+
+  // 更新实体类型
+  update: async (typeId: string, data: Partial<EntityTypeConfig>): Promise<EntityTypeConfig> => {
+    return api.put(`/custom-types/${typeId}`, data);
+  },
+
+  // 删除实体类型
+  delete: async (typeId: string): Promise<void> => {
+    return api.delete(`/custom-types/${typeId}`);
+  },
+
+  // 切换启用状态
+  toggle: async (typeId: string): Promise<{ enabled: boolean }> => {
+    return api.post(`/custom-types/${typeId}/toggle`);
+  },
+
+  // 重置为默认配置
+  reset: async (): Promise<{ message: string }> => {
+    return api.post('/custom-types/reset');
+  },
+};
+
+// visionTypesApi 已废弃，图像类型通过 vision-pipelines API 统一管理
 
 export default api;

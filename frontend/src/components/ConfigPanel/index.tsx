@@ -1,19 +1,186 @@
 import React from 'react';
 import { useRedactionStore } from '../../hooks/useRedaction';
-import { EntityType, ReplacementMode } from '../../types';
+import { EntityType, ReplacementMode, IdentifierCategory } from '../../types';
 import { Switch } from '@headlessui/react';
 import clsx from 'clsx';
 
+/**
+ * 实体类型配置 - 基于 GB/T 37964-2019《信息安全技术 个人信息去标识化指南》
+ * 
+ * 分类说明：
+ * - direct: 直接标识符 - 能够单独识别个人
+ * - quasi: 准标识符 - 与其他信息结合可识别个人
+ * - sensitive: 敏感属性 - 涉及敏感信息
+ */
 const ENTITY_TYPE_CONFIG = [
-  { type: EntityType.PERSON, label: '人名', description: '识别姓名' },
-  { type: EntityType.ID_CARD, label: '身份证号', description: '18位身份证' },
-  { type: EntityType.PHONE, label: '电话号码', description: '手机号/座机' },
-  { type: EntityType.ADDRESS, label: '地址', description: '详细地址' },
-  { type: EntityType.BANK_CARD, label: '银行卡号', description: '银行卡账号' },
-  { type: EntityType.CASE_NUMBER, label: '案件编号', description: '法院案号' },
-  { type: EntityType.DATE, label: '日期', description: '时间日期' },
-  { type: EntityType.MONEY, label: '金额', description: '货币金额' },
+  // === 直接标识符 (Direct Identifiers) ===
+  { 
+    type: EntityType.PERSON, 
+    label: '姓名', 
+    description: '自然人姓名',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.ID_CARD, 
+    label: '身份证号', 
+    description: '18位身份证',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.PASSPORT, 
+    label: '护照号', 
+    description: '护照号码',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.PHONE, 
+    label: '电话号码', 
+    description: '手机号/座机',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.EMAIL, 
+    label: '电子邮箱', 
+    description: '电子邮件地址',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 4,
+  },
+  { 
+    type: EntityType.BANK_CARD, 
+    label: '银行卡号', 
+    description: '银行卡账号',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.LEGAL_PARTY, 
+    label: '案件当事人', 
+    description: '原告/被告等',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 5,
+  },
+  { 
+    type: EntityType.LAWYER, 
+    label: '律师/代理人', 
+    description: '律师姓名',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 4,
+  },
+  { 
+    type: EntityType.JUDGE, 
+    label: '法官/书记员', 
+    description: '司法人员',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 4,
+  },
+  { 
+    type: EntityType.WITNESS, 
+    label: '证人', 
+    description: '证人姓名',
+    category: IdentifierCategory.DIRECT,
+    riskLevel: 4,
+  },
+  
+  // === 准标识符 (Quasi-Identifiers) ===
+  { 
+    type: EntityType.ADDRESS, 
+    label: '详细地址', 
+    description: '完整地址信息',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 4,
+  },
+  { 
+    type: EntityType.BIRTH_DATE, 
+    label: '出生日期', 
+    description: '出生年月日',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 3,
+  },
+  { 
+    type: EntityType.DATE, 
+    label: '日期', 
+    description: '事件日期',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 2,
+  },
+  { 
+    type: EntityType.LICENSE_PLATE, 
+    label: '车牌号', 
+    description: '机动车号牌',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 3,
+  },
+  { 
+    type: EntityType.CASE_NUMBER, 
+    label: '案件编号', 
+    description: '法院案号',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 3,
+  },
+  { 
+    type: EntityType.CONTRACT_NO, 
+    label: '合同编号', 
+    description: '合同协议号',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 2,
+  },
+  { 
+    type: EntityType.ORG, 
+    label: '机构名称', 
+    description: '公司/单位名',
+    category: IdentifierCategory.QUASI,
+    riskLevel: 3,
+  },
+  
+  // === 敏感属性 (Sensitive Attributes) ===
+  { 
+    type: EntityType.AMOUNT, 
+    label: '金额', 
+    description: '财务金额',
+    category: IdentifierCategory.SENSITIVE,
+    riskLevel: 3,
+  },
+  { 
+    type: EntityType.HEALTH_INFO, 
+    label: '健康信息', 
+    description: '疾病/病历',
+    category: IdentifierCategory.SENSITIVE,
+    riskLevel: 4,
+  },
+  { 
+    type: EntityType.CRIMINAL_RECORD, 
+    label: '犯罪记录', 
+    description: '违法犯罪信息',
+    category: IdentifierCategory.SENSITIVE,
+    riskLevel: 5,
+  },
 ];
+
+// 分类标签配置
+const CATEGORY_CONFIG = {
+  [IdentifierCategory.DIRECT]: { 
+    label: '直接标识符', 
+    color: 'text-red-700', 
+    bgColor: 'bg-red-50',
+    description: '能够单独识别个人',
+  },
+  [IdentifierCategory.QUASI]: { 
+    label: '准标识符', 
+    color: 'text-amber-700', 
+    bgColor: 'bg-amber-50',
+    description: '与其他信息结合可识别',
+  },
+  [IdentifierCategory.SENSITIVE]: { 
+    label: '敏感属性', 
+    color: 'text-purple-700', 
+    bgColor: 'bg-purple-50',
+    description: '涉及敏感信息',
+  },
+};
 
 const REPLACEMENT_MODES = [
   {
@@ -80,38 +247,71 @@ export const ConfigPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* 实体类型 */}
+      {/* 实体类型 - 按GB/T 37964-2019分类 */}
       <div className="p-4">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">识别的实体类型</h4>
-        <div className="space-y-3">
-          {ENTITY_TYPE_CONFIG.map((item) => (
-            <div key={item.type} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                <p className="text-xs text-gray-500">{item.description}</p>
+        <h4 className="text-sm font-medium text-gray-700 mb-1">识别的实体类型</h4>
+        <p className="text-xs text-gray-400 mb-3">基于 GB/T 37964-2019 分类</p>
+        
+        {/* 按分类显示 */}
+        {Object.entries(CATEGORY_CONFIG).map(([category, categoryConfig]) => {
+          const categoryItems = ENTITY_TYPE_CONFIG.filter(item => item.category === category);
+          if (categoryItems.length === 0) return null;
+          
+          return (
+            <div key={category} className="mb-4">
+              {/* 分类标题 */}
+              <div className={clsx('px-2 py-1 rounded-md mb-2', categoryConfig.bgColor)}>
+                <p className={clsx('text-xs font-medium', categoryConfig.color)}>
+                  {categoryConfig.label}
+                  <span className="font-normal ml-1">- {categoryConfig.description}</span>
+                </p>
               </div>
-              <Switch
-                checked={config.entity_types.includes(item.type)}
-                onChange={() => toggleEntityType(item.type)}
-                className={clsx(
-                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                  config.entity_types.includes(item.type)
-                    ? 'bg-primary-600'
-                    : 'bg-gray-200'
-                )}
-              >
-                <span
-                  className={clsx(
-                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                    config.entity_types.includes(item.type)
-                      ? 'translate-x-6'
-                      : 'translate-x-1'
-                  )}
-                />
-              </Switch>
+              
+              {/* 该分类下的实体类型 */}
+              <div className="space-y-2 pl-2">
+                {categoryItems.map((item) => (
+                  <div key={item.type} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                        <p className="text-xs text-gray-500">{item.description}</p>
+                      </div>
+                      {/* 风险等级指示 */}
+                      <span className={clsx(
+                        'text-xs px-1.5 py-0.5 rounded',
+                        item.riskLevel >= 5 ? 'bg-red-100 text-red-700' :
+                        item.riskLevel >= 4 ? 'bg-orange-100 text-orange-700' :
+                        item.riskLevel >= 3 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-600'
+                      )}>
+                        L{item.riskLevel}
+                      </span>
+                    </div>
+                    <Switch
+                      checked={config.entity_types.includes(item.type)}
+                      onChange={() => toggleEntityType(item.type)}
+                      className={clsx(
+                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                        config.entity_types.includes(item.type)
+                          ? 'bg-primary-600'
+                          : 'bg-gray-200'
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                          config.entity_types.includes(item.type)
+                            ? 'translate-x-6'
+                            : 'translate-x-1'
+                        )}
+                      />
+                    </Switch>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );

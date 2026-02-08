@@ -334,9 +334,9 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
   } : null;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col h-full">
       {/* 工具栏 */}
-      <div className="flex items-center gap-2 px-2">
+      <div className="flex items-center gap-2 px-2 py-2 flex-shrink-0">
         <button
           onClick={() => setDrawMode(!drawMode)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors ${
@@ -412,26 +412,25 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         </div>
       </div>
 
-      {/* 图片编辑区 */}
-      <div className="w-full overflow-auto">
-        <div className="flex justify-center">
-          <div 
-            ref={containerRef}
-            className={`relative inline-block ${drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
-            style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            <img
-              ref={imageRef}
-              src={imageSrc}
-              alt="edit"
-              className="max-w-full max-h-[600px] h-auto object-contain select-none"
-              onLoad={handleImageLoad}
-              draggable={false}
-            />
+      {/* 图片编辑区 - 占满整个可用空间，图片居中 */}
+      <div className="flex-1 w-full overflow-auto flex items-center justify-center" style={{ minHeight: 0 }}>
+        <div 
+          ref={containerRef}
+          className={`relative inline-block ${drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'center center' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        >
+          <img
+            ref={imageRef}
+            src={imageSrc}
+            alt="edit"
+            className="select-none max-w-full max-h-full"
+            onLoad={handleImageLoad}
+            draggable={false}
+          />
 
         {/* 渲染所有 bounding boxes */}
         {boxes.map(box => {
@@ -495,7 +494,6 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
               />
             )}
           </div>
-        </div>
       </div>
     </div>
   );

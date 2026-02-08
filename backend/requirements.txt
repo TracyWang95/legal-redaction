@@ -19,6 +19,7 @@ httpx==0.26.0
 aiofiles==23.2.1
 
 # 智谱AI SDK
+zhipuai>=2.0.0
 
 # OCR（可选，用于 PaddleOCR / PaddleOCR-VL）
 paddleocr[doc-parser]>=2.7.0

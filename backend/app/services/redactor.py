@@ -527,25 +527,36 @@ class Redactor:
         if not redacted_path or not os.path.exists(redacted_path):
             raise ValueError("脱敏文件不存在")
         
+        # 统一转为字符串比较（兼容枚举和字符串）
+        ft = str(file_type.value) if hasattr(file_type, 'value') else str(file_type)
+        is_docx = ft in ("docx", "doc")
+        is_pdf = ft in ("pdf", "pdf_scanned")
+        
+        print(f"[Compare] file_type={file_type}, ft={ft}, is_docx={is_docx}, is_pdf={is_pdf}, redacted_path={redacted_path}")
+        
         original_content = ""
         redacted_content = ""
+        
+        # .doc 文件脱敏后输出为 .docx，原始内容从解析缓存读取
+        original_content_cached = file_info.get("content", "")
         
         if redacted_text:
             # 使用结构化脱敏文本（更符合展示）
             redacted_content = redacted_text
-            if file_type == FileType.DOCX:
-                original_content = self._extract_docx_text(original_path)
-            elif file_type == FileType.PDF:
-                original_content = self._extract_pdf_text(original_path)
+            if is_docx:
+                original_content = original_content_cached or self._safe_extract_text(original_path, ft)
+            elif is_pdf:
+                original_content = original_content_cached or self._extract_pdf_text(original_path)
             else:
                 original_content = "[图片文件，请查看预览]"
-        elif file_type == FileType.DOCX:
-            # Word 文档
-            original_content = self._extract_docx_text(original_path)
+        elif is_docx:
+            # Word 文档（.doc 和 .docx）
+            original_content = original_content_cached or self._safe_extract_text(original_path, ft)
+            # 脱敏后的文件一定是 .docx 格式
             redacted_content = self._extract_docx_text(redacted_path)
-        elif file_type == FileType.PDF:
+        elif is_pdf:
             # PDF 文档
-            original_content = self._extract_pdf_text(original_path)
+            original_content = original_content_cached or self._extract_pdf_text(original_path)
             redacted_content = self._extract_pdf_text(redacted_path)
         else:
             # 图片类：返回提示信息
@@ -564,6 +575,25 @@ class Redactor:
             "redacted": redacted_content,
             "changes": changes,
         }
+    
+    def _safe_extract_text(self, file_path: str, ft: str) -> str:
+        """安全提取文本，兼容 .doc 和 .docx"""
+        if ft == "doc":
+            # .doc 文件不能直接用 python-docx 打开
+            # 尝试查找转换后的 .docx 文件
+            docx_path = file_path.rsplit(".", 1)[0] + ".docx"
+            if os.path.exists(docx_path):
+                return self._extract_docx_text(docx_path)
+            # 尝试从临时目录找
+            import glob
+            tmp_pattern = os.path.join(os.path.dirname(file_path), "*.docx")
+            docx_files = glob.glob(tmp_pattern)
+            for f in docx_files:
+                if os.path.basename(file_path).rsplit(".", 1)[0] in os.path.basename(f):
+                    return self._extract_docx_text(f)
+            return "[.doc 文件无法直接提取文本，请查看原始文档]"
+        else:
+            return self._extract_docx_text(file_path)
     
     def _extract_docx_text(self, file_path: str) -> str:
         """提取 Word 文档文本"""

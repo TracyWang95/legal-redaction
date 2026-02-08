@@ -10,15 +10,66 @@ import {
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
-const ENTITY_TYPE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  PERSON: { label: '人名', color: 'text-amber-700', bgColor: 'bg-amber-100' },
-  ID_CARD: { label: '身份证', color: 'text-red-700', bgColor: 'bg-red-100' },
-  PHONE: { label: '电话', color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
-  ADDRESS: { label: '地址', color: 'text-violet-700', bgColor: 'bg-violet-100' },
-  BANK_CARD: { label: '银行卡', color: 'text-pink-700', bgColor: 'bg-pink-100' },
-  CASE_NUMBER: { label: '案号', color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
-  DATE: { label: '日期', color: 'text-teal-700', bgColor: 'bg-teal-100' },
-  MONEY: { label: '金额', color: 'text-orange-700', bgColor: 'bg-orange-100' },
+/**
+ * 实体类型配置 - 基于 GB/T 37964-2019《信息安全技术 个人信息去标识化指南》
+ * 
+ * 颜色编码：
+ * - 红色系: 直接标识符 (高风险)
+ * - 橙色/琥珀色系: 准标识符 (中风险)
+ * - 紫色系: 敏感属性
+ */
+const ENTITY_TYPE_CONFIG: Record<string, { label: string; color: string; bgColor: string; category?: string }> = {
+  // === 直接标识符 (Direct Identifiers) - 红色系 ===
+  PERSON: { label: '姓名', color: 'text-blue-700', bgColor: 'bg-blue-100', category: 'direct' },
+  ID_CARD: { label: '身份证', color: 'text-red-700', bgColor: 'bg-red-100', category: 'direct' },
+  PASSPORT: { label: '护照号', color: 'text-red-600', bgColor: 'bg-red-50', category: 'direct' },
+  SOCIAL_SECURITY: { label: '社保号', color: 'text-rose-700', bgColor: 'bg-rose-100', category: 'direct' },
+  DRIVER_LICENSE: { label: '驾驶证', color: 'text-rose-600', bgColor: 'bg-rose-50', category: 'direct' },
+  PHONE: { label: '电话', color: 'text-orange-700', bgColor: 'bg-orange-100', category: 'direct' },
+  EMAIL: { label: '邮箱', color: 'text-cyan-700', bgColor: 'bg-cyan-100', category: 'direct' },
+  BANK_CARD: { label: '银行卡', color: 'text-pink-700', bgColor: 'bg-pink-100', category: 'direct' },
+  BANK_ACCOUNT: { label: '银行账号', color: 'text-pink-600', bgColor: 'bg-pink-50', category: 'direct' },
+  WECHAT_ALIPAY: { label: '支付账号', color: 'text-fuchsia-700', bgColor: 'bg-fuchsia-100', category: 'direct' },
+  IP_ADDRESS: { label: 'IP地址', color: 'text-violet-700', bgColor: 'bg-violet-100', category: 'direct' },
+  MAC_ADDRESS: { label: 'MAC地址', color: 'text-violet-600', bgColor: 'bg-violet-50', category: 'direct' },
+  DEVICE_ID: { label: '设备ID', color: 'text-purple-700', bgColor: 'bg-purple-100', category: 'direct' },
+  BIOMETRIC: { label: '生物特征', color: 'text-purple-800', bgColor: 'bg-purple-200', category: 'direct' },
+  LEGAL_PARTY: { label: '当事人', color: 'text-amber-700', bgColor: 'bg-amber-100', category: 'direct' },
+  LAWYER: { label: '律师', color: 'text-purple-600', bgColor: 'bg-purple-50', category: 'direct' },
+  JUDGE: { label: '法官', color: 'text-sky-700', bgColor: 'bg-sky-100', category: 'direct' },
+  WITNESS: { label: '证人', color: 'text-stone-700', bgColor: 'bg-stone-100', category: 'direct' },
+  
+  // === 准标识符 (Quasi-Identifiers) - 琥珀/黄色系 ===
+  BIRTH_DATE: { label: '出生日期', color: 'text-lime-700', bgColor: 'bg-lime-100', category: 'quasi' },
+  AGE: { label: '年龄', color: 'text-lime-600', bgColor: 'bg-lime-50', category: 'quasi' },
+  GENDER: { label: '性别', color: 'text-green-600', bgColor: 'bg-green-50', category: 'quasi' },
+  NATIONALITY: { label: '国籍', color: 'text-green-700', bgColor: 'bg-green-100', category: 'quasi' },
+  ADDRESS: { label: '地址', color: 'text-indigo-700', bgColor: 'bg-indigo-100', category: 'quasi' },
+  POSTAL_CODE: { label: '邮编', color: 'text-indigo-600', bgColor: 'bg-indigo-50', category: 'quasi' },
+  GPS_LOCATION: { label: 'GPS坐标', color: 'text-blue-600', bgColor: 'bg-blue-50', category: 'quasi' },
+  OCCUPATION: { label: '职业', color: 'text-pink-600', bgColor: 'bg-pink-50', category: 'quasi' },
+  EDUCATION: { label: '学历', color: 'text-pink-500', bgColor: 'bg-pink-50', category: 'quasi' },
+  WORK_UNIT: { label: '工作单位', color: 'text-fuchsia-600', bgColor: 'bg-fuchsia-50', category: 'quasi' },
+  DATE: { label: '日期', color: 'text-cyan-600', bgColor: 'bg-cyan-100', category: 'quasi' },
+  TIME: { label: '时间', color: 'text-cyan-500', bgColor: 'bg-cyan-50', category: 'quasi' },
+  LICENSE_PLATE: { label: '车牌', color: 'text-teal-700', bgColor: 'bg-teal-100', category: 'quasi' },
+  VIN: { label: '车架号', color: 'text-teal-600', bgColor: 'bg-teal-50', category: 'quasi' },
+  CASE_NUMBER: { label: '案号', color: 'text-violet-700', bgColor: 'bg-violet-100', category: 'quasi' },
+  CONTRACT_NO: { label: '合同号', color: 'text-slate-700', bgColor: 'bg-slate-100', category: 'quasi' },
+  ORG: { label: '机构', color: 'text-emerald-700', bgColor: 'bg-emerald-100', category: 'quasi' },
+  COMPANY_CODE: { label: '信用代码', color: 'text-emerald-600', bgColor: 'bg-emerald-50', category: 'quasi' },
+  
+  // === 敏感属性 (Sensitive Attributes) - 紫色系 ===
+  HEALTH_INFO: { label: '健康信息', color: 'text-red-600', bgColor: 'bg-red-100', category: 'sensitive' },
+  MEDICAL_RECORD: { label: '病历号', color: 'text-red-500', bgColor: 'bg-red-50', category: 'sensitive' },
+  AMOUNT: { label: '金额', color: 'text-rose-700', bgColor: 'bg-rose-100', category: 'sensitive' },
+  PROPERTY: { label: '财产', color: 'text-rose-600', bgColor: 'bg-rose-50', category: 'sensitive' },
+  CRIMINAL_RECORD: { label: '犯罪记录', color: 'text-red-800', bgColor: 'bg-red-200', category: 'sensitive' },
+  POLITICAL: { label: '政治面貌', color: 'text-amber-800', bgColor: 'bg-amber-100', category: 'sensitive' },
+  RELIGION: { label: '宗教信仰', color: 'text-amber-700', bgColor: 'bg-amber-50', category: 'sensitive' },
+  
+  // === 其他/兼容旧版本 ===
+  MONEY: { label: '金额', color: 'text-rose-700', bgColor: 'bg-rose-100', category: 'sensitive' },  // 兼容旧版
   CUSTOM: { label: '自定义', color: 'text-gray-700', bgColor: 'bg-gray-100' },
 };
 
