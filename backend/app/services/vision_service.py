@@ -291,7 +291,7 @@ class VisionService:
         page: int,
         pipeline_types: list = None,
     ) -> tuple[list[BoundingBox], Optional[str]]:
-        """GLM Vision Pipeline"""
+        """GLM Vision Pipeline - 优先使用 MCP 服务"""
         glm_client = self._get_glm_client()
         
         # 构建类型提示和反向映射
@@ -309,7 +309,7 @@ class VisionService:
                 if hasattr(t, 'description') and t.description:
                     hint_to_id[t.description] = t.id
         
-        # 调用 GLM 视觉检测
+        # 调用 GLM 视觉检测（内部会自动选择 MCP 或直连模式）
         glm_boxes = await glm_client.vision_detect(
             image_data, 
             custom_types=type_hints if type_hints else None,
@@ -364,10 +364,57 @@ class VisionService:
             bounding_boxes.append(bbox)
             print(f"[VLM] Mapped type: '{box.type}' -> '{mapped_type}'")
         
-        # 在图片上绘制检测框
-        result_image_base64 = self._draw_boxes_on_image(img, bounding_boxes)
+        # 尝试通过 MCP 画框（更精确），回退到本地画框
+        result_image_base64 = await self._draw_boxes_via_mcp_or_local(
+            image_data, img, bounding_boxes
+        )
         
         return bounding_boxes, result_image_base64
+    
+    async def _draw_boxes_via_mcp_or_local(
+        self,
+        image_data: bytes,
+        image: Image.Image,
+        bounding_boxes: list[BoundingBox],
+    ) -> str:
+        """优先通过 MCP 画框，回退到本地（使用缓存的 MCP 状态）"""
+        from app.core.glm_client import MCP_BASE_URL, is_mcp_available
+        
+        if is_mcp_available():  # 使用缓存，不会重复 HTTP 调用
+            try:
+                import httpx
+                image_b64 = base64.b64encode(image_data).decode("utf-8")
+                
+                mcp_boxes = []
+                for bbox in bounding_boxes:
+                    mcp_boxes.append({
+                        "id": bbox.id,
+                        "x": bbox.x,
+                        "y": bbox.y,
+                        "width": bbox.width,
+                        "height": bbox.height,
+                        "type": bbox.type,
+                        "text": bbox.text or "",
+                        "confidence": 1.0,
+                    })
+                
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(
+                        f"{MCP_BASE_URL}/mcp/draw",
+                        json={
+                            "image_base64": image_b64,
+                            "boxes": mcp_boxes,
+                        },
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+                    print(f"[MCP-DRAW] Drew {len(mcp_boxes)} boxes via MCP")
+                    return data["result_image"]
+            except Exception as e:
+                print(f"[MCP-DRAW] Failed: {e}, falling back to local draw")
+        
+        # 回退到本地画框
+        return self._draw_boxes_on_image(image, bounding_boxes)
     
     def _draw_boxes_on_image(
         self,

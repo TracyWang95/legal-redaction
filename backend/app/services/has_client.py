@@ -87,12 +87,20 @@ class HaSClient:
         types = entity_types or self.LEGAL_ENTITY_TYPES
         types_str = json.dumps(types, ensure_ascii=False)
         
+        # 构建更精确的 prompt
+        prompt = f"""Recognize the following entity types in the text.
+Specified types:{types_str}
+
+Important rules:
+- For "人名": Only extract actual person names (e.g. 张三, 李四, 王小明). Do NOT extract role titles like 法定代表人, 代理人, 原告, 被告, 委托人, 负责人, etc.
+- Be precise: only return entities that exactly match the specified types.
+
+<text>{text}</text>"""
+        
         messages = [
             {
                 "role": "user",
-                "content": f"""Recognize the following entity types in the text.
-Specified types:{types_str}
-<text>{text}</text>"""
+                "content": prompt
             }
         ]
         
@@ -146,15 +154,23 @@ Specified types:{types_str}
         ner_json = json.dumps(ner_result, ensure_ascii=False)
         
         # Step 2: Hide替换
+        # 构建与 ner() 一致的精确 prompt
+        ner_prompt = f"""Recognize the following entity types in the text.
+Specified types:{types_str}
+
+Important rules:
+- For "人名": Only extract actual person names (e.g. 张三, 李四, 王小明). Do NOT extract role titles like 法定代表人, 代理人, 原告, 被告, 委托人, 负责人, etc.
+- Be precise: only return entities that exactly match the specified types.
+
+<text>{text}</text>"""
+        
         if use_history and self._history_mapping:
             # 带历史映射
             history_json = json.dumps(self._history_mapping, ensure_ascii=False)
             messages = [
                 {
                     "role": "user",
-                    "content": f"""Recognize the following entity types in the text.
-Specified types:{types_str}
-<text>{text}</text>"""
+                    "content": ner_prompt
                 },
                 {
                     "role": "assistant",
@@ -170,9 +186,7 @@ Specified types:{types_str}
             messages = [
                 {
                     "role": "user",
-                    "content": f"""Recognize the following entity types in the text.
-Specified types:{types_str}
-<text>{text}</text>"""
+                    "content": ner_prompt
                 },
                 {
                     "role": "assistant",

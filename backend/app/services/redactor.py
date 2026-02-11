@@ -5,7 +5,10 @@
 import os
 import uuid
 import re
-from typing import Optional
+import json
+from datetime import datetime
+from typing import Optional, Any
+from collections import Counter
 from docx import Document
 import fitz
 
@@ -341,9 +344,20 @@ class Redactor:
         for entity in entities:
             if entity.text not in replacements:
                 replacements[entity.text] = context.get_replacement(entity)
-        
-        for para in self._iter_all_paragraphs(doc):
-            redacted_count += self._replace_in_paragraph(para, replacements)
+
+        trace_enabled = self._is_docx_font_trace_enabled()
+        trace_path = self._get_docx_font_trace_path() if trace_enabled else None
+        if trace_enabled and trace_path:
+            self._init_docx_font_trace(trace_path, input_path, output_path, replacements)
+
+        for para_idx, para in enumerate(self._iter_all_paragraphs(doc)):
+            redacted_count += self._replace_in_paragraph(
+                para,
+                replacements,
+                para_idx=para_idx,
+                trace_enabled=trace_enabled,
+                trace_path=trace_path,
+            )
         
         doc.save(output_path)
         return redacted_count
@@ -373,7 +387,14 @@ class Redactor:
                         for para in cell.paragraphs:
                             yield para
 
-    def _replace_in_paragraph(self, para, replacements: dict[str, str]) -> int:
+    def _replace_in_paragraph(
+        self,
+        para,
+        replacements: dict[str, str],
+        para_idx: Optional[int] = None,
+        trace_enabled: bool = False,
+        trace_path: Optional[str] = None,
+    ) -> int:
         """在段落内进行 run 级替换，尽量保留原始格式"""
         if not replacements:
             return 0
@@ -409,61 +430,189 @@ class Redactor:
         if not matches:
             return 0
 
-        matches.sort(key=lambda x: x[0])
-        new_text_parts: list[str] = []
-        new_style_ids: list[int] = []
-        last_end = 0
-        replaced_count = 0
+        # 优先长匹配，避免“张三丰”被“张三”提前吞掉
+        matches.sort(key=lambda x: (x[0], -(x[1] - x[0])))
 
+        # 过滤重叠匹配
+        filtered_matches: list[tuple[int, int, str]] = []
+        last_end = -1
         for start, end, replacement in matches:
             if start < last_end:
                 continue
-            if start > last_end:
-                new_text_parts.append(full_text[last_end:start])
-                new_style_ids.extend(style_ids[last_end:start])
-            style_id = style_ids[start] if start < len(style_ids) else style_ids[-1]
-            new_text_parts.append(replacement)
-            new_style_ids.extend([style_id] * len(replacement))
+            filtered_matches.append((start, end, replacement))
             last_end = end
-            replaced_count += 1
 
-        if last_end < len(full_text):
-            new_text_parts.append(full_text[last_end:])
-            new_style_ids.extend(style_ids[last_end:])
-
-        rebuilt = "".join(new_text_parts)
-        if rebuilt == full_text:
+        if not filtered_matches:
             return 0
 
-        # 清理原 runs
-        for run in runs:
-            run._element.getparent().remove(run._element)
+        before_snapshot = None
+        if trace_enabled and trace_path:
+            before_snapshot = self._collect_runs_font_snapshot(runs)
 
-        # 重建 runs，保留格式
-        pos = 0
-        while pos < len(rebuilt):
-            current_style = new_style_ids[pos]
-            next_pos = pos + 1
-            while next_pos < len(rebuilt) and new_style_ids[next_pos] == current_style:
-                next_pos += 1
-            segment = rebuilt[pos:next_pos]
-            if segment:
-                new_run = para.add_run(segment)
-                self._copy_run_format(runs[current_style], new_run)
-            pos = next_pos
+        # 构建替换起点索引：start -> (end, replacement, target_run_idx)
+        # target_run_idx 使用区间内主样式 run，避免跨 run 时字体错位
+        replace_map: dict[int, tuple[int, str, int]] = {}
+        for start, end, replacement in filtered_matches:
+            span_style_ids = style_ids[start:end] if end <= len(style_ids) else style_ids[start:]
+            if span_style_ids:
+                target_run_idx = Counter(span_style_ids).most_common(1)[0][0]
+            else:
+                target_run_idx = style_ids[start] if start < len(style_ids) else style_ids[-1]
+            replace_map[start] = (end, replacement, target_run_idx)
+
+        # 按全局文本顺序重建“各 run 的文本内容”
+        run_outputs: list[list[str]] = [[] for _ in runs]
+        i = 0
+        replaced_count = 0
+        while i < len(full_text):
+            repl = replace_map.get(i)
+            if repl:
+                end, replacement, target_run_idx = repl
+                run_outputs[target_run_idx].append(replacement)
+                i = end
+                replaced_count += 1
+            else:
+                run_idx = style_ids[i]
+                run_outputs[run_idx].append(full_text[i])
+                i += 1
+
+        # 就地更新 run 文本：不新增/删除 run，最大化保留原始字体与样式继承链
+        for idx, run in enumerate(runs):
+            new_text = "".join(run_outputs[idx])
+            if run.text != new_text:
+                run.text = new_text
+
+        if trace_enabled and trace_path:
+            after_snapshot = self._collect_runs_font_snapshot(runs)
+            self._append_docx_font_trace(
+                trace_path,
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "paragraph_index": para_idx,
+                    "paragraph_text_before": full_text,
+                    "matches": [
+                        {
+                            "start": s,
+                            "end": e,
+                            "original": full_text[s:e],
+                            "replacement": rep,
+                        }
+                        for (s, e, rep) in filtered_matches
+                    ],
+                    "runs_before": before_snapshot,
+                    "runs_after": after_snapshot,
+                },
+            )
 
         return replaced_count
 
+    def _is_docx_font_trace_enabled(self) -> bool:
+        """是否启用 docx 字体调试导出"""
+        raw = os.getenv("DOCX_FONT_TRACE", "0").strip().lower()
+        return raw in {"1", "true", "yes", "on"}
+
+    def _get_docx_font_trace_path(self) -> str:
+        """获取 docx 字体调试导出文件路径（JSONL）"""
+        custom_path = os.getenv("DOCX_FONT_TRACE_PATH", "").strip()
+        if custom_path:
+            return custom_path
+        return os.path.join(settings.DATA_DIR, "docx_font_trace.jsonl")
+
+    def _init_docx_font_trace(
+        self,
+        trace_path: str,
+        input_path: str,
+        output_path: str,
+        replacements: dict[str, str],
+    ) -> None:
+        """初始化调试导出文件并写入会话头"""
+        try:
+            trace_dir = os.path.dirname(trace_path)
+            if trace_dir:
+                os.makedirs(trace_dir, exist_ok=True)
+            session_header = {
+                "type": "session",
+                "timestamp": datetime.now().isoformat(),
+                "input_path": input_path,
+                "output_path": output_path,
+                "replacement_count": len(replacements),
+            }
+            with open(trace_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(session_header, ensure_ascii=False) + "\n")
+        except Exception as e:
+            print(f"[DOCX_TRACE] 初始化失败: {e}")
+
+    def _append_docx_font_trace(self, trace_path: str, record: dict[str, Any]) -> None:
+        """追加一条调试记录到 JSONL"""
+        try:
+            with open(trace_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception as e:
+            print(f"[DOCX_TRACE] 写入失败: {e}")
+
+    def _collect_runs_font_snapshot(self, runs) -> list[dict[str, Any]]:
+        """采集 run 的字体链快照（rPr/rFonts/字号/样式）"""
+        from docx.oxml.ns import qn
+
+        result: list[dict[str, Any]] = []
+        for idx, run in enumerate(runs):
+            r = run._element
+            rPr = r.rPr
+            rFonts = rPr.find(qn("w:rFonts")) if rPr is not None else None
+            sz = rPr.find(qn("w:sz")) if rPr is not None else None
+            szCs = rPr.find(qn("w:szCs")) if rPr is not None else None
+
+            result.append(
+                {
+                    "run_index": idx,
+                    "text": run.text,
+                    "style_id": getattr(run.style, "style_id", None) if run.style else None,
+                    "style_name": getattr(run.style, "name", None) if run.style else None,
+                    "font_name_api": run.font.name,
+                    "font_size_api_pt": float(run.font.size.pt) if run.font.size else None,
+                    "rFonts": {
+                        "ascii": rFonts.get(qn("w:ascii")) if rFonts is not None else None,
+                        "hAnsi": rFonts.get(qn("w:hAnsi")) if rFonts is not None else None,
+                        "eastAsia": rFonts.get(qn("w:eastAsia")) if rFonts is not None else None,
+                        "cs": rFonts.get(qn("w:cs")) if rFonts is not None else None,
+                        "asciiTheme": rFonts.get(qn("w:asciiTheme")) if rFonts is not None else None,
+                        "hAnsiTheme": rFonts.get(qn("w:hAnsiTheme")) if rFonts is not None else None,
+                        "eastAsiaTheme": rFonts.get(qn("w:eastAsiaTheme")) if rFonts is not None else None,
+                        "csTheme": rFonts.get(qn("w:csTheme")) if rFonts is not None else None,
+                        "hint": rFonts.get(qn("w:hint")) if rFonts is not None else None,
+                    },
+                    "rPr_size": {
+                        "w:sz": sz.get(qn("w:val")) if sz is not None else None,
+                        "w:szCs": szCs.get(qn("w:val")) if szCs is not None else None,
+                    },
+                    "rPr_xml": rPr.xml if rPr is not None else None,
+                }
+            )
+        return result
+
     def _copy_run_format(self, source_run, target_run):
-        """复制 run 的格式样式"""
-        target_run.style = source_run.style
-        target_run.bold = source_run.bold
-        target_run.italic = source_run.italic
-        target_run.underline = source_run.underline
-        target_run.font.name = source_run.font.name
-        target_run.font.size = source_run.font.size
-        target_run.font.color.rgb = source_run.font.color.rgb
-        target_run.font.highlight_color = source_run.font.highlight_color
+        """复制 run 的格式样式（克隆底层 rPr，避免字体族丢失）"""
+        from copy import deepcopy
+
+        source_r = source_run._element
+        target_r = target_run._element
+
+        # 保留字符样式引用（有些文档字体通过字符样式继承）
+        try:
+            if source_run.style is not None:
+                target_run.style = source_run.style
+        except Exception:
+            pass
+
+        # 移除目标 run 默认生成的 rPr，避免与源格式叠加冲突
+        target_rPr = target_r.rPr
+        if target_rPr is not None:
+            target_r.remove(target_rPr)
+
+        # 直接克隆源 run 的全部字符格式（包含 rFonts/eastAsia/theme/size/color 等）
+        source_rPr = source_r.rPr
+        if source_rPr is not None:
+            target_r.insert(0, deepcopy(source_rPr))
     
     async def _redact_pdf_text(
         self,

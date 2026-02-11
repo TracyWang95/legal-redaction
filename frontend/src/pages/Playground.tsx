@@ -6,7 +6,6 @@ import {
   getEntityTypeName,
   getEntityGroup,
   ENTITY_GROUPS,
-  type EntityGroup,
 } from '../config/entityTypes';
 
 // 类型定义
@@ -761,7 +760,8 @@ export const Playground: React.FC = () => {
     showToast('已删除', 'info');
   };
 
-  // 切换选中
+  // 切换选中（预留功能）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const toggleEntity = (id: string) => {
     applyEntities(entities.map(e => 
       e.id === id ? { ...e, selected: !e.selected } : e
@@ -1362,7 +1362,7 @@ export const Playground: React.FC = () => {
                                     style={isSelected ? {
                                       backgroundColor: group.bgColor,
                                       color: group.textColor,
-                                      ringColor: group.color,
+                                      boxShadow: `0 0 0 2px ${group.color}`,
                                     } : {
                                       color: '#374151',
                                     }}
@@ -1920,40 +1920,26 @@ export const Playground: React.FC = () => {
           // 收集所有唯一的replacement，按长度降序（优先匹配长的）
           const sortedRepls = Object.keys(replToOrigKeys).sort((a, b) => b.length - a.length);
           
-          // 逐字符扫描匹配（避免正则特殊字符问题）
-          const segments: { text: string; isMatch: boolean; origKey: string }[] = [];
-          let pos = 0;
-          while (pos < text.length) {
-            let matched = false;
-            for (const repl of sortedRepls) {
-              if (pos + repl.length <= text.length && text.substring(pos, pos + repl.length) === repl) {
-                const origKeys = replToOrigKeys[repl];
-                segments.push({ text: repl, isMatch: true, origKey: origKeys[0] });
-                pos += repl.length;
-                matched = true;
-                break;
-              }
-            }
-            if (!matched) {
-              if (segments.length > 0 && !segments[segments.length - 1].isMatch) {
-                segments[segments.length - 1].text += text[pos];
-              } else {
-                segments.push({ text: text[pos], isMatch: false, origKey: '' });
-              }
-              pos++;
-            }
-          }
+          // 如果没有替换文本，直接返回原文
+          if (sortedRepls.length === 0) return <span>{text}</span>;
+          
+          // 使用正则匹配（更可靠）
+          const escapedRepls = sortedRepls.map(r => r.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+          const regex = new RegExp(`(${escapedRepls.join('|')})`, 'g');
+          const parts = text.split(regex);
           
           const counters: Record<string, number> = {};
-          return <>{segments.map((seg, i) => {
-            if (seg.isMatch) {
-              const safeKey = seg.origKey.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+          return <>{parts.map((part, i) => {
+            const origKeys = replToOrigKeys[part];
+            if (origKeys && origKeys.length > 0) {
+              const origKey = origKeys[0];
+              const safeKey = origKey.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
               const idx = counters[safeKey] || 0;
               counters[safeKey] = idx + 1;
               return <mark key={i} data-match-key={safeKey} data-match-idx={idx}
-                className="result-mark-redacted bg-blue-100/80 text-blue-800 px-0.5 rounded-sm transition-all duration-300">{seg.text}</mark>;
+                className="result-mark-redacted bg-blue-100/80 text-blue-800 px-0.5 rounded-sm transition-all duration-300">{part}</mark>;
             }
-            return <span key={i}>{seg.text}</span>;
+            return <span key={i}>{part}</span>;
           })}</>;
         };
         // 每个映射项的点击计数器（循环切换出现位置）

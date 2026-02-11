@@ -1,5 +1,9 @@
 """
 GLM API 客户端封装
+支持两种模式：
+1. MCP 模式（推荐）：通过本地 MCP 服务处理图像和画框，坐标精确
+2. 直连模式（回退）：直接调用 API，本地做坐标转换
+
 坐标系使用 0-1000 归一化，支持本地 llama.cpp 和云端 API（智谱 GLM、OpenAI 兼容接口）
 """
 import json
@@ -16,6 +20,9 @@ from app.models.schemas import BoundingBox
 
 # 坐标归一化基准（与 smartcity 保持一致）
 COORD_MODE = 1000
+
+# MCP 服务地址
+MCP_BASE_URL = "http://127.0.0.1:8090"
 
 
 def get_active_model_config():
@@ -34,6 +41,58 @@ def get_active_model_config():
     except Exception as e:
         print(f"[GLM] Failed to load model config: {e}")
     return None
+
+
+import time as _time
+import threading as _threading
+
+# MCP 可用性状态（后台线程刷新，推理路径零开销）
+_mcp_available: bool = False
+_mcp_check_started: bool = False
+_mcp_lock = _threading.Lock()
+
+
+def _check_mcp_once() -> bool:
+    """单次检查 MCP 是否可用"""
+    try:
+        import httpx
+        with httpx.Client(timeout=2.0) as client:
+            resp = client.get(f"{MCP_BASE_URL}/health")
+            return resp.status_code == 200
+    except Exception:
+        return False
+
+
+def _mcp_health_loop():
+    """后台线程：每 15 秒检查一次 MCP 状态"""
+    global _mcp_available
+    while True:
+        _mcp_available = _check_mcp_once()
+        _time.sleep(15)
+
+
+def ensure_mcp_checker_started():
+    """确保后台健康检查线程已启动（只启动一次）"""
+    global _mcp_check_started, _mcp_available
+    with _mcp_lock:
+        if _mcp_check_started:
+            return
+        _mcp_check_started = True
+    # 先同步检查一次
+    _mcp_available = _check_mcp_once()
+    if _mcp_available:
+        print("[MCP] Initial health check: OK")
+    else:
+        print("[MCP] Initial health check: offline (will retry in background)")
+    # 启动后台线程
+    t = _threading.Thread(target=_mcp_health_loop, daemon=True)
+    t.start()
+
+
+def is_mcp_available() -> bool:
+    """检查 MCP 是否可用（零开销，直接读内存变量）"""
+    ensure_mcp_checker_started()
+    return _mcp_available
 
 
 class GLMClient:
@@ -83,30 +142,23 @@ class GLMClient:
         
         rules_text = "\n".join(rules)
         
-        # 参考 smartcity 的 prompt 格式
+        # 简化 prompt，让模型用原生 grounding 能力返回坐标
         prompt = f"""请分析这张图片并定位所有敏感信息区域。
 
 检测规则清单：
 {rules_text}
 
-请输出一个 JSON 对象，包含 "objects" 键。
-每个检测到的敏感区域必须包含:
-1. "type": 敏感信息类型（如"人名"、"昵称"、"实验室名称"等）
-2. "text": 识别到的具体文字内容（非文字区域可为空或描述）
-3. "box_2d": [xmin, ymin, xmax, ymax] 格式的整数列表
-
-坐标基于归一化坐标系（图像宽高均为 {COORD_MODE} 单位，左上角为 [0, 0]，右下角为 [{COORD_MODE}, {COORD_MODE}]）。
+请找出所有匹配的区域，用 box_2d 标注每个区域的位置。返回 JSON 格式：
+{{"objects": [{{"type": "类型", "text": "内容", "box_2d": [x1, y1, x2, y2]}}]}}
 
 泛化识别要求：
-1) 不要只依赖显式关键词（如"账号/开户行/身份证/电话"等），也要识别未标注但符合语义或格式的敏感信息。
-2) 识别结构化信息：人名/组织机构/地址/联系方式/证件号/银行卡号/账号/日期/金额等。
-3) 识别非文字敏感区域：签名、手写、印章、公章、指纹、证件照、二维码、条形码、小广告等。
-4) 识别所有 Logo/标志/认证标识：如 CMA、CNAS、ILAC、ESI 等认证标志，每个 Logo 单独框选。
-5) 同类信息可能多处出现，需全部输出，不要遗漏任何一个。
-6) 边框要尽量贴合目标内容本身，避免把整段、整页或大块空白一起框进去。
+1) 不要只依赖显式关键词，也要识别符合语义或格式的敏感信息
+2) 识别非文字敏感区域：签名、印章、指纹、证件照、二维码等
+3) 同类信息多处出现时全部输出，不要遗漏
+4) 边框要精确贴合目标内容
+5) 仔细扫描图片每一个角落，宁多勿漏
 
-重要：请仔细扫描图片的每一个角落，宁可多检测也不要漏掉。特别注意页眉页脚、角落处的 Logo 和标识。
-只返回 JSON 格式，不要使用 Markdown 代码块或其他文字。"""
+只返回 JSON，不要 Markdown 代码块。"""
         
         return prompt
     
@@ -123,20 +175,12 @@ class GLMClient:
 检测规则：
 {rules_text}
 
-输出格式要求：
-返回一个 JSON 对象 {{"objects": [...]}}，每个元素包含：
-- "type": 类型名称
-- "text": 识别到的文字内容（非文字区域填描述）
-- "box_2d": [xmin, ymin, xmax, ymax]，整数，坐标范围 0~{COORD_MODE}
-
-坐标说明：
-- 图像左上角 = [0, 0]，右下角 = [{COORD_MODE}, {COORD_MODE}]
-- xmin 是左边界，xmax 是右边界，ymin 是上边界，ymax 是下边界
-- 边框必须紧贴目标内容，不要包含多余空白
+请找出所有匹配的区域，用 box_2d 标注每个区域的位置。返回 JSON 格式：
+{{"objects": [{{"type": "类型", "text": "内容", "box_2d": [x1, y1, x2, y2]}}]}}
 
 要求：
 1) 仔细扫描图片每一处，宁多勿漏
-2) 边框要精确贴合目标区域，不要框太大
+2) 边框要精确贴合目标区域
 3) 同类信息多处出现时全部输出
 4) 只返回 JSON，不要 Markdown 代码块"""
         
@@ -185,6 +229,94 @@ class GLMClient:
         }
         return type_mapping.get(type_str.upper().strip(), type_mapping.get(type_str, type_str))
     
+    async def vision_detect_via_mcp(
+        self,
+        image_data: bytes,
+        custom_types: List[str] = None,
+    ) -> List[BoundingBox]:
+        """
+        通过 MCP 服务进行视觉检测（推荐方式）
+        MCP 服务负责：图像预处理 -> 调用智谱 API -> 坐标转换
+        返回精确的 0-1 归一化坐标
+        """
+        import httpx
+        
+        model_config = get_active_model_config()
+        if not model_config or model_config.provider != "zhipu" or not model_config.api_key:
+            print("[VLM-MCP] No zhipu config, falling back to direct mode")
+            return await self.vision_detect_direct(image_data, custom_types)
+        
+        # 压缩大图片再发给 MCP（MCP 内部还会再压缩一次给 API，但先压缩减少 HTTP 传输）
+        image_base64 = self._compress_for_api(image_data)
+        
+        # 构建检测类型
+        detect_types = []
+        if custom_types:
+            for ct in custom_types:
+                # 解析 "名称(描述)" 格式
+                match = re.match(r'^(.+?)(?:\((.+)\))?$', ct)
+                if match:
+                    name = match.group(1).strip()
+                    desc = match.group(2).strip() if match.group(2) else ""
+                    detect_types.append({"name": name, "description": desc})
+                else:
+                    detect_types.append({"name": ct, "description": ""})
+        else:
+            # 从 pipeline 配置获取
+            vision_types = self._get_enabled_vision_types()
+            for vt in vision_types:
+                detect_types.append({
+                    "name": vt.name,
+                    "description": vt.description or "",
+                })
+        
+        request_body = {
+            "image_base64": image_base64,
+            "detect_types": detect_types,
+            "provider": "zhipu",
+            "api_key": model_config.api_key,
+            "model_name": model_config.model_name,
+            "temperature": model_config.temperature,
+            "top_p": model_config.top_p,
+            "max_tokens": model_config.max_tokens,
+            "enable_thinking": model_config.enable_thinking,
+        }
+        
+        try:
+            print(f"[VLM-MCP] Calling MCP detect service at {MCP_BASE_URL}...")
+            request_start = time.perf_counter()
+            
+            async with httpx.AsyncClient(timeout=300.0) as client:
+                resp = await client.post(
+                    f"{MCP_BASE_URL}/mcp/detect",
+                    json=request_body,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            
+            elapsed = time.perf_counter() - request_start
+            print(f"[VLM-MCP] MCP detect done in {elapsed:.2f}s")
+            
+            # 转换为 BoundingBox
+            bounding_boxes = []
+            for box_data in data.get("boxes", []):
+                bounding_boxes.append(BoundingBox(
+                    id=box_data["id"],
+                    x=box_data["x"],
+                    y=box_data["y"],
+                    width=box_data["width"],
+                    height=box_data["height"],
+                    type=self._normalize_entity_type(box_data.get("type", "CUSTOM")),
+                    text=box_data.get("text", ""),
+                ))
+            
+            print(f"[VLM-MCP] Got {len(bounding_boxes)} boxes from MCP")
+            return bounding_boxes
+            
+        except Exception as e:
+            print(f"[VLM-MCP] MCP call failed: {e}, falling back to direct mode")
+            return await self.vision_detect_direct(image_data, custom_types)
+
     async def vision_detect(
         self, 
         image_data: bytes,
@@ -194,12 +326,51 @@ class GLMClient:
         使用 GLM 视觉模型检测敏感区域
         返回 BoundingBox 列表（坐标为 0-1 归一化）
         
-        Args:
-            image_data: 图像字节数据
-            custom_types: 自定义类型列表，如 ["签名(手写签名区域)", "公章(印章区域)"]
+        优先使用 MCP 服务（智谱 API + 精确坐标转换），
+        MCP 不可用时回退到直连模式。
         """
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        # 检查是否应该使用 MCP
+        model_config = get_active_model_config()
+        use_mcp = (
+            model_config 
+            and model_config.provider == "zhipu" 
+            and model_config.api_key
+            and is_mcp_available()
+        )
         
+        if use_mcp:
+            print("[VLM] Using MCP mode (zhipu API + precise coord conversion)")
+            return await self.vision_detect_via_mcp(image_data, custom_types)
+        else:
+            if model_config and model_config.provider == "zhipu" and not is_mcp_available():
+                print("[VLM] MCP service not available, using direct mode")
+            return await self.vision_detect_direct(image_data, custom_types)
+
+    @staticmethod
+    def _compress_for_api(image_data: bytes, max_side: int = 2048) -> str:
+        """压缩大图片后转 base64，加速 API 传输。坐标是归一化的，缩放不影响精度。"""
+        from PIL import ImageOps as _ImageOps
+        img = Image.open(BytesIO(image_data))
+        img = _ImageOps.exif_transpose(img)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        w, h = img.size
+        if max(w, h) > max_side:
+            scale = max_side / max(w, h)
+            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+            print(f"[VLM] Compressed {w}x{h} -> {img.size[0]}x{img.size[1]} for API")
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+    async def vision_detect_direct(
+        self, 
+        image_data: bytes,
+        custom_types: List[str] = None,
+    ) -> List[BoundingBox]:
+        """
+        直连模式：直接调用 API 并本地做坐标转换（回退方案）
+        """
         # 获取原始图像尺寸
         try:
             with Image.open(BytesIO(image_data)) as _img:
@@ -212,6 +383,9 @@ class GLMClient:
         except Exception:
             img_w, img_h = COORD_MODE, COORD_MODE
             exif_orientation = None
+        
+        # 压缩大图片以加速 API 传输
+        image_base64 = self._compress_for_api(image_data)
         
         # 使用自定义类型或默认类型
         if custom_types:
@@ -408,8 +582,72 @@ class GLMClient:
             
             print(f"[PERF] GLM parse finished in {time.perf_counter() - parse_start:.2f}s")
             
-            # 转换为 BoundingBox（0-1 归一化坐标）
-            # 自适应 GLM 输出坐标模式（0-1 / 0-1000 / 像素）
+            # =====================================================================
+            # 智谱云端 API 专用坐标处理
+            # 经实测验证：智谱 GLM-4.6V API 返回 [xmin, ymin, xmax, ymax]
+            # 范围 0-1000（归一化到图片宽高）
+            # 直接除以 1000 即可得到 0-1 归一化坐标
+            # =====================================================================
+            is_zhipu = model_config and model_config.provider == "zhipu"
+            
+            if is_zhipu:
+                print(f"[VLM] Using ZHIPU coord mode: [xmin,ymin,xmax,ymax] / 1000")
+                bounding_boxes = []
+                for i, obj in enumerate(result.get("objects", [])):
+                    box = obj.get("box_2d") or obj.get("box", [])
+                    if len(box) != 4:
+                        continue
+                    raw = [float(v) for v in box]
+                    print(f"[VLM] #{i} raw box_2d={raw}, type={obj.get('type','?')}, text={obj.get('text','')[:20]}")
+                    
+                    # 智谱格式: [xmin, ymin, xmax, ymax] / 1000
+                    xmin, ymin, xmax, ymax = raw
+                    
+                    # 确保 min < max
+                    if xmin > xmax:
+                        xmin, xmax = xmax, xmin
+                    if ymin > ymax:
+                        ymin, ymax = ymax, ymin
+                    
+                    # 归一化到 0-1
+                    x1 = xmin / 1000.0
+                    y1 = ymin / 1000.0
+                    x2 = xmax / 1000.0
+                    y2 = ymax / 1000.0
+                    
+                    # 裁剪到 [0, 1]
+                    x1 = max(0.0, min(1.0, x1))
+                    y1 = max(0.0, min(1.0, y1))
+                    x2 = max(0.0, min(1.0, x2))
+                    y2 = max(0.0, min(1.0, y2))
+                    
+                    w = x2 - x1
+                    h = y2 - y1
+                    
+                    # 过滤异常框
+                    if w < 0.005 or h < 0.005 or (w > 0.95 and h > 0.95):
+                        print(f"[VLM] #{i} skipped: abnormal size (w={w:.3f}, h={h:.3f})")
+                        continue
+                    
+                    print(f"[VLM] #{i} -> norm=({x1:.4f},{y1:.4f},{w:.4f},{h:.4f})")
+                    
+                    bounding_boxes.append(BoundingBox(
+                        id=f"glm_{i}",
+                        x=x1,
+                        y=y1,
+                        width=w,
+                        height=h,
+                        type=self._normalize_entity_type(obj.get("type", "CUSTOM")),
+                        text=obj.get("text"),
+                    ))
+                
+                print(f"[VLM] Detected {len(bounding_boxes)} regions (zhipu mode)")
+                return bounding_boxes
+            
+            # =====================================================================
+            # 本地模型 / OpenAI 兼容接口的坐标处理
+            # 自适应检测坐标模式（0-1 / 0-1000 / 像素 / letterbox）
+            # =====================================================================
             raw_boxes = []
             for obj in result.get("objects", []):
                 box = obj.get("box_2d") or obj.get("box", [])
@@ -504,30 +742,6 @@ class GLMClient:
             best_score, mode, base = scored[0] if scored else (0, "coord_square", float(COORD_MODE))
             coord_base = base if base else float(COORD_MODE)
             
-            def _ranges_for_mode(mode_name: str, base_val: float):
-                vals = []
-                for raw in raw_boxes:
-                    norm = _normalize_box(raw, mode_name, base_val)
-                    if not norm:
-                        continue
-                    x1, y1, x2, y2 = norm
-                    w = x2 - x1
-                    h = y2 - y1
-                    if w <= 0 or h <= 0:
-                        continue
-                    vals.append((x1, y1, x2, y2))
-                if not vals:
-                    return None
-                min_x = min(v[0] for v in vals)
-                min_y = min(v[1] for v in vals)
-                max_x = max(v[2] for v in vals)
-                max_y = max(v[3] for v in vals)
-                mean_y = sum((v[1] + v[3]) / 2 for v in vals) / len(vals)
-                return {"minX": min_x, "minY": min_y, "maxX": max_x, "maxY": max_y, "meanY": mean_y}
-            
-            square_ranges = _ranges_for_mode("coord_square", coord_base)
-            letterbox_ranges = _ranges_for_mode("coord_square_letterbox", coord_base)
-            
             max_raw = max((max(b) for b in raw_boxes), default=0)
             if mode == "normalized":
                 print("[VLM] Using coord mode: 0-1 normalized")
@@ -545,7 +759,7 @@ class GLMClient:
                     raw = [float(v) for v in box]
                     print(f"[VLM] #{i} raw box_2d={raw}, type={obj.get('type','?')}, text={obj.get('text','')[:20]}")
                     
-                    # GLM 返回 [xmin, ymin, xmax, ymax]
+                    # 本地模型返回 [xmin, ymin, xmax, ymax]
                     xmin, ymin, xmax, ymax = raw
                     
                     # 确保 min < max

@@ -102,20 +102,23 @@ async def services_health():
             pass
         return default_name, False
     
-    # 在线程池中并行检查（避免阻塞事件循环）
+    # 在线程池中并行检查所有服务（避免阻塞事件循环）
     loop = asyncio.get_event_loop()
-    ocr_result, has_result, glm_result = await asyncio.gather(
+    ocr_result, has_result, glm_result, mcp_result = await asyncio.gather(
         loop.run_in_executor(None, check_sync, f"{settings.OCR_BASE_URL}/health", "PaddleOCR-VL-1.5"),
         loop.run_in_executor(None, check_sync, f"{settings.HAS_BASE_URL}/models", "HaS-4.0-0.6B"),
         loop.run_in_executor(None, check_sync, f"{settings.GLM_LOCAL_BASE_URL}/v1/models", "GLM-4.6V-Flash"),
+        loop.run_in_executor(None, check_sync, "http://127.0.0.1:8090/health", "Image-MCP"),
     )
     
     services["paddle_ocr"] = {"name": ocr_result[0], "status": "online" if ocr_result[1] else "offline"}
     services["has_ner"] = {"name": has_result[0], "status": "online" if has_result[1] else "offline"}
     services["glm_vision"] = {"name": glm_result[0], "status": "online" if glm_result[1] else "offline"}
+    services["image_mcp"] = {"name": mcp_result[0], "status": "online" if mcp_result[1] else "offline"}
     
-    # 汇总
-    all_online = all(s["status"] == "online" for s in services.values())
+    # 汇总（MCP 是可选的，不影响 all_online）
+    core_services = {k: v for k, v in services.items() if k != "image_mcp"}
+    all_online = all(s["status"] == "online" for s in core_services.values())
     
     return {
         "all_online": all_online,
@@ -131,3 +134,4 @@ if __name__ == "__main__":
         port=8000,
         reload=settings.DEBUG,
     )
+
