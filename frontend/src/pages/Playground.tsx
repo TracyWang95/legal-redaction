@@ -760,14 +760,6 @@ export const Playground: React.FC = () => {
     showToast('已删除', 'info');
   };
 
-  // 切换选中（预留功能）
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const toggleEntity = (id: string) => {
-    applyEntities(entities.map(e => 
-      e.id === id ? { ...e, selected: !e.selected } : e
-    ));
-  };
-
   // 执行脱敏
   const handleRedact = async () => {
     if (!fileInfo) return;
