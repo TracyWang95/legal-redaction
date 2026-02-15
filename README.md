@@ -243,13 +243,16 @@ def deduplicate_boxes(boxes, iou_threshold=0.3):
 
 ---
 
-## 📦 模型与 Pipeline
+## 📦 模型与服务
 
-| Pipeline | 模型 | 用途 | 端口 |
-|----------|------|------|------|
+| 服务 | 模型/组件 | 用途 | 端口 |
+|------|----------|------|------|
+| **Backend API** | FastAPI | 主后端服务 | 8000 |
 | **OCR** | PaddleOCR-VL-1.5 | 文字检测与识别 | 8082 |
 | **NER** | HaS 4.0 (Qwen3-0.6B) | 命名实体识别 | 8080 |
 | **Vision** | GLM-4.6V-Flash-Q4_K_M | 视觉敏感区域检测 | 8081 |
+| **MCP** | Image-MCP | 图像处理中间件 | 8090 |
+| **Frontend** | React + Vite | 前端界面 | 3000 |
 
 ---
 
@@ -327,7 +330,10 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 启动 OCR 微服务（端口 8082）
-python -m uvicorn ocr_server:app --host 0.0.0.0 --port 8082 &
+python ocr_server.py &
+
+# 启动 MCP 图像服务（端口 8090，可选）
+python mcp_image_server.py &
 
 # 启动主后端（端口 8000）
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -344,6 +350,40 @@ npm run dev -- --port 3000
 ```
 
 访问：**http://localhost:3000**
+
+---
+
+### 🚀 一键启动（Windows PowerShell）
+
+假设目录结构如下：
+- `D:\llama.cpp\` - llama.cpp 可执行文件
+- `D:\glm-models\` - 模型文件
+- `D:\legal-redaction\` - 本项目
+
+```powershell
+# 1. HaS NER 服务 (端口 8080)
+Start-Process -FilePath "D:\llama.cpp\llama-server.exe" -ArgumentList "-m D:\glm-models\has_4.0_0.6B_q4.gguf -ngl 99 --host 0.0.0.0 --port 8080"
+
+# 2. GLM-4.6V 视觉服务 (端口 8081)
+Start-Process -FilePath "D:\llama.cpp\llama-server.exe" -ArgumentList "-m D:\glm-models\GLM-4.6V-Flash-Q4_K_M.gguf --mmproj D:\glm-models\mmproj-F16.gguf -ngl 99 --host 0.0.0.0 --port 8081"
+
+# 3. PaddleOCR-VL 服务 (端口 8082)
+Start-Process powershell -ArgumentList "-Command cd D:\legal-redaction\backend; conda activate oda; python ocr_server.py"
+
+# 4. MCP 图像服务 (端口 8090)
+Start-Process powershell -ArgumentList "-Command cd D:\legal-redaction\backend; conda activate oda; python mcp_image_server.py"
+
+# 5. 后端 API (端口 8000)
+Start-Process powershell -ArgumentList "-Command cd D:\legal-redaction\backend; conda activate oda; python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+# 6. 前端 (端口 3000)
+Start-Process powershell -ArgumentList "-Command cd D:\legal-redaction\frontend; npm run dev"
+```
+
+**验证服务状态：**
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/health/services" | ConvertTo-Json
+```
 
 ---
 
