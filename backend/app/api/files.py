@@ -6,9 +6,12 @@ import os
 import uuid
 import aiofiles
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Body
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import Optional, List
 from pydantic import BaseModel, Field
+import time
+import io
+import zipfile
 
 from app.core.config import settings
 from app.core.persistence import load_json, save_json
@@ -132,6 +135,7 @@ async def upload_file(file: UploadFile = File(...)):
         "file_path": file_path,
         "file_type": file_type,
         "file_size": file_size,
+        "created_at": int(time.time()),
     }
     persist_file_store()
     
@@ -354,6 +358,30 @@ async def extract_entities_with_config(
     )
 
 
+@router.get("/files")
+async def list_files():
+    """获取所有处理历史记录"""
+    files_list = []
+    for f_id, f_info in file_store.items():
+        # 如果没有 created_at，取文件修改时间
+        created_at = f_info.get("created_at")
+        if not created_at and "file_path" in f_info and os.path.exists(f_info["file_path"]):
+            created_at = int(os.path.getctime(f_info["file_path"]))
+            f_info["created_at"] = created_at
+            
+        files_list.append({
+            "id": f_id,
+            "filename": f_info.get("original_filename", "未知文件"),
+            "file_type": f_info.get("file_type", "unknown"),
+            "file_size": f_info.get("file_size", 0),
+            "created_at": created_at or 0,
+            "has_redacted": "output_path" in f_info,
+        })
+    # 按时间倒序
+    files_list.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"files": files_list}
+
+
 @router.get("/files/{file_id}")
 async def get_file_info(file_id: str):
     """获取文件信息"""
@@ -415,3 +443,48 @@ async def delete_file(file_id: str):
     persist_file_store()
     
     return APIResponse(message="文件删除成功")
+
+
+class BatchDownloadRequest(BaseModel):
+    file_ids: List[str] = Field(..., description="要打包下载的文件 ID 列表")
+    redacted: bool = Field(default=True, description="是否下载脱敏后的文件")
+
+
+@router.post("/files/batch/download")
+async def batch_download_files(request: BatchDownloadRequest):
+    """批量下载文件（ZIP压缩包）"""
+    if not request.file_ids:
+        raise HTTPException(status_code=400, detail="未提供文件ID")
+        
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for f_id in request.file_ids:
+            if f_id not in file_store:
+                continue
+            
+            f_info = file_store[f_id]
+            if request.redacted:
+                if "output_path" not in f_info:
+                    continue
+                file_path = f_info["output_path"]
+                filename = f"redacted_{f_info['original_filename']}"
+            else:
+                file_path = f_info["file_path"]
+                filename = f_info["original_filename"]
+                
+            if os.path.exists(file_path):
+                zip_file.write(file_path, arcname=filename)
+                
+    zip_buffer.seek(0)
+    
+    # 防止空压缩包 (22 字节是空 ZIP 的最小长度)
+    if zip_buffer.getbuffer().nbytes < 25:
+        raise HTTPException(status_code=404, detail="没有找到可供下载的有效文件")
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/x-zip-compressed",
+        headers={
+            "Content-Disposition": "attachment; filename=batch_redacted_files.zip"
+        }
+    )
