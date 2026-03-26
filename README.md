@@ -6,7 +6,7 @@
   <b>全链路本地推理，无云端依赖</b> — 适用于合规数据集建设、档案数字化、多行业文档流水线
 </p>
 
-> **品牌说明**：对外产品名为 **DataInfra-RedactionEverything**。GitHub 仓库可能仍为 `TracyWang95/legal-redaction`；你可在 GitHub Settings 中将仓库 **Rename** 为 `DataInfra-RedactionEverything`，与本地文件夹名无关。
+> **品牌说明**：对外产品名为 **DataInfra-RedactionEverything**。GitHub 仓库：**[TracyWang95/DataInfra-RedactionEverything](https://github.com/TracyWang95/DataInfra-RedactionEverything)**（旧 URL `legal-redaction` 会自动重定向）。
 
 ---
 
