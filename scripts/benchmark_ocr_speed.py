@@ -4,7 +4,7 @@
 用法:
   conda activate legal-redaction
   python scripts/benchmark_ocr_speed.py
-  python scripts/benchmark_ocr_speed.py "D:\\path\\to\\image.png"
+  python scripts/benchmark_ocr_speed.py "C:\\path\\to\\image.png"
 
 环境变量:
   OCR_URL  默认 http://127.0.0.1:8082
@@ -15,10 +15,12 @@ import base64
 import os
 import sys
 import time
+from pathlib import Path
 
 import httpx
 
-DEFAULT_IMAGE = r"testdata/ce.png"
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_IMAGE = str(_REPO_ROOT / "testdata" / "ce.png")
 OCR_URL = os.environ.get("OCR_URL", "http://127.0.0.1:8082").rstrip("/")
 
 

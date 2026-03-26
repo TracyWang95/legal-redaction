@@ -3,8 +3,9 @@ setlocal
 chcp 65001 >nul
 REM HaS NER (llama-server) — 端口 8080
 REM 默认：HaS_Text_0209 Q4_K_M（https://huggingface.co/xuanwulab/HaS_Text_0209_0.6B_Q4）
-REM 覆盖：set HAS_NER_GGUF=D:\path\to\file.gguf
-if not defined CONDA_ROOT set "CONDA_ROOT=conda-root"
+REM 覆盖：set HAS_NER_GGUF=C:\path\to\file.gguf
+call "%~dp0ensure_conda_root.bat"
+if errorlevel 1 exit /b 1
 if not defined HAS_NER_HF_REPO set "HAS_NER_HF_REPO=xuanwulab/HaS_Text_0209_0.6B_Q4"
 if not defined HAS_NER_NGL set "HAS_NER_NGL=99"
 
@@ -12,8 +13,9 @@ set "HAS_MODEL="
 if defined HAS_NER_GGUF (
     if exist "%HAS_NER_GGUF%" set "HAS_MODEL=%HAS_NER_GGUF%"
 )
-if not defined HAS_MODEL if exist "has_models/HaS_Text_0209_0.6B_Q4_K_M.gguf" set "HAS_MODEL=has_models/HaS_Text_0209_0.6B_Q4_K_M.gguf"
-if not defined HAS_MODEL if exist "has_models/has_4.0_0.6B_q4.gguf" set "HAS_MODEL=has_models/has_4.0_0.6B_q4.gguf"
+set "HAS_MODELS_DIR=%~dp0..\..\has_models"
+if not defined HAS_MODEL if exist "%HAS_MODELS_DIR%\HaS_Text_0209_0.6B_Q4_K_M.gguf" set "HAS_MODEL=%HAS_MODELS_DIR%\HaS_Text_0209_0.6B_Q4_K_M.gguf"
+if not defined HAS_MODEL if exist "%HAS_MODELS_DIR%\has_4.0_0.6B_q4.gguf" set "HAS_MODEL=%HAS_MODELS_DIR%\has_4.0_0.6B_q4.gguf"
 
 set "LLAMA_CONDA=%CONDA_ROOT%\envs\legal-redaction\Library\bin\llama-server.exe"
 if not exist "%LLAMA_CONDA%" set "LLAMA_CONDA=%CONDA_ROOT%\envs\legal-redaction\Scripts\llama-server.exe"

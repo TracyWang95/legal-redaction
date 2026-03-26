@@ -13,7 +13,7 @@ $EnvName = if ($env:LEGAL_REDACTION_CONDA_ENV) { $env:LEGAL_REDACTION_CONDA_ENV 
 
 function Get-CondaRoot {
     if ($env:CONDA_ROOT -and (Test-Path (Join-Path $env:CONDA_ROOT "Scripts\conda.exe"))) { return $env:CONDA_ROOT }
-    foreach ($c in @("conda-root", "C:\ProgramData\miniconda3", "C:\ProgramData\anaconda3", "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3")) {
+    foreach ($c in @("C:\ProgramData\miniconda3", "C:\ProgramData\anaconda3", "$env:LOCALAPPDATA\miniconda3", "$env:LOCALAPPDATA\anaconda3", "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3")) {
         if (Test-Path (Join-Path $c "Scripts\conda.exe")) { return $c }
     }
     $cmd = Get-Command conda -ErrorAction SilentlyContinue
@@ -62,8 +62,10 @@ if (-not $LLAMA_SERVER) {
 
 # HaS Text 0209 Q4_K_M：见 https://huggingface.co/xuanwulab/HaS_Text_0209_0.6B_Q4
 $HfRepo = if ($env:HAS_NER_HF_REPO -and $env:HAS_NER_HF_REPO.Trim()) { $env:HAS_NER_HF_REPO.Trim() } else { "xuanwulab/HaS_Text_0209_0.6B_Q4" }
-$DefaultGguf = "has_models/HaS_Text_0209_0.6B_Q4_K_M.gguf"
-$LegacyGguf = "has_models/has_4.0_0.6B_q4.gguf"
+$WorkspaceRoot = Split-Path -Parent $ProjectRoot
+$HasModelsDir = Join-Path $WorkspaceRoot "has_models"
+$DefaultGguf = Join-Path $HasModelsDir "HaS_Text_0209_0.6B_Q4_K_M.gguf"
+$LegacyGguf = Join-Path $HasModelsDir "has_4.0_0.6B_q4.gguf"
 $HAS_MODEL = $null
 if ($env:HAS_NER_GGUF -and (Test-Path -LiteralPath $env:HAS_NER_GGUF.Trim())) {
     $HAS_MODEL = $env:HAS_NER_GGUF.Trim()

@@ -5,7 +5,22 @@ $ProjectRoot = Split-Path -Parent $ScriptDir
 $BackendRoot = Join-Path $ProjectRoot "backend"
 
 $EnvName = if ($env:LEGAL_REDACTION_CONDA_ENV) { $env:LEGAL_REDACTION_CONDA_ENV } else { "oda" }
-$CondaRoot = if ($env:CONDA_ROOT) { $env:CONDA_ROOT } else { "conda-root" }
+
+function Get-CondaRoot {
+    if ($env:CONDA_ROOT -and (Test-Path (Join-Path $env:CONDA_ROOT "Scripts\conda.exe"))) { return $env:CONDA_ROOT }
+    foreach ($c in @("C:\ProgramData\miniconda3", "C:\ProgramData\anaconda3", "$env:LOCALAPPDATA\miniconda3", "$env:LOCALAPPDATA\anaconda3", "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3")) {
+        if (Test-Path (Join-Path $c "Scripts\conda.exe")) { return $c }
+    }
+    $cmd = Get-Command conda -ErrorAction SilentlyContinue
+    if ($cmd -and $cmd.Source -match 'conda\.exe$') { return (Split-Path (Split-Path $cmd.Source)) }
+    return $null
+}
+
+$CondaRoot = Get-CondaRoot
+if (-not $CondaRoot) {
+    Write-Host "conda not found; set CONDA_ROOT" -ForegroundColor Red
+    exit 1
+}
 $EnvRoot = Join-Path $CondaRoot "envs\$EnvName"
 $EnvPython = Join-Path $EnvRoot "python.exe"
 if (-not (Test-Path -LiteralPath $EnvPython)) {

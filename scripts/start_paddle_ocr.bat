@@ -2,7 +2,8 @@
 setlocal
 chcp 65001 >nul
 REM PaddleOCR-VL - port 8082 (uses conda env oda by default)
-if not defined CONDA_ROOT set "CONDA_ROOT=conda-root"
+call "%~dp0ensure_conda_root.bat"
+if errorlevel 1 exit /b 1
 if not defined LEGAL_REDACTION_CONDA_ENV set "LEGAL_REDACTION_CONDA_ENV=oda"
 set "ENV_ROOT=%CONDA_ROOT%\envs\%LEGAL_REDACTION_CONDA_ENV%"
 set "ENV_PYTHON=%ENV_ROOT%\python.exe"

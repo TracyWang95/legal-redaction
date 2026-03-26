@@ -7,7 +7,7 @@ $EnvName = if ($env:LEGAL_REDACTION_CONDA_ENV) { $env:LEGAL_REDACTION_CONDA_ENV 
 
 function Get-CondaRoot {
     if ($env:CONDA_ROOT -and (Test-Path (Join-Path $env:CONDA_ROOT "Scripts\conda.exe"))) { return $env:CONDA_ROOT }
-    foreach ($c in @("conda-root", "C:\ProgramData\miniconda3", "C:\ProgramData\anaconda3", "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3")) {
+    foreach ($c in @("C:\ProgramData\miniconda3", "C:\ProgramData\anaconda3", "$env:LOCALAPPDATA\miniconda3", "$env:LOCALAPPDATA\anaconda3", "$env:USERPROFILE\anaconda3", "$env:USERPROFILE\miniconda3")) {
         if (Test-Path (Join-Path $c "Scripts\conda.exe")) { return $c }
     }
     $cmd = Get-Command conda -ErrorAction SilentlyContinue
@@ -23,7 +23,11 @@ if (-not $CondaExe -or -not (Test-Path -LiteralPath $CondaExe)) {
 }
 
 if (-not $env:HAS_IMAGE_WEIGHTS) {
-    $env:HAS_IMAGE_WEIGHTS = "has_models/sensitive_seg_best.pt"
+    $WorkspaceRoot = Split-Path -Parent $ProjectRoot
+    $guess = Join-Path $WorkspaceRoot "has_models\sensitive_seg_best.pt"
+    if (Test-Path -LiteralPath $guess) {
+        $env:HAS_IMAGE_WEIGHTS = $guess
+    }
 }
 
 Write-Host "HaS Image: conda run -n $EnvName python has_image_server.py" -ForegroundColor Cyan

@@ -282,12 +282,12 @@ python -c "import paddle; print(paddle.is_compiled_with_cuda(), paddle.get_devic
 
 ### 1️⃣ 启动 HaS Image（YOLO，端口 8081）
 
-Windows：执行 `scripts\start_has_image.bat`（默认读取 `HAS_IMAGE_WEIGHTS`，未设置时使用 `has_models/sensitive_seg_best.pt` 或 `backend\models\has_image\sensitive_seg_best.pt`）。
+Windows：执行 `scripts\start_has_image.bat`（默认读取 `HAS_IMAGE_WEIGHTS`；未设置时依次尝试**工作区**下的 `has_models\sensitive_seg_best.pt` 与 `backend\models\has_image\sensitive_seg_best.pt`）。
 
 ```bash
 cd backend
 pip install -r requirements.txt   # 含 ultralytics
-set HAS_IMAGE_WEIGHTS=D:\path\to\sensitive_seg_best.pt
+set HAS_IMAGE_WEIGHTS=C:\path\to\sensitive_seg_best.pt
 python has_image_server.py
 ```
 
@@ -341,7 +341,7 @@ npm run dev -- --port 3000
 **推荐（项目自带脚本，使用 conda 环境 `legal-redaction`）：**
 
 ```powershell
-$RepoRoot = "repo-root/DataInfra-RedactionEverything"   # 改为你的实际克隆路径
+$RepoRoot = "C:\src\DataInfra-RedactionEverything"   # 改为你的实际克隆路径
 Set-Location $RepoRoot
 # 停止 8080/8081/8082/8000/3000 上的监听进程
 powershell -ExecutionPolicy Bypass -File .\scripts\stop_all.ps1
@@ -352,14 +352,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_all.ps1
 ---
 
 假设目录结构如下（手动逐条启动时参考）：
-- `llama.cpp\` - llama.cpp 可执行文件
-- `has_models\` - 模型文件
+- `<工作区>\llama.cpp\` - llama.cpp 可执行文件
+- `<工作区>\has_models\` - 模型文件（与仓库目录平级，见上文目录树）
 - `$RepoRoot` - 本项目（见上一段 `$RepoRoot`）
 
 ```powershell
-$RepoRoot = "repo-root/DataInfra-RedactionEverything"   # 改为你的实际克隆路径
+$RepoRoot = "C:\src\DataInfra-RedactionEverything"   # 改为你的实际克隆路径
+$WorkspaceRoot = Split-Path $RepoRoot -Parent
+$LlamaBin = Join-Path $WorkspaceRoot "llama.cpp\llama-server.exe"
+$NerGguf = Join-Path $WorkspaceRoot "has_models\HaS_Text_0209_0.6B_Q4_K_M.gguf"
 # 1. HaS NER 服务 (端口 8080) — 推荐 HaS_Text_0209 Q4_K_M
-Start-Process -FilePath "llama.cpp/llama-server.exe" -ArgumentList "-m has_models/HaS_Text_0209_0.6B_Q4_K_M.gguf -ngl 99 --host 0.0.0.0 --port 8080 -c 8192 -np 1"
+Start-Process -FilePath $LlamaBin -ArgumentList "-m `"$NerGguf`" -ngl 99 --host 0.0.0.0 --port 8080 -c 8192 -np 1"
 
 # 2. HaS Image / YOLO（端口 8081）— 见 scripts\start_has_image.bat
 Start-Process -FilePath "$RepoRoot\scripts\start_has_image.bat" -WorkingDirectory $RepoRoot

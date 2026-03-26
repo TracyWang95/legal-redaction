@@ -2,7 +2,8 @@
 setlocal
 chcp 65001 >nul
 REM 主后端 FastAPI — 使用 conda 环境 legal-redaction
-if not defined CONDA_ROOT set "CONDA_ROOT=conda-root"
+call "%~dp0ensure_conda_root.bat"
+if errorlevel 1 exit /b 1
 call "%CONDA_ROOT%\Scripts\activate.bat" legal-redaction
 if errorlevel 1 goto :activate_fail
 goto :activate_ok

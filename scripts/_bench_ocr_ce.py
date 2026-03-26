@@ -2,10 +2,12 @@
 import base64
 import sys
 import time
+from pathlib import Path
 
 import httpx
 
-IMG = r"testdata/ce.png"
+_IMG = Path(__file__).resolve().parent.parent / "testdata" / "ce.png"
+IMG = str(_IMG)
 
 
 def main() -> int:
