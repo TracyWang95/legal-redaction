@@ -27,6 +27,8 @@ interface ImageBBoxEditorProps {
   getTypeConfig: (typeId: string) => { name: string; color: string };
   availableTypes?: TypeOption[];
   defaultType?: string;
+  /** 仅展示框与底图，隐藏拉框/缩放等工具栏，禁止编辑（如 Playground 脱敏完成对比） */
+  readOnly?: boolean;
   /** 浮在图片区域顶部（如批量核对：文件名、翻张、上一步） */
   viewportTopSlot?: React.ReactNode;
   /** 浮在图片区域底部（如批量核对：确认本张） */
@@ -47,6 +49,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
   getTypeConfig,
   availableTypes = [],
   defaultType = 'CUSTOM',
+  readOnly = false,
   viewportTopSlot,
   viewportBottomSlot,
 }) => {
@@ -117,6 +120,17 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
   }, [imageSrc]);
 
   useEffect(() => {
+    if (readOnly) {
+      setZoom(1);
+      setDrawMode(false);
+      setSelectedBoxId(null);
+      setIsDrawing(false);
+      setIsDragging(false);
+      setIsResizing(false);
+    }
+  }, [readOnly]);
+
+  useEffect(() => {
     lastBoxesRef.current = boxes;
   }, [boxes]);
 
@@ -148,6 +162,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
 
   // 开始绘制新框
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (readOnly) return;
     if (!drawMode) return;
     e.preventDefault();
     editStartBoxesRef.current = boxes;
@@ -156,10 +171,11 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     setDrawCurrent(pos);
     setIsDrawing(true);
     setSelectedBoxId(null);
-  }, [drawMode, getMousePos, boxes]);
+  }, [readOnly, drawMode, getMousePos, boxes]);
 
   // 开始拖拽或调整大小
   const handleBoxMouseDown = useCallback((e: React.MouseEvent, boxId: string, handle?: ResizeHandle) => {
+    if (readOnly) return;
     e.preventDefault();
     e.stopPropagation();
     setSelectedBoxId(boxId);
@@ -179,10 +195,11 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         y: pos.y - toPixel(box.y, 'y'),
       });
     }
-  }, [boxes, getMousePos, toPixel]);
+  }, [readOnly, boxes, getMousePos, toPixel]);
 
   // 鼠标移动
   const handleMouseMove = useCallback((e: React.MouseEvent | MouseEvent) => {
+    if (readOnly) return;
     const pos = getMousePosFromClient(e.clientX, e.clientY);
 
     if (isDrawing) {
@@ -257,10 +274,11 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
 
       onBoxesChange(boxes.map(b => b.id === selectedBoxId ? newBox : b));
     }
-  }, [isDrawing, isDragging, isResizing, selectedBoxId, boxes, dragOffset, resizeHandle, getMousePosFromClient, toNormalized, onBoxesChange]);
+  }, [readOnly, isDrawing, isDragging, isResizing, selectedBoxId, boxes, dragOffset, resizeHandle, getMousePosFromClient, toNormalized, onBoxesChange]);
 
   // 鼠标释放
   const handleMouseUp = useCallback(() => {
+    if (readOnly) return;
     if (isDrawing) {
       const x1 = toNormalized(Math.min(drawStart.x, drawCurrent.x), 'x');
       const y1 = toNormalized(Math.min(drawStart.y, drawCurrent.y), 'y');
@@ -301,10 +319,11 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     setIsResizing(false);
     setResizeHandle(null);
     editStartBoxesRef.current = null;
-  }, [isDrawing, isDragging, isResizing, drawStart, drawCurrent, boxes, availableTypes, selectedDrawType, toNormalized, onBoxesChange, onBoxesCommit]);
+  }, [readOnly, isDrawing, isDragging, isResizing, drawStart, drawCurrent, boxes, availableTypes, selectedDrawType, toNormalized, onBoxesChange, onBoxesCommit]);
 
   // 拖拽/缩放/拉框时指针移出图片区域仍跟踪（避免被父级 overflow 截断）
   useEffect(() => {
+    if (readOnly) return;
     if (!isDragging && !isResizing && !isDrawing) return;
     const onMove = (e: MouseEvent) => {
       handleMouseMove(e);
@@ -316,20 +335,22 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [isDragging, isResizing, isDrawing, handleMouseMove, handleMouseUp]);
+  }, [readOnly, isDragging, isResizing, isDrawing, handleMouseMove, handleMouseUp]);
 
   // 删除选中的框
   const handleDelete = useCallback(() => {
+    if (readOnly) return;
     if (selectedBoxId) {
       const nextBoxes = boxes.filter(b => b.id !== selectedBoxId);
       onBoxesChange(nextBoxes);
       onBoxesCommit?.(boxes, nextBoxes);
       setSelectedBoxId(null);
     }
-  }, [selectedBoxId, boxes, onBoxesChange, onBoxesCommit]);
+  }, [readOnly, selectedBoxId, boxes, onBoxesChange, onBoxesCommit]);
 
   // 键盘事件
   useEffect(() => {
+    if (readOnly) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         handleDelete();
@@ -340,7 +361,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDelete]);
+  }, [readOnly, handleDelete]);
 
   // 渲染调整手柄
   const renderResizeHandles = (box: BoundingBox) => {
@@ -380,7 +401,8 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* 工具栏 */}
+      {/* 工具栏（脱敏结果对比 / 只读模式不展示） */}
+      {!readOnly && (
       <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 flex-shrink-0 border-b border-gray-100/80 bg-white/90">
         <button
           onClick={() => setDrawMode(!drawMode)}
@@ -458,11 +480,12 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
           {boxes.length} 区域
         </div>
       </div>
+      )}
 
       {/* 图片区：按视口适应缩放 + 用户 zoom；插槽浮在视口上 */}
       <div
         ref={viewportRef}
-        className={`relative flex-1 w-full min-h-0 overflow-auto flex items-center justify-center bg-[#f0f0f2] ${
+        className={`relative flex-1 w-full min-h-0 ${readOnly ? 'overflow-hidden' : 'overflow-auto'} flex items-center justify-center bg-[#f0f0f2] ${
           viewportTopSlot ? 'pt-11' : ''
         } ${viewportBottomSlot ? 'pb-14' : ''}`}
       >
@@ -478,7 +501,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         )}
         <div
           ref={containerRef}
-          className={`relative inline-block shrink-0 ${drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
+          className={`relative inline-block shrink-0 ${readOnly ? 'cursor-default' : drawMode ? 'cursor-crosshair' : 'cursor-default'}`}
           style={{
             width: displayW > 0 ? displayW : undefined,
             height: displayH > 0 ? displayH : undefined,
@@ -529,9 +552,10 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
                 border: `1px solid ${stroke}`,
                 backgroundColor: box.selected ? 'rgba(148, 163, 184, 0.06)' : 'transparent',
                 boxShadow: isSelected ? `0 0 0 1px ${BOX_STROKE_SELECTED}` : 'none',
-                cursor: 'move',
+                cursor: readOnly ? 'default' : 'move',
               }}
               onMouseDown={(e) => {
+                if (readOnly) return;
                 // 绘制模式下也要能拖拽/选中已有框，并阻止冒泡到容器触发「拉新框」
                 e.stopPropagation();
                 handleBoxMouseDown(e, box.id);
@@ -554,7 +578,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
               </div>
 
               {/* 选中状态的调整手柄 */}
-              {isSelected && !drawMode && renderResizeHandles(box)}
+              {isSelected && !drawMode && !readOnly && renderResizeHandles(box)}
 
               {/* 未选中指示器 */}
               {!box.selected && (

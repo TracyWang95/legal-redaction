@@ -2328,22 +2328,18 @@ export const Playground: React.FC = () => {
           {/* 三列主体 */}
           {isImageMode ? (
             <div className="flex-1 flex gap-2 sm:gap-3 px-3 sm:px-4 pb-3 sm:pb-4 min-h-0 min-w-0">
-              {/* 左：原始图片 */}
-              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+              {/* 左：原始图片（与右侧同高视口、同底色，只读无工具栏） */}
+              <div className="flex-1 min-w-0 min-h-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
                 <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
                   <span className="text-xs font-semibold text-[#1d1d1f] tracking-tight">原始图片</span>
                 </div>
-                <div className="flex-1 overflow-auto p-3">
+                <div className="flex-1 min-h-0 min-w-0 flex flex-col">
                   {fileInfo && (
                     <ImageBBoxEditor
+                      readOnly
                       imageSrc={`/api/v1/files/${fileInfo.file_id}/download`}
                       boxes={visibleBoxes}
-                      onBoxesChange={(newBoxes) => setBoundingBoxes(mergeVisibleBoxes(newBoxes))}
-                      onBoxesCommit={(prevBoxes, nextBoxes) => {
-                        setImageUndoStack(prev => [...prev, mergeVisibleBoxes(prevBoxes, nextBoxes)]);
-                        setImageRedoStack([]);
-                        setBoundingBoxes(mergeVisibleBoxes(nextBoxes, prevBoxes));
-                      }}
+                      onBoxesChange={() => {}}
                       getTypeConfig={getVisionTypeConfig}
                       availableTypes={visionTypes.map(t => ({ id: t.id, name: t.name, color: '#6366F1' }))}
                       defaultType={visionTypes[0]?.id || 'CUSTOM'}
@@ -2351,13 +2347,19 @@ export const Playground: React.FC = () => {
                   )}
                 </div>
               </div>
-              {/* 中：脱敏后图片 */}
-              <div className="flex-1 min-w-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
+              {/* 中：脱敏后图片（与左侧相同 flex 视口 + object-contain，缩放一致） */}
+              <div className="flex-1 min-w-0 min-h-0 bg-white rounded-2xl border border-gray-200/80 flex flex-col overflow-hidden">
                 <div className="flex-shrink-0 px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
                   <span className="text-xs font-semibold text-[#1d1d1f] tracking-tight">脱敏结果</span>
                 </div>
-                <div className="flex-1 overflow-auto p-3">
-                  {fileInfo && <img src={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`} alt="redacted" className="max-w-full h-auto object-contain" />}
+                <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center bg-[#f0f0f2] overflow-hidden">
+                  {fileInfo && (
+                    <img
+                      src={`/api/v1/files/${fileInfo.file_id}/download?redacted=true`}
+                      alt="redacted"
+                      className="max-w-full max-h-full w-auto h-auto object-contain select-none block"
+                    />
+                  )}
                 </div>
               </div>
               {/* 右：映射表 */}
