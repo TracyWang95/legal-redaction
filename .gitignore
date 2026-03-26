@@ -48,3 +48,8 @@ desktop.ini
 # 调试日志
 debug.log
 logs/
+
+# 本地宣传材料与生成脚本（不入库）
+generate_qingjing_docx.py
+qingjing-dataset-platform-intro.docx
+wechat_article.md
