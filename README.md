@@ -3,10 +3,11 @@
 <p align="center">
   <strong>匿名化数据基础设施 · 本地敏感信息检测与脱敏</strong><br>
   支持 Word / PDF / 图片等多模态文档的识别、标注与匿名化处理<br>
-  <b>全链路本地推理，无云端依赖</b> — 适用于合规数据集建设、档案数字化、多行业文档流水线
+  <b>全链路本地推理，无云端依赖</b> — 适用于合规数据集建设、档案数字化、多行业文档流水线<br>
+  <a href="https://github.com/TracyWang95/DataInfra-RedactionEverything"><code>github.com/TracyWang95/DataInfra-RedactionEverything</code></a>
 </p>
 
-> **品牌说明**：对外产品名为 **DataInfra-RedactionEverything**。GitHub 仓库：**[TracyWang95/DataInfra-RedactionEverything](https://github.com/TracyWang95/DataInfra-RedactionEverything)**（旧 URL `legal-redaction` 会自动重定向）。
+> **品牌与仓库**：产品名 **DataInfra-RedactionEverything**。**官方仓库（canonical）**：[github.com/TracyWang95/DataInfra-RedactionEverything](https://github.com/TracyWang95/DataInfra-RedactionEverything)。克隆、Issue、PR、Star 请使用该地址；若仍使用旧路径 `TracyWang95/legal-redaction`，GitHub 会 **301 重定向** 至本仓库。
 
 ---
 
@@ -16,7 +17,7 @@
 |------|------|
 | 📄 **多格式支持** | Word (.doc/.docx)、PDF、图片 (.jpg/.png) |
 | 🧠 **OCR + NER 双引擎** | PaddleOCR-VL-1.5（文字识别）+ HaS Text 0209 Q4（命名实体识别） |
-| 👁️ **本地视觉识别** | **HaS Image**（Ultralytics YOLO11，21 类分割，端口 8081） |
+| 👁️ **本地视觉识别** | **HaS Image**（Ultralytics YOLO11，**21 类实例分割**，与模型卡类别一致；端口 **8081**，类表见下文 §3） |
 | ✏️ **交互式编辑** | 识别结果可选 / 可编辑 / 可拉框调整 |
 | 🔄 **脱敏模式** | 智能替换 / 掩码 / 结构化替换 |
 | 📊 **对比与导出** | 脱敏前后对比预览、下载 |
@@ -91,7 +92,7 @@
 | 类别 | 敏感信息类型 | 检测方式 |
 |------|-------------|---------|
 | **文字类** | 姓名、身份证号、电话、银行卡号、地址、公司名等 | OCR + HaS NER |
-| **视觉类** | 公章、签名、指纹、照片、二维码、水印等 | HaS Image (YOLO) |
+| **视觉类** | 人脸、证件、印章、指纹、屏幕、码类、纸张版面等 **21 类隐私区域**（分割掩码 / 框） | **HaS Image**（YOLO11，见 §3 完整类表） |
 
 传统 OCR 方案只能识别文字，无法处理印章、签名等视觉元素；而纯视觉大模型虽然能识别图像内容，但在精确定位文字边界上存在误差。本项目将两者优势结合：
 
@@ -164,9 +165,37 @@
 - **HaS**：专注语义理解，识别敏感实体类型
 - **文字匹配**：将两者结果关联，实现精准定位
 
-### 3. HaS Image Pipeline（YOLO11，8081）
+### 3. HaS Image Pipeline（YOLO11，8081）— **21 类视觉分割**
 
-处理视觉类隐私区域（21 类分割）：独立微服务 `has_image_server.py`，主后端经 HTTP 调用 `/detect`，输出归一化 0–1 框，与 OCR+HaS 结果做 IoU 去重合并。
+**HaS Image** 是一条独立的**实例分割**流水线：权重为 YOLO11（如 `sensitive_seg_best.pt`），微服务入口为 `backend/has_image_server.py`。主后端通过 HTTP 调用 **`POST /detect`**，请求体可带 `categories`（英文 **slug** 列表）；不传或 `null` 表示 **21 类全开**。返回检测框为 **归一化 0–1** 坐标，与 OCR+HaS 的像素框在主后端内做 **IoU 去重合并**（OCR+HaS 优先保留）。
+
+类别定义与代码 **`backend/app/core/has_image_categories.py`** 中 `HAS_IMAGE_CATEGORIES` **严格一致**（`class_id` 0–20 与模型输出类别索引对齐）：
+
+| `class_id` | slug（API / 配置用） | 中文名 | 说明 |
+|:---:|:---|:---|:---|
+| 0 | `face` | 人脸 | 人体面部区域 |
+| 1 | `fingerprint` | 指纹 | 指纹、捺印区域 |
+| 2 | `palmprint` | 掌纹 | 掌纹区域 |
+| 3 | `id_card` | 身份证 | 居民身份证等证件 |
+| 4 | `hk_macau_permit` | 港澳通行证 | 往来港澳通行证等 |
+| 5 | `passport` | 护照 | 护照 |
+| 6 | `employee_badge` | 工作证 | 员工证、工牌 |
+| 7 | `license_plate` | 车牌 | 机动车号牌 |
+| 8 | `bank_card` | 银行卡 | 银行卡、信用卡 |
+| 9 | `physical_key` | 钥匙 | 实体钥匙 |
+| 10 | `receipt` | 小票/收据 | 购物小票、收据 |
+| 11 | `shipping_label` | 快递面单 | 快递/物流面单 |
+| 12 | `official_seal` | 公章 | 公章、印章 |
+| 13 | `whiteboard` | 白板 | 白板内容 |
+| 14 | `sticky_note` | 便利贴 | 便签、便利贴 |
+| 15 | `mobile_screen` | 手机屏幕 | 手机屏幕显示区域 |
+| 16 | `monitor_screen` | 电脑屏幕 | 显示器屏幕区域 |
+| 17 | `medical_wristband` | 医用腕带 | 医院腕带 |
+| 18 | `qr_code` | 二维码 | 二维码 |
+| 19 | `barcode` | 条形码 | 条形码 |
+| 20 | `paper` | 纸质文档 | 纸张文档区域 |
+
+**小结**：这 21 类覆盖「**可指向个人或业务敏感载体**」的常见视觉区域；与 **HaS Text NER**（姓名、电话等字符串实体）互补，由双 Pipeline 融合后统一脱敏。
 
 ### 4. 结果融合与去重
 
@@ -214,7 +243,7 @@ def deduplicate_boxes(boxes, iou_threshold=0.3):
 | | LICENSE_PLATE | 车牌号 | 正则 |
 | | CASE_NUMBER | 案件编号 | NER |
 | **视觉元素** | SEAL 等 | 公章/版面等（OCR 可识别印章文字） | OCR+HaS |
-| | （21 类 slug） | 人脸、证件、二维码、屏幕等分割 | HaS Image |
+| **HaS Image（21 类）** | 见上表 `slug` | 人脸、证件、印章、码类、屏幕、纸张等 **实例分割** | HaS Image（§3） |
 
 ---
 
@@ -225,7 +254,7 @@ def deduplicate_boxes(boxes, iou_threshold=0.3):
 | **Backend API** | FastAPI | 主后端服务 | 8000 |
 | **OCR** | PaddleOCR-VL-1.5 | 文字检测与识别 | 8082 |
 | **NER** | [HaS Text 0209](https://huggingface.co/xuanwulab/HaS_Text_0209_0.6B_Q4) Q4_K_M（Qwen3-0.6B） | 命名实体识别 | 8080 |
-| **HaS Image** | YOLO11（`sensitive_seg_best.pt`） | 视觉隐私区域分割 | 8081 |
+| **HaS Image** | YOLO11（`sensitive_seg_best.pt`） | **21 类**隐私区域实例分割（slug 见 §3） | 8081 |
 | **Frontend** | React + Vite | 前端界面 | 3000 |
 
 ---
@@ -386,12 +415,13 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/health/services" | ConvertTo-Json
 
 ## 🛠️ 本地模型部署踩坑记录
 
-### HaS Image（YOLO11）
+### HaS Image（YOLO11，21 类）
 
 | 问题 | 解决方案 |
 |------|----------|
 | 8081 `/health` 中 `ready=false` | 检查 `HAS_IMAGE_WEIGHTS` 路径是否存在；`pip install ultralytics` |
 | 显存不足 | 使用更小 batch / CPU 推理（较慢） |
+| `/detect` 的 `categories` | **21 类 slug** 见上文 §3；不传或 `null` = 全类；传 `[]` = 不跑任何类（与「全类」不同） |
 
 权重示例：xuanwulab/HaS_Image 相关发布中的 `sensitive_seg_best.pt`。
 
