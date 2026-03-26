@@ -53,3 +53,6 @@ logs/
 generate_qingjing_docx.py
 qingjing-dataset-platform-intro.docx
 wechat_article.md
+
+# 一次性历史清洗规则（勿提交）
+_filter_repo_replacements.txt
