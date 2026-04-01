@@ -3093,40 +3093,36 @@ export const Batch: React.FC = () => {
                 <div className="flex-1 min-h-0 flex overflow-hidden">
 
                   {/* 列 1：原图 + bbox 标注 */}
-                  <div className="flex-[2] min-w-0 min-h-0 flex flex-col border-r border-gray-100">
-                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-800">原图 + 标注</span>
-                      <span className="text-2xs text-gray-400">{reviewBoxes.length} 区域</span>
-                    </div>
-                    <div className="flex-1 min-h-0 relative">
-                      <div className="absolute inset-0">
-                        <ImageBBoxEditor
-                          imageSrc={reviewOrigImageBlobUrl}
-                          boxes={reviewBoxes}
-                          onBoxesChange={setReviewBoxes}
-                          onBoxesCommit={handleReviewBoxesCommit}
-                          getTypeConfig={getVisionTypeMeta}
-                          availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
-                          defaultType="CUSTOM"
-                        />
-                      </div>
+                  <div className="flex-[2] min-w-0 min-h-0 border-r border-gray-100 relative">
+                    <div className="absolute inset-0">
+                      <ImageBBoxEditor
+                        imageSrc={reviewOrigImageBlobUrl}
+                        boxes={reviewBoxes}
+                        onBoxesChange={setReviewBoxes}
+                        onBoxesCommit={handleReviewBoxesCommit}
+                        getTypeConfig={getVisionTypeMeta}
+                        availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
+                        defaultType="CUSTOM"
+                      />
                     </div>
                   </div>
 
-                  {/* 列 2：脱敏预览 */}
+                  {/* 列 2：脱敏预览 — 标题栏与列1工具栏等高，图片区域对齐 */}
                   <div className="flex-[2] min-w-0 min-h-0 flex flex-col border-r border-gray-100">
-                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-800">脱敏预览</span>
-                      <span className="text-2xs text-gray-400">
+                    {/* 标题栏：与 ImageBBoxEditor 工具栏同高 (px-2 py-1.5 = ~37px) */}
+                    <div className="shrink-0 flex items-center px-2 py-1.5 border-b border-gray-100/80 bg-white/90">
+                      <span className="text-xs font-medium text-gray-700">脱敏预览</span>
+                      <span className="ml-auto text-[10px] text-gray-400">
                         {reviewImagePreviewLoading ? '生成中…' : `${selectedReviewBoxCount}/${reviewBoxes.length} 已选`}
                       </span>
                     </div>
-                    <div className="flex-1 min-h-0 overflow-auto bg-[#f0f0f2] flex items-start justify-center p-2">
+                    {/* 图片区：与列1视口区域对齐 */}
+                    <div className="flex-1 min-h-0 overflow-auto bg-[#f0f0f2] flex items-center justify-center">
                       {reviewImagePreviewSrc ? (
                         <img src={reviewImagePreviewSrc} alt="脱敏预览"
                           className="max-w-full max-h-full object-contain" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-sm text-gray-400">
+                        <div className="text-sm text-gray-400">
                           {reviewImagePreviewLoading ? '生成预览中…' : '勾选区域后生成预览'}
                         </div>
                       )}
@@ -3135,9 +3131,9 @@ export const Batch: React.FC = () => {
 
                   {/* 列 3：检测标签列表 */}
                   <div className="flex-[1] min-w-[220px] max-w-[320px] min-h-0 flex flex-col bg-white">
-                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-800">检测区域</span>
-                      <span className="text-2xs text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
+                    <div className="shrink-0 flex items-center px-2 py-1.5 border-b border-gray-100/80 bg-white/90">
+                      <span className="text-xs font-medium text-gray-700">检测区域</span>
+                      <span className="ml-auto text-[10px] text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
                     </div>
                     <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                       {reviewBoxes.map(box => {
