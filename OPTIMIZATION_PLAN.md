@@ -40,6 +40,10 @@
 
 ## 二、Codex GPT-5.4 审核发现的回归 Bug（必修）
 
+> 两轮 Codex review 共发现 8 个问题，去重后 8 项。
+
+### 第一轮（审核 uncommitted diff）
+
 | # | 等级 | 问题 | 文件 | 修复方案 |
 |---|------|------|------|----------|
 | CR-1 | P1 | JSON→SQLite 迁移丢失历史文件 | `files.py:229` | 迁移前 `os.path.realpath()` 规范化路径 |
@@ -47,6 +51,17 @@
 | CR-3 | P1 | 重启恢复入队逻辑错误 | `main.py:146-157` | `review_approved` 入队为 redaction，不重跑识别 |
 | CR-4 | P2 | requeue-failed 状态转换失败 | `jobs.py:472` | `QUEUED` → `PENDING` |
 | CR-5 | P2 | 文件注册 400 被吞为 500 | `files.py:690` | `isinstance(e, HTTPException)` 先 re-raise |
+
+### 第二轮（审核 v3 方案后的 diff）
+
+| # | 等级 | 问题 | 文件 | 修复方案 |
+|---|------|------|------|----------|
+| CR-6 | P1 | 重启时 `processing` 状态的 job 不被重新调度 | `job_store.py:327-330` | `list_schedulable_jobs()` 加入 `processing` 状态 |
+| CR-7 | P1 | 全部 item 失败时 job 状态被标为 awaiting_review 而非 failed | `task_queue.py:338-346` | `_refresh_job_status` 中全失败→FAILED，混合→AWAITING_REVIEW |
+| CR-8 | P2 | `_progress_from_items()` 不统计 `processing` 状态 | `jobs.py:136-149` | 加入 PROCESSING 到进度计算 |
+| CR-9 | P2 | JWT revoke-all 环境变量模式下重启后失效 | `auth.py:99-108` | 写文件时同步清除环境变量覆盖，或启动时优先读文件 |
+
+> CR-4 和第二轮的 requeue 问题相同（已合并）。
 
 ---
 
@@ -125,7 +140,7 @@
 ## 五、实施顺序
 
 ```
-Phase 0 (半天)  CR-1~CR-5     Codex 发现的 5 个回归 Bug
+Phase 0 (1天)   CR-1~CR-9     Codex 发现的 8 个回归 Bug（两轮审核合并）
 Phase 1 (半天)  P0-1~P0-5     快速修复
                 P0-B1~P0-B3   Step4 排版完善
 Phase 2 (2-3天) P1-1          拆分 Batch.tsx（最大改动，逐步拆+跑 E2E）
