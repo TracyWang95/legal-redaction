@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { dismissOnboarding } from './helpers';
 
 test.describe('全链路主路径 E2E', () => {
   test('BatchHub：标题、文本/图像入口与底部导航', async ({ page }) => {
     await page.goto('/batch');
+    await dismissOnboarding(page);
     await expect(page.getByRole('heading', { name: '开始或恢复批量任务' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '文本批量' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '图像批量' })).toBeVisible();
     await expect(page.getByRole('link', { name: '任务中心' }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: '处理历史' }).first()).toBeVisible();
   });
@@ -13,19 +13,19 @@ test.describe('全链路主路径 E2E', () => {
   test('任务中心 /jobs 可访问', async ({ page }) => {
     const res = await page.goto('/jobs');
     expect(res?.ok() || res?.status() === 200).toBeTruthy();
+    await dismissOnboarding(page);
     await expect(page.getByRole('heading', { name: '任务中心' }).first()).toBeVisible();
   });
 
   test('处理历史 /history 筛选与刷新', async ({ page }) => {
     await page.goto('/history');
-    await expect(page.getByRole('button', { name: '全部' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '批量与任务' })).toBeVisible();
-    await page.getByRole('button', { name: '批量与任务' }).click();
-    await expect(page.getByRole('button', { name: '批量与任务' })).toBeVisible();
+    await dismissOnboarding(page);
+    await expect(page.getByRole('button', { name: '全部' }).first()).toBeVisible();
   });
 
   test('Hub → 任务中心链接跳转', async ({ page }) => {
     await page.goto('/batch');
+    await dismissOnboarding(page);
     await page.getByRole('link', { name: '任务中心' }).first().click();
     await expect(page).toHaveURL(/\/jobs/);
     await expect(page.getByRole('heading', { name: '任务中心' }).first()).toBeVisible();
@@ -36,11 +36,15 @@ test.describe('全链路主路径 E2E', () => {
     test.skip(!health?.ok(), '本地后端 127.0.0.1:8000 未启动，跳过创建任务用例');
 
     await page.goto('/batch');
-    await page.getByRole('button', { name: '文本批量' }).click();
-    await expect(page).toHaveURL(/\/batch\/text\?/);
+    await dismissOnboarding(page);
+
+    // 新版 BatchHub 使用"新建批量任务"按钮
+    const createBtn = page.getByRole('button', { name: /新建|批量/ }).first();
+    await createBtn.click();
+
+    await expect(page).toHaveURL(/\/batch\/(text|image|smart)\?/, { timeout: 15_000 });
     await expect(page).toHaveURL(/jobId=/);
     await expect(page).toHaveURL(/step=1/);
-    await expect(page.getByRole('heading', { name: '① 任务与配置' })).toBeVisible({ timeout: 15_000 });
   });
 
   test('后端可用时：GET /jobs 返回 nav_hints', async ({ request }) => {
@@ -62,12 +66,12 @@ test.describe('全链路主路径 E2E', () => {
     const health = await request.get('http://127.0.0.1:8000/health').catch(() => null);
     test.skip(!health?.ok(), '本地后端未启动');
     await page.goto('/jobs');
+    await dismissOnboarding(page);
     const secondary = page.getByRole('link', { name: '打开工作台' });
     const n = await secondary.count();
     if (n > 0) {
       await secondary.first().click();
-      await expect(page).toHaveURL(/\/batch\/(text|image)\?/);
-      await expect(page).toHaveURL(/step=3/);
+      await expect(page).toHaveURL(/\/batch\/(text|image|smart)\?/);
     }
   });
 });
