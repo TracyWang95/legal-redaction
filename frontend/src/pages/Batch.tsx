@@ -3093,30 +3093,27 @@ export const Batch: React.FC = () => {
                 <div className="flex-1 min-h-0 flex overflow-hidden">
 
                   {/* 列 1：原图 + bbox 标注 */}
-                  <div className="flex-[2] min-w-0 min-h-0 border-r border-gray-100 relative">
-                    <div className="absolute inset-0">
-                      <ImageBBoxEditor
-                        imageSrc={reviewOrigImageBlobUrl}
-                        boxes={reviewBoxes}
-                        onBoxesChange={setReviewBoxes}
-                        onBoxesCommit={handleReviewBoxesCommit}
-                        getTypeConfig={getVisionTypeMeta}
-                        availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
-                        defaultType="CUSTOM"
-                      />
-                    </div>
+                  <div className="flex-[2] min-w-0 border-r border-gray-100 overflow-hidden" style={{ height: '100%' }}>
+                    <ImageBBoxEditor
+                      imageSrc={reviewOrigImageBlobUrl}
+                      boxes={reviewBoxes}
+                      onBoxesChange={setReviewBoxes}
+                      onBoxesCommit={handleReviewBoxesCommit}
+                      getTypeConfig={getVisionTypeMeta}
+                      availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
+                      defaultType="CUSTOM"
+                    />
                   </div>
 
-                  {/* 列 2：脱敏预览 — 标题栏与列1工具栏等高，图片区域对齐 */}
-                  <div className="flex-[2] min-w-0 min-h-0 flex flex-col border-r border-gray-100">
-                    {/* 标题栏：与 ImageBBoxEditor 工具栏同高 (px-2 py-1.5 = ~37px) */}
-                    <div className="shrink-0 flex items-center px-2 py-1.5 border-b border-gray-100/80 bg-white/90">
+                  {/* 列 2：脱敏预览 */}
+                  <div className="flex-[2] min-w-0 flex flex-col border-r border-gray-100 overflow-hidden" style={{ height: '100%' }}>
+                    {/* 标题栏：与 ImageBBoxEditor 工具栏同高 */}
+                    <div className="shrink-0 flex items-center gap-1.5 px-2 py-1.5 border-b border-gray-100/80 bg-white/90">
                       <span className="text-xs font-medium text-gray-700">脱敏预览</span>
                       <span className="ml-auto text-[10px] text-gray-400">
                         {reviewImagePreviewLoading ? '生成中…' : `${selectedReviewBoxCount}/${reviewBoxes.length} 已选`}
                       </span>
                     </div>
-                    {/* 图片区：与列1视口区域对齐 */}
                     <div className="flex-1 min-h-0 overflow-auto bg-[#f0f0f2] flex items-center justify-center">
                       {reviewImagePreviewSrc ? (
                         <img src={reviewImagePreviewSrc} alt="脱敏预览"
