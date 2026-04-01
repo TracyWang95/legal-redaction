@@ -3012,189 +3012,157 @@ export const Batch: React.FC = () => {
           />
         )}
 
-        {/* 4 核对 · 图像：画布最大化，控件浮层 */}
+        {/* 4 核对 · 图像：三列布局 — 原图标注 | 脱敏预览 | 标签列表 */}
         {step === 4 && reviewFile?.isImageMode && (
           <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-gray-200 shadow-sm bg-white overflow-hidden">
+            {/* 只读提示 */}
             {reviewFileReadOnly && (
               <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-sm text-emerald-800">
                 该文件已完成脱敏，仅供查阅。如需重新脱敏请先在任务详情驳回。
               </div>
             )}
+
             {!doneRows.length ? (
               <p className="p-3 text-sm text-gray-400 shrink-0">暂无已完成识别的文件，请先完成第 3 步批量识别。</p>
             ) : reviewLoading || !reviewFile ? (
               <p className="p-3 text-sm text-gray-400 shrink-0">加载中…</p>
             ) : reviewFile.isImageMode ? (
-              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 p-3">
-                <div className="flex-1 min-h-0 rounded-2xl border border-gray-200 overflow-hidden bg-white">
-                  <ImageBBoxEditor
-                    imageSrc={reviewOrigImageBlobUrl}
-                    boxes={reviewBoxes}
-                    onBoxesChange={setReviewBoxes}
-                    onBoxesCommit={handleReviewBoxesCommit}
-                    getTypeConfig={getVisionTypeMeta}
-                    availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
-                    defaultType="CUSTOM"
-                    viewportTopSlot={
-                      <>
-                        <span
-                          className="text-2xs font-medium text-gray-900 truncate max-w-[min(36vw,16rem)] px-1.5 py-0.5 rounded bg-white/90 border border-gray-200/80 shadow-sm"
-                          title={reviewFile.original_filename}
-                        >
-                          {reviewFile.original_filename}
-                        </span>
-                        {doneRows.length > 1 && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={reviewIndex <= 0}
-                              onClick={() => void navigateReviewIndex(reviewIndex - 1)}
-                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
-                            >
-                              上一张
-                            </button>
-                            <span className="text-2xs text-gray-700 tabular-nums px-0.5">
-                              {reviewIndex + 1}/{doneRows.length}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={reviewIndex >= doneRows.length - 1 || !reviewFile?.reviewConfirmed}
-                              onClick={() => void navigateReviewIndex(reviewIndex + 1)}
-                              title={!reviewFile?.reviewConfirmed ? '请先确认当前文件脱敏' : ''}
-                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
-                            >
-                              下一张
-                            </button>
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={undoReviewImage}
-                          disabled={!reviewImageUndoStack.length}
-                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm ml-auto"
-                        >
-                          Undo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={redoReviewImage}
-                          disabled={!reviewImageRedoStack.length}
-                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
-                        >
-                          Redo
-                        </button>
-                        {reviewDraftSaving && (
-                          <span className="text-2xs text-gray-500 dark:text-gray-400 whitespace-nowrap">保存草稿…</span>
-                        )}
-                        {!reviewDraftSaving && reviewDraftError && (
-                          <span className="text-2xs text-red-600 truncate max-w-[10rem]">{reviewDraftError}</span>
-                        )}
-                      </>
-                    }
-                    viewportBottomSlot={
-                      <div className="ml-auto flex items-center gap-2 rounded-2xl border border-white/70 bg-white/95 px-2.5 py-2 shadow-lg backdrop-blur">
-                        <span className="hidden sm:inline text-2xs text-gray-500 dark:text-gray-400 tabular-nums">
-                          已确认 {reviewedOutputCount} / {rows.length}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={confirmCurrentReview}
-                          disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
-                          className="min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] transition-all duration-200 disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
-                        >
-                          {reviewFileReadOnly ? '已完成脱敏' : reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={advanceToExportStep}
-                          disabled={!allReviewConfirmed || reviewExecuteLoading}
-                          className={`min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl shadow-sm transition-all duration-200 ${
-                            allReviewConfirmed && !reviewExecuteLoading
-                              ? 'bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] border-transparent ring-2 ring-[#1d1d1f]/20'
-                              : 'border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white'
-                          }`}
-                        >
-                          {allReviewConfirmed ? '✓ 进入导出' : '下一步：进入导出'}
-                        </button>
-                      </div>
-                    }
-                  />
+              <>
+                {/* ── 顶部工具栏 ── */}
+                <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100 bg-[#fafafa]">
+                  {/* 文件名 */}
+                  <span
+                    className="text-xs font-semibold text-gray-900 truncate max-w-[20rem]"
+                    title={reviewFile.original_filename}
+                  >
+                    {reviewFile.original_filename}
+                  </span>
+
+                  {/* 翻页 */}
+                  {doneRows.length > 1 && (
+                    <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
+                      <button type="button" disabled={reviewIndex <= 0}
+                        onClick={() => void navigateReviewIndex(reviewIndex - 1)}
+                        className="px-2 py-0.5 text-xs rounded border border-gray-200 bg-white disabled:opacity-40">
+                        上一张
+                      </button>
+                      <span className="text-xs text-gray-600 tabular-nums">{reviewIndex + 1}/{doneRows.length}</span>
+                      <button type="button"
+                        disabled={reviewIndex >= doneRows.length - 1 || !reviewFile?.reviewConfirmed}
+                        onClick={() => void navigateReviewIndex(reviewIndex + 1)}
+                        title={!reviewFile?.reviewConfirmed ? '请先确认当前文件脱敏' : ''}
+                        className="px-2 py-0.5 text-xs rounded border border-gray-200 bg-white disabled:opacity-40">
+                        下一张
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Undo / Redo */}
+                  <div className="flex items-center gap-1 border-l border-gray-200 pl-2">
+                    <button type="button" onClick={undoReviewImage} disabled={!reviewImageUndoStack.length}
+                      className="px-2 py-0.5 text-xs rounded border border-gray-200 bg-white disabled:opacity-40">Undo</button>
+                    <button type="button" onClick={redoReviewImage} disabled={!reviewImageRedoStack.length}
+                      className="px-2 py-0.5 text-xs rounded border border-gray-200 bg-white disabled:opacity-40">Redo</button>
+                  </div>
+
+                  {/* 草稿状态 */}
+                  {reviewDraftSaving && <span className="text-xs text-gray-400">保存草稿…</span>}
+                  {!reviewDraftSaving && reviewDraftError && <span className="text-xs text-red-500 truncate max-w-[10rem]">{reviewDraftError}</span>}
+
+                  {/* 右侧操作 */}
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-xs text-gray-500 tabular-nums">已确认 {reviewedOutputCount}/{rows.length}</span>
+                    <button type="button" onClick={confirmCurrentReview}
+                      disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
+                      className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] disabled:opacity-50 transition-all">
+                      {reviewFileReadOnly ? '已完成' : reviewExecuteLoading ? '提交中…' : '确认脱敏'}
+                    </button>
+                    <button type="button" onClick={advanceToExportStep}
+                      disabled={!allReviewConfirmed || reviewExecuteLoading}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                        allReviewConfirmed && !reviewExecuteLoading
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'border border-gray-200 text-gray-400 disabled:opacity-40'
+                      }`}>
+                      {allReviewConfirmed ? '✓ 进入导出' : '进入导出'}
+                    </button>
+                  </div>
                 </div>
 
-                <div className="min-h-0 flex flex-col gap-3">
-                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden flex flex-col min-h-[240px]">
-                    <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">脱敏预览</p>
-                        <p className="text-2xs text-gray-500 dark:text-gray-400">
-                          {reviewImagePreviewLoading
-                            ? '生成预览中…'
-                            : `已选区域 ${selectedReviewBoxCount} / ${reviewBoxes.length}`}
-                        </p>
-                      </div>
+                {/* ── 三列主体 ── */}
+                <div className="flex-1 min-h-0 flex gap-0 overflow-hidden">
+                  {/* 列 1：原图 + 标注框（~45%） */}
+                  <div className="flex-[45] min-w-0 min-h-0 border-r border-gray-100">
+                    <ImageBBoxEditor
+                      imageSrc={reviewOrigImageBlobUrl}
+                      boxes={reviewBoxes}
+                      onBoxesChange={setReviewBoxes}
+                      onBoxesCommit={handleReviewBoxesCommit}
+                      getTypeConfig={getVisionTypeMeta}
+                      availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
+                      defaultType="CUSTOM"
+                    />
+                  </div>
+
+                  {/* 列 2：脱敏后预览（~30%） */}
+                  <div className="flex-[30] min-w-0 min-h-0 border-r border-gray-100 flex flex-col bg-[#fafafa]">
+                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
+                      <p className="text-xs font-semibold text-gray-800">脱敏预览</p>
+                      <p className="text-2xs text-gray-400">
+                        {reviewImagePreviewLoading ? '生成中…' : `${selectedReviewBoxCount}/${reviewBoxes.length} 区域已选`}
+                      </p>
                     </div>
-                    <div className="flex-1 overflow-auto bg-[#fafafa] dark:bg-gray-900 p-3">
+                    <div className="flex-1 overflow-auto p-2 flex items-start justify-center">
                       {reviewImagePreviewSrc ? (
-                        <img
-                          src={reviewImagePreviewSrc}
-                          alt="review preview"
-                          className="w-full h-auto rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
-                        />
+                        <img src={reviewImagePreviewSrc} alt="脱敏预览"
+                          className="max-w-full h-auto rounded-lg border border-gray-200 bg-white shadow-sm" />
                       ) : (
-                        <div className="h-full min-h-[180px] flex items-center justify-center text-sm text-gray-400 rounded-xl border border-dashed border-gray-200 bg-white">
-                          暂无预览，请勾选区域或等待生成完成
+                        <div className="w-full h-full min-h-[200px] flex items-center justify-center text-sm text-gray-400 rounded-lg border border-dashed border-gray-200 bg-white">
+                          勾选区域后生成预览
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden flex-1 min-h-0">
-                    <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
+                  {/* 列 3：检测标签列表（~25%） */}
+                  <div className="flex-[25] min-w-0 min-h-0 flex flex-col bg-white">
+                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                       <span className="text-xs font-semibold text-gray-800">检测区域</span>
-                      <span className="text-2xs text-gray-500 dark:text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
+                      <span className="text-2xs text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
                     </div>
-                    <div className="flex-1 overflow-auto p-2 space-y-2">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                       {reviewBoxes.map(box => {
                         const meta = getVisionTypeMeta(box.type);
                         return (
-                          <button
-                            key={box.id}
-                            type="button"
+                          <button key={box.id} type="button"
                             onClick={() => toggleReviewBoxSelected(box.id)}
-                            className="w-full text-left rounded-xl border border-gray-200 px-3 py-2 transition hover:border-gray-300"
+                            className="w-full text-left rounded-lg border px-2.5 py-1.5 transition hover:border-gray-300"
                             style={{
-                              backgroundColor: box.selected === false ? '#f9fafb' : `${String(meta.color)}18`,
-                            }}
-                          >
-                            <div className="flex items-start gap-2">
-                              <input
-                                type="checkbox"
-                                checked={box.selected !== false}
+                              borderColor: box.selected !== false ? meta.color : '#e5e7eb',
+                              backgroundColor: box.selected === false ? '#fafafa' : `${String(meta.color)}0d`,
+                            }}>
+                            <div className="flex items-center gap-2">
+                              <input type="checkbox" checked={box.selected !== false}
                                 onChange={() => toggleReviewBoxSelected(box.id)}
-                                className={formCheckboxClass('sm')}
-                              />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-xs font-medium" style={{ color: meta.color }}>
-                                    {meta.name}
-                                  </span>
-                                  <span className="text-2xs text-gray-400">
-                                    {Math.round(box.width * 100)}×{Math.round(box.height * 100)}%
-                                  </span>
-                                </div>
-                                {box.text && <p className="mt-1 text-xs text-gray-600 break-all">{box.text}</p>}
-                              </div>
+                                className={formCheckboxClass('sm')} />
+                              <span className="text-xs font-medium truncate" style={{ color: meta.color }}>
+                                {meta.name}
+                              </span>
+                              <span className="text-2xs text-gray-400 ml-auto shrink-0">
+                                {Math.round(box.width * 100)}×{Math.round(box.height * 100)}%
+                              </span>
                             </div>
+                            {box.text && <p className="mt-0.5 text-2xs text-gray-500 truncate pl-6">{box.text}</p>}
                           </button>
                         );
                       })}
                       {reviewBoxes.length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-6">暂无检测区域</p>
+                        <p className="text-xs text-gray-400 text-center py-8">暂无检测区域</p>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
+              </>
             ) : (
               <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
                 当前项不是图像模式，请从「图像批量」进入审阅。
