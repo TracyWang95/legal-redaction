@@ -3098,16 +3098,18 @@ export const Batch: React.FC = () => {
                       <span className="text-xs font-semibold text-gray-800">原图 + 标注</span>
                       <span className="text-2xs text-gray-400">{reviewBoxes.length} 区域</span>
                     </div>
-                    <div className="flex-1 min-h-0">
-                      <ImageBBoxEditor
-                        imageSrc={reviewOrigImageBlobUrl}
-                        boxes={reviewBoxes}
-                        onBoxesChange={setReviewBoxes}
-                        onBoxesCommit={handleReviewBoxesCommit}
-                        getTypeConfig={getVisionTypeMeta}
-                        availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
-                        defaultType="CUSTOM"
-                      />
+                    <div className="flex-1 min-h-0 relative">
+                      <div className="absolute inset-0">
+                        <ImageBBoxEditor
+                          imageSrc={reviewOrigImageBlobUrl}
+                          boxes={reviewBoxes}
+                          onBoxesChange={setReviewBoxes}
+                          onBoxesCommit={handleReviewBoxesCommit}
+                          getTypeConfig={getVisionTypeMeta}
+                          availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
+                          defaultType="CUSTOM"
+                        />
+                      </div>
                     </div>
                   </div>
 
