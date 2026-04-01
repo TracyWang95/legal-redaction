@@ -3089,11 +3089,14 @@ export const Batch: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ── 三列主体（等宽） ── */}
-                <div className="flex-1 min-h-0 grid grid-cols-3 overflow-hidden">
-                  {/* 列 1：原图 + 标注框 */}
-                  <div className="min-w-0 min-h-0 border-r border-gray-100 relative">
-                    <div className="absolute inset-0">
+                {/* ── 三列主体：原图+bbox(40%) | 脱敏预览(40%) | 标签(20%) ── */}
+                <div className="flex-1 min-h-0 flex overflow-hidden">
+                  {/* 列 1：原图 + 标注框 — 用 flex 布局让 ImageBBoxEditor 撑满 */}
+                  <div className="flex-[2] min-w-0 flex flex-col border-r border-gray-100">
+                    <div className="shrink-0 px-3 py-1.5 border-b border-gray-100 bg-white">
+                      <p className="text-xs font-semibold text-gray-800">原图 + 标注</p>
+                    </div>
+                    <div className="flex-1 min-h-0">
                       <ImageBBoxEditor
                         imageSrc={reviewOrigImageBlobUrl}
                         boxes={reviewBoxes}
@@ -3102,29 +3105,24 @@ export const Batch: React.FC = () => {
                         getTypeConfig={getVisionTypeMeta}
                         availableTypes={pipelines.flatMap(p => p.types.filter(t => t.enabled))}
                         defaultType="CUSTOM"
-                        viewportTopSlot={
-                          <span className="text-2xs font-medium text-white bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">
-                            原图 + 标注
-                          </span>
-                        }
                       />
                     </div>
                   </div>
 
-                  {/* 列 2：脱敏后预览 */}
-                  <div className="min-w-0 min-h-0 border-r border-gray-100 flex flex-col bg-[#fafafa]">
-                    <div className="shrink-0 px-3 py-2 border-b border-gray-100 bg-white">
+                  {/* 列 2：脱敏后预览 — 与列1等高，图片 object-contain 居中 */}
+                  <div className="flex-[2] min-w-0 flex flex-col border-r border-gray-100 bg-[#fafafa]">
+                    <div className="shrink-0 px-3 py-1.5 border-b border-gray-100 bg-white">
                       <p className="text-xs font-semibold text-gray-800">脱敏预览</p>
                       <p className="text-2xs text-gray-400">
                         {reviewImagePreviewLoading ? '生成中…' : `${selectedReviewBoxCount}/${reviewBoxes.length} 区域已选`}
                       </p>
                     </div>
-                    <div className="flex-1 overflow-auto p-2 flex items-start justify-center">
+                    <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center p-2">
                       {reviewImagePreviewSrc ? (
                         <img src={reviewImagePreviewSrc} alt="脱敏预览"
-                          className="max-w-full h-auto rounded-lg border border-gray-200 bg-white shadow-sm" />
+                          className="max-w-full max-h-full object-contain rounded-lg border border-gray-200 bg-white shadow-sm" />
                       ) : (
-                        <div className="w-full h-full min-h-[200px] flex items-center justify-center text-sm text-gray-400 rounded-lg border border-dashed border-gray-200 bg-white">
+                        <div className="w-full h-full flex items-center justify-center text-sm text-gray-400 rounded-lg border border-dashed border-gray-200 bg-white m-2">
                           勾选区域后生成预览
                         </div>
                       )}
@@ -3132,7 +3130,7 @@ export const Batch: React.FC = () => {
                   </div>
 
                   {/* 列 3：检测标签列表 */}
-                  <div className="min-w-0 min-h-0 flex flex-col bg-white">
+                  <div className="flex-[1] min-w-[220px] max-w-[320px] min-h-0 flex flex-col bg-white">
                     <div className="shrink-0 px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                       <span className="text-xs font-semibold text-gray-800">检测区域</span>
                       <span className="text-2xs text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
