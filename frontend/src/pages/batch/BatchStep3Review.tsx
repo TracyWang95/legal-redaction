@@ -22,24 +22,26 @@ export const BatchStep3Review: React.FC<BatchStep3ReviewProps> = ({
   // 直接从 rows 计算，不依赖外部 analyzeDoneCount
   const doneCount = rows.filter(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus)).length;
   const allDone = rows.length > 0 && doneCount === rows.length;
-  const hasStarted = rows.some(r => r.analyzeStatus !== 'pending');
   const [submitting, setSubmitting] = useState(false);
+  // 点击提交后立即算"已开始"，不等轮询返回
+  const hasStarted = submitting || rows.some(r => r.analyzeStatus !== 'pending' && r.analyzeStatus !== 'failed');
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    try {
-      await submitQueueToWorker();
-    } finally {
-      setSubmitting(false);
-    }
+    await submitQueueToWorker();
+    // 不在 finally 里清 submitting — 让轮询接管后再由 hasStarted 的第二个条件维持
+    // 延迟清除，确保第一次轮询已返回状态更新
+    setTimeout(() => setSubmitting(false), 5000);
   };
 
   // 进度文案
   const progressLabel = allDone
     ? '✓ 全部完成'
-    : hasStarted
-      ? `正在处理 ${doneCount}/${rows.length}…`
-      : `${rows.length} 个文件待提交`;
+    : submitting && doneCount === 0
+      ? '正在启动批量任务…'
+      : hasStarted
+        ? `正在处理 ${doneCount}/${rows.length}…`
+        : `${rows.length} 个文件待提交`;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
