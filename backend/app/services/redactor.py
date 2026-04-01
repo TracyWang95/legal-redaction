@@ -280,6 +280,7 @@ class Redactor:
         
         # 生成输出文件路径
         output_file_id = str(uuid.uuid4())
+        logger.info("[redact] file_path=%s file_type=%s output_file_id=%s", file_path, file_type, output_file_id)
         original_ext = os.path.splitext(file_path)[1]
         output_ext = original_ext
         if file_type == FileType.DOC:
