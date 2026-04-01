@@ -160,6 +160,7 @@ export const History: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const firstLoadRef = useRef(true);
   const [zipLoading, setZipLoading] = useState(false);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   /** 来源 Tab：全部 / Playground / 批量 */
   const [sourceTab, setSourceTab] = useState<SourceTab>(
     urlSource === 'batch' ? 'batch' : urlSource === 'playground' ? 'playground' : 'all'
@@ -562,16 +563,7 @@ export const History: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={async () => {
-              if (!window.confirm('确定要清空所有处理记录、上传文件和脱敏产物吗？此操作不可撤销。')) return;
-              try {
-                const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
-                if (!res.ok) throw new Error('清空失败');
-                const data = await res.json();
-                showToast(`已清空 ${data.files_removed} 个文件和 ${data.jobs_removed} 条任务`, 'success');
-                load(true, 1, pageSize);
-              } catch { showToast('清空失败', 'error'); }
-            }}
+            onClick={() => setCleanupConfirmOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 transition-colors"
           >
             一键清空
@@ -1185,6 +1177,25 @@ export const History: React.FC = () => {
         confirmText={t('history.confirmDeleteText')}
         onConfirm={() => confirmDlg?.onConfirm()}
         onCancel={() => setConfirmDlg(null)}
+      />
+      <ConfirmDialog
+        open={cleanupConfirmOpen}
+        title="清空所有数据"
+        message="确定要清空所有处理记录、上传文件和脱敏产物吗？此操作不可撤销。"
+        confirmText="确认清空"
+        cancelText="取消"
+        danger
+        onCancel={() => setCleanupConfirmOpen(false)}
+        onConfirm={async () => {
+          setCleanupConfirmOpen(false);
+          try {
+            const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+            if (!res.ok) throw new Error('清空失败');
+            const data = await res.json();
+            showToast(`已清空 ${data.files_removed} 个文件、${data.jobs_removed} 条任务`, 'success');
+            load(true, 1, pageSize);
+          } catch { showToast('清空失败', 'error'); }
+        }}
       />
     </div>
   );

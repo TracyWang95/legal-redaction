@@ -699,46 +699,35 @@ async def storage_info():
 @app.post("/api/v1/safety/cleanup", tags=["数据安全"], dependencies=[Depends(require_auth)])
 async def cleanup_all_data():
     """一键清理所有上传文件、脱敏产物和任务记录。"""
-    import shutil
-    files_removed = 0
-    # Clear upload directory
-    if os.path.isdir(settings.UPLOAD_DIR):
-        for f in os.listdir(settings.UPLOAD_DIR):
-            fp = os.path.join(settings.UPLOAD_DIR, f)
-            if os.path.isfile(fp):
-                try:
-                    os.remove(fp)
-                    files_removed += 1
-                except OSError:
-                    pass
-    # Clear output directory
-    if os.path.isdir(settings.OUTPUT_DIR):
-        for f in os.listdir(settings.OUTPUT_DIR):
-            fp = os.path.join(settings.OUTPUT_DIR, f)
-            if os.path.isfile(fp):
-                try:
-                    os.remove(fp)
-                    files_removed += 1
-                except OSError:
-                    pass
-    # Clear file store
+    # 先统计用户文件数（file_store 记录数，不是磁盘文件数）
     from app.api.files import file_store, _file_store_lock
     async with _file_store_lock:
+        files_count = len(file_store)
         file_store.clear()
-    # Clear jobs database
+    # 清磁盘
+    for d in (settings.UPLOAD_DIR, settings.OUTPUT_DIR):
+        if os.path.isdir(d):
+            for f in os.listdir(d):
+                fp = os.path.join(d, f)
+                if os.path.isfile(fp):
+                    try:
+                        os.remove(fp)
+                    except OSError:
+                        pass
+    # 清任务
     from app.api.jobs import get_job_store
     store = get_job_store()
-    jobs_list, total = store.list_jobs(page=1, page_size=10000)
-    jobs_removed = len(jobs_list)
+    jobs_list, _ = store.list_jobs(page=1, page_size=10000)
+    jobs_count = len(jobs_list)
     for j in jobs_list:
         try:
             store.delete_job(j["id"])
         except Exception:
             pass
-    logger.info("Cleanup: removed %d files and %d jobs", files_removed, jobs_removed)
+    logger.info("Cleanup: %d files, %d jobs", files_count, jobs_count)
     return {
-        "files_removed": files_removed,
-        "jobs_removed": jobs_removed,
+        "files_removed": files_count,
+        "jobs_removed": jobs_count,
     }
 
 

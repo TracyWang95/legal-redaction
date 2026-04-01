@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { t } from '../i18n';
 import { SkeletonCard } from '../components/Skeleton';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { showToast } from '../components/Toast';
 import {
   deleteJob,
   getJob,
@@ -152,6 +154,7 @@ export const Jobs: React.FC = () => {
   const [jumpPage, setJumpPage] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
@@ -415,16 +418,7 @@ export const Jobs: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={async () => {
-                if (!window.confirm('确定要清空所有任务记录、上传文件和脱敏产物吗？此操作不可撤销。')) return;
-                try {
-                  const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
-                  if (!res.ok) throw new Error('清空失败');
-                  const data = await res.json();
-                  alert(`已清空 ${data.files_removed} 个文件和 ${data.jobs_removed} 条任务`);
-                  void refreshList();
-                } catch { alert('清空失败'); }
-              }}
+              onClick={() => setCleanupConfirmOpen(true)}
               className={outlineActionClass('neutral') + ' !border-red-200 !text-red-600 hover:!bg-red-50'}
             >
               一键清空
@@ -821,6 +815,25 @@ export const Jobs: React.FC = () => {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={cleanupConfirmOpen}
+        title="清空所有数据"
+        message="确定要清空所有任务记录、上传文件和脱敏产物吗？此操作不可撤销。"
+        confirmText="确认清空"
+        cancelText="取消"
+        danger
+        onCancel={() => setCleanupConfirmOpen(false)}
+        onConfirm={async () => {
+          setCleanupConfirmOpen(false);
+          try {
+            const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+            if (!res.ok) throw new Error('清空失败');
+            const data = await res.json();
+            showToast(`已清空 ${data.files_removed} 个文件、${data.jobs_removed} 条任务`, 'success');
+            void refreshList();
+          } catch { showToast('清空失败', 'error'); }
+        }}
+      />
     </div>
   );
 };
