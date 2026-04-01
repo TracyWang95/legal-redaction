@@ -1060,9 +1060,9 @@ export const History: React.FC = () => {
                           </div>
                           <div className="flex items-center justify-center p-2 bg-white">
                             {String(compareTarget?.file_type).includes('pdf') ? (
-                              <iframe title="original-pdf" src={compareBlobUrls.original} className="w-full h-[420px] border-0 rounded" />
+                              <iframe title="original-pdf" src={compareBlobUrls.original} className="w-full h-[520px] border-0 rounded" />
                             ) : (
-                              <img src={compareBlobUrls.original} alt={t('history.beforeRedaction')} className="max-w-full max-h-[420px] object-contain" />
+                              <img src={compareBlobUrls.original} alt={t('history.beforeRedaction')} className="max-w-full max-w-full max-h-[520px] object-contain" />
                             )}
                           </div>
                         </div>
@@ -1072,22 +1072,22 @@ export const History: React.FC = () => {
                           </div>
                           <div className="flex items-center justify-center p-2 bg-white">
                             {String(compareTarget?.file_type).includes('pdf') ? (
-                              <iframe title="redacted-pdf" src={compareBlobUrls.redacted} className="w-full h-[420px] border-0 rounded" />
+                              <iframe title="redacted-pdf" src={compareBlobUrls.redacted} className="w-full h-[520px] border-0 rounded" />
                             ) : (
-                              <img src={compareBlobUrls.redacted} alt={t('history.afterRedaction')} className="max-w-full max-h-[420px] object-contain" />
+                              <img src={compareBlobUrls.redacted} alt={t('history.afterRedaction')} className="max-w-full max-w-full max-h-[520px] object-contain" />
                             )}
                           </div>
                         </div>
                       </div>
                       {/* 右侧：脱敏项列表 — self-start 跟随图片高度不拉长 */}
-                      <div className="xl:w-[260px] xl:shrink-0 self-start rounded-lg border border-gray-200 bg-white overflow-hidden">
+                      <div className="xl:w-[280px] xl:shrink-0 self-start rounded-lg border border-gray-200 bg-white overflow-hidden">
                         <div className="px-3 py-2 border-b border-gray-100 bg-[#fafafa]">
                           <p className="text-sm font-semibold text-gray-900">{t('history.previewRedactedItems')}</p>
                           <p className="text-2xs text-gray-500 mt-0.5">
                             {t('history.previewItemsCount').replace('{n}', String(comparePreviewItems.length))}
                           </p>
                         </div>
-                        <div className="max-h-[420px] overflow-auto p-3">
+                        <div className="max-h-[520px] overflow-auto p-3">
                           {comparePreviewItems.length > 0 ? (
                             <ul className="space-y-2">
                               {comparePreviewItems.map(item => (
