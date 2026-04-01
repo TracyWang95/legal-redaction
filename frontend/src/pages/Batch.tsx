@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useLocation, useParams, useBlocker, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams, useBlocker, useSearchParams } from 'react-router-dom';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { useDropzone } from 'react-dropzone';
 import ImageBBoxEditor, { type BoundingBox as EditorBox } from '../components/ImageBBoxEditor';
@@ -44,6 +44,7 @@ import {
   buildTextSegments,
   mergePreviewMapWithDocumentSlices,
 } from '../utils/textRedactionSegments';
+import { resolveRedactionState, REDACTION_STATE_LABEL, REDACTION_STATE_CLASS } from '../utils/redactionState';
 import {
   createJob,
   getJob,
@@ -52,8 +53,14 @@ import {
   commitItemReview,
   getItemReviewDraft,
   putItemReviewDraft,
+  requeueFailed,
 } from '../services/jobsApi';
 import { effectiveWizardFurthestStep, parseWizardFurthestFromUnknown } from '../utils/jobPrimaryNavigation';
+import { clampPopoverInCanvas } from './playground-utils';
+// Step sub-components available for further decomposition:
+import { BatchStep1Config } from './batch/BatchStep1Config';
+import { BatchStep2Upload } from './batch/BatchStep2Upload';
+import { BatchStep3Review } from './batch/BatchStep3Review';
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -62,30 +69,6 @@ function triggerDownload(blob: Blob, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function clampPopoverInCanvas(
-  anchorRect: DOMRect,
-  canvasRect: DOMRect,
-  popoverWidth: number,
-  popoverHeight: number
-): { left: number; top: number } {
-  const margin = 8;
-  const maxW = Math.max(120, Math.min(popoverWidth, canvasRect.width - 2 * margin));
-  const maxH = Math.max(80, Math.min(popoverHeight, canvasRect.height - 2 * margin));
-  const cx = anchorRect.left + anchorRect.width / 2;
-  let left = cx - maxW / 2;
-  left = Math.max(canvasRect.left + margin, Math.min(left, canvasRect.right - margin - maxW));
-
-  let top = anchorRect.top - margin - maxH;
-  if (top < canvasRect.top + margin) {
-    top = anchorRect.bottom + margin;
-  }
-  if (top + maxH > canvasRect.bottom - margin) {
-    top = Math.max(canvasRect.top + margin, canvasRect.bottom - margin - maxH);
-  }
-
-  return { left, top };
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -107,11 +90,50 @@ interface TextEntityType {
 }
 
 interface BatchRow extends FileListItem {
-  analyzeStatus: 'pending' | 'parsing' | 'analyzing' | 'done' | 'failed';
+  analyzeStatus: 'pending' | 'parsing' | 'analyzing' | 'awaiting_review' | 'review_approved' | 'redacting' | 'completed' | 'failed';
   analyzeError?: string;
   isImageMode?: boolean;
   reviewConfirmed?: boolean;
 }
+
+/** 识别已完成、可进入审阅/已审阅的状态集合 */
+const RECOGNITION_DONE_STATUSES: ReadonlySet<BatchRow['analyzeStatus']> = new Set([
+  'awaiting_review', 'review_approved', 'redacting', 'completed',
+]);
+
+/** 后端 item.status → 前端 analyzeStatus */
+function mapBackendStatus(status: string): BatchRow['analyzeStatus'] {
+  switch (status) {
+    case 'failed':
+    case 'cancelled':
+      return 'failed';
+    case 'awaiting_review':
+      return 'awaiting_review';
+    case 'review_approved':
+      return 'review_approved';
+    case 'redacting':
+      return 'redacting';
+    case 'completed':
+      return 'completed';
+    case 'processing':  // 新简化状态：合并 parsing/ner/vision/redacting
+    case 'parsing':
+    case 'ner':
+    case 'vision':
+      return 'analyzing';
+    default: // pending, queued, draft …
+      return 'pending';
+  }
+}
+
+/** 从后端 item 字段推算 reviewConfirmed（hydration / 轮询 / 刷新统一使用） */
+function deriveReviewConfirmed(item: { status: string; has_output?: boolean | null }): boolean {
+  if (item.status === 'completed') {
+    return item.has_output !== false;
+  }
+  return item.status === 'review_approved' || item.status === 'redacting';
+}
+
+// ANALYZE_STATUS_LABEL moved to ./batch/batchTypes.ts
 
 type ReviewEntity = {
   id: string;
@@ -381,14 +403,14 @@ function SmartDetailTabs({
   const [tab, setTab] = React.useState<'text' | 'image'>('text');
   return (
     <>
-      <div className="flex border-b border-gray-200 shrink-0">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 shrink-0">
         <button
           type="button"
           onClick={() => setTab('text')}
           className={`flex-1 px-4 py-2.5 text-xs font-medium transition-colors ${
             tab === 'text'
               ? 'text-[#1d1d1f] border-b-2 border-[#1d1d1f] bg-white'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 align-middle" />
@@ -400,7 +422,7 @@ function SmartDetailTabs({
           className={`flex-1 px-4 py-2.5 text-xs font-medium transition-colors ${
             tab === 'image'
               ? 'text-[#1d1d1f] border-b-2 border-[#1d1d1f] bg-white'
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500 mr-1.5 align-middle" />
@@ -477,9 +499,9 @@ function PresetDetailBlock({
   ].filter(s => s.types.length > 0);
 
   return (
-    <div className="text-xs text-[#1d1d1f] space-y-2 border border-black/[0.06] rounded-xl p-2.5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+    <div className="text-xs text-[#1d1d1f] dark:text-gray-100 space-y-2 border border-black/[0.06] dark:border-gray-700 rounded-xl p-2.5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       {(scope === 'text' ? textPresetLabel : visionPresetLabel) && (
-        <div className="text-2xs text-gray-500 space-y-0.5 pb-2 border-b border-gray-100">
+        <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-0.5 pb-2 border-b border-gray-100">
           {scope === 'text' && textPresetLabel && <div>文本预设：{textPresetLabel}</div>}
           {scope === 'image' && visionPresetLabel && <div>图像预设：{visionPresetLabel}</div>}
         </div>
@@ -517,7 +539,7 @@ function PresetDetailBlock({
               ))}
             </div>
           </div>
-          <div className="text-2xs text-gray-500 space-y-0.5 leading-snug">
+          <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-0.5 leading-snug">
             <p>
               <span className="text-gray-600 font-medium">structured</span>：语义占位
               <span className="text-[#a3a3a3] font-mono ml-1">张三 → &lt;人物[001].个人.姓名&gt;</span>
@@ -566,7 +588,7 @@ function PresetDetailBlock({
               ))}
             </div>
           </div>
-          <div className="text-2xs text-gray-500 space-y-0.5 leading-snug">
+          <div className="text-2xs text-gray-500 dark:text-gray-400 space-y-0.5 leading-snug">
             <p>
               <span className="text-gray-600 font-medium">马赛克</span>：按块遮挡敏感区域
             </p>
@@ -595,7 +617,7 @@ function PresetDetailBlock({
                     className="flex-1 min-w-0 accent-[#007AFF] h-1.5"
                     aria-label="脱敏强度"
                   />
-                  <span className="text-2xs text-gray-500 tabular-nums w-7 text-right shrink-0">
+                  <span className="text-2xs text-gray-500 dark:text-gray-400 tabular-nums w-7 text-right shrink-0">
                     {cfg.imageRedactionStrength ?? 25}
                   </span>
                 </div>
@@ -627,7 +649,7 @@ function PresetDetailBlock({
       )}
       {scope === 'text' && (
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-[#1d1d1f] tracking-tight leading-tight">
+          <div className="text-xs font-semibold text-[#1d1d1f] dark:text-gray-100 tracking-tight leading-tight">
             文本类型 · {cfg.selectedEntityTypeIds.length} 项
             <span className="block text-2xs font-normal text-gray-500 mt-0.5">只读预览</span>
           </div>
@@ -660,7 +682,7 @@ function PresetDetailBlock({
       {scope === 'image' && (
         <div className="space-y-2">
           <div>
-            <div className="text-xs font-semibold text-[#1d1d1f] mb-1 pl-2 border-l-[3px] border-[#34C759] tracking-tight leading-tight">
+            <div className="text-xs font-semibold text-[#1d1d1f] dark:text-gray-100 mb-1 pl-2 border-l-[3px] border-[#34C759] tracking-tight leading-tight">
               图片类文本（OCR+HaS）· {cfg.ocrHasTypes.length} 项
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-1">
@@ -670,7 +692,7 @@ function PresetDetailBlock({
             </div>
           </div>
           <div>
-            <div className="text-xs font-semibold text-[#1d1d1f] mb-1 pl-2 border-l-[3px] border-[#AF52DE] tracking-tight leading-tight">
+            <div className="text-xs font-semibold text-[#1d1d1f] dark:text-gray-100 mb-1 pl-2 border-l-[3px] border-[#AF52DE] tracking-tight leading-tight">
               图像特征（HaS Image）· {cfg.hasImageTypes.length} 项
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-1">
@@ -690,7 +712,8 @@ export const Batch: React.FC = () => {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const modeValid = batchMode === 'text' || batchMode === 'image' || batchMode === 'smart';
-  const mode: BatchWizardMode = batchMode === 'image' ? 'image' : batchMode === 'smart' ? 'smart' : 'text';
+  // 统一使用 smart 模式，text / image 保留兼容但实际行为一致
+  const mode: BatchWizardMode = 'smart';
   const sessionJobKey = `lr_batch_job_id_${mode}`;
 
   const [activeJobId, setActiveJobId] = useState<string | null>(() => {
@@ -700,6 +723,7 @@ export const Batch: React.FC = () => {
       return null;
     }
   });
+  const [jobSkipItemReview, setJobSkipItemReview] = useState(false);
   const itemIdByFileIdRef = useRef<Record<string, string>>({});
   const hydratedFromUrlRef = useRef(false);
   /** effect 重跑或 StrictMode 卸载时递增，丢弃上一轮 getJob/Promise.all，避免依赖 step 导致「乐观 setStep → cleanup cancel → 永远完不成 hydrate」 */
@@ -707,6 +731,8 @@ export const Batch: React.FC = () => {
   const urlHydrateKeyRef = useRef('');
   /** 仅 jobId|itemId 变化不够：同任务从 step=1 链到 step=2 时须重新 hydrate，否则 hydrated 仍为 true 直接跳过 */
   const prevHydrateUrlStepRef = useRef<string | null>(null);
+  /** 当步骤变化由向导内部导航触发时（非外部深链），跳过重新 hydrate，避免后端 pending 覆盖本地识别结果 */
+  const internalStepNavRef = useRef(false);
   /** 避免步骤 1 反复 PUT 相同 config */
   const lastSavedJobConfigJson = useRef<string>('');
   /** 与 furthestStep 同步：仅在「前进」时立即 PUT，配置变更仍靠下方防抖 */
@@ -790,6 +816,7 @@ export const Batch: React.FC = () => {
   const reviewDraftInitializedRef = useRef(false);
   const reviewDraftDirtyRef = useRef(false);
   const batchScrollCountersRef = useRef<Record<string, number>>({});
+  const reviewLoadSeqRef = useRef(0);
   /** 步骤 1 显式确认（避免默认全选时未阅读即可进入上传） */
   const [confirmStep1, setConfirmStep1] = useState(false);
   /** 任务优先级 */
@@ -841,9 +868,12 @@ export const Batch: React.FC = () => {
   }, [furthestStep, cfg, mode, activeJobId, configLoaded]);
 
   useEffect(() => {
+    const urlJobId = searchParams.get('jobId');
     if (!activeJobId || furthestStep < 2) return;
+    // 防止 Job ID 切换时旧 furthestStep 错写到新任务
+    if (activeJobId !== urlJobId) return;
     writeLocalWizardMaxStep(activeJobId, furthestStep);
-  }, [activeJobId, furthestStep]);
+  }, [activeJobId, furthestStep, searchParams]);
 
   /** 第 4 步离开：切换步骤或跳转应用内其它路由时 */
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
@@ -941,7 +971,7 @@ export const Batch: React.FC = () => {
           };
         }
         // 首次进入批量向导且无 session 时，沿用 Playground/识别项配置中选用的命名预设
-        if (!pt && persisted === null && mode === 'text') {
+        if (!pt && persisted === null) {
           const bid = getActivePresetTextId();
           const ptB = bid ? presetList.find(x => x.id === bid && presetAppliesText(x)) : undefined;
           if (ptB) {
@@ -952,7 +982,7 @@ export const Batch: React.FC = () => {
             };
           }
         }
-        if (!pv && persisted === null && mode === 'image') {
+        if (!pv && persisted === null) {
           const bid = getActivePresetVisionId();
           const pvB = bid ? presetList.find(x => x.id === bid && presetAppliesVision(x)) : undefined;
           if (pvB) {
@@ -981,6 +1011,7 @@ export const Batch: React.FC = () => {
     const jobId = searchParams.get('jobId');
     const itemId = searchParams.get('itemId');
     const stepRaw = searchParams.get('step');
+    const isNewlyCreated = searchParams.get('new') === '1';
     /** jobId|itemId 与 URL 的 step 分离：step 变化时清 hydrated，避免「继续上传」深链仍当已恢复而跳过 */
     const jobItemKey = `${jobId ?? ''}|${itemId ?? ''}`;
     if (urlHydrateKeyRef.current !== jobItemKey) {
@@ -990,7 +1021,12 @@ export const Batch: React.FC = () => {
     }
     const stepKey = stepRaw ?? '';
     if (prevHydrateUrlStepRef.current !== null && prevHydrateUrlStepRef.current !== stepKey) {
-      hydratedFromUrlRef.current = false;
+      if (internalStepNavRef.current) {
+        // 内部步骤切换（用户在向导内点击）：保留 hydrated 状态，不重新从后端拉取
+        internalStepNavRef.current = false;
+      } else {
+        hydratedFromUrlRef.current = false;
+      }
     }
     prevHydrateUrlStepRef.current = stepKey;
 
@@ -1007,18 +1043,19 @@ export const Batch: React.FC = () => {
       try {
         const detail = await getJob(jobId);
         if (hydrateGen !== batchHydrateGenRef.current) return;
-        const expectType = mode === 'image' ? 'image_batch' : mode === 'smart' ? 'smart_batch' : 'text_batch';
-        if (detail.job_type !== expectType) {
+        // 兼容旧 text_batch / image_batch 任务，统一按 smart 处理
+        const validTypes: string[] = ['smart_batch', 'text_batch', 'image_batch'];
+        if (!validTypes.includes(detail.job_type)) {
           setMsg({ text: '该任务类型与当前批量向导不匹配，请从任务中心打开对应入口', tone: 'warn' });
           return;
         }
         setActiveJobId(jobId);
         const jc = detail.config as Record<string, unknown>;
-        /** 不可在 setCfg 回调里再给 mergedCfg 赋值后同步读取：函数式 updater 晚于本段执行，会导致永远 !mergedCfg 提前 return */
         const mergedCfg = mergeJobConfigIntoWizardCfg(cfg, jc);
         setCfg(mergedCfg);
 
-        const jobTypeNav = mode === 'image' ? 'image_batch' : mode === 'smart' ? 'smart_batch' : 'text_batch';
+        const jobTypeNav: 'smart_batch' | 'text_batch' | 'image_batch' =
+          (['smart_batch', 'text_batch', 'image_batch'].includes(detail.job_type) ? detail.job_type : 'smart_batch') as 'smart_batch' | 'text_batch' | 'image_batch';
         const restoredFurthest: Step | null = effectiveWizardFurthestStep({
           jobConfig: jc,
           navHints: detail.nav_hints,
@@ -1047,7 +1084,7 @@ export const Batch: React.FC = () => {
               text: '当前任务暂无文件，无法进入审阅或导出，已切换到「批量识别」步骤',
               tone: 'warn',
             });
-          } else {
+          } else if (!isNewlyCreated) {
             setMsg({ text: '已从任务恢复', tone: 'neutral' });
           }
           itemIdByFileIdRef.current = {};
@@ -1120,19 +1157,26 @@ export const Batch: React.FC = () => {
           })
         );
         if (hydrateGen !== batchHydrateGenRef.current) return;
-        const currentIndex = Math.max(0, hydratedItems.findIndex(entry => entry.item.id === item.id));
+        const urlMatchIndex = Math.max(0, hydratedItems.findIndex(entry => entry.item.id === item.id));
+        // 如果 URL 指向已脱敏 item，跳到第一个待审核的
+        const urlMatchHasOutput = Boolean((hydratedItems[urlMatchIndex]?.info || {}).output_path);
+        const firstPendingIdx = urlMatchHasOutput
+          ? hydratedItems.findIndex(e => !e.info?.output_path && RECOGNITION_DONE_STATUSES.has(mapBackendStatus(e.item.status)))
+          : -1;
+        const currentIndex = firstPendingIdx >= 0 ? firstPendingIdx : urlMatchIndex;
         const fileIdToItemId = Object.fromEntries(hydratedItems.map(entry => [entry.item.file_id, entry.item.id]));
         const rowsFromJob: BatchRow[] = hydratedItems.map(entry => {
           const rowInfo = entry.info;
           const rowFileTypeRaw = String(rowInfo.file_type ?? entry.item.file_type ?? 'docx').toLowerCase();
+          const isScanned = Boolean(rowInfo.is_scanned);
           const rowFileType: FileType =
             rowFileTypeRaw === 'image' || rowFileTypeRaw === 'jpg' || rowFileTypeRaw === 'jpeg' || rowFileTypeRaw === 'png'
               ? FileType.IMAGE
-              : rowFileTypeRaw === 'pdf' || rowFileTypeRaw === 'pdf_scanned'
-                ? rowFileTypeRaw === 'pdf_scanned'
-                  ? FileType.PDF_SCANNED
-                  : FileType.PDF
-                : FileType.DOCX;
+              : rowFileTypeRaw === 'pdf_scanned' || (rowFileTypeRaw === 'pdf' && isScanned)
+                ? FileType.PDF_SCANNED
+                : rowFileTypeRaw === 'pdf'
+                  ? FileType.PDF
+                  : FileType.DOCX;
           return {
             file_id: entry.item.file_id,
             original_filename: String(rowInfo.original_filename ?? entry.item.filename ?? entry.item.file_id),
@@ -1140,41 +1184,47 @@ export const Batch: React.FC = () => {
             file_type: rowFileType,
             created_at: String(rowInfo.created_at ?? entry.item.created_at ?? ''),
             has_output: Boolean(rowInfo.output_path ?? entry.item.has_output),
-            reviewConfirmed: Boolean(
-              entry.item.reviewed_at ||
-              entry.item.status === 'completed' ||
-              entry.item.status === 'review_approved' ||
-              entry.item.status === 'redacting'
-            ),
+            reviewConfirmed: deriveReviewConfirmed(entry.item),
             entity_count:
               typeof entry.item.entity_count === 'number'
                 ? entry.item.entity_count
                 : Array.isArray(rowInfo.entities)
                   ? rowInfo.entities.length
                   : 0,
-            analyzeStatus: 'done',
+            analyzeStatus: mapBackendStatus(entry.item.status),
+            analyzeError: entry.item.status === 'failed' || entry.item.status === 'cancelled'
+              ? (entry.item.error_message || '处理失败')
+              : undefined,
             isImageMode: rowFileType === FileType.IMAGE || rowFileType === FileType.PDF_SCANNED,
           };
         });
         const allRowsReviewConfirmed = rowsFromJob.length > 0 && rowsFromJob.every(row => row.reviewConfirmed === true);
-        const resolvedStepWithReviewGate =
-          resolvedNextStep === 5 && !allRowsReviewConfirmed ? 4 : resolvedNextStep;
+        const anyRecognitionDone = rowsFromJob.some(row => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus));
+        let resolvedStepWithGates = resolvedNextStep;
+        // step 4 gate: 至少一个文件完成识别才能进入审阅
+        if (resolvedStepWithGates >= 4 && !anyRecognitionDone) {
+          resolvedStepWithGates = 3 as Step;
+        }
+        // step 5 gate: 所有文件审核确认才能进入导出
+        if (resolvedStepWithGates === 5 && !allRowsReviewConfirmed) {
+          resolvedStepWithGates = 4 as Step;
+        }
         itemIdByFileIdRef.current = fileIdToItemId;
+        setJobSkipItemReview(Boolean(detail.skip_item_review));
         setRows(rowsFromJob);
         setSelected(new Set(rowsFromJob.map(row => row.file_id)));
         setReviewIndex(currentIndex);
         batchGroupIdRef.current = jobId;
-        if (resolvedStepWithReviewGate >= 2) setConfirmStep1(true);
-        setStep(resolvedStepWithReviewGate);
-        setFurthestStep(prev => Math.max(prev, restoredFurthest ?? 1, resolvedStepWithReviewGate) as Step);
-        persistDraftFingerprint(Math.max(restoredFurthest ?? 1, resolvedStepWithReviewGate) as Step);
+        if (resolvedStepWithGates >= 2) setConfirmStep1(true);
+        setStep(resolvedStepWithGates);
+        setFurthestStep(prev => Math.max(prev, restoredFurthest ?? 1, resolvedStepWithGates) as Step);
+        persistDraftFingerprint(Math.max(restoredFurthest ?? 1, resolvedStepWithGates) as Step);
         hydratedFromUrlRef.current = true;
-        setMsg({
-          text: badItemIdInUrl
-            ? '链接中的文件项已失效，已切换到列表中的第一个文件，可继续审阅或脱敏'
-            : '已从任务恢复，可继续审阅或脱敏',
-          tone: badItemIdInUrl ? 'warn' : 'neutral',
-        });
+        if (badItemIdInUrl) {
+          setMsg({ text: '链接中的文件项已失效，已切换到列表中的第一个文件，可继续审阅或脱敏', tone: 'warn' });
+        } else if (!isNewlyCreated) {
+          setMsg({ text: '已从任务恢复，可继续审阅或脱敏', tone: 'neutral' });
+        }
       } catch (e) {
         if (hydrateGen === batchHydrateGenRef.current) {
           setMsg({ text: e instanceof Error ? e.message : '加载任务失败', tone: 'err' });
@@ -1274,21 +1324,10 @@ export const Batch: React.FC = () => {
   const isStep1Complete = useMemo(() => {
     if (!confirmStep1) return false;
     if (!configLoaded) return false;
-    if (mode === 'text') {
-      if (textTypes.length === 0) return true;
-      return cfg.selectedEntityTypeIds.length > 0;
-    }
-    if (mode === 'smart') {
-      const anyTextSelected = cfg.selectedEntityTypeIds.length > 0;
-      const anyVisionSelected = cfg.ocrHasTypes.length > 0 || cfg.hasImageTypes.length > 0;
-      return anyTextSelected || anyVisionSelected;
-    }
-    const ocrAvail = batchDefaultOcrHasTypeIds.length > 0;
-    const hiAvail = batchDefaultHasImageTypeIds.length > 0;
-    const visionPipelineHasTypes = ocrAvail || hiAvail;
-    const anyVisionTypeSelected = cfg.ocrHasTypes.length > 0 || cfg.hasImageTypes.length > 0;
-    if (visionPipelineHasTypes && !anyVisionTypeSelected) return false;
-    return true;
+    // smart 模式：至少选一个文本类型或一个图像类型
+    const anyTextSelected = cfg.selectedEntityTypeIds.length > 0;
+    const anyVisionSelected = cfg.ocrHasTypes.length > 0 || cfg.hasImageTypes.length > 0;
+    return anyTextSelected || anyVisionSelected;
   }, [
     configLoaded,
     mode,
@@ -1301,12 +1340,14 @@ export const Batch: React.FC = () => {
     confirmStep1,
   ]);
 
-  const doneRows = useMemo(() => rows.filter(r => r.analyzeStatus === 'done'), [rows]);
+  const doneRows = useMemo(() => rows.filter(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus)), [rows]);
+  const failedRows = useMemo(() => rows.filter(r => r.analyzeStatus === 'failed'), [rows]);
   const reviewFile = doneRows[reviewIndex] ?? null;
   const reviewedOutputCount = useMemo(() => rows.filter(r => r.reviewConfirmed === true).length, [rows]);
   const pendingReviewCount = Math.max(0, rows.length - reviewedOutputCount);
   const allReviewConfirmed = rows.length > 0 && pendingReviewCount === 0;
   const reviewItemId = reviewFile ? itemIdByFileIdRef.current[reviewFile.file_id] : undefined;
+  const reviewFileReadOnly = reviewFile?.analyzeStatus === 'completed' || reviewFile?.analyzeStatus === 'redacting';
 
   const buildCurrentReviewDraftPayload = useCallback(() => {
     const entities = reviewEntities.map(e => ({
@@ -1433,10 +1474,17 @@ export const Batch: React.FC = () => {
   // Resolve authenticated blob URL for original image in review
   useEffect(() => {
     let cancelled = false;
+    let currentBlobUrl = '';
     if (!reviewFile || !reviewFile.isImageMode) { setReviewOrigImageBlobUrl(''); return; }
     const raw = fileApi.getDownloadUrl(reviewFile.file_id, false);
-    authenticatedBlobUrl(raw).then(u => { if (!cancelled) setReviewOrigImageBlobUrl(u); }).catch(() => { if (!cancelled) setReviewOrigImageBlobUrl(raw); });
-    return () => { cancelled = true; };
+    authenticatedBlobUrl(raw).then(u => {
+      if (!cancelled) { currentBlobUrl = u; setReviewOrigImageBlobUrl(u); }
+      else if (u.startsWith('blob:')) URL.revokeObjectURL(u);
+    }).catch(() => { if (!cancelled) setReviewOrigImageBlobUrl(raw); });
+    return () => {
+      cancelled = true;
+      if (currentBlobUrl.startsWith('blob:')) URL.revokeObjectURL(currentBlobUrl);
+    };
   }, [reviewFile?.file_id, reviewFile?.isImageMode]);
 
   /** 与 loadReviewData 同帧：先置 loading，避免预览 effect 在实体加载前用空列表清空映射 */
@@ -1447,10 +1495,15 @@ export const Batch: React.FC = () => {
 
   const loadReviewData = useCallback(
     async (fileId: string, isImage: boolean) => {
+      const loadSeq = reviewLoadSeqRef.current + 1;
+      reviewLoadSeqRef.current = loadSeq;
       setReviewLoading(true);
       setPreviewEntityMap({});
       setReviewImagePreview('');
       setReviewDraftError(null);
+      setReviewEntities([]);
+      setReviewBoxes([]);
+      setReviewTextContent('');
       reviewDraftInitializedRef.current = false;
       reviewDraftDirtyRef.current = false;
       if (reviewAutosaveTimerRef.current !== null) {
@@ -1464,6 +1517,7 @@ export const Batch: React.FC = () => {
       setReviewEntityPopupPos(null);
       try {
         const info = await batchGetFileRaw(fileId);
+        if (loadSeq !== reviewLoadSeqRef.current) return;
         const linkedItemId = itemIdByFileIdRef.current[fileId];
         let draft:
           | {
@@ -1475,6 +1529,7 @@ export const Batch: React.FC = () => {
         if (activeJobId && linkedItemId) {
           try {
             const loadedDraft = await getItemReviewDraft(activeJobId, linkedItemId);
+            if (loadSeq !== reviewLoadSeqRef.current) return;
             if (loadedDraft.exists) {
               draft = loadedDraft;
             }
@@ -1548,6 +1603,7 @@ export const Batch: React.FC = () => {
           setReviewTextUndoStack([]);
           setReviewTextRedoStack([]);
           const map = await fetchBatchPreviewMap(mapped, cfg.replacementMode);
+          if (loadSeq !== reviewLoadSeqRef.current) return;
           setPreviewEntityMap(map);
           reviewLastSavedJsonRef.current = JSON.stringify({
             entities: mapped.map(e => ({
@@ -1568,7 +1624,9 @@ export const Batch: React.FC = () => {
         }
         reviewDraftInitializedRef.current = true;
       } finally {
-        setReviewLoading(false);
+        if (loadSeq === reviewLoadSeqRef.current) {
+          setReviewLoading(false);
+        }
       }
     },
     [activeJobId, cfg.replacementMode, cfg.selectedEntityTypeIds, textTypes]
@@ -1609,7 +1667,7 @@ export const Batch: React.FC = () => {
 
   /** 文本批量第 4 步：配置变化时刷新替换预览（防抖；首屏映射由 loadReviewData 内联请求） */
   useEffect(() => {
-    if (step !== 4 || mode !== 'text' || !reviewFile || reviewLoading) return;
+    if (step !== 4 || !reviewFile || reviewLoading || reviewFile.isImageMode) return;
     if (!reviewTextContent) return;
     if (reviewEntities.length === 0) {
       setPreviewEntityMap({});
@@ -1627,7 +1685,7 @@ export const Batch: React.FC = () => {
   }, [step, mode, reviewFile?.file_id, reviewEntities, reviewTextContent, reviewLoading, cfg.replacementMode]);
 
   useEffect(() => {
-    if (step !== 4 || mode !== 'image' || !reviewFile || reviewLoading) return;
+    if (step !== 4 || !reviewFile || reviewLoading || !reviewFile.isImageMode) return;
     let cancelled = false;
     const t = window.setTimeout(async () => {
       try {
@@ -1827,7 +1885,7 @@ export const Batch: React.FC = () => {
   }, []);
 
   const handleReviewTextSelect = useCallback(() => {
-    if (step !== 4 || mode !== 'text') return;
+    if (step !== 4 || reviewFile?.isImageMode) return;
     if (reviewClickedEntity) return;
     const selection = window.getSelection();
     const root = reviewTextContentRef.current;
@@ -2063,9 +2121,10 @@ export const Batch: React.FC = () => {
 
   const navigateReviewIndex = useCallback(async (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex >= doneRows.length || nextIndex === reviewIndex) return;
+    if (reviewLoading) return; // 防止草稿加载中快速切换导致竞态
     await flushCurrentReviewDraft();
     setReviewIndex(nextIndex);
-  }, [doneRows.length, flushCurrentReviewDraft, reviewIndex]);
+  }, [doneRows.length, flushCurrentReviewDraft, reviewIndex, reviewLoading]);
 
   const handleReviewBoxesCommit = useCallback((prevBoxes: EditorBox[], nextBoxes: EditorBox[]) => {
     setReviewImageUndoStack(stack => [...stack, prevBoxes.map(b => ({ ...b }))]);
@@ -2189,15 +2248,72 @@ export const Batch: React.FC = () => {
     setMsg(null);
     try {
       const jobCfg = buildJobConfigForWorker(cfg, mode, furthestStep);
-      await updateJobDraft(activeJobId, { config: jobCfg });
-      lastSavedJobConfigJson.current = JSON.stringify(jobCfg);
+      // 尝试更新配置（非 draft 也允许更新，只有终态才拒绝）
+      try {
+        await updateJobDraft(activeJobId, { config: jobCfg });
+        lastSavedJobConfigJson.current = JSON.stringify(jobCfg);
+      } catch {
+        /* 终态任务无法更新配置，继续提交 */
+      }
       await apiSubmitJob(activeJobId);
       clearLocalWizardMaxStep(activeJobId);
-      setMsg({ text: '已提交后台队列，可在侧栏「任务中心」查看进度', tone: 'ok' });
+      // 提交后将所有未完成项标记为 pending，触发轮询
+      setRows(prev => prev.map(r =>
+        !RECOGNITION_DONE_STATUSES.has(r.analyzeStatus) && r.analyzeStatus !== 'failed'
+          ? { ...r, analyzeStatus: 'pending' as const }
+          : r
+      ));
+      setMsg({ text: '已提交后台队列，正在轮询处理进度…', tone: 'ok' });
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : '提交队列失败', tone: 'err' });
     }
   };
+
+  /* ── 后台队列轮询：step=3 时有未完成项则每 3s 拉取 job 状态更新 rows ── */
+  const hasItemsInProgress = useMemo(
+    () => rows.some(r => r.analyzeStatus === 'pending' || r.analyzeStatus === 'parsing' || r.analyzeStatus === 'analyzing'),
+    [rows]
+  );
+
+  useEffect(() => {
+    if (step !== 3 || !activeJobId || !hasItemsInProgress || analyzeRunning) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const detail = await getJob(activeJobId);
+        if (cancelled) return;
+        const itemMap = new Map(detail.items.map(it => [it.file_id, it]));
+        let doneCount = 0;
+        setRows(prev =>
+          prev.map(r => {
+            const item = itemMap.get(r.file_id);
+            if (!item) return r;
+            const newStatus = mapBackendStatus(item.status);
+            if (RECOGNITION_DONE_STATUSES.has(newStatus) || newStatus === 'failed') doneCount++;
+            return {
+              ...r,
+              analyzeStatus: newStatus,
+              reviewConfirmed: deriveReviewConfirmed(item),
+              has_output: Boolean(item.has_output),
+              analyzeError: item.status === 'failed' || item.status === 'cancelled'
+                ? (item.error_message || '处理失败')
+                : undefined,
+              entity_count: typeof item.entity_count === 'number' ? item.entity_count : r.entity_count,
+            };
+          })
+        );
+        setAnalyzeDoneCount(doneCount);
+      } catch {
+        /* 网络抖动不中断轮询 */
+      }
+    };
+    const timer = setInterval(poll, 3000);
+    poll(); // 立即执行一次
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [step, activeJobId, hasItemsInProgress, analyzeRunning]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -2207,16 +2323,22 @@ export const Batch: React.FC = () => {
 
   const selectedIds = rows.filter(r => selected.has(r.file_id)).map(r => r.file_id);
 
+  const anyAnalyzeDone = doneRows.length > 0;
+
   const canGoStep = (target: Step): boolean => {
     if (target <= 1) return true;
+    // 所有文件识别完成才可进入审阅
+    const allAnalyzeDone = rows.length > 0 && rows.every(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus));
+    if (target === 4) return allAnalyzeDone;
     if (target < step) return true;
     if (!isStep1Complete && target >= 2) return false;
-    /** 步骤 1 时仅靠勾选完成还不能点步骤条「2 上传」，须先点过一次底部「下一步：上传」（furthestStep≥2） */
     if (target === 2) return furthestStep >= 2;
     if (target === 3) return furthestStep >= 2 && rows.length > 0;
-    if (target === 4) return furthestStep >= 3 && doneRows.length > 0;
-    /** 步骤 4 时须先点「前往导出」或最后一份「确认」自动进入，步骤条才能点「5」 */
-    if (target === 5) return furthestStep >= 5 && allReviewConfirmed;
+    // 所有文件确认脱敏后才能进入导出
+    if (target === 5) {
+      if (jobSkipItemReview) return furthestStep >= 5 && rows.every(r => r.has_output);
+      return furthestStep >= 5 && allReviewConfirmed;
+    }
     return false;
   };
 
@@ -2228,11 +2350,7 @@ export const Batch: React.FC = () => {
           ? '请等待识别配置加载完成。'
           : !confirmStep1
             ? '请在步骤 1 底部勾选「已确认上述配置」后再进入上传。'
-            : mode === 'text'
-              ? '请先完成步骤 1：至少勾选一个文本实体类型。'
-              : mode === 'smart'
-                ? '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。'
-                : '请先完成步骤 1：在「图片类文本」或「图像特征」中至少勾选一类识别项（可只选其中一路）。',
+            : '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。',
         tone: 'warn',
       });
       return;
@@ -2243,7 +2361,7 @@ export const Batch: React.FC = () => {
       let jid = activeJobId;
       if (!jid) {
         const j = await createJob({
-          job_type: mode === 'image' ? 'image_batch' : mode === 'smart' ? 'smart_batch' : 'text_batch',
+          job_type: 'smart_batch',
           title: `批量 ${new Date().toLocaleString()}`,
           config: payload,
           priority: jobPriority,
@@ -2256,6 +2374,7 @@ export const Batch: React.FC = () => {
         await updateJobDraft(jid, { config: payload });
       }
       lastSavedJobConfigJson.current = JSON.stringify(payload);
+      internalStepNavRef.current = true;
       setStep(2);
       setFurthestStep(prev => Math.max(prev, 2) as Step);
       setMsg(null);
@@ -2270,6 +2389,41 @@ export const Batch: React.FC = () => {
       setMsg({ text: '没有可导出的文件', tone: 'warn' });
       return;
     }
+    await flushCurrentReviewDraft();
+    // 先从后端刷新状态（可能有跨页面操作如 JobDetail 快速确认），再判断是否放行
+    if (activeJobId) {
+      try {
+        const detail = await getJob(activeJobId);
+        const itemMap = new Map(detail.items.map(it => [it.file_id, it]));
+        const backendFileIds = new Set(detail.items.map(it => it.file_id));
+        setRows(prev => prev.filter(r => backendFileIds.has(r.file_id)).map(r => {
+          const item = itemMap.get(r.file_id);
+          if (!item) return r;
+          return {
+            ...r,
+            has_output: Boolean(item.has_output),
+            analyzeStatus: mapBackendStatus(item.status),
+            reviewConfirmed: deriveReviewConfirmed(item),
+          };
+        }));
+        // 用后端数据重新检查 allReviewConfirmed
+        const freshConfirmed = detail.items.every(it => deriveReviewConfirmed(it));
+        if (!freshConfirmed) {
+          const pending = detail.items.filter(it => !deriveReviewConfirmed(it)).length;
+          setMsg({
+            text: `还有 ${pending} 份文件未确认审核，全部确认后才能进入导出。`,
+            tone: 'warn',
+          });
+          return;
+        }
+        // 后端确认通过 → 直接进入步骤5，避免下面用过时客户端状态再判断
+        internalStepNavRef.current = true;
+        setStep(5);
+        setFurthestStep(prev => Math.max(prev, 5) as Step);
+        setMsg(null);
+        return;
+      } catch { /* 刷新失败时 fallback 到客户端状态判断 */ }
+    }
     if (!allReviewConfirmed) {
       setMsg({
         text: `还有 ${pendingReviewCount} 份文件未确认审核，全部确认后才能进入导出。`,
@@ -2277,7 +2431,7 @@ export const Batch: React.FC = () => {
       });
       return;
     }
-    await flushCurrentReviewDraft();
+    internalStepNavRef.current = true;
     setStep(5);
     setFurthestStep(prev => Math.max(prev, 5) as Step);
     setMsg(null);
@@ -2308,11 +2462,7 @@ export const Batch: React.FC = () => {
           ? '请等待识别配置加载完成。'
           : !confirmStep1
             ? '请在步骤 1 底部勾选「已确认上述配置」后再进入上传。'
-            : mode === 'text'
-              ? '请先完成步骤 1：至少勾选一个文本实体类型。'
-              : mode === 'smart'
-                ? '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。'
-                : '请先完成步骤 1：在「图片类文本」或「图像特征」中至少勾选一类识别项（可只选其中一路）。',
+            : '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。',
         tone: 'warn',
       });
       return;
@@ -2327,10 +2477,32 @@ export const Batch: React.FC = () => {
     if (step === 1 && s >= 2 && activeJobId) {
       void flushJobDraftFromStep1();
     }
+    internalStepNavRef.current = true;
     setStep(s);
     setFurthestStep(prev => Math.max(prev, s) as Step);
     setMsg(null);
-    if (s === 4) setReviewIndex(0);
+    if (s === 4) {
+      const firstPending = doneRows.findIndex(r => !r.has_output);
+      setReviewIndex(firstPending >= 0 ? firstPending : 0);
+    }
+    if (s === 5 && activeJobId) {
+      void (async () => {
+        try {
+          const detail = await getJob(activeJobId);
+          const itemMap = new Map(detail.items.map(it => [it.file_id, it]));
+          setRows(prev => prev.map(r => {
+            const item = itemMap.get(r.file_id);
+            if (!item) return r;
+            return {
+              ...r,
+              has_output: Boolean(item.has_output),
+              analyzeStatus: mapBackendStatus(item.status),
+              reviewConfirmed: deriveReviewConfirmed(item),
+            };
+          }));
+        } catch { /* ignore refresh failure */ }
+      })();
+    }
   };
 
   /** 从第 4 步去其它步骤（除「前往导出」进入步骤 5）时先确认 */
@@ -2411,6 +2583,79 @@ export const Batch: React.FC = () => {
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [flushCurrentReviewDraft, step]);
 
+  const requeueFailedItems = async () => {
+    if (!failedRows.length) return;
+    // 后台队列模式：走 API
+    if (activeJobId && cfg.executionDefault !== 'local') {
+      setMsg(null);
+      try {
+        await requeueFailed(activeJobId);
+        setRows(prev => prev.map(r => r.analyzeStatus === 'failed'
+          ? { ...r, analyzeStatus: 'pending', analyzeError: undefined }
+          : r
+        ));
+        setMsg({ text: `已重新排队 ${failedRows.length} 个失败项，等待后台处理`, tone: 'ok' });
+      } catch (e) {
+        setMsg({ text: e instanceof Error ? e.message : '重新排队失败，尝试本地重跑', tone: 'warn' });
+        // fallback 到本地重跑
+        await retryFailedLocally();
+      }
+      return;
+    }
+    // 本地模式：直接重新识别失败的文件
+    await retryFailedLocally();
+  };
+
+  const retryFailedLocally = async () => {
+    const failedIndices = rows.map((r, i) => r.analyzeStatus === 'failed' ? i : -1).filter(i => i >= 0);
+    if (!failedIndices.length) return;
+    setAnalyzeRunning(true);
+    setMsg(null);
+    const entityIds = cfg.selectedEntityTypeIds;
+    const bodyNer = { entity_type_ids: entityIds };
+    let successCount = 0;
+
+    for (const i of failedIndices) {
+      const row = rows[i];
+      setRows(prev =>
+        prev.map((r, j) => (j === i ? { ...r, analyzeStatus: 'parsing', analyzeError: undefined } : r))
+      );
+      try {
+        const parseRes = await batchParse(row.file_id);
+        const isImage = parseRes.file_type === 'image' || parseRes.is_scanned;
+        setRows(prev =>
+          prev.map((r, j) => (j === i ? { ...r, isImageMode: isImage, analyzeStatus: 'analyzing' } : r))
+        );
+        if (isImage) {
+          await batchVision(row.file_id, 1, cfg.ocrHasTypes, cfg.hasImageTypes);
+          const info = await batchGetFileRaw(row.file_id);
+          const boxCount = flattenBoundingBoxesFromStore(info.bounding_boxes).length;
+          setRows(prev =>
+            prev.map((r, j) => (j === i ? { ...r, analyzeStatus: 'awaiting_review', entity_count: boxCount } : r))
+          );
+        } else {
+          const ner = await batchHybridNer(row.file_id, bodyNer);
+          setRows(prev =>
+            prev.map((r, j) => (j === i ? { ...r, analyzeStatus: 'awaiting_review', entity_count: ner.entity_count } : r))
+          );
+        }
+        successCount += 1;
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        setRows(prev =>
+          prev.map((r, j) => (j === i ? { ...r, analyzeStatus: 'failed', analyzeError: err } : r))
+        );
+      }
+    }
+    setAnalyzeRunning(false);
+    setMsg({
+      text: successCount === failedIndices.length
+        ? `${successCount} 个失败项全部重跑成功`
+        : `重跑完成：${successCount} 成功，${failedIndices.length - successCount} 仍失败`,
+      tone: successCount === failedIndices.length ? 'ok' : 'warn',
+    });
+  };
+
   const runBatchAnalyze = async (opts?: { advanceToReview?: boolean }) => {
     if (!rows.length) return;
     setAnalyzeRunning(true);
@@ -2445,7 +2690,7 @@ export const Batch: React.FC = () => {
               j === i
                 ? {
                     ...r,
-                    analyzeStatus: 'done',
+                    analyzeStatus: 'awaiting_review',
                     entity_count: boxCount,
                   }
                 : r
@@ -2458,7 +2703,7 @@ export const Batch: React.FC = () => {
               j === i
                 ? {
                     ...r,
-                    analyzeStatus: 'done',
+                    analyzeStatus: 'awaiting_review',
                     entity_count: ner.entity_count,
                   }
                 : r
@@ -2480,8 +2725,10 @@ export const Batch: React.FC = () => {
     if (successCount > 0) {
       setFurthestStep(prev => Math.max(prev, 4) as Step);
       if (opts?.advanceToReview) {
+        internalStepNavRef.current = true;
         setStep(4);
-        setReviewIndex(0);
+        const firstPending = doneRows.findIndex(r => !r.has_output);
+        setReviewIndex(firstPending >= 0 ? firstPending : 0);
       }
     }
     setMsg({
@@ -2499,9 +2746,11 @@ export const Batch: React.FC = () => {
     if (!reviewFile) return;
     setReviewExecuteLoading(true);
     setMsg(null);
+    const currentFileId = reviewFile.file_id;
+    const currentIsImage = reviewFile.isImageMode;
     try {
       const jid = activeJobId;
-      const linkedItemId = itemIdByFileIdRef.current[reviewFile.file_id];
+      const linkedItemId = itemIdByFileIdRef.current[currentFileId];
       if (!jid || !linkedItemId) {
         throw new Error('当前文件未绑定任务项，无法提交审核结果');
       }
@@ -2532,6 +2781,24 @@ export const Batch: React.FC = () => {
         confidence: b.confidence,
       }));
 
+      // ── 乐观更新：立即标记已确认 + 计数器即时 +1 ──
+      setRows(prev =>
+        prev.map(r =>
+          r.file_id === currentFileId
+            ? { ...r, reviewConfirmed: true, has_output: true, analyzeStatus: 'completed' as const }
+            : r
+        )
+      );
+      // 乐观切换到下一份（不等 API 返回）
+      const isLastFile = reviewIndex >= doneRows.length - 1;
+      if (!isLastFile) {
+        setReviewIndex(reviewIndex + 1);
+        setMsg({ text: currentIsImage ? '脱敏中，已切换到下一张…' : '脱敏中，已切换到下一份…', tone: 'ok' });
+      } else {
+        setMsg({ text: '正在处理最后一份…', tone: 'ok' });
+      }
+
+      // ── 后台执行 flush + commit ──
       const ok = await flushCurrentReviewDraft();
       if (!ok) {
         throw new Error(reviewDraftError || '自动保存失败，请稍后重试');
@@ -2541,17 +2808,20 @@ export const Batch: React.FC = () => {
         bounding_boxes: boxesPayload as Array<Record<string, unknown>>,
       });
 
+      // 用后端真实状态修正乐观更新
+      const committedStatus = mapBackendStatus(commitResult.status ?? 'completed');
       setRows(prev =>
         prev.map(r =>
-            r.file_id === reviewFile.file_id
+            r.file_id === currentFileId
               ? {
                   ...r,
-                  has_output: true,
-                  reviewConfirmed: true,
+                  has_output: Boolean(commitResult.has_output ?? true),
+                  reviewConfirmed: deriveReviewConfirmed(commitResult),
+                  analyzeStatus: committedStatus,
                   entity_count:
                     typeof commitResult.entity_count === 'number'
                       ? commitResult.entity_count
-                      : reviewFile.isImageMode
+                      : currentIsImage
                       ? boxesPayload.length
                       : entitiesPayload.length,
               }
@@ -2561,17 +2831,19 @@ export const Batch: React.FC = () => {
       reviewLastSavedJsonRef.current = JSON.stringify({ entities: entitiesPayload, bounding_boxes: boxesPayload });
       reviewDraftDirtyRef.current = false;
 
-      if (reviewIndex < doneRows.length - 1) {
-        await navigateReviewIndex(reviewIndex + 1);
-        setMsg({
-          text: reviewFile.isImageMode ? '当前文件已脱敏，已切换到下一张' : '当前文件已脱敏，已切换到下一份',
-          tone: 'ok',
-        });
-      } else {
+      if (isLastFile) {
         setMsg({ text: '本批已全部审阅完成，可点击下一步进入导出。', tone: 'ok' });
         setFurthestStep(prev => Math.max(prev, 5) as Step);
       }
     } catch (e) {
+      // 回滚乐观更新
+      setRows(prev =>
+        prev.map(r =>
+          r.file_id === currentFileId
+            ? { ...r, reviewConfirmed: false, has_output: false, analyzeStatus: 'awaiting_review' as const }
+            : r
+        )
+      );
       setMsg({ text: e instanceof Error ? e.message : '脱敏失败', tone: 'err' });
     } finally {
       setReviewExecuteLoading(false);
@@ -2596,6 +2868,8 @@ export const Batch: React.FC = () => {
       const blob = await fileApi.batchDownloadZip(selectedIds, redacted);
       triggerDownload(blob, redacted ? 'batch_redacted.zip' : 'batch_original.zip');
       setMsg({ text: '已开始下载 ZIP', tone: 'ok' });
+      // 导出完成后清理 localStorage 中的 furthestStep 持久化
+      if (redacted && activeJobId) clearLocalWizardMaxStep(activeJobId);
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : '下载失败', tone: 'err' });
     } finally {
@@ -2625,21 +2899,21 @@ export const Batch: React.FC = () => {
   }
 
   return (
-    <div className="batch-root h-full min-h-0 min-w-0 flex flex-col bg-[#fafafa] overflow-hidden">
+    <div className="batch-root h-full min-h-0 min-w-0 flex flex-col bg-[#fafafa] dark:bg-gray-900 overflow-hidden">
       <div
         className={`flex-1 flex flex-col min-h-0 min-w-0 w-full max-w-[min(100%,1920px)] mx-auto ${
           step === 1
             ? 'px-3 py-2 sm:px-4 sm:py-2.5 overflow-hidden'
-            : (mode === 'image' || (mode === 'smart' && reviewFile?.isImageMode)) && step === 4
+            : step === 4 && reviewFile?.isImageMode
               ? 'px-2 py-1.5 sm:px-3 sm:py-2 flex flex-col min-h-0 overflow-hidden'
-              : step === 4 && (mode === 'text' || (mode === 'smart' && !reviewFile?.isImageMode))
+              : step === 4
                 ? 'px-2 py-2 sm:px-4 sm:py-3 flex flex-col min-h-0 overflow-hidden'
                 : 'px-3 py-3 sm:px-5 sm:py-4 overflow-y-auto overscroll-contain'
         }`}
       >
         <p
           className={`mb-1 flex-shrink-0 text-2xs sm:text-caption text-[#737373] leading-tight ${
-            step === 4 && (mode === 'image' || mode === 'text' || mode === 'smart') ? 'hidden' : ''
+            step === 4 ? 'hidden' : ''
           }`}
         >
           五步：配置 → 上传 → 批量识别 → 审阅确认 → 导出（与 Playground 无关）
@@ -2648,388 +2922,105 @@ export const Batch: React.FC = () => {
         {/* 步骤条 */}
         <div
           className={`batch-stepper flex flex-wrap items-center gap-1.5 flex-shrink-0 ${
-            step === 4 && (mode === 'image' || mode === 'text') ? 'mb-1' : 'mb-1.5'
+            step === 4 ? 'mb-1' : 'mb-1.5'
           }`}
         >
-          {STEPS.map((s, i) => (
+          {STEPS.map((s, i) => {
+            const reachable = canGoStep(s.n as Step);
+            return (
             <React.Fragment key={s.n}>
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              <button
+                type="button"
+                onClick={() => reachable && goStep(s.n as Step)}
+                disabled={!reachable && step !== s.n}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                   step === s.n
-                    ? 'bg-[#1d1d1f] text-white'
-                    : step > s.n
-                      ? 'bg-white border border-gray-200 text-gray-700'
-                      : 'bg-gray-100 text-gray-400'
+                    ? 'bg-[#1d1d1f] text-white shadow-sm'
+                    : reachable
+                      ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 cursor-pointer'
+                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 } batch-step-chip`}
               >
                 <span className="tabular-nums">{s.n}</span>
                 {s.label}
-              </div>
+              </button>
               {i < STEPS.length - 1 && <span className="text-gray-300 hidden sm:inline">→</span>}
             </React.Fragment>
-          ))}
+            );
+          })}
         </div>
 
         {msg && <div className={`text-sm rounded-lg px-3 py-2 mb-2 ${msgClass}`}>{msg.text}</div>}
 
         {/* 1 配置 */}
         {step === 1 && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden p-2 sm:p-3 space-y-2">
-            <h3 className="font-semibold text-gray-900 shrink-0 text-sm leading-tight">
-              ① 任务与配置
-            </h3>
-            <p className="text-2xs text-gray-500 leading-snug">
-              本步绑定当前批量任务的识别项与脱敏选项。若已从 Hub/任务中心带入工单，修改会<strong className="text-gray-700">自动同步到任务草稿</strong>
-              （约 1 秒内防抖保存）；未建单时，点「下一步：上传」会创建工单并写入配置。
-            </p>
-            <div className="rounded-lg border border-gray-100 bg-[#f8fafc] px-2.5 py-2 space-y-1.5 shrink-0">
-              <p className="text-2xs font-medium text-gray-700">默认处理路径</p>
-              <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                <label className="flex items-center gap-2 cursor-pointer text-2xs text-gray-700">
-                  <input
-                    type="radio"
-                    name="batch-exec-path"
-                    className="h-3.5 w-3.5 shrink-0 accent-[#1d1d1f]"
-                    checked={(cfg.executionDefault ?? 'queue') === 'queue'}
-                    onChange={() => setCfg(c => ({ ...c, executionDefault: 'queue' }))}
-                  />
-                  <span>
-                    <span className="font-medium text-gray-800">后台任务队列</span>（推荐：可关窗由 Worker 继续跑）
-                  </span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-2xs text-gray-700">
-                  <input
-                    type="radio"
-                    name="batch-exec-path"
-                    className="h-3.5 w-3.5 shrink-0 accent-[#1d1d1f]"
-                    checked={cfg.executionDefault === 'local'}
-                    onChange={() => setCfg(c => ({ ...c, executionDefault: 'local' }))}
-                  />
-                  <span>
-                    <span className="font-medium text-gray-800">仅本页完成</span>（浏览器内识别→核对→导出，少依赖队列）
-                  </span>
-                </label>
-              </div>
-            </div>
-            <p className="text-2xs text-gray-400 leading-snug">
-              「处理路径」会写入任务草稿字段 <code className="text-[0.65rem]">preferred_execution</code>
-              ，便于后续与 Worker 对齐；当前以本页说明为准。
-            </p>
-            <p className="text-2xs text-gray-500 leading-snug">
-              进度与逐份确认见{' '}
-              <Link to="/jobs" className="text-[#007AFF] font-medium hover:underline">
-                任务中心
-              </Link>
-              ；处理历史见「处理历史」。
-            </p>
-            {!configLoaded ? (
-              <p className="text-sm text-gray-400">加载类型配置中…</p>
-            ) : (
-              <>
-                {/* ====== Smart 模式：左右双栏布局 ====== */}
-                {mode === 'smart' ? (
-                  <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
-                    {/* 左侧：配置选择 */}
-                    <div className="w-[280px] shrink-0 flex flex-col gap-3 overflow-y-auto">
-                      {/* 文本配置卡 */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                          <label className="text-xs font-semibold text-[#1d1d1f]">文本脱敏</label>
-                        </div>
-                        <p className="text-2xs text-gray-500">Word / PDF 文字实体识别</p>
-                        <select
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-[#fafafa] w-full"
-                          value={cfg.presetTextId ?? ''}
-                          onChange={onBatchTextPresetChange}
-                        >
-                          <option value="">默认（全选）</option>
-                          {textPresets.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {/* 图像配置卡 */}
-                      <div className="rounded-xl border border-gray-200 bg-white p-3 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-violet-500 shrink-0" />
-                          <label className="text-xs font-semibold text-[#1d1d1f]">图像脱敏</label>
-                        </div>
-                        <p className="text-2xs text-gray-500">图片 / 扫描件区域检测</p>
-                        <select
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-[#fafafa] w-full"
-                          value={cfg.presetVisionId ?? ''}
-                          onChange={onBatchVisionPresetChange}
-                        >
-                          <option value="">默认（全选）</option>
-                          {visionPresets.map(p => (
-                            <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>
-                          ))}
-                        </select>
-                      </div>
-                      {/* 优先级 */}
-                      <div className="flex items-center gap-2 px-1">
-                        <span className="text-2xs text-gray-500">优先级</span>
-                        <select
-                          value={jobPriority}
-                          onChange={e => setJobPriority(Number(e.target.value))}
-                          className="text-2xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
-                        >
-                          <option value={0}>普通</option>
-                          <option value={5}>高</option>
-                          <option value={10}>紧急</option>
-                        </select>
-                      </div>
-                      {/* 确认 + 下一步 */}
-                      <div className="space-y-2 pt-1 border-t border-gray-100">
-                        <label className="flex items-start gap-2 cursor-pointer text-2xs text-gray-700 leading-snug">
-                          <input
-                            type="checkbox"
-                            checked={confirmStep1}
-                            onChange={e => setConfirmStep1(e.target.checked)}
-                            className={`mt-0.5 ${formCheckboxClass()}`}
-                          />
-                          <span>已确认配置</span>
-                        </label>
-                        <button
-                          type="button"
-                          onClick={advanceToUploadStep}
-                          disabled={!isStep1Complete}
-                          className="w-full px-4 py-2 text-sm font-medium rounded-xl bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          下一步：上传
-                        </button>
-                      </div>
-                    </div>
-                    {/* 右侧：配置详情预览（只读 Tab 切换） */}
-                    <div className="flex-1 min-w-0 flex flex-col rounded-xl border border-gray-100 bg-[#fafafa] overflow-hidden">
-                      <SmartDetailTabs
-                        cfg={cfg}
-                        textTypes={textTypes}
-                        pipelines={pipelines}
-                        presets={presets}
-                        setCfg={setCfg}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  /* ====== 旧模式（text / image）：原有单栏布局 ====== */
-                  <div className="rounded-lg border border-gray-100 bg-[#fafafa] flex flex-col flex-1 min-h-0 overflow-hidden p-2 space-y-2">
-                    <div className="text-2xs text-gray-500 leading-snug space-y-0.5">
-                      <p><span className="text-gray-600">「默认」</span>与「识别项配置」中当前启用的类型一致。</p>
-                    </div>
-                    <div className="max-w-xl">
-                      {mode === 'text' && (
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs font-medium text-gray-800">文本脱敏配置清单</label>
-                          <select className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white w-full" value={cfg.presetTextId ?? ''} onChange={onBatchTextPresetChange}>
-                            <option value="">默认</option>
-                            {textPresets.map(p => <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>)}
-                          </select>
-                        </div>
-                      )}
-                      {mode === 'image' && (
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-xs font-medium text-gray-800">图像脱敏配置清单</label>
-                          <select className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white w-full" value={cfg.presetVisionId ?? ''} onChange={onBatchVisionPresetChange}>
-                            <option value="">默认</option>
-                            {visionPresets.map(p => <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>)}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-black/[0.06] bg-white/80 p-2">
-                      <PresetDetailBlock cfg={cfg} textTypes={textTypes} pipelines={pipelines} allPresets={presets} scope={mode} onReplacementModeChange={m => setCfg(c => ({ ...c, presetTextId: null, replacementMode: m }))} onVisionImagePatch={patch => setCfg(c => ({ ...c, presetVisionId: null, ...patch }))} />
-                    </div>
-                  </div>
-                )}
-
-                {/* 旧模式：优先级 + 确认（smart 模式已内含在左侧） */}
-                {mode !== 'smart' && configLoaded && (
-                  <>
-                    <div className="flex items-center gap-2 pt-1.5 mt-0.5 border-t border-gray-100 shrink-0">
-                      <span className="text-2xs text-gray-500">任务优先级</span>
-                      <select value={jobPriority} onChange={e => setJobPriority(Number(e.target.value))} className="text-2xs border border-gray-200 rounded-lg px-2 py-1 bg-white">
-                        <option value={0}>普通</option>
-                        <option value={5}>高</option>
-                        <option value={10}>紧急</option>
-                      </select>
-                    </div>
-                    <label className="flex items-start gap-2 cursor-pointer text-2xs text-gray-700 mb-1 leading-snug shrink-0">
-                      <input type="checkbox" checked={confirmStep1} onChange={e => setConfirmStep1(e.target.checked)} className={`mt-0.5 ${formCheckboxClass()}`} />
-                      <span>已确认当前识别与脱敏配置；未勾选无法进入「上传」。</span>
-                    </label>
-                    <div className="flex justify-end">
-                      <button type="button" onClick={advanceToUploadStep} disabled={!isStep1Complete} className="px-4 py-2 text-sm font-medium rounded-xl bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] disabled:opacity-40 disabled:cursor-not-allowed">下一步：上传</button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
+          <BatchStep1Config
+            mode={mode}
+            cfg={cfg}
+            setCfg={setCfg}
+            configLoaded={configLoaded}
+            textTypes={textTypes}
+            pipelines={pipelines}
+            presets={presets}
+            textPresets={textPresets}
+            visionPresets={visionPresets}
+            onBatchTextPresetChange={onBatchTextPresetChange}
+            onBatchVisionPresetChange={onBatchVisionPresetChange}
+            confirmStep1={confirmStep1}
+            setConfirmStep1={setConfirmStep1}
+            isStep1Complete={isStep1Complete}
+            jobPriority={jobPriority}
+            setJobPriority={setJobPriority}
+            advanceToUploadStep={advanceToUploadStep}
+            SmartDetailTabs={SmartDetailTabs}
+            PresetDetailBlock={PresetDetailBlock}
+          />
         )}
 
         {/* 2 上传 */}
         {step === 2 && (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="flex flex-col gap-4">
-              {activeJobId && (
-                <div className="text-2xs sm:text-xs text-gray-600 rounded-lg border border-gray-100 bg-white px-3 py-2">
-                  当前任务工单{' '}
-                  <Link to={`/jobs/${activeJobId}`} className="font-mono text-[#007AFF] hover:underline break-all">
-                    {activeJobId}
-                  </Link>
-                  ；上传文件将自动归入此任务。
-                </div>
-              )}
-              <div
-                {...getRootProps()}
-                className={`min-h-[220px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center px-6 py-8 cursor-pointer transition-all ${
-                  isDragActive ? 'border-[#1d1d1f] bg-white shadow-sm' : 'border-[#e5e5e5] bg-white hover:border-[#d4d4d4]'
-                } ${loading ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <input {...getInputProps()} />
-                <p className="text-base font-medium text-[#1d1d1f]">拖放多个文件，或点击选择</p>
-                <p className="text-xs text-[#a3a3a3] mt-2">
-                  {mode === 'smart'
-                    ? '支持 Word (.docx)、PDF、图片 (.jpg .png)，系统自动识别文件类型'
-                    : mode === 'image'
-                      ? '支持图片 (.jpg .png) 和扫描件 PDF'
-                      : '支持 Word (.docx .doc) 和 PDF 文档'}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => goStep(1)}
-                  className="px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white"
-                >
-                  上一步
-                </button>
-                <button
-                  type="button"
-                  onClick={() => goStep(3)}
-                  disabled={!rows.length}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1d1d1f] text-white disabled:opacity-40"
-                >
-                  下一步：批量识别
-                </button>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[240px]">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-900 text-sm">上传队列</h3>
-                <p className="text-xs text-gray-400">共 {rows.length} 个</p>
-              </div>
-              <div className="flex-1 overflow-y-auto max-h-[320px] divide-y divide-gray-50">
-                {rows.length === 0 ? (
-                  <p className="p-6 text-sm text-gray-400 text-center">暂无文件</p>
-                ) : (
-                  rows.map(r => (
-                    <div key={r.file_id} className="px-4 py-2 flex justify-between gap-2 text-sm">
-                      <span className="truncate">{r.original_filename}</span>
-                      <span className="text-xs text-gray-400 shrink-0">{r.file_type}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
+          <BatchStep2Upload
+            mode={mode}
+            activeJobId={activeJobId}
+            rows={rows}
+            loading={loading}
+            isDragActive={isDragActive}
+            getRootProps={getRootProps}
+            getInputProps={getInputProps}
+            goStep={goStep}
+          />
         )}
 
         {/* 3 批量识别 */}
         {step === 3 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-            <h3 className="font-semibold text-gray-900">③ 批量识别</h3>
-            <p className="text-xs text-gray-500">
-              {(cfg.executionDefault ?? 'queue') === 'queue' ? (
-                <>
-                  默认路径为<strong className="text-gray-800">后台队列</strong>：可先点「开始批量识别」在本页跑解析/识别，也可直接「提交后台队列」交给 Worker；二者可按需混用。
-                </>
-              ) : (
-                <>
-                  当前偏好<strong className="text-gray-800">仅本页完成</strong>：请用「开始批量识别」跑通后再进入核对；若仍需要 Worker，可点「提交后台队列」。
-                </>
-              )}
-            </p>
-            <p className="text-xs text-gray-500">
-              将依次解析每个文件并运行文本 NER 或图像双路识别。失败项可在列表中查看原因，仍可对成功项继续核对。
-            </p>
-            {rows.length > 0 && (analyzeRunning || analyzeDoneCount > 0) && (
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>识别进度</span>
-                  <span className="tabular-nums font-medium text-gray-800">
-                    {analyzeDoneCount} / {rows.length}
-                  </span>
-                </div>
-                <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#007AFF] transition-[width] duration-300 ease-out"
-                    style={{
-                      width: `${rows.length ? Math.min(100, (analyzeDoneCount / rows.length) * 100) : 0}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => goStep(2)}
-                className="px-4 py-2 text-sm border border-gray-200 rounded-lg bg-white"
-              >
-                上一步
-              </button>
-              <button
-                type="button"
-                onClick={() => void runBatchAnalyze()}
-                disabled={analyzeRunning || !rows.length}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1d1d1f] text-white disabled:opacity-40"
-              >
-                {analyzeRunning ? '识别中…' : '开始批量识别'}
-              </button>
-              {activeJobId && (
-                <button
-                  type="button"
-                  onClick={() => void submitQueueToWorker()}
-                  disabled={!rows.length}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-[#007AFF] text-[#007AFF] bg-white hover:bg-blue-50 disabled:opacity-40"
-                >
-                  提交后台队列
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => goStep(4)}
-                disabled={!canGoStep(4)}
-                className="px-4 py-2 text-sm rounded-lg border border-gray-200 bg-white disabled:opacity-40"
-              >
-                进入核对
-              </button>
-            </div>
-            <div className="border border-gray-100 rounded-lg divide-y divide-gray-50 max-h-80 overflow-y-auto">
-              {rows.map(r => (
-                <div key={r.file_id} className="px-4 py-2 flex flex-wrap items-center gap-2 text-sm">
-                  <span className="truncate flex-1 min-w-0">{r.original_filename}</span>
-                  <span className="text-xs text-gray-500">{r.analyzeStatus}</span>
-                  {r.analyzeError && <span className="text-xs text-violet-700">{r.analyzeError}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
+          <BatchStep3Review
+            rows={rows}
+            analyzeRunning={analyzeRunning}
+            analyzeDoneCount={analyzeDoneCount}
+            activeJobId={activeJobId}
+            failedRows={failedRows}
+            canGoStep={canGoStep}
+            goStep={goStep}
+            submitQueueToWorker={submitQueueToWorker}
+            requeueFailedItems={requeueFailedItems}
+          />
         )}
 
         {/* 4 核对 · 图像：画布最大化，控件浮层 */}
-        {step === 4 && (mode === 'image' || (mode === 'smart' && reviewFile?.isImageMode)) && (
+        {step === 4 && reviewFile?.isImageMode && (
           <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-gray-200 shadow-sm bg-white overflow-hidden">
+            {reviewFileReadOnly && (
+              <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-sm text-emerald-800">
+                该文件已完成脱敏，仅供查阅。如需重新脱敏请先在任务详情驳回。
+              </div>
+            )}
             {!doneRows.length ? (
               <p className="p-3 text-sm text-gray-400 shrink-0">暂无已完成识别的文件，请先完成第 3 步批量识别。</p>
             ) : reviewLoading || !reviewFile ? (
               <p className="p-3 text-sm text-gray-400 shrink-0">加载中…</p>
             ) : reviewFile.isImageMode ? (
-              <div className="flex-1 min-h-0 grid gap-3 p-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)]">
-                <div className="min-h-0 rounded-2xl border border-gray-200 overflow-hidden bg-white">
+              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 p-3">
+                <div className="flex-1 min-h-0 rounded-2xl border border-gray-200 overflow-hidden bg-white">
                   <ImageBBoxEditor
                     imageSrc={reviewOrigImageBlobUrl}
                     boxes={reviewBoxes}
@@ -3040,13 +3031,6 @@ export const Batch: React.FC = () => {
                     defaultType="CUSTOM"
                     viewportTopSlot={
                       <>
-                        <button
-                          type="button"
-                          onClick={() => goStep(3)}
-                          className="px-2 py-0.5 text-2xs font-medium rounded border border-gray-200 bg-white/95 text-gray-800 shadow-sm hover:bg-white"
-                        >
-                          返回识别
-                        </button>
                         <span
                           className="text-2xs font-medium text-gray-900 truncate max-w-[min(36vw,16rem)] px-1.5 py-0.5 rounded bg-white/90 border border-gray-200/80 shadow-sm"
                           title={reviewFile.original_filename}
@@ -3059,7 +3043,7 @@ export const Batch: React.FC = () => {
                               type="button"
                               disabled={reviewIndex <= 0}
                               onClick={() => void navigateReviewIndex(reviewIndex - 1)}
-                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 bg-white/95 disabled:opacity-40 shadow-sm"
+                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
                             >
                               上一张
                             </button>
@@ -3068,9 +3052,10 @@ export const Batch: React.FC = () => {
                             </span>
                             <button
                               type="button"
-                              disabled={reviewIndex >= doneRows.length - 1}
+                              disabled={reviewIndex >= doneRows.length - 1 || !reviewFile?.reviewConfirmed}
                               onClick={() => void navigateReviewIndex(reviewIndex + 1)}
-                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 bg-white/95 disabled:opacity-40 shadow-sm"
+                              title={!reviewFile?.reviewConfirmed ? '请先确认当前文件脱敏' : ''}
+                              className="px-1.5 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
                             >
                               下一张
                             </button>
@@ -3080,7 +3065,7 @@ export const Batch: React.FC = () => {
                           type="button"
                           onClick={undoReviewImage}
                           disabled={!reviewImageUndoStack.length}
-                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 bg-white/95 disabled:opacity-40 shadow-sm ml-auto"
+                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm ml-auto"
                         >
                           Undo
                         </button>
@@ -3088,12 +3073,12 @@ export const Batch: React.FC = () => {
                           type="button"
                           onClick={redoReviewImage}
                           disabled={!reviewImageRedoStack.length}
-                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 bg-white/95 disabled:opacity-40 shadow-sm"
+                          className="px-2 py-0.5 text-2xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800/95 disabled:opacity-40 shadow-sm"
                         >
                           Redo
                         </button>
                         {reviewDraftSaving && (
-                          <span className="text-2xs text-gray-500 whitespace-nowrap">保存草稿…</span>
+                          <span className="text-2xs text-gray-500 dark:text-gray-400 whitespace-nowrap">保存草稿…</span>
                         )}
                         {!reviewDraftSaving && reviewDraftError && (
                           <span className="text-2xs text-red-600 truncate max-w-[10rem]">{reviewDraftError}</span>
@@ -3102,24 +3087,28 @@ export const Batch: React.FC = () => {
                     }
                     viewportBottomSlot={
                       <div className="ml-auto flex items-center gap-2 rounded-2xl border border-white/70 bg-white/95 px-2.5 py-2 shadow-lg backdrop-blur">
-                        <span className="hidden sm:inline text-2xs text-gray-500 tabular-nums">
+                        <span className="hidden sm:inline text-2xs text-gray-500 dark:text-gray-400 tabular-nums">
                           已确认 {reviewedOutputCount} / {rows.length}
                         </span>
                         <button
                           type="button"
                           onClick={confirmCurrentReview}
-                          disabled={reviewExecuteLoading}
-                          className="min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
+                          disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
+                          className="min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] transition-all duration-200 disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
                         >
-                          {reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
+                          {reviewFileReadOnly ? '已完成脱敏' : reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
                         </button>
                         <button
                           type="button"
                           onClick={advanceToExportStep}
                           disabled={!allReviewConfirmed || reviewExecuteLoading}
-                          className="min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+                          className={`min-w-[132px] px-4 py-2 text-xs font-semibold rounded-xl shadow-sm transition-all duration-200 ${
+                            allReviewConfirmed && !reviewExecuteLoading
+                              ? 'bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] border-transparent ring-2 ring-[#1d1d1f]/20'
+                              : 'border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white'
+                          }`}
                         >
-                          下一步：进入导出
+                          {allReviewConfirmed ? '✓ 进入导出' : '下一步：进入导出'}
                         </button>
                       </div>
                     }
@@ -3127,23 +3116,23 @@ export const Batch: React.FC = () => {
                 </div>
 
                 <div className="min-h-0 flex flex-col gap-3">
-                  <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden flex flex-col min-h-[240px]">
+                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden flex flex-col min-h-[240px]">
                     <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
                       <div>
                         <p className="text-xs font-semibold text-gray-800">脱敏预览</p>
-                        <p className="text-2xs text-gray-500">
+                        <p className="text-2xs text-gray-500 dark:text-gray-400">
                           {reviewImagePreviewLoading
                             ? '生成预览中…'
                             : `已选区域 ${selectedReviewBoxCount} / ${reviewBoxes.length}`}
                         </p>
                       </div>
                     </div>
-                    <div className="flex-1 overflow-auto bg-[#fafafa] p-3">
+                    <div className="flex-1 overflow-auto bg-[#fafafa] dark:bg-gray-900 p-3">
                       {reviewImagePreviewSrc ? (
                         <img
                           src={reviewImagePreviewSrc}
                           alt="review preview"
-                          className="w-full h-auto rounded-xl border border-gray-200 bg-white"
+                          className="w-full h-auto rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
                         />
                       ) : (
                         <div className="h-full min-h-[180px] flex items-center justify-center text-sm text-gray-400 rounded-xl border border-dashed border-gray-200 bg-white">
@@ -3153,10 +3142,10 @@ export const Batch: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden flex-1 min-h-0">
+                  <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden flex-1 min-h-0">
                     <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-gray-800">检测区域</span>
-                      <span className="text-2xs text-gray-500 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
+                      <span className="text-2xs text-gray-500 dark:text-gray-400 tabular-nums">{selectedReviewBoxCount}/{reviewBoxes.length}</span>
                     </div>
                     <div className="flex-1 overflow-auto p-2 space-y-2">
                       {reviewBoxes.map(box => {
@@ -3208,13 +3197,18 @@ export const Batch: React.FC = () => {
           </div>
         )}
 
-        {step === 4 && (mode === 'text' || (mode === 'smart' && !reviewFile?.isImageMode)) && (
+        {step === 4 && !reviewFile?.isImageMode && (
           <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-gray-200 shadow-sm bg-white overflow-hidden relative">
+            {reviewFileReadOnly && (
+              <div className="shrink-0 bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-sm text-emerald-800">
+                该文件已完成脱敏，仅供查阅。如需重新脱敏请先在任务详情驳回。
+              </div>
+            )}
             <div className="shrink-0 px-4 pt-3 pb-2 border-b border-gray-100/80 space-y-2">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm">文本审阅工作台</h3>
-                  <p className="text-2xs text-gray-500 mt-0.5 leading-snug">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">文本审阅工作台</h3>
+                  <p className="text-2xs text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
                     划选添加标注、点击实体可改类型或删除；原文与脱敏预览联动；草稿约 900ms 自动保存到任务。
                   </p>
                 </div>
@@ -3227,20 +3221,13 @@ export const Batch: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => goStep(3)}
-                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-white hover:bg-gray-50"
-                >
-                  返回识别
-                </button>
                 {doneRows.length > 1 && (
                   <>
                     <button
                       type="button"
                       disabled={reviewIndex <= 0}
                       onClick={() => void navigateReviewIndex(reviewIndex - 1)}
-                      className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-white disabled:opacity-40"
+                      className="px-2.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-40"
                     >
                       上一份
                     </button>
@@ -3249,9 +3236,10 @@ export const Batch: React.FC = () => {
                     </span>
                     <button
                       type="button"
-                      disabled={reviewIndex >= doneRows.length - 1}
+                      disabled={reviewIndex >= doneRows.length - 1 || !reviewFile?.reviewConfirmed}
                       onClick={() => void navigateReviewIndex(reviewIndex + 1)}
-                      className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-white disabled:opacity-40"
+                      title={!reviewFile?.reviewConfirmed ? '请先确认当前文件脱敏' : ''}
+                      className="px-2.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-40"
                     >
                       下一份
                     </button>
@@ -3261,7 +3249,7 @@ export const Batch: React.FC = () => {
                   type="button"
                   onClick={undoReviewText}
                   disabled={!reviewTextUndoStack.length}
-                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-white disabled:opacity-40 ml-auto"
+                  className="px-2.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-40 ml-auto"
                 >
                   Undo
                 </button>
@@ -3269,7 +3257,7 @@ export const Batch: React.FC = () => {
                   type="button"
                   onClick={redoReviewText}
                   disabled={!reviewTextRedoStack.length}
-                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-white disabled:opacity-40"
+                  className="px-2.5 py-1 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-40"
                 >
                   Redo
                 </button>
@@ -3282,10 +3270,10 @@ export const Batch: React.FC = () => {
 
             {!!doneRows.length && reviewFile && (
               <div className="flex-1 min-h-0 grid gap-3 p-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_320px]">
-                <div className="min-h-0 rounded-2xl border border-gray-200/80 bg-white flex flex-col overflow-hidden">
+                <div className="min-h-0 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden">
                   <div className="flex-shrink-0 px-3 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-gray-700 tracking-tight">原文</span>
-                    <span className="text-2xs text-gray-500 tabular-nums">
+                    <span className="text-2xs text-gray-500 dark:text-gray-400 tabular-nums">
                       已选 {selectedReviewEntityCount} / {reviewEntities.length}
                     </span>
                   </div>
@@ -3301,7 +3289,7 @@ export const Batch: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="min-h-0 rounded-2xl border border-gray-200/80 bg-white flex flex-col overflow-hidden">
+                <div className="min-h-0 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden">
                   <div className="flex-shrink-0 px-3 sm:px-4 py-2 border-b border-gray-100 flex items-center gap-2">
                     <span className="text-xs font-semibold text-gray-700 tracking-tight">脱敏预览</span>
                   </div>
@@ -3326,22 +3314,22 @@ export const Batch: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="min-h-0 rounded-2xl border border-gray-200/80 bg-white flex flex-col overflow-hidden">
+                <div className="min-h-0 rounded-2xl border border-gray-200/80 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col overflow-hidden">
                   <div className="flex-shrink-0 px-3 py-2 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-gray-700 tracking-tight">实体列表</span>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-2xs text-gray-500 tabular-nums">{selectedReviewEntityCount}/{reviewEntities.length}</span>
+                      <span className="text-2xs text-gray-500 dark:text-gray-400 tabular-nums">{selectedReviewEntityCount}/{reviewEntities.length}</span>
                       <button
                         type="button"
                         onClick={() => applyReviewEntities(prev => prev.map(e => ({ ...e, selected: true })))}
-                        className="text-2xs font-medium px-2 py-0.5 rounded border border-gray-200 bg-white hover:bg-gray-50"
+                        className="text-2xs font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50"
                       >
                         全选
                       </button>
                       <button
                         type="button"
                         onClick={() => applyReviewEntities(prev => prev.map(e => ({ ...e, selected: false })))}
-                        className="text-2xs font-medium px-2 py-0.5 rounded border border-gray-200 bg-white hover:bg-gray-50"
+                        className="text-2xs font-medium px-2 py-0.5 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50"
                       >
                         全不选
                       </button>
@@ -3358,7 +3346,7 @@ export const Batch: React.FC = () => {
                       return (
                         <div
                           key={e.id}
-                          className="rounded-xl border border-black/[0.06] shadow-sm px-3 py-2"
+                          className="rounded-xl border border-black/[0.06] dark:border-gray-700 shadow-sm px-3 py-2"
                           style={{ backgroundColor: e.selected === false ? '#f9fafb' : risk.bgColor, borderLeft: `3px solid ${risk.color}` }}
                         >
                           <div className="flex items-start gap-2">
@@ -3402,7 +3390,7 @@ export const Batch: React.FC = () => {
               >
                 <div className="mb-3">
                   <div className="text-caption text-gray-500 mb-1 font-medium">选中片段</div>
-                  <div className="text-sm text-gray-900 bg-gray-50 rounded-lg px-3 py-2 max-w-full break-all border border-gray-100">
+                  <div className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 rounded-lg px-3 py-2 max-w-full break-all border border-gray-100">
                     {reviewSelectedText.text}
                   </div>
                 </div>
@@ -3503,7 +3491,7 @@ export const Batch: React.FC = () => {
 
 {!!doneRows.length && reviewFile && (
               <div className="shrink-0 px-4 pb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-gray-500 tabular-nums">
+                <div className="text-xs text-gray-500 dark:text-gray-400 tabular-nums">
                   已确认 {reviewedOutputCount} / {rows.length}
                   {!allReviewConfirmed && <span className="ml-2 text-amber-600">全部确认后才能进入导出</span>}
                 </div>
@@ -3511,18 +3499,22 @@ export const Batch: React.FC = () => {
                   <button
                     type="button"
                     onClick={confirmCurrentReview}
-                    disabled={reviewExecuteLoading}
-                    className="min-w-[148px] px-4 py-2 text-sm font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
+                    disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
+                    className="min-w-[148px] px-4 py-2 text-sm font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] transition-all duration-200 disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
                   >
-                    {reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
+                    {reviewFileReadOnly ? '已完成脱敏' : reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
                   </button>
                   <button
                     type="button"
                     onClick={advanceToExportStep}
                     disabled={!allReviewConfirmed || reviewExecuteLoading}
-                    className="min-w-[148px] px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white"
+                    className={`min-w-[148px] px-4 py-2 text-sm font-semibold rounded-xl shadow-sm transition-all duration-200 ${
+                      allReviewConfirmed && !reviewExecuteLoading
+                        ? 'bg-[#1d1d1f] text-white hover:bg-[#2d2d2f] border-transparent ring-2 ring-[#1d1d1f]/20'
+                        : 'border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white'
+                    }`}
                   >
-                    下一步：进入导出
+                    {allReviewConfirmed ? '✓ 进入导出' : '下一步：进入导出'}
                   </button>
                 </div>
               </div>
@@ -3532,8 +3524,8 @@ export const Batch: React.FC = () => {
 
         {step === 5 && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-            <h3 className="font-semibold text-gray-900">⑤ 导出</h3>
-            <p className="text-xs text-gray-500">勾选文件后打包下载；脱敏 ZIP 仅包含已在第 4 步「审阅确认」中完成脱敏的文件。</p>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">⑤ 导出</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">勾选文件后打包下载；脱敏 ZIP 仅包含已在第 4 步「审阅确认」中完成脱敏的文件。</p>
             <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => goStep(4)} className="px-4 py-2 text-sm border rounded-lg">
                 返回审阅
@@ -3556,7 +3548,7 @@ export const Batch: React.FC = () => {
                 type="button"
                 onClick={() => downloadZip(true)}
                 disabled={zipLoading || !selectedIds.length}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white disabled:opacity-40 inline-flex items-center gap-1.5"
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 disabled:opacity-40 inline-flex items-center gap-1.5"
               >
                 {zipLoading && (
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -3577,13 +3569,11 @@ export const Batch: React.FC = () => {
                     onChange={() => toggle(r.file_id)}
                   />
                   <span className="flex-1 truncate">{r.original_filename}</span>
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full ${
-                      r.has_output ? 'bg-emerald-50 text-emerald-800' : 'bg-gray-100 text-gray-500'
-                    }`}
-                  >
-                    {r.has_output ? '已脱敏' : '未脱敏'}
+                  {(() => { const rs = resolveRedactionState(r.has_output, r.analyzeStatus); return (
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${REDACTION_STATE_CLASS[rs]}`}>
+                    {REDACTION_STATE_LABEL[rs]}
                   </span>
+                  ); })()}
                 </div>
               ))}
             </div>
@@ -3601,10 +3591,10 @@ export const Batch: React.FC = () => {
             }}
           >
             <div
-              className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 border border-gray-200"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-5 border border-gray-200"
               onClick={e => e.stopPropagation()}
             >
-              <h2 id="batch-leave-review-title" className="text-base font-semibold text-gray-900">
+              <h2 id="batch-leave-review-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 离开审阅？
               </h2>
               <p className="mt-2 text-sm text-gray-600 leading-relaxed">
@@ -3614,7 +3604,7 @@ export const Batch: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancelLeaveReview}
-                  className="px-4 py-2 text-sm rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+                  className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50"
                 >
                   取消
                 </button>
