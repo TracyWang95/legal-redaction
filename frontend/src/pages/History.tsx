@@ -1051,25 +1051,18 @@ export const History: React.FC = () => {
               {!compareLoading && !compareErr && compareData && (
                 <>
                   {compareTab === 'preview' && compareBlobUrls && (
-                    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.7fr)_minmax(260px,0.8fr)] gap-3">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="flex flex-col xl:flex-row gap-3 items-start">
+                      {/* 左侧：脱敏前后对比图 */}
+                      <div className="flex-1 min-w-0 grid grid-cols-1 lg:grid-cols-2 gap-3">
                         <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
                           <div className="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                             {t('history.beforeRedaction')}
                           </div>
                           <div className="flex items-center justify-center p-2 bg-white">
                             {String(compareTarget?.file_type).includes('pdf') ? (
-                              <iframe
-                                title="original-pdf"
-                                src={compareBlobUrls.original}
-                                className="w-full h-[420px] border-0 rounded"
-                              />
+                              <iframe title="original-pdf" src={compareBlobUrls.original} className="w-full h-[420px] border-0 rounded" />
                             ) : (
-                              <img
-                                src={compareBlobUrls.original}
-                                alt={t('history.beforeRedaction')}
-                                className="max-w-full max-h-[420px] object-contain"
-                              />
+                              <img src={compareBlobUrls.original} alt={t('history.beforeRedaction')} className="max-w-full max-h-[420px] object-contain" />
                             )}
                           </div>
                         </div>
@@ -1079,45 +1072,36 @@ export const History: React.FC = () => {
                           </div>
                           <div className="flex items-center justify-center p-2 bg-white">
                             {String(compareTarget?.file_type).includes('pdf') ? (
-                              <iframe
-                                title="redacted-pdf"
-                                src={compareBlobUrls.redacted}
-                                className="w-full h-[420px] border-0 rounded"
-                              />
+                              <iframe title="redacted-pdf" src={compareBlobUrls.redacted} className="w-full h-[420px] border-0 rounded" />
                             ) : (
-                              <img
-                                src={compareBlobUrls.redacted}
-                                alt={t('history.afterRedaction')}
-                                className="max-w-full max-h-[420px] object-contain"
-                              />
+                              <img src={compareBlobUrls.redacted} alt={t('history.afterRedaction')} className="max-w-full max-h-[420px] object-contain" />
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col min-h-0 rounded-lg border border-gray-200 bg-white overflow-hidden">
+                      {/* 右侧：脱敏项列表 — self-start 跟随图片高度不拉长 */}
+                      <div className="xl:w-[260px] xl:shrink-0 self-start rounded-lg border border-gray-200 bg-white overflow-hidden">
                         <div className="px-3 py-2 border-b border-gray-100 bg-[#fafafa]">
                           <p className="text-sm font-semibold text-gray-900">{t('history.previewRedactedItems')}</p>
                           <p className="text-2xs text-gray-500 mt-0.5">
                             {t('history.previewItemsCount').replace('{n}', String(comparePreviewItems.length))}
                           </p>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-auto p-3">
+                        <div className="max-h-[420px] overflow-auto p-3">
                           {comparePreviewItems.length > 0 ? (
                             <ul className="space-y-2">
                               {comparePreviewItems.map(item => (
-                                <li key={item.id} className="rounded-xl border border-gray-200 bg-[#fcfcfc] px-3 py-2.5">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-2xs font-medium text-gray-700">
-                                      {item.label}
-                                    </span>
+                                <li key={item.id} className="rounded-lg border border-gray-200 bg-[#fcfcfc] px-3 py-2">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-2xs font-medium text-gray-700">{item.label}</span>
                                     <span className="text-2xs text-gray-400 whitespace-nowrap">{item.meta}</span>
                                   </div>
-                                  <p className="mt-2 text-sm text-gray-800 break-all">{item.value}</p>
+                                  <p className="mt-1 text-xs text-gray-800 break-all">{item.value}</p>
                                 </li>
                               ))}
                             </ul>
                           ) : (
-                            <div className="h-full min-h-[180px] flex items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-4 text-sm text-gray-500 text-center">
+                            <div className="py-8 flex items-center justify-center text-sm text-gray-400">
                               {t('history.noPreviewItems')}
                             </div>
                           )}
