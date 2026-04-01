@@ -975,7 +975,7 @@ export const History: React.FC = () => {
             if (e.target === e.currentTarget) closeCompareModal();
           }}
         >
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden origin-center" style={{ transform: 'scale(1.12)' }}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden origin-center" style={{ transform: 'scale(1.25)' }}>
             <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
               <div className="min-w-0">
                 <h3 id="history-compare-title" className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate pr-2">
