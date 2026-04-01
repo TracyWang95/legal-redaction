@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { t } from '../i18n';
+import { SkeletonCard } from '../components/Skeleton';
 import {
   deleteJob,
   getJob,
   listJobs,
+  requeueFailed,
   type JobDetail,
   type JobItemRow,
   type JobProgress,
@@ -13,72 +16,67 @@ import {
 import { buildBatchWorkbenchUrl, resolveJobPrimaryNavigation } from '../utils/jobPrimaryNavigation';
 import {
   formatAggregateJobStatus,
-  formatJobItemStatus,
   getAggregateJobStatusMeta,
-  getJobItemStatusMeta,
   type JobStatusTone,
 } from '../utils/jobStatusLabels';
+import { resolveRedactionState, REDACTION_STATE_LABEL, REDACTION_STATE_CLASS, BADGE_BASE } from '../utils/redactionState';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const DELETABLE_STATUSES = new Set(['draft', 'awaiting_review', 'completed', 'failed', 'cancelled']);
-const ACTIVE_STATUSES = new Set(['queued', 'running', 'redacting']);
+const ACTIVE_STATUSES = new Set(['queued', 'running', 'redacting', 'processing']);
 
-function pathLabel(jobType: JobTypeApi): string {
-  return jobType === 'image_batch' ? '图像批量' : '文本批量';
+function pathLabel(_jobType: JobTypeApi): string {
+  return t('jobs.batchTask');
 }
 
 function executionLabel(config: Record<string, unknown>): string {
-  return String(config.preferred_execution ?? 'queue') === 'local' ? '本页闭环' : '后台队列';
+  return String(config.preferred_execution ?? 'queue') === 'local' ? t('jobs.localExec') : t('jobs.queueExec');
 }
 
 function canDeleteJob(status: string): boolean {
   return DELETABLE_STATUSES.has(status);
 }
 
+const ACTION_BTN_BASE = 'inline-flex items-center justify-center text-xs font-medium rounded-lg px-3 py-1.5 min-w-[60px] text-center transition-colors';
+
 function outlineActionClass(tone: 'neutral' | 'info' | 'danger' = 'neutral'): string {
   if (tone === 'info') {
-    return 'text-xs font-medium rounded-lg border border-[#007AFF]/20 bg-[#007AFF]/[0.06] text-[#0a4a8c] px-3 py-1.5 hover:bg-[#007AFF]/[0.10] transition-colors';
+    return `${ACTION_BTN_BASE} border border-[#007AFF]/20 bg-[#007AFF]/[0.06] text-[#0a4a8c] hover:bg-[#007AFF]/[0.10]`;
   }
   if (tone === 'danger') {
-    return 'text-xs font-medium rounded-lg border border-red-200 bg-white text-red-600 px-3 py-1.5 hover:bg-red-50 disabled:opacity-50 transition-colors';
+    return `${ACTION_BTN_BASE} border border-red-200 bg-white text-red-600 hover:bg-red-50 disabled:opacity-50`;
   }
-  return 'text-xs font-medium rounded-lg border border-gray-200 bg-white text-[#1d1d1f] px-3 py-1.5 hover:bg-gray-50 transition-colors';
+  return `${ACTION_BTN_BASE} border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-[#1d1d1f] dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700`;
 }
 
-function passiveOutlineClass(): string {
-  return 'text-xs font-medium rounded-lg border border-gray-200 bg-[#fafafa] text-gray-400 px-3 py-1.5';
-}
 
-function primaryActionClass(status: string): string {
-  return status === 'awaiting_review' ? outlineActionClass('info') : outlineActionClass('neutral');
+function primaryActionClass(_status: string): string {
+  return `${ACTION_BTN_BASE} border border-[#007AFF]/30 bg-[#007AFF]/[0.08] text-[#0a4a8c] dark:text-[#5aafff] dark:border-[#5aafff]/30 dark:bg-[#5aafff]/[0.08] hover:bg-[#007AFF]/[0.14] dark:hover:bg-[#5aafff]/[0.14]`;
 }
 
 function toneClass(tone: JobStatusTone): string {
-  if (tone === 'success') return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200';
-  if (tone === 'danger') return 'bg-red-50 text-red-600 ring-1 ring-inset ring-red-200';
-  if (tone === 'warning') return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200';
-  if (tone === 'review') return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200';
-  if (tone === 'brand') return 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-200';
-  if (tone === 'muted') return 'bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200';
-  return 'bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200';
+  if (tone === 'success') return 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/10';
+  if (tone === 'danger') return 'bg-red-50 text-red-600 ring-1 ring-inset ring-red-600/10';
+  if (tone === 'warning') return 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/10';
+  if (tone === 'review') return 'bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/10';
+  if (tone === 'brand') return 'bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-600/10';
+  if (tone === 'muted') return 'bg-gray-50 text-gray-500 ring-1 ring-inset ring-gray-500/10';
+  return 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10';
 }
 
 function statusToneClass(status: string): string {
   return toneClass(getAggregateJobStatusMeta(status).tone);
 }
 
-function itemStatusToneClass(status: string): string {
-  return toneClass(getJobItemStatusMeta(status).tone);
-}
-
-function typeToneClass(jobType: JobTypeApi): string {
-  return jobType === 'text_batch' ? 'bg-sky-50 text-sky-700' : 'bg-indigo-50 text-indigo-700';
+function typeToneClass(_jobType: JobTypeApi): string {
+  return 'bg-violet-50 text-violet-700';
 }
 
 function formatUpdatedAt(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '更新时间未知';
-  return date.toLocaleString('zh-CN');
+  if (Number.isNaN(date.getTime())) return t('jobs.updatedAtUnknown');
+  const locale = (typeof window !== 'undefined' && localStorage.getItem('locale')) || 'zh';
+  return date.toLocaleString(locale === 'en' ? 'en-US' : 'zh-CN');
 }
 
 function jobsPollSignature(jobs: JobSummary[]): string {
@@ -108,21 +106,19 @@ function jobsPollSignature(jobs: JobSummary[]): string {
     .join('\x1f');
 }
 
-function itemTreeGlyph(index: number, total: number): string {
-  if (total <= 1) return '└';
-  return index === total - 1 ? '└' : '├';
-}
 
-function buildProgressHeadline(progress: JobProgress): string {
-  const parts = [`待复核 ${progress.awaiting_review}`, `完成 ${progress.completed}`];
-  if (progress.failed > 0) parts.push(`异常 ${progress.failed}`);
-  else if ((progress.cancelled ?? 0) > 0) parts.push(`取消 ${progress.cancelled}`);
-  return parts.join(' · ');
+
+function buildProgressHeadline(progress: JobProgress, navHints?: { redacted_count?: number | null; awaiting_review_count?: number | null } | null): string {
+  const redacted = navHints?.redacted_count ?? progress.completed;
+  const awaiting = navHints?.awaiting_review_count ?? progress.awaiting_review;
+  const parts = [t('jobs.headlineRedacted').replace('{n}', String(redacted)), t('jobs.headlineAwaiting').replace('{n}', String(awaiting))];
+  if (progress.failed > 0) parts.push(t('jobs.abnormal').replace('{n}', String(progress.failed)));
+  return parts.join(' ·');
 }
 
 function buildProgressSummary(progress: JobProgress, itemCount: number, finishedCount: number): string {
-  if (itemCount <= 0) return '任务内暂无文件';
-  if (finishedCount >= itemCount) return '全部文件已走完处理链路';
+  if (itemCount <= 0) return t('jobs.noFilesInJob');
+  if (finishedCount >= itemCount) return t('jobs.allFilesProcessed');
 
   const waiting = progress.pending + progress.queued;
   const processing = progress.parsing + progress.ner + progress.vision;
@@ -132,19 +128,19 @@ function buildProgressSummary(progress: JobProgress, itemCount: number, finished
   const cancelled = progress.cancelled ?? 0;
 
   const parts = [
-    waiting > 0 ? `待执行 ${waiting}` : null,
-    processing > 0 ? `识别中 ${processing}` : null,
-    review > 0 ? `待复核 ${review}` : null,
-    generating > 0 ? `生成中 ${generating}` : null,
-    failed > 0 ? `异常 ${failed}` : null,
-    cancelled > 0 ? `已取消 ${cancelled}` : null,
+    waiting > 0 ? t('jobs.pending').replace('{n}', String(waiting)) : null,
+    processing > 0 ? t('jobs.recognizing').replace('{n}', String(processing)) : null,
+    review > 0 ? t('jobs.awaitingReviewCount').replace('{n}', String(review)) : null,
+    generating > 0 ? t('jobs.generating').replace('{n}', String(generating)) : null,
+    failed > 0 ? t('jobs.abnormal').replace('{n}', String(failed)) : null,
+    cancelled > 0 ? t('jobs.cancelledCount').replace('{n}', String(cancelled)) : null,
   ].filter((part): part is string => Boolean(part));
 
   if (parts.length === 0) {
-    return finishedCount > 0 ? `已完成 ${finishedCount} 项` : '等待系统开始处理';
+    return finishedCount > 0 ? t('jobs.completedCount').replace('{n}', String(finishedCount)) : t('jobs.waitingProcessing');
   }
 
-  return parts.slice(0, 3).join(' · ');
+  return parts.slice(0, 3).join(' ·');
 }
 
 export const Jobs: React.FC = () => {
@@ -187,7 +183,7 @@ export const Jobs: React.FC = () => {
         setPageSize(prev => (prev === result.page_size ? prev : result.page_size));
         return result;
       } catch (e) {
-        setErr(e instanceof Error ? e.message : '加载失败');
+        setErr(e instanceof Error ? e.message : t('jobs.loadFailed'));
         if (!hasRows) setRows([]);
         return null;
       } finally {
@@ -211,9 +207,25 @@ export const Jobs: React.FC = () => {
     let firstError: string | null = null;
     results.forEach(result => {
       if (result.status === 'fulfilled') patch[result.value.id] = result.value.detail;
-      else if (!firstError) firstError = result.reason instanceof Error ? result.reason.message : '展开任务失败';
+      else if (!firstError) firstError = result.reason instanceof Error ? result.reason.message : t('jobs.expandFailed');
     });
-    if (Object.keys(patch).length > 0) setJobDetails(prev => ({ ...prev, ...patch }));
+    if (Object.keys(patch).length > 0) {
+      setJobDetails(prev => ({ ...prev, ...patch }));
+      // Back-propagate fresh counts into the job list rows so that
+      // the collapsed headline is accurate without another list fetch.
+      setRows(prev => prev.map((job): JobSummary => {
+        const detail = patch[job.id];
+        if (!detail?.items) return job;
+        let r = 0, a = 0;
+        for (const it of detail.items) {
+          if (it.has_output) r++; else if (['awaiting_review','review_approved','completed'].includes(it.status)) a++;
+        }
+        return {
+          ...job,
+          nav_hints: { ...job.nav_hints, redacted_count: r, awaiting_review_count: a } as JobSummary['nav_hints'],
+        };
+      }));
+    }
     if (firstError) setErr(firstError);
     setDetailLoadingIds(prev => {
       const next = new Set(prev);
@@ -225,6 +237,24 @@ export const Jobs: React.FC = () => {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Auto-refresh list every 10s when there are active (non-terminal) jobs,
+  // so progress numbers stay in sync without manual page reload.
+  useEffect(() => {
+    const hasActiveJobs = rows.some(j =>
+      !['completed', 'failed', 'cancelled', 'draft'].includes(j.status)
+    );
+    if (!hasActiveJobs) return;
+    const tick = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    const timer = setInterval(tick, 10_000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [rows, load]);
 
   const refreshList = useCallback(async () => {
     const result = await load({ targetPage: page });
@@ -273,9 +303,9 @@ export const Jobs: React.FC = () => {
   const onDelete = useCallback(
     async (job: JobSummary) => {
       if (!canDeleteJob(job.status) || deletingJobId) return;
-      const title = job.title?.trim() || '未命名任务';
+      const title = job.title?.trim() || t('jobs.unnamedTask');
       const confirmed = window.confirm(
-        `确定删除任务「${title}」吗？\n\n将删除任务中心中的工单与文件项记录，但保留已上传原件和脱敏结果，处理历史仍可查看。`
+        t('jobs.confirmDelete').replace('{title}', title)
       );
       if (!confirmed) return;
       setDeletingJobId(job.id);
@@ -293,17 +323,37 @@ export const Jobs: React.FC = () => {
           delete next[job.id];
           return next;
         });
-        setNotice(`已删除任务「${title}」`);
+        setNotice(t('jobs.deletedNotice').replace('{title}', title));
         const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
         if (nextPage !== page) setPage(nextPage);
         else await refreshList();
       } catch (e) {
-        setErr(e instanceof Error ? e.message : '删除任务失败');
+        setErr(e instanceof Error ? e.message : t('jobs.deleteFailed'));
       } finally {
         setDeletingJobId(null);
       }
     },
     [deletingJobId, page, refreshList, rows.length]
+  );
+
+  const [requeueingJobId, setRequeuingJobId] = useState<string | null>(null);
+  const onRequeueFailed = useCallback(
+    async (job: JobSummary) => {
+      if (job.progress.failed <= 0 || requeueingJobId) return;
+      setRequeuingJobId(job.id);
+      setNotice(null);
+      setErr(null);
+      try {
+        await requeueFailed(job.id);
+        setNotice(t('jobs.requeuedNotice').replace('{n}', String(job.progress.failed)));
+        await refreshList();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : t('jobs.requeueFailed'));
+      } finally {
+        setRequeuingJobId(null);
+      }
+    },
+    [requeueingJobId, refreshList]
   );
 
   const visibleRows = useMemo(() => rows, [rows]);
@@ -332,15 +382,13 @@ export const Jobs: React.FC = () => {
   };
 
   return (
-    <div className="jobs-root flex-1 min-h-0 min-w-0 flex flex-col bg-[#f5f5f7] overflow-hidden">
+    <div className="jobs-root flex-1 min-h-0 min-w-0 flex flex-col bg-[#f5f5f7] dark:bg-gray-900 overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 min-w-0 px-3 py-3 sm:px-5 sm:py-4 w-full max-w-[min(100%,1920px)] mx-auto items-stretch">
         <div className="flex flex-wrap items-center gap-2 mb-3 flex-shrink-0">
           <div className="flex items-center gap-1.5">
             {(
               [
-                { k: 'all' as const, label: '全部' },
-                { k: 'text_batch' as const, label: '文本批量' },
-                { k: 'image_batch' as const, label: '图像批量' },
+                { k: 'all' as const, label: t('jobs.tab.all') },
               ] as const
             ).map(({ k, label }) => (
               <button
@@ -350,7 +398,7 @@ export const Jobs: React.FC = () => {
                 className={`text-2xs sm:text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
                   tab === k
                     ? 'border-[#1d1d1f] bg-[#1d1d1f] text-white'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 {label}
@@ -361,24 +409,40 @@ export const Jobs: React.FC = () => {
               onClick={() => void refreshList()}
               disabled={tableBusy}
               className={outlineActionClass('neutral')}
-              title="手动刷新列表"
+              title={t('jobs.refreshTitle')}
             >
-              {refreshing ? '刷新中...' : '点击刷新'}
+              {refreshing ? t('jobs.refreshing') : t('jobs.clickRefresh')}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!window.confirm('确定要清空所有任务记录、上传文件和脱敏产物吗？此操作不可撤销。')) return;
+                try {
+                  const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+                  if (!res.ok) throw new Error('清空失败');
+                  const data = await res.json();
+                  alert(`已清空 ${data.files_removed} 个文件和 ${data.jobs_removed} 条任务`);
+                  void refreshList();
+                } catch { alert('清空失败'); }
+              }}
+              className={outlineActionClass('neutral') + ' !border-red-200 !text-red-600 hover:!bg-red-50'}
+            >
+              一键清空
             </button>
           </div>
 
-          <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-500">
-            <span>本页 {visibleRows.length} 条</span>
+          <div className="ml-auto flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span>{t('jobs.thisPage').replace('{n}', String(visibleRows.length))}</span>
             <span className="text-gray-300">|</span>
-            <span>待配置 {pageMetrics.draft}</span>
+            <span>{t('jobs.toConfigure').replace('{n}', String(pageMetrics.draft))}</span>
             <span className="text-gray-300">|</span>
-            <span>处理中 {pageMetrics.processing}</span>
+            <span>{t('jobs.processing').replace('{n}', String(pageMetrics.processing))}</span>
             <span className="text-gray-300">|</span>
-            <span>待复核 {pageMetrics.awaitingReview}</span>
+            <span>{t('jobs.awaitingReviewMetric').replace('{n}', String(pageMetrics.awaitingReview))}</span>
             <span className="text-gray-300">|</span>
-            <span>已完成 {pageMetrics.completed}</span>
+            <span>{t('jobs.completedMetric').replace('{n}', String(pageMetrics.completed))}</span>
             <span className="text-gray-300">|</span>
-            <span>异常 {pageMetrics.risk}</span>
+            <span>{t('jobs.abnormalMetric').replace('{n}', String(pageMetrics.risk))}</span>
           </div>
         </div>
 
@@ -393,42 +457,47 @@ export const Jobs: React.FC = () => {
           </div>
         )}
 
-        <div className="jobs-surface w-full flex flex-col flex-1 min-h-0 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
+        <div className="jobs-surface w-full flex flex-col flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm dark:shadow-gray-900/30 overflow-hidden overflow-x-auto">
+          <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
             <div>
-              <h3 className="font-semibold text-gray-900 text-sm">任务记录</h3>
-              <p className="text-xs text-gray-400 mt-0.5">共 {total} 条 · 第 {page} / {totalPages} 页 · 当前为手动刷新</p>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{t('jobs.taskRecords')}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{t('jobs.totalAndPage').replace('{total}', String(total)).replace('{page}', String(page)).replace('{totalPages}', String(totalPages))}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-2xs text-gray-500">
-              <span>支持展开查看任务内文件</span>
+            <div className="flex flex-wrap items-center gap-3 text-2xs text-gray-500 dark:text-gray-400">
+              <span>{t('jobs.expandHint')}</span>
               <span className="text-gray-300">|</span>
-              <span className="text-amber-700">运行中任务需先取消后删除</span>
+              <span className="text-amber-700">{t('jobs.cancelBeforeDelete')}</span>
             </div>
           </div>
 
           {visibleRows.length > 0 && (
-            <div className="jobs-table-head px-4 py-2 border-b border-gray-50 bg-[#fafafa] text-xs text-gray-500 font-medium flex-shrink-0">
-              <span />
-              <span>任务</span>
-              <span>执行方式</span>
-              <span>进度</span>
-              <span>当前状态</span>
-              <span>更新时间</span>
-              <span className="text-right">操作</span>
+            <div className="jobs-table-head px-4 py-2 border-b border-gray-50 dark:border-gray-700 bg-[#fafafa] dark:bg-gray-900 text-xs text-gray-500 dark:text-gray-400 font-medium flex-shrink-0">
+              <span className="jobs-tree-cell" />
+              <span className="jobs-task-cell">{t('jobs.task')}</span>
+              <span className="jobs-exec-cell">{t('jobs.execMethod')}</span>
+              <span className="jobs-progress-cell">{t('jobs.progress')}</span>
+              <span className="jobs-status-cell">{t('jobs.currentStatus')}</span>
+              <span className="jobs-updated-cell">{t('jobs.updatedAt')}</span>
+              <span className="jobs-actions-cell jobs-head-actions">
+                <span className="jobs-action-head">主操作</span>
+                <span className="jobs-action-head">详情</span>
+                <span className="jobs-action-head">删除</span>
+              </span>
             </div>
           )}
 
           <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col">
             {refreshing && visibleRows.length > 0 && (
-              <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
+              <div className="absolute inset-0 bg-white/60 dark:bg-gray-800/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
                 <div className="w-7 h-7 border-2 border-[#e5e5e5] border-t-[#1d1d1f] rounded-full animate-spin" />
               </div>
             )}
 
             {loading && visibleRows.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div className="w-7 h-7 border-2 border-[#e5e5e5] border-t-[#1d1d1f] rounded-full animate-spin" />
-                <p className="text-sm text-gray-400">加载中...</p>
+              <div className="px-4 py-6 space-y-3">
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
               </div>
             ) : visibleRows.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -443,15 +512,15 @@ export const Jobs: React.FC = () => {
                   </svg>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-gray-500 mb-1">暂无任务记录</p>
-                  <p className="text-xs text-gray-400">从批量任务入口创建后，会在这里持续管理进度、展开文件树和删除工单</p>
+                  <p className="text-sm text-gray-500 mb-1">{t('jobs.noRecords')}</p>
+                  <p className="text-xs text-gray-400">{t('jobs.noRecordsHint')}</p>
                 </div>
                 <Link to="/batch" className={outlineActionClass('neutral')}>
-                  前往批量任务
+                  {t('jobs.gotoBatch')}
                 </Link>
               </div>
             ) : (
-              <ul className="flex w-full flex-col divide-y divide-gray-100">
+              <ul className="flex w-full flex-col divide-y divide-gray-100 dark:divide-gray-700">
                 {visibleRows.map((job, index) => {
                   const primary = resolveJobPrimaryNavigation({
                     jobId: job.id,
@@ -466,11 +535,20 @@ export const Jobs: React.FC = () => {
                   const showPrimaryAction = primary.kind === 'link' && primary.to !== detailHref;
                   const showWorkbenchShortcut = ACTIVE_STATUSES.has(job.status);
                   const deleteBlocked = !canDeleteJob(job.status);
-                  const stripe = index % 2 === 1 ? 'bg-[#fafafa]' : 'bg-white';
+                  const stripe = index % 2 === 1 ? 'bg-[#fafafa] dark:bg-gray-900' : 'bg-white dark:bg-gray-800';
                   const itemCount = job.nav_hints?.item_count ?? job.progress.total_items;
                   const finishedCount = job.progress.completed + job.progress.failed + (job.progress.cancelled ?? 0);
                   const progressPercent = itemCount > 0 ? Math.min(100, Math.round((finishedCount / itemCount) * 100)) : 0;
-                  const progressHeadline = buildProgressHeadline(job.progress);
+                  // 展开后用 detail items 重新计算三态，保证和展开列表一致
+                  const detailForHeadline = jobDetails[job.id];
+                  const liveHints = detailForHeadline?.items ? (() => {
+                    let r = 0, a = 0;
+                    for (const it of detailForHeadline.items) {
+                      if (it.has_output) r++; else if (['awaiting_review','review_approved','completed'].includes(it.status)) a++;
+                    }
+                    return { redacted_count: r, awaiting_review_count: a };
+                  })() : job.nav_hints;
+                  const progressHeadline = buildProgressHeadline(job.progress, liveHints);
                   const progressSummary = buildProgressSummary(job.progress, itemCount, finishedCount);
                   const expanded = expandedJobIds.has(job.id);
                   const detail = jobDetails[job.id];
@@ -479,11 +557,11 @@ export const Jobs: React.FC = () => {
                   return (
                     <li key={job.id}>
                       <div
-                        className={`${stripe} transition-colors ${expandable ? 'cursor-pointer hover:bg-gray-50/90' : 'hover:bg-gray-50/70'}`}
+                        className={`${stripe} transition-colors ${expandable ? 'cursor-pointer hover:bg-gray-50/90 dark:hover:bg-gray-700/50' : 'hover:bg-gray-50/70 dark:hover:bg-gray-700/30'}`}
                         onClick={expandable ? () => void toggleExpand(job) : undefined}
                       >
-                        <div className="jobs-row-main flex flex-col gap-2 px-3 sm:px-4 py-2.5">
-                          <div className="flex items-center justify-start md:justify-center">
+                        <div className="jobs-row-main px-3 sm:px-4 py-2.5">
+                          <div className="jobs-tree-cell jobs-expand-cell">
                             {itemCount > 0 ? (
                               <button
                                 type="button"
@@ -491,8 +569,8 @@ export const Jobs: React.FC = () => {
                                   event.stopPropagation();
                                   void toggleExpand(job);
                                 }}
-                                className="w-6 h-6 rounded-md border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center"
-                                title={expanded ? '收起文件' : '展开文件'}
+                                className="w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center"
+                                title={expanded ? t('jobs.collapseFiles') : t('jobs.expandFiles')}
                                 aria-expanded={expanded}
                               >
                                 <svg
@@ -509,27 +587,27 @@ export const Jobs: React.FC = () => {
                             )}
                           </div>
 
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded ${typeToneClass(job.job_type)}`}>
+                          <div className="jobs-task-cell min-w-0">
+                            <div className="flex flex-nowrap items-center gap-2 min-w-0">
+                              <span className={`jobs-task-badge text-2xs font-semibold px-1.5 py-0.5 rounded ${typeToneClass(job.job_type)}`}>
                                 {pathLabel(job.job_type)}
                               </span>
-                              <p className="text-sm font-medium text-gray-900 truncate" title={job.title || '未命名任务'}>
-                                {job.title || '未命名任务'}
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate" title={job.title || t('jobs.unnamedTask')}>
+                                {job.title || t('jobs.unnamedTask')}
                               </p>
                             </div>
-                            <p className="text-caption text-gray-500 mt-0.5">ID {job.id.slice(0, 8)}... · {itemCount} 项</p>
-                            <p className="text-caption text-gray-400 mt-0.5 md:hidden">更新时间 {formatUpdatedAt(job.updated_at)}</p>
+                            <p className="text-caption text-gray-500 mt-0.5">ID {job.id.slice(0, 8)}... <span className="hidden sm:inline">· {t('jobs.itemCount').replace('{n}', String(itemCount))}</span></p>
+                            <p className="text-caption text-gray-400 mt-0.5 md:hidden">{t('jobs.updatedAtLabel').replace('{time}', formatUpdatedAt(job.updated_at))}</p>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400 md:hidden">执行</span>
+                          <div className="jobs-exec-cell flex items-center gap-2">
+                            <span className="text-xs text-gray-400 md:hidden">{t('jobs.execMethod')}</span>
                             <span className="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-2xs whitespace-nowrap">
                               {executionLabel(job.config)}
                             </span>
                           </div>
 
-                          <div className="min-w-0">
+                          <div className="jobs-progress-cell min-w-0">
                             <div className="flex flex-col gap-1.5">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-gray-700 tabular-nums truncate">
@@ -553,114 +631,105 @@ export const Jobs: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-400 md:hidden">状态</span>
+                          <div className="jobs-status-cell flex items-center gap-2">
+                            <span className="text-xs text-gray-400 md:hidden">{t('jobs.currentStatus')}</span>
                             <span
-                              className={`inline-flex text-2xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${statusToneClass(job.status)}`}
+                              className={`${BADGE_BASE} ${statusToneClass(job.status)}`}
                               title={getAggregateJobStatusMeta(job.status).description}
                             >
                               {formatAggregateJobStatus(job.status)}
                             </span>
                           </div>
 
-                          <div className="hidden md:block text-caption text-gray-400 tabular-nums whitespace-nowrap">
+                          <div className="jobs-updated-cell hidden md:block text-caption text-gray-400 tabular-nums whitespace-nowrap">
                             {formatUpdatedAt(job.updated_at)}
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end" onClick={stopEvent}>
+                          <div className="jobs-actions-cell" onClick={stopEvent}>
+                            {/* 主操作 */}
                             {showPrimaryAction ? (
-                              <Link to={primary.to} onClick={stopEvent} className={primaryActionClass(job.status)}>
+                              <Link to={primary.to} onClick={stopEvent} className={`${primaryActionClass(job.status)} w-full whitespace-nowrap`}>
                                 {primary.label}
                               </Link>
-                            ) : null}
-                            <Link to={detailHref} onClick={stopEvent} className={outlineActionClass('neutral')}>
-                              查看详情
-                            </Link>
-                            {showWorkbenchShortcut && (
-                              <Link
-                                to={buildBatchWorkbenchUrl(job.id, job.job_type, 3)}
-                                onClick={stopEvent}
-                                className={outlineActionClass('neutral')}
-                              >
-                                打开工作台
+                            ) : showWorkbenchShortcut ? (
+                              <Link to={buildBatchWorkbenchUrl(job.id, job.job_type, 3)} onClick={stopEvent}
+                                className={`${outlineActionClass('neutral')} w-full whitespace-nowrap`}>
+                                {t('jobs.openWorkbench')}
                               </Link>
-                            )}
-                            {deleteBlocked ? (
-                              <span className={passiveOutlineClass()}>先取消后删除</span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={deletingJobId === job.id}
-                                onClick={event => {
-                                  event.stopPropagation();
-                                  void onDelete(job);
-                                }}
-                                className={outlineActionClass('danger')}
-                              >
-                                {deletingJobId === job.id ? '删除中...' : '删除任务'}
+                            ) : job.progress.failed > 0 ? (
+                              <button type="button" disabled={requeueingJobId === job.id}
+                                onClick={event => { event.stopPropagation(); void onRequeueFailed(job); }}
+                                className={`${ACTION_BTN_BASE} w-full whitespace-nowrap border border-amber-200 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 disabled:opacity-50`}>
+                                {requeueingJobId === job.id ? t('jobs.processingEllipsis') : t('jobs.requeueBtn').replace('{n}', String(job.progress.failed))}
                               </button>
-                            )}
+                            ) : <span className="jobs-action-placeholder" />}
+                            {/* 详情 */}
+                            <Link to={detailHref} onClick={stopEvent} className={`${outlineActionClass('neutral')} w-full whitespace-nowrap`}>
+                              {job.status === 'completed' ? '详情' : t('jobs.viewDetail')}
+                            </Link>
+                            {/* 删除 */}
+                            {!deleteBlocked ? (
+                              <button type="button" disabled={deletingJobId === job.id}
+                                onClick={event => { event.stopPropagation(); void onDelete(job); }}
+                                className={`${ACTION_BTN_BASE} w-full whitespace-nowrap border border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-red-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50`}>
+                                {deletingJobId === job.id ? t('jobs.deletingEllipsis') : t('jobs.deleteTask')}
+                              </button>
+                            ) : <span className="jobs-action-placeholder" />}
                           </div>
                         </div>
 
                         {expanded && (
-                          <div className="border-t border-gray-100 bg-[#fafafa]" onClick={stopEvent}>
+                          <div className="border-t border-gray-100 dark:border-gray-700" onClick={stopEvent}>
                             {detailLoading ? (
-                              <div className="px-4 py-4 text-xs text-gray-400 flex items-center gap-2">
+                              <div className="px-3 sm:px-4 py-4 text-xs text-gray-400 flex items-center gap-2">
                                 <div className="w-4 h-4 border-2 border-[#e5e5e5] border-t-[#1d1d1f] rounded-full animate-spin" />
-                                加载文件明细...
+                                {t('jobs.loadingFileDetail')}
                               </div>
                             ) : detail && detail.items.length > 0 ? (
-                              <div className="px-3 sm:px-4 py-2">
-                                <div className="jobs-child-head px-0 py-1.5 border-b border-gray-100 text-2xs text-gray-500 bg-white/70">
-                                  <span />
-                                  <span>文件</span>
-                                  <span>状态</span>
-                                  <span>结果</span>
-                                  <span>更新时间</span>
-                                </div>
-                                <ul className="divide-y divide-gray-100">
-                                  {detail.items.map((item: JobItemRow, itemIndex: number) => (
-                                    <li key={item.id} className="py-2.5">
-                                      <div className="jobs-child-row flex flex-col gap-2">
-                                        <span className="text-gray-300 text-sm text-center select-none" aria-hidden>
-                                          {itemTreeGlyph(itemIndex, detail.items.length)}
-                                        </span>
-                                        <div className="min-w-0">
-                                          <p className="text-sm font-medium text-gray-800 break-words" title={item.filename || item.file_id}>
-                                            {item.filename || item.file_id}
-                                          </p>
-                                          <p className="text-caption text-gray-400 mt-0.5">
-                                            {item.file_type ? String(item.file_type) : 'unknown'} · 识别 {item.entity_count ?? 0}
-                                            {item.has_review_draft ? ' · 有草稿' : ''}
-                                          </p>
-                                        </div>
-                                        <div className="flex md:block items-center gap-2">
-                                          <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-medium leading-none ${itemStatusToneClass(item.status)}`}>
-                                            {formatJobItemStatus(item.status)}
-                                          </span>
-                                        </div>
-                                        <div className="flex md:block items-center gap-2">
-                                          <span
-                                            className={`inline-flex rounded-md px-2.5 py-1 text-xs font-medium leading-none ${
-                                              item.has_output
-                                                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200'
-                                                : 'bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200'
-                                            }`}
-                                          >
-                                            {item.has_output ? '已脱敏' : '未脱敏'}
-                                          </span>
-                                        </div>
-                                        <div className="text-caption text-gray-400 tabular-nums whitespace-nowrap">
-                                          {formatUpdatedAt(item.updated_at)}
-                                        </div>
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
+                              <div className="py-0.5 animate-fadeIn">
+                                {detail.items.map((item: JobItemRow, itemIndex: number) => {
+                                  const rs = resolveRedactionState(Boolean(item.has_output), item.status);
+                                  const isLast = itemIndex === detail.items.length - 1;
+                                  return (
+                                  /* 子行复用 jobs-row-main grid，列宽与父行对齐 */
+                                  <div key={item.id}
+                                    className={`jobs-row-main jobs-child-row px-3 sm:px-4 py-1.5 ${!isLast ? 'border-b border-gray-50 dark:border-gray-800' : ''}`}
+                                  >
+                                    {/* col1: 树线 */}
+                                    <span className="text-gray-300 dark:text-gray-600 text-xs text-center select-none" aria-hidden>
+                                      {isLast ? '└' : '├'}
+                                    </span>
+                                    {/* col2: 文件名 */}
+                                    <div className="jobs-task-cell jobs-child-task min-w-0">
+                                      <p className="text-xs text-gray-600 dark:text-gray-300 truncate" title={item.filename || item.file_id}>
+                                        {item.filename || item.file_id}
+                                      </p>
+                                      <p className="text-2xs text-gray-400 dark:text-gray-500">
+                                        {item.file_type ? String(item.file_type).toUpperCase() : '—'} · {t('jobs.recognize').replace('{n}', String(item.entity_count ?? 0))}
+                                      </p>
+                                    </div>
+                                    {/* col3: 执行方式列（空） */}
+                                    <span />
+                                    {/* col4: 进度列（空） */}
+                                    <span />
+                                    {/* col5: 状态 badge */}
+                                    <div className="jobs-status-cell flex items-center">
+                                      <span className={`${BADGE_BASE} ${REDACTION_STATE_CLASS[rs]}`}>
+                                        {REDACTION_STATE_LABEL[rs]}
+                                      </span>
+                                    </div>
+                                    {/* col6: 更新时间 */}
+                                    <span className="jobs-updated-cell text-caption text-gray-400 dark:text-gray-500 tabular-nums whitespace-nowrap">
+                                      {formatUpdatedAt(item.updated_at)}
+                                    </span>
+                                    {/* col7: 操作列（空） */}
+                                    <span />
+                                  </div>
+                                  );
+                                })}
                               </div>
                             ) : (
-                              <div className="px-4 py-4 text-xs text-gray-400">当前任务没有文件明细。</div>
+                              <div className="px-3 sm:px-4 py-4 text-xs text-gray-400">{t('jobs.noFileDetail')}</div>
                             )}
                           </div>
                         )}
@@ -673,19 +742,19 @@ export const Jobs: React.FC = () => {
           </div>
 
           {total > 0 && (
-            <div className="px-4 py-2.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 bg-[#fafafa] flex-shrink-0">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <span>显示 {rangeStart}-{rangeEnd} 条，共 {total} 条</span>
+            <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2 bg-[#fafafa] dark:bg-gray-900 flex-shrink-0">
+              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <span>{t('jobs.showRange').replace('{start}', String(rangeStart)).replace('{end}', String(rangeEnd)).replace('{total}', String(total))}</span>
                 <span className="text-gray-300">|</span>
-                <span>每页</span>
+                <span>{t('jobs.perPage')}</span>
                 <select
                   value={pageSize}
                   onChange={e => changePageSize(Number(e.target.value))}
-                  className="border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-[#0a0a0a] text-xs"
+                  className="border border-gray-200 dark:border-gray-600 rounded-lg px-1.5 py-1 bg-white dark:bg-gray-800 text-[#0a0a0a] dark:text-gray-100 text-xs"
                 >
                   {PAGE_SIZE_OPTIONS.map(size => (
                     <option key={size} value={size}>
-                      {size} 条
+                      {size} {t('jobs.itemsUnit')}
                     </option>
                   ))}
                 </select>
@@ -695,8 +764,8 @@ export const Jobs: React.FC = () => {
                   type="button"
                   disabled={page <= 1 || tableBusy}
                   onClick={() => goPage(1)}
-                  className="px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40"
-                  title="首页"
+                  className="px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
+                  title={t('jobs.firstPage')}
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
@@ -706,9 +775,9 @@ export const Jobs: React.FC = () => {
                   type="button"
                   disabled={page <= 1 || tableBusy}
                   onClick={() => goPage(page - 1)}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40"
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
                 >
-                  上一页
+                  {t('jobs.prevPage')}
                 </button>
                 <div className="flex items-center gap-1 px-1">
                   <input
@@ -732,16 +801,16 @@ export const Jobs: React.FC = () => {
                   type="button"
                   disabled={page >= totalPages || tableBusy}
                   onClick={() => goPage(page + 1)}
-                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40"
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
                 >
-                  下一页
+                  {t('jobs.nextPage')}
                 </button>
                 <button
                   type="button"
                   disabled={page >= totalPages || tableBusy}
                   onClick={() => goPage(totalPages)}
-                  className="px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40"
-                  title="末页"
+                  className="px-2 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
+                  title={t('jobs.lastPage')}
                 >
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />

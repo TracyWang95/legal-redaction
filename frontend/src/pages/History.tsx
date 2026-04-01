@@ -562,6 +562,22 @@ export const History: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={async () => {
+              if (!window.confirm('确定要清空所有处理记录、上传文件和脱敏产物吗？此操作不可撤销。')) return;
+              try {
+                const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+                if (!res.ok) throw new Error('清空失败');
+                const data = await res.json();
+                showToast(`已清空 ${data.files_removed} 个文件和 ${data.jobs_removed} 条任务`, 'success');
+                load(true, 1, pageSize);
+              } catch { showToast('清空失败', 'error'); }
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 transition-colors"
+          >
+            一键清空
+          </button>
+          <button
+            type="button"
             onClick={() => downloadZip(false)}
             disabled={zipLoading || !selectedIds.length || initialLoading || tableLoading}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-[#0a0a0a] text-white hover:bg-[#262626] disabled:opacity-40 transition-colors"
