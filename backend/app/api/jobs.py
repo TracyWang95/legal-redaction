@@ -612,8 +612,8 @@ async def commit_item_review(
     store.touch_job_updated(job_id)
     _refresh_job_status(store, job_id)
 
-    import app.api.redaction as redaction_mod
     from app.api.files import _file_store_lock, file_store
+    from app.services.redactor import Redactor
 
     async with _file_store_lock:
         file_info = file_store.get(item["file_id"])
@@ -624,37 +624,23 @@ async def commit_item_review(
 
     config = _build_redaction_config(job)
 
-    from app.models.schemas import RedactionRequest
-
     try:
-        result = await redaction_mod.execute_redaction(
-            RedactionRequest(
-                file_id=item["file_id"],
-                entities=body.entities,
-                bounding_boxes=body.bounding_boxes,
-                config=config,
-            )
+        # 直接调用 Redactor，不经过路由函数（避免幂等缓存 bug）
+        redactor = Redactor()
+        result = await redactor.redact(
+            file_info=file_info,
+            entities=body.entities,
+            bounding_boxes=body.bounding_boxes,
+            config=config,
         )
+        # result 是 dict: {output_file_id, output_path, redacted_count, entity_map}
         async with _file_store_lock:
-            # Re-read from file_store — execute_redaction already wrote output_path, entity_map, etc.
             info = file_store.get(item["file_id"])
             if info is None:
                 info = dict(file_info)
-            import logging as _logging
-            _logging.getLogger(__name__).warning(
-                "commit_item_review: stored_info.output_path=%r, result.output_path=%r, result.output_file_id=%r, file_info.file_path=%r",
-                info.get("output_path"), getattr(result, "output_path", "N/A"), getattr(result, "output_file_id", "N/A"), file_info.get("file_path"),
-            )
-            # 直接使用 result 的 output_path — redact() 返回时文件已写入磁盘
-            # 不用 _resolve_committed_output_path 做 exists 检查，避免 fallback 到旧路径
-            output_path = getattr(result, "output_path", None) or info.get("output_path")
-            if not output_path:
-                raise RuntimeError(f"redacted output missing after review commit")
-            info["output_path"] = output_path
-            if not info.get("entity_map"):
-                info["entity_map"] = getattr(result, "entity_map", {}) or {}
-            if not info.get("redacted_count"):
-                info["redacted_count"] = int(getattr(result, "redacted_count", 0) or 0)
+            info["output_path"] = result["output_path"]
+            info["entity_map"] = result.get("entity_map", {})
+            info["redacted_count"] = int(result.get("redacted_count", 0))
             info["entities"] = to_jsonable(body.entities)
             info["bounding_boxes"] = _group_boxes_by_page(body.bounding_boxes)
             file_store.set(item["file_id"], info)

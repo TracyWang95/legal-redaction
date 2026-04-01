@@ -163,13 +163,13 @@ test.describe('批量全链路（真实数据 + 截图）', () => {
       console.log(`[Step4] 确认按钮可见: ${confirmVisible}`);
 
       if (confirmVisible) {
-        // 逐份确认 — 每次等"确认审核并脱敏"可点击，点击后等待脱敏完成
+        // 逐份确认 — 每次等"确认脱敏"可点击，点击后等待脱敏完成
         for (let fileIdx = 0; fileIdx < 3; fileIdx++) {
           console.log(`[Step4] 审核第 ${fileIdx + 1} 份文件`);
           await page.screenshot({ path: `test-results/batch-08-review-${fileIdx}.png` });
 
           // 等待确认按钮 enabled
-          const btn = page.getByRole('button', { name: /确认审核并脱敏/ }).first();
+          const btn = page.getByRole('button', { name: /确认脱敏/ }).first();
           const btnReady = await expect(btn).toBeEnabled({ timeout: 30_000 }).then(() => true).catch(() => false);
           if (!btnReady) {
             console.log(`[Step4] 第 ${fileIdx + 1} 份：确认按钮未就绪，可能已全部确认`);

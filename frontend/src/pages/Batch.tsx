@@ -3472,7 +3472,7 @@ export const Batch: React.FC = () => {
                     disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
                     className="min-w-[148px] px-4 py-2 text-sm font-semibold rounded-xl bg-[#1d1d1f] text-white shadow-sm hover:bg-[#2d2d2f] transition-all duration-200 disabled:opacity-50 disabled:hover:bg-[#1d1d1f]"
                   >
-                    {reviewFileReadOnly ? '已完成脱敏' : reviewExecuteLoading ? '提交中…' : '确认审核并脱敏'}
+                    {reviewFileReadOnly ? '已完成脱敏' : reviewExecuteLoading ? '提交中…' : '确认脱敏'}
                   </button>
                   <button
                     type="button"

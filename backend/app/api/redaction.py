@@ -60,15 +60,17 @@ async def execute_redaction(
 
     cached = check_idempotency(x_idempotency_key)
     if cached is not None:
+        logger.warning("[execute_redaction] IDEMPOTENCY HIT key=%r file_id=%s", x_idempotency_key, request.file_id)
         return cached
 
     file_id = request.file_id
+    logger.info("[execute_redaction] START file_id=%s", file_id)
 
     if file_id not in file_store:
         raise HTTPException(status_code=404, detail="文件不存在")
-    
+
     file_info = file_store[file_id]
-    
+
     redactor = Redactor()
     result = await redactor.redact(
         file_info=file_info,
