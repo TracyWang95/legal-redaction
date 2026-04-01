@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Step, BatchRow } from './batchTypes';
 import { ANALYZE_STATUS_LABEL, RECOGNITION_DONE_STATUSES } from './batchTypes';
 
@@ -27,6 +27,16 @@ export const BatchStep3Review: React.FC<BatchStep3ReviewProps> = ({
 }) => {
   const allDone = rows.length > 0 && rows.every(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus));
   const hasSubmitted = analyzeRunning || analyzeDoneCount > 0;
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await submitQueueToWorker();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
@@ -55,7 +65,7 @@ export const BatchStep3Review: React.FC<BatchStep3ReviewProps> = ({
         </div>
       )}
 
-      {/* 操作按钮 */}
+      {/* 操作按钮：上一步 | 提交后台队列 | 重新处理失败项 | 下一步 */}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -68,11 +78,11 @@ export const BatchStep3Review: React.FC<BatchStep3ReviewProps> = ({
         {activeJobId && !allDone && (
           <button
             type="button"
-            onClick={() => void submitQueueToWorker()}
-            disabled={!rows.length || analyzeRunning}
+            onClick={() => void handleSubmit()}
+            disabled={!rows.length || analyzeRunning || submitting}
             className="px-4 py-2 text-sm font-medium rounded-lg bg-[#1d1d1f] text-white disabled:opacity-40"
           >
-            {analyzeRunning ? '处理中…' : '提交后台队列'}
+            {submitting ? '提交中…' : analyzeRunning ? '处理中…' : '提交后台队列'}
           </button>
         )}
 
@@ -87,16 +97,19 @@ export const BatchStep3Review: React.FC<BatchStep3ReviewProps> = ({
           </button>
         )}
 
-        {allDone && (
-          <button
-            type="button"
-            onClick={() => goStep(4)}
-            disabled={!canGoStep(4)}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-40"
-          >
-            全部完成，进入核对 →
-          </button>
-        )}
+        {/* 下一步：始终显示，全部完成前置灰 */}
+        <button
+          type="button"
+          onClick={() => goStep(4)}
+          disabled={!allDone}
+          className={`px-4 py-2 text-sm font-medium rounded-lg disabled:opacity-40 ${
+            allDone
+              ? 'bg-green-600 text-white hover:bg-green-700'
+              : 'border border-gray-200 bg-white text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {allDone ? '下一步：进入核对 →' : `下一步（${analyzeDoneCount}/${rows.length}）`}
+        </button>
       </div>
 
       {/* 文件状态列表 */}
