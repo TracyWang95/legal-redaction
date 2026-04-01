@@ -40,6 +40,7 @@ class SimpleTaskQueue:
         self._worker_task: Optional[asyncio.Task] = None
         self._running = False
         self._current: Optional[TaskItem] = None
+        self._pending_items: set[str] = set()  # item_id 去重
 
     # ------------------------------------------------------------------
     # 生命周期
@@ -65,6 +66,13 @@ class SimpleTaskQueue:
     # ------------------------------------------------------------------
 
     def enqueue(self, task: TaskItem) -> None:
+        if task.item_id in self._pending_items:
+            log.info(
+                "skip duplicate enqueue %s  item=%s  (already pending)",
+                task.task_type, task.item_id[:8],
+            )
+            return
+        self._pending_items.add(task.item_id)
         self._queue.put_nowait(task)
         log.info(
             "enqueued %s  job=%s item=%s file=%s  (queue_size=%d)",
@@ -123,6 +131,7 @@ class SimpleTaskQueue:
                     pass
             finally:
                 self._current = None
+                self._pending_items.discard(task.item_id)
                 self._queue.task_done()
                 log.info(
                     "■ done %s  job=%s item=%s  (remaining=%d)",
