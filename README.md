@@ -278,9 +278,9 @@ def deduplicate_boxes(boxes, iou_threshold=0.3):
 
 默认从 PyPI 安装会得到 **CPU 版** `paddlepaddle`，推理很慢。请在本机 **先装 GPU 版 Paddle**，再安装 `backend/requirements.txt`：
 
-```powershell
+```bash
 # 1）安装 GPU 版 Paddle（CUDA 12.6 官方源，与 paddlepaddle 3.3.x 对齐）
-powershell -ExecutionPolicy Bypass -File .\scripts\install_paddle_gpu.ps1
+pip install paddlepaddle-gpu
 
 # 2）再装后端依赖（含 paddleocr）
 cd backend
@@ -310,7 +310,7 @@ python -c "import paddle; print(paddle.is_compiled_with_cuda(), paddle.get_devic
     └── ...
 ```
 
-常见本机集中目录：**`D:\has_models`**（`start_has.ps1` / `start_has_image.ps1` / `has_image_server.py` 会优先探测）；也可设置环境变量 **`HAS_MODELS_DIR`** 指向你的模型根目录。
+常见本机集中目录：**`D:\has_models`**（`start_has.bat` / `start_has_image.bat` / `has_image_server.py` 会优先探测）；也可设置环境变量 **`HAS_MODELS_DIR`** 指向你的模型根目录。
 
 > **提示**：以下命令中的路径请根据你的实际目录结构调整。
 
@@ -374,50 +374,31 @@ npm run dev
 
 ---
 
-### 🚀 一键启动（Windows PowerShell）
+### 🚀 一键启动
 
-**推荐（项目自带脚本，使用 conda 环境 `legal-redaction`）：**
+**推荐：双击 `scripts\start_all.bat`**，自动启动全部 5 个服务（HaS NER / HaS Image / PaddleOCR / Backend / Frontend）。
 
-```powershell
-$RepoRoot = "C:\src\DataInfra-RedactionEverything"   # 改为你的实际克隆路径
-Set-Location $RepoRoot
-# 停止 8080/8081/8082/8000/3000 上的监听进程
-powershell -ExecutionPolicy Bypass -File .\scripts\stop_all.ps1
-# 一键启动全部服务（内部会先尝试释放端口）
-powershell -ExecutionPolicy Bypass -File .\scripts\start_all.ps1
+```bat
+cd C:\src\DataInfra-RedactionEverything
+scripts\stop_all.bat          REM 停止所有服务
+scripts\start_all.bat         REM 一键启动全部
 ```
 
 ---
 
-假设目录结构如下（手动逐条启动时参考）：
-- `<工作区>\llama.cpp\` - llama.cpp 可执行文件
-- `<工作区>\has_models\` - 模型文件（与仓库目录平级，见上文目录树）
-- `$RepoRoot` - 本项目（见上一段 `$RepoRoot`）
+手动逐个启动（参考）：
 
-```powershell
-$RepoRoot = "C:\src\DataInfra-RedactionEverything"   # 改为你的实际克隆路径
-$WorkspaceRoot = Split-Path $RepoRoot -Parent
-$LlamaBin = Join-Path $WorkspaceRoot "llama.cpp\llama-server.exe"
-$NerGguf = Join-Path $WorkspaceRoot "has_models\HaS_Text_0209_0.6B_Q4_K_M.gguf"
-# 1. HaS NER 服务 (端口 8080) — 推荐 HaS_Text_0209 Q4_K_M
-Start-Process -FilePath $LlamaBin -ArgumentList "-m `"$NerGguf`" -ngl 99 --host 0.0.0.0 --port 8080 -c 8192 -np 1"
-
-# 2. HaS Image / YOLO（端口 8081）— 见 scripts\start_has_image.bat
-Start-Process -FilePath "$RepoRoot\scripts\start_has_image.bat" -WorkingDirectory $RepoRoot
-
-# 3. PaddleOCR-VL 服务 (端口 8082) — 建议使用 conda env legal-redaction + GPU Paddle
-Start-Process powershell -ArgumentList "-Command cd $RepoRoot\backend; conda activate legal-redaction; `$env:PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK='True'; python ocr_server.py"
-
-# 4. 后端 API (端口 8000)
-Start-Process powershell -ArgumentList "-Command cd $RepoRoot\backend; conda activate legal-redaction; python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
-
-# 5. 前端开发 (端口 3000，热更新)
-Start-Process powershell -ArgumentList "-Command cd $RepoRoot\frontend; npm run dev"
+```bat
+scripts\start_has.bat           REM 1. HaS NER (8080)
+scripts\start_has_image.bat     REM 2. HaS Image YOLO (8081)
+scripts\start_paddle_ocr.bat    REM 3. PaddleOCR-VL (8082)
+scripts\start_backend.bat       REM 4. Backend API (8000)
+scripts\start_frontend.bat      REM 5. Frontend (3000)
 ```
 
 **验证服务状态：**
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/health/services" | ConvertTo-Json
+```bash
+curl http://127.0.0.1:8000/health/services
 ```
 
 ---
@@ -445,7 +426,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/health/services" | ConvertTo-Json
 
 ### HaS Text 0209（Qwen3-0.6B，Q4_K_M）
 
-- 仓库：`xuanwulab/HaS_Text_0209_0.6B_Q4`；本机 GGUF 见 `scripts/start_has.ps1`
+- 仓库：`xuanwulab/HaS_Text_0209_0.6B_Q4`；本机 GGUF 见 `scripts/start_has.bat`
 - 通过 llama-server 的 `-hf` 或 `-m` 加载；后端默认连接 `http://127.0.0.1:8080/v1`
 - 侧栏展示名可通过环境变量 `HAS_NER_DISPLAY_NAME` 覆盖（默认 `HaS-Text-0209-Q4`）
 
@@ -453,13 +434,11 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/health/services" | ConvertTo-Json
 
 ## 🧪 环境检查
 
-Windows PowerShell：
-
-```powershell
-.\scripts\check_env.ps1
+```bash
+curl http://127.0.0.1:8000/health/services
 ```
 
-脚本会检查：
+检查项：
 - Python / Node / npm
 - NVIDIA 驱动
 - 模型文件是否存在
