@@ -13,6 +13,10 @@ import {
   presetAppliesVision,
 } from '../services/presetsApi';
 import {
+  buildDefaultPipelineTypeIds,
+  buildDefaultTextTypeIds,
+} from '../services/defaultRedactionPreset';
+import {
   getActivePresetTextId,
   getActivePresetVisionId,
   setActivePresetTextId,
@@ -76,6 +80,9 @@ const redactionDangerButtonClass =
 
 const redactionFieldClass =
   'redaction-field w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-800';
+
+const defaultPresetCardClass =
+  'rounded-lg border border-dashed border-gray-300 bg-[#fcfcfc] px-3 py-3 shadow-sm';
 
 function PresetPreviewExpandBody({
   p,
@@ -259,13 +266,9 @@ export const RedactionListSettings: React.FC = () => {
 
   const buildDefaultPresetForm = useCallback(
     (kind: PresetKind = 'full'): PresetPayload => {
-      const enabledText = entityTypes.filter(t => t.enabled !== false).map(t => t.id);
-      const ocrIds = pipelines
-        .filter(p => p.mode === 'ocr_has' && p.enabled)
-        .flatMap(p => p.types.filter(t => t.enabled).map(t => t.id));
-      const hiIds = pipelines
-        .filter(p => p.mode === 'has_image' && p.enabled)
-        .flatMap(p => p.types.filter(t => t.enabled).map(t => t.id));
+      const enabledText = buildDefaultTextTypeIds(entityTypes);
+      const ocrIds = buildDefaultPipelineTypeIds(pipelines, 'ocr_has');
+      const hiIds = buildDefaultPipelineTypeIds(pipelines, 'has_image');
       if (kind === 'text') {
         return {
           name: '',
@@ -339,14 +342,58 @@ export const RedactionListSettings: React.FC = () => {
     [entityTypes]
   );
 
+  const defaultTextPreset = useMemo<RecognitionPreset>(
+    () => ({
+      id: '__default_text__',
+      name: '默认文本脱敏配置清单',
+      kind: 'text',
+      selectedEntityTypeIds: buildDefaultTextTypeIds(entityTypes),
+      ocrHasTypes: [],
+      hasImageTypes: [],
+      replacementMode: 'structured',
+      created_at: '',
+      updated_at: '',
+    }),
+    [entityTypes]
+  );
+
+  const defaultVisionPreset = useMemo<RecognitionPreset>(
+    () => ({
+      id: '__default_vision__',
+      name: '默认图像脱敏配置清单',
+      kind: 'vision',
+      selectedEntityTypeIds: [],
+      ocrHasTypes: buildDefaultPipelineTypeIds(pipelines, 'ocr_has'),
+      hasImageTypes: buildDefaultPipelineTypeIds(pipelines, 'has_image'),
+      replacementMode: 'structured',
+      created_at: '',
+      updated_at: '',
+    }),
+    [pipelines]
+  );
+
   const summaryTextLabel = useMemo(() => {
     if (!bridgeText) return '默认';
-    return textPresetsList.find(p => p.id === bridgeText)?.name ?? bridgeText;
+    return textPresetsList.find(p => p.id === bridgeText)?.name ?? '默认';
   }, [bridgeText, textPresetsList]);
 
   const summaryVisionLabel = useMemo(() => {
     if (!bridgeVision) return '默认';
-    return visionPresetsList.find(p => p.id === bridgeVision)?.name ?? bridgeVision;
+    return visionPresetsList.find(p => p.id === bridgeVision)?.name ?? '默认';
+  }, [bridgeVision, visionPresetsList]);
+
+  useEffect(() => {
+    if (bridgeText && !textPresetsList.some(p => p.id === bridgeText)) {
+      setBridgeText('');
+      setActivePresetTextId(null);
+    }
+  }, [bridgeText, textPresetsList]);
+
+  useEffect(() => {
+    if (bridgeVision && !visionPresetsList.some(p => p.id === bridgeVision)) {
+      setBridgeVision('');
+      setActivePresetVisionId(null);
+    }
   }, [bridgeVision, visionPresetsList]);
 
   const savePresetModal = async () => {
@@ -474,7 +521,7 @@ export const RedactionListSettings: React.FC = () => {
                     <span className="font-medium">{summaryVisionLabel}</span>
                   </p>
                   <p className="text-gray-400 mt-1 pt-1 border-t border-gray-100 leading-tight">
-                    已保存 {textPresetsList.length} 个文本清单 · {visionPresetsList.length} 个图像预设
+                    已保存 {textPresetsList.length} 个文本脱敏配置清单 · {visionPresetsList.length} 个图像脱敏配置清单
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5 justify-end sm:justify-start">
@@ -483,14 +530,14 @@ export const RedactionListSettings: React.FC = () => {
                     onClick={() => openNewPresetModal('text')}
                     className={redactionOutlineButtonClass}
                   >
-                    + 文本清单
+                    + 新建文本配置清单
                   </button>
                   <button
                     type="button"
                     onClick={() => openNewPresetModal('vision')}
                     className={redactionOutlineButtonClass}
                   >
-                    + 图像预设
+                    + 新建图像配置清单
                   </button>
                 </div>
               </div>
@@ -507,7 +554,7 @@ export const RedactionListSettings: React.FC = () => {
                     setActivePresetTextId(v || null);
                   }}
                 >
-                  <option value="">默认（全选启用类型，与识别项一致）</option>
+                  <option value="">默认（系统预设全选，不含自定义）</option>
                   {textPresetsList.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -527,7 +574,7 @@ export const RedactionListSettings: React.FC = () => {
                     setActivePresetVisionId(v || null);
                   }}
                 >
-                  <option value="">默认（OCR+HaS 与 HaS 图像全选）</option>
+                  <option value="">默认（系统预设全选，不含自定义）</option>
                   {visionPresetsList.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name}
@@ -539,12 +586,8 @@ export const RedactionListSettings: React.FC = () => {
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               <div className="min-h-0 flex flex-col">
-                <h4 className="text-2xs font-semibold text-gray-500 uppercase tracking-wide mb-1">文本脱敏清单</h4>
-                {textPresetsList.length === 0 ? (
-                  <p className="text-caption text-gray-400 py-1 leading-snug">
-                    暂无；与「识别项配置」中正则 / 语义类型对应，在此命名并勾选后保存。
-                  </p>
-                ) : (
+                <h4 className="text-2xs font-semibold text-gray-500 uppercase tracking-wide mb-1">文本脱敏配置清单</h4>
+                {textPresetsList.length > 0 ? (
                   <ul className="divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-100 text-caption max-h-[min(55vh,520px)]">
                     {textPresetsList.map(p => {
                       const rowKey = `text:${p.id}`;
@@ -601,13 +644,27 @@ export const RedactionListSettings: React.FC = () => {
                     );
                     })}
                   </ul>
+                ) : (
+                  <div className="rounded-md border border-gray-100 bg-[#fafafa] px-3 py-2 text-2xs text-gray-500">
+                    还没有保存的文本配置清单。
+                  </div>
                 )}
+                <div className={`${defaultPresetCardClass} mt-2`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900">默认文本脱敏配置清单</p>
+                      <p className="text-2xs text-gray-500">系统内置项全选，不包含用户自定义项。</p>
+                    </div>
+                    <span className="rounded-full bg-white px-2 py-1 text-[0.65rem] font-medium text-gray-500 shadow-sm">
+                      固定展示
+                    </span>
+                  </div>
+                  <PresetPreviewExpandBody p={defaultTextPreset} entityTypes={entityTypes} pipelines={pipelines} />
+                </div>
               </div>
               <div className="min-h-0 flex flex-col">
                 <h4 className="text-2xs font-semibold text-gray-500 uppercase tracking-wide mb-1">图像脱敏配置清单</h4>
-                {visionPresetsList.length === 0 ? (
-                  <p className="text-caption text-gray-400 py-1 leading-snug">暂无；可在 Playground 另存为图像预设。</p>
-                ) : (
+                {visionPresetsList.length > 0 ? (
                   <ul className="divide-y divide-gray-100 overflow-y-auto rounded-md border border-gray-100 text-caption max-h-[min(55vh,520px)]">
                     {visionPresetsList.map(p => {
                       const rowKey = `vision:${p.id}`;
@@ -656,7 +713,23 @@ export const RedactionListSettings: React.FC = () => {
                     );
                     })}
                   </ul>
+                ) : (
+                  <div className="rounded-md border border-gray-100 bg-[#fafafa] px-3 py-2 text-2xs text-gray-500">
+                    还没有保存的图像配置清单。
+                  </div>
                 )}
+                <div className={`${defaultPresetCardClass} mt-2`}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900">默认图像脱敏配置清单</p>
+                      <p className="text-2xs text-gray-500">系统内置项全选，不包含用户自定义项。</p>
+                    </div>
+                    <span className="rounded-full bg-white px-2 py-1 text-[0.65rem] font-medium text-gray-500 shadow-sm">
+                      固定展示
+                    </span>
+                  </div>
+                  <PresetPreviewExpandBody p={defaultVisionPreset} entityTypes={entityTypes} pipelines={pipelines} />
+                </div>
               </div>
             </div>
           </div>
@@ -671,15 +744,15 @@ export const RedactionListSettings: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900">
                 {editingPresetId
                   ? presetForm.kind === 'text'
-                    ? '编辑文本清单'
+                    ? '编辑文本脱敏配置清单'
                     : presetForm.kind === 'vision'
-                      ? '编辑图像预设'
-                      : '编辑组合预设'
+                      ? '编辑图像脱敏配置清单'
+                      : '编辑组合脱敏配置清单'
                   : presetForm.kind === 'text'
-                    ? '新建文本清单'
+                    ? '新建文本脱敏配置清单'
                     : presetForm.kind === 'vision'
-                      ? '新建图像预设'
-                      : '新建组合预设'}
+                      ? '新建图像脱敏配置清单'
+                      : '新建组合脱敏配置清单'}
               </h3>
               <button
                 type="button"
@@ -850,7 +923,7 @@ export const RedactionListSettings: React.FC = () => {
                 ) : null
                 )}
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/50">
+            <div className="sticky bottom-0 px-6 py-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50/95 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setPresetModalOpen(false)}
@@ -864,7 +937,7 @@ export const RedactionListSettings: React.FC = () => {
                 disabled={presetSaving}
                 className={redactionPrimaryButtonClass}
               >
-                {presetSaving ? '保存中…' : '保存'}
+                {presetSaving ? '处理中…' : editingPresetId ? '保存修改' : '创建'}
               </button>
             </div>
           </div>
