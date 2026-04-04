@@ -10,9 +10,9 @@ const Settings = React.lazy(() => import('./pages/Settings').then(m => ({ defaul
 const RedactionListSettings = React.lazy(() => import('./pages/RedactionListSettings').then(m => ({ default: m.RedactionListSettings })));
 const TextModelSettings = React.lazy(() => import('./pages/TextModelSettings').then(m => ({ default: m.TextModelSettings })));
 const VisionModelSettings = React.lazy(() => import('./pages/VisionModelSettings').then(m => ({ default: m.VisionModelSettings })));
-const Jobs = React.lazy(() => import('./pages/Jobs').then(m => ({ default: m.Jobs })));
+const Jobs = React.lazy(() => import('./features/jobs').then(m => ({ default: m.Jobs })));
 const JobDetailPage = React.lazy(() => import('./pages/JobDetail').then(m => ({ default: m.JobDetailPage })));
-const BatchHub = React.lazy(() => import('./pages/BatchHub').then(m => ({ default: m.BatchHub })));
+const BatchHub = React.lazy(() => import('./features/batch/batch-hub').then(m => ({ default: m.BatchHub })));
 const PlaygroundImagePopout = React.lazy(() => import('./pages/PlaygroundImagePopout'));
 
 /** 延迟 150ms 再显示 spinner，已缓存的 chunk 在此期间就能渲染完毕，避免闪烁 */
