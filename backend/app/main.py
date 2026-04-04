@@ -246,16 +246,8 @@ app.add_middleware(
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key", "X-CSRF-Token"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Idempotency-Key"],
 )
-
-# CSRF protection (double-submit cookie) — registered after CORS so that
-# Starlette's reverse middleware order means CSRF runs *after* CORS headers
-# are attached (the browser needs to see the CORS headers even on 403).
-# CSRF middleware disabled for local personal tool (no cross-site risk).
-# Uncomment for multi-user / cloud deployments:
-# from app.core.csrf import CSRFMiddleware  # noqa: E402
-# app.add_middleware(CSRFMiddleware)
 
 app.add_middleware(MaxBodySizeMiddleware)
 

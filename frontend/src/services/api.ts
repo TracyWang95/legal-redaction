@@ -16,17 +16,6 @@ import type {
 // Auth token key in localStorage (shared with login flow)
 const AUTH_TOKEN_KEY = 'auth_token';
 
-/** Read a cookie value by name. Returns null if not found. */
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-/** Return the current CSRF token from the csrf_token cookie (set by the backend). */
-export function getCsrfToken(): string | null {
-  return getCookie('csrf_token');
-}
-
 /** Read the current JWT from localStorage (null when AUTH_ENABLED=false). */
 export function getAuthToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -48,20 +37,12 @@ const api = axios.create({
   timeout: 60000, // 60秒超时（AI处理可能较慢）
 });
 
-// 请求拦截器 - automatically attach JWT + CSRF token
+// 请求拦截器 - attach JWT
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    }
-    // Attach CSRF token on state-changing requests
-    const method = (config.method || 'get').toUpperCase();
-    if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-      const csrf = getCsrfToken();
-      if (csrf) {
-        config.headers['X-CSRF-Token'] = csrf;
-      }
     }
     return config;
   },
@@ -247,16 +228,12 @@ export const entityTypesApi = {
 
 /* ─── Authenticated download / fetch helpers ─── */
 
-/** Build a Headers object that includes the JWT Bearer token and CSRF token when available. */
+/** Build a Headers object that includes the JWT Bearer token when available. */
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   const token = getAuthToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  }
-  const csrf = getCsrfToken();
-  if (csrf) {
-    headers['X-CSRF-Token'] = csrf;
   }
   return headers;
 }

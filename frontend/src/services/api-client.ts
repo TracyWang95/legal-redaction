@@ -14,15 +14,6 @@ import axios, { type AxiosRequestConfig } from 'axios';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-export function getCsrfToken(): string | null {
-  return getCookie('csrf_token');
-}
-
 export function getAuthToken(): string | null {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
@@ -42,18 +33,11 @@ export const apiClient = axios.create({
   timeout: 60_000,
 });
 
-// Request: attach JWT + CSRF
+// Request: attach JWT
 apiClient.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
-  const method = (config.method || 'get').toUpperCase();
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-    const csrf = getCsrfToken();
-    if (csrf) {
-      config.headers['X-CSRF-Token'] = csrf;
-    }
   }
   return config;
 });
@@ -110,8 +94,6 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   const token = getAuthToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const csrf = getCsrfToken();
-  if (csrf) headers['X-CSRF-Token'] = csrf;
   return headers;
 }
 
