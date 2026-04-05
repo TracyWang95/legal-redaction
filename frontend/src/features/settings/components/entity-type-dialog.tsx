@@ -1,12 +1,12 @@
-/**
- * Create / edit entity type dialog — ShadCN Dialog + form fields with
- * regex validation preview and server-side regex testing.
- */
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,29 +34,38 @@ interface EntityTypeDialogProps {
 }
 
 const defaultForm: EntityTypeForm = {
-  name: '', description: '', color: '#6B7280',
-  regex_pattern: '', use_llm: true, tag_template: '',
+  name: '',
+  description: '',
+  color: '#6B7280',
+  regex_pattern: '',
+  use_llm: true,
+  tag_template: '',
 };
 
 export function EntityTypeDialog({
-  open, onOpenChange, initial, onSave, mode,
+  open,
+  onOpenChange,
+  initial,
+  onSave,
+  mode,
 }: EntityTypeDialogProps) {
   const t = useT();
   const [form, setForm] = useState<EntityTypeForm>({ ...defaultForm, ...initial });
   const [sampleText, setSampleText] = useState('');
   const [serverResult, setServerResult] = useState<{
-    valid: boolean; matches: { text: string; start: number; end: number }[]; error: string;
+    valid: boolean;
+    matches: { text: string; start: number; end: number }[];
+    error: string;
   } | null>(null);
   const [serverTesting, setServerTesting] = useState(false);
 
-  /* reset form when dialog opens with new initial */
-  const resetOnOpen = (o: boolean) => {
-    if (o) {
+  const resetOnOpen = (nextOpen: boolean) => {
+    if (nextOpen) {
       setForm({ ...defaultForm, ...initial });
       setSampleText('');
       setServerResult(null);
     }
-    onOpenChange(o);
+    onOpenChange(nextOpen);
   };
 
   const regexCheck = useMemo(
@@ -66,6 +75,7 @@ export function EntityTypeDialog({
 
   const handleServerTest = async () => {
     if (!form.regex_pattern.trim()) return;
+
     setServerTesting(true);
     try {
       const res = await fetch('/api/v1/custom-types/regex-test', {
@@ -81,12 +91,14 @@ export function EntityTypeDialog({
     }
   };
 
-  const canSubmit = form.name.trim() &&
-    (form.use_llm || (form.regex_pattern.trim() && regexCheck !== 'invalid_pattern'));
+  const canSubmit = Boolean(
+    form.name.trim() &&
+    (form.use_llm || (form.regex_pattern.trim() && regexCheck !== 'invalid_pattern')),
+  );
 
   return (
     <Dialog open={open} onOpenChange={resetOnOpen}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {mode === 'create'
@@ -99,40 +111,39 @@ export function EntityTypeDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Name */}
           <div className="space-y-1.5">
             <Label>{t('settings.nameLabel')} *</Label>
             <Input
               value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder={form.use_llm ? '如：项目负责人职务' : '如：合同签订日期'}
+              onChange={e => setForm(current => ({ ...current, name: e.target.value }))}
+              placeholder={form.use_llm
+                ? t('settings.typeNamePlaceholder.semantic')
+                : t('settings.typeNamePlaceholder.regex')}
               data-testid="entity-type-name"
             />
           </div>
 
-          {/* LLM toggle */}
           {mode === 'create' && (
             <div className="flex items-center gap-3">
-              <Label>LLM</Label>
+              <Label>{t('settings.modeLabel')}</Label>
               <Switch
                 checked={form.use_llm}
-                onCheckedChange={v => setForm(f => ({ ...f, use_llm: v }))}
+                onCheckedChange={checked => setForm(current => ({ ...current, use_llm: checked }))}
                 data-testid="entity-type-llm-toggle"
               />
             </div>
           )}
 
-          {/* Regex-specific fields */}
           {!form.use_llm && (
             <>
               <div className="space-y-1.5">
                 <Label>{t('settings.regexLabel')} *</Label>
                 <Textarea
                   value={form.regex_pattern}
-                  onChange={e => setForm(f => ({ ...f, regex_pattern: e.target.value }))}
+                  onChange={e => setForm(current => ({ ...current, regex_pattern: e.target.value }))}
                   rows={3}
                   className="font-mono"
-                  placeholder={'例如：\\d{4}-\\d{2}-\\d{2}'}
+                  placeholder={t('settings.regexPlaceholder')}
                   spellCheck={false}
                   data-testid="entity-type-regex"
                 />
@@ -149,17 +160,29 @@ export function EntityTypeDialog({
                 />
               </div>
 
-              {/* JS regex validation badge */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className="text-xs">{t('settings.regexValidation')}</Badge>
-                {regexCheck === 'empty_pattern' && <span className="text-sm text-muted-foreground">{t('settings.regexEmpty')}</span>}
-                {regexCheck === 'invalid_pattern' && <span className="text-sm font-medium text-destructive">{t('settings.regexInvalid')}</span>}
-                {regexCheck === 'no_sample' && <span className="text-sm text-muted-foreground">{t('settings.regexReady')}</span>}
-                {regexCheck === 'pass' && <span className="text-sm font-medium text-emerald-700">{t('settings.regexPass')}</span>}
-                {regexCheck === 'fail' && <span className="text-sm font-medium text-destructive">{t('settings.regexFail')}</span>}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {t('settings.regexValidation')}
+                </Badge>
+                {regexCheck === 'empty_pattern' && (
+                  <span className="text-sm text-muted-foreground">{t('settings.regexEmpty')}</span>
+                )}
+                {regexCheck === 'invalid_pattern' && (
+                  <span className="text-sm font-medium text-destructive">{t('settings.regexInvalid')}</span>
+                )}
+                {regexCheck === 'no_sample' && (
+                  <span className="text-sm text-muted-foreground">{t('settings.regexReady')}</span>
+                )}
+                {regexCheck === 'pass' && (
+                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    {t('settings.regexPass')}
+                  </span>
+                )}
+                {regexCheck === 'fail' && (
+                  <span className="text-sm font-medium text-destructive">{t('settings.regexFail')}</span>
+                )}
               </div>
 
-              {/* Server-side regex tester */}
               <div className="space-y-2">
                 <Label>{t('settings.testLabel')}</Label>
                 <Button
@@ -172,23 +195,28 @@ export function EntityTypeDialog({
                   {serverTesting ? t('settings.testing') : t('settings.testRegex')}
                 </Button>
                 {serverResult && (
-                  <div className="rounded-lg border px-3 py-2 text-sm">
+                  <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-sm">
                     {serverResult.valid ? (
                       <div>
-                        <span className="font-medium text-emerald-700">
+                        <span className="font-medium text-emerald-700 dark:text-emerald-400">
                           {t('settings.matchCount').replace('{n}', String(serverResult.matches.length))}
                         </span>
                         {serverResult.matches.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {serverResult.matches.map((m, i) => (
-                              <span key={i} className="inline-block bg-yellow-100 text-yellow-900 border border-yellow-200 px-1.5 py-0.5 rounded text-xs font-mono">
-                                {m.text}
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {serverResult.matches.map((match, index) => (
+                              <span
+                                key={`${match.text}-${index}`}
+                                className="inline-block rounded border border-yellow-200 bg-yellow-100 px-1.5 py-0.5 font-mono text-xs text-yellow-900 dark:border-yellow-900/60 dark:bg-yellow-950/60 dark:text-yellow-200"
+                              >
+                                {match.text}
                               </span>
                             ))}
                           </div>
                         )}
                         {serverResult.matches.length === 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">{t('settings.regexValidNoMatch')}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {t('settings.regexValidNoMatch')}
+                          </p>
                         )}
                       </div>
                     ) : (
@@ -200,39 +228,36 @@ export function EntityTypeDialog({
             </>
           )}
 
-          {/* Semantic description */}
           {form.use_llm && (
             <div className="space-y-1.5">
               <Label>{t('settings.descLabel')}</Label>
               <Textarea
                 value={form.description}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                onChange={e => setForm(current => ({ ...current, description: e.target.value }))}
                 rows={3}
-                placeholder="简要说明这类信息在文档中的文字特征，便于模型识别"
+                placeholder={t('settings.semanticDescriptionPlaceholder')}
                 data-testid="entity-type-description"
               />
             </div>
           )}
 
-          {/* Color */}
           <div className="space-y-1.5">
-            <Label>Color</Label>
+            <Label>{t('settings.colorLabel')}</Label>
             <Input
               type="color"
               value={form.color}
-              onChange={e => setForm(f => ({ ...f, color: e.target.value }))}
+              onChange={e => setForm(current => ({ ...current, color: e.target.value }))}
               className="h-9 w-16 p-1"
               data-testid="entity-type-color"
             />
           </div>
 
-          {/* Tag template */}
           <div className="space-y-1.5">
-            <Label>Tag Template</Label>
+            <Label>{t('settings.tagTemplateLabel')}</Label>
             <Input
               value={form.tag_template}
-              onChange={e => setForm(f => ({ ...f, tag_template: e.target.value }))}
-              placeholder="可选"
+              onChange={e => setForm(current => ({ ...current, tag_template: e.target.value }))}
+              placeholder={t('settings.tagTemplatePlaceholder')}
               data-testid="entity-type-tag-template"
             />
           </div>

@@ -5,7 +5,7 @@ import { type CSSProperties, type Dispatch, type FC, type ReactNode, type SetSta
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
 import { getEntityRiskConfig } from '@/config/entityTypes';
@@ -57,6 +57,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   onReset,
   onDownload,
 }) => {
+  const t = useT();
   const [mobileTab, setMobileTab] = useState<'original' | 'redacted' | 'mapping'>('original');
   const clickCounterRef = useRef<Record<string, number>>({});
 
@@ -173,19 +174,19 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-semibold">{t('playground.redactComplete') || 'Redaction Complete'}</p>
+                <p className="text-sm font-semibold">{t('playground.redactComplete')}</p>
                 <p className="text-xs text-background/70">
-                  {redactedCount} {t('playground.itemsProcessed') || 'sensitive items processed'}
+                  {redactedCount} {t('playground.itemsProcessed')}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="secondary" size="sm" onClick={onBackToEdit} data-testid="playground-back-edit">
-                {t('playground.backToEdit') || 'Back to Edit'}
+                {t('playground.backToEdit')}
               </Button>
               <Button variant="secondary" size="sm" onClick={onReset}>
-                {t('playground.newFile') || 'New File'}
+                {t('playground.newFile')}
               </Button>
               {fileInfo && (
                 <Button
@@ -195,7 +196,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
                   data-testid="playground-download"
                   className="border-background/20 bg-background/10 text-background hover:bg-background/15"
                 >
-                  {t('playground.downloadFile') || 'Download'}
+                  {t('playground.downloadFile')}
                 </Button>
               )}
             </div>
@@ -213,9 +214,9 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
 
       <div className="mx-3 flex shrink-0 gap-1 rounded-t-2xl border border-border/60 border-b-0 bg-background px-2 pt-2 md:hidden">
         {([
-          ['original', 'Original'],
-          ['redacted', 'Redacted'],
-          ['mapping', 'Mapping'],
+          ['original', t('playground.mobile.original')],
+          ['redacted', t('playground.mobile.redacted')],
+          ['mapping', t('playground.mobile.mapping')],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -265,12 +266,13 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
 };
 
 const RedactionReportSection: FC<{ report: Record<string, unknown>; open: boolean; onToggle: () => void }> = ({ report, open, onToggle }) => {
+  const t = useT();
   const normalized = report as Record<string, number | string | Record<string, number>>;
 
   return (
     <div className="mx-3 mb-3 flex-shrink-0 sm:mx-4">
       <Button variant="outline" className="h-auto w-full justify-between rounded-2xl px-5 py-3" onClick={onToggle}>
-        <span className="text-xs font-semibold">{t('playground.qualityReport') || 'Quality Report'}</span>
+        <span className="text-xs font-semibold">{t('playground.qualityReport')}</span>
         <svg className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -280,13 +282,13 @@ const RedactionReportSection: FC<{ report: Record<string, unknown>; open: boolea
           <CardContent className="flex flex-wrap gap-6 p-0 text-xs">
             <div className="flex flex-col">
               <span className="text-[10px] uppercase text-muted-foreground">
-                {t('playground.totalEntities') || 'Total Entities'}
+                {t('playground.totalEntities')}
               </span>
               <span className="text-lg font-bold tabular-nums">{String(normalized.total_entities ?? '')}</span>
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] uppercase text-muted-foreground">
-                {t('playground.redactedEntities') || 'Redacted Entities'}
+                {t('playground.redactedEntities')}
               </span>
               <span className="text-lg font-bold tabular-nums">{String(normalized.redacted_entities ?? '')}</span>
             </div>
@@ -317,87 +319,93 @@ const MappingColumn: FC<{
   setVersionHistoryOpen,
   className,
   mobileTab,
-}) => (
-  <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'mapping' ? '' : 'hidden', 'md:flex', className)}>
-    <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-4 py-3">
-      <span className="text-xs font-semibold">{t('playground.mappingRecords') || 'Mapping'}</span>
-      <span className="text-[11px] tabular-nums text-muted-foreground">{Object.keys(entityMap).length}</span>
-    </div>
-    <ScrollArea className="flex-1">
-      {Object.entries(entityMap).map(([original, replacement], index) => {
-        const config = getEntityRiskConfig(origToTypeId.get(original) ?? 'CUSTOM');
-        const count = content ? content.split(original).length - 1 : 0;
+}) => {
+  const t = useT();
 
-        return (
-          <button
-            key={index}
-            onClick={() => scrollToMatch(original)}
-            className="mx-2 my-2 w-[calc(100%-1rem)] rounded-2xl border px-3 py-3 text-left shadow-sm transition-all hover:brightness-[0.99]"
-            style={{ borderLeft: `3px solid ${config.color}`, backgroundColor: config.bgColor }}
-            data-testid={`playground-mapping-${index}`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="flex-1 truncate text-[11px] font-medium" style={{ color: config.textColor }}>
-                {original}
-              </span>
-              {count > 1 && (
-                <span className="rounded px-1 text-[10px] tabular-nums" style={{ backgroundColor: `${config.color}22`, color: config.textColor }}>
-                  {count}x
-                </span>
-              )}
-            </div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <svg className="h-2.5 w-2.5 flex-shrink-0 opacity-40" style={{ color: config.color }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-              <span className="truncate text-[10px] opacity-90" style={{ color: config.textColor }}>
-                {replacement}
-              </span>
-            </div>
-          </button>
-        );
-      })}
-      {Object.keys(entityMap).length === 0 && (
-        <p className="py-8 text-center text-xs text-muted-foreground">
-          {t('playground.noRecords') || 'No mapping records yet.'}
-        </p>
-      )}
-    </ScrollArea>
-
-    {versionHistory.length > 0 && (
-      <div className="border-t border-border/60">
-        <Button variant="ghost" className="h-auto w-full justify-between px-4 py-3" onClick={() => setVersionHistoryOpen((open) => !open)}>
-          <span className="text-xs font-semibold">{t('playground.versionHistory') || 'Version History'}</span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] tabular-nums text-muted-foreground">{versionHistory.length}</span>
-            <svg className={cn('h-3 w-3 transition-transform', versionHistoryOpen && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </Button>
-
-        {versionHistoryOpen && (
-          <div className="space-y-1.5 px-3 pb-3">
-            {versionHistory.map((version, index) => (
-              <div key={index} className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-medium">v{index + 1}</span>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
-                    {version.created_at ? new Date(version.created_at).toLocaleString() : ''}
-                  </span>
-                </div>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">{version.redacted_count} items</span>
-                  <span className="text-[10px] text-muted-foreground">{version.mode}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+  return (
+    <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'mapping' ? '' : 'hidden', 'md:flex', className)}>
+      <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-4 py-3">
+        <span className="text-xs font-semibold">{t('playground.mappingRecords')}</span>
+        <span className="text-[11px] tabular-nums text-muted-foreground">{Object.keys(entityMap).length}</span>
       </div>
-    )}
-  </div>
-);
+      <ScrollArea className="flex-1">
+        {Object.entries(entityMap).map(([original, replacement], index) => {
+          const config = getEntityRiskConfig(origToTypeId.get(original) ?? 'CUSTOM');
+          const count = content ? content.split(original).length - 1 : 0;
+
+          return (
+            <button
+              key={index}
+              onClick={() => scrollToMatch(original)}
+              className="mx-2 my-2 w-[calc(100%-1rem)] rounded-2xl border px-3 py-3 text-left shadow-sm transition-all hover:brightness-[0.99]"
+              style={{ borderLeft: `3px solid ${config.color}`, backgroundColor: config.bgColor }}
+              data-testid={`playground-mapping-${index}`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="flex-1 truncate text-[11px] font-medium" style={{ color: config.textColor }}>
+                  {original}
+                </span>
+                {count > 1 && (
+                  <span className="rounded px-1 text-[10px] tabular-nums" style={{ backgroundColor: `${config.color}22`, color: config.textColor }}>
+                    {count}x
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 flex items-center gap-1.5">
+                <svg className="h-2.5 w-2.5 flex-shrink-0 opacity-40" style={{ color: config.color }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+                <span className="truncate text-[10px] opacity-90" style={{ color: config.textColor }}>
+                  {replacement}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+        {Object.keys(entityMap).length === 0 && (
+          <p className="py-8 text-center text-xs text-muted-foreground">
+            {t('playground.noRecords')}
+          </p>
+        )}
+      </ScrollArea>
+
+      {versionHistory.length > 0 && (
+        <div className="border-t border-border/60">
+          <Button variant="ghost" className="h-auto w-full justify-between px-4 py-3" onClick={() => setVersionHistoryOpen((open) => !open)}>
+            <span className="text-xs font-semibold">{t('playground.versionHistory')}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] tabular-nums text-muted-foreground">{versionHistory.length}</span>
+              <svg className={cn('h-3 w-3 transition-transform', versionHistoryOpen && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </Button>
+
+          {versionHistoryOpen && (
+            <div className="space-y-1.5 px-3 pb-3">
+              {versionHistory.map((version, index) => (
+                <div key={index} className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium">v{index + 1}</span>
+                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                      {version.created_at ? new Date(version.created_at).toLocaleString() : ''}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">
+                      {t('playground.versionItems').replace('{count}', String(version.redacted_count))}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{version.mode}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TextResultView: FC<{
   renderOriginal: () => ReactNode[];
@@ -421,11 +429,14 @@ const TextResultView: FC<{
   versionHistory,
   versionHistoryOpen,
   setVersionHistoryOpen,
-}) => (
-  <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+}) => {
+  const t = useT();
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
     <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'original' ? '' : 'hidden', 'md:flex')}>
       <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.originalDoc') || 'Original Document'}</span>
+        <span className="text-xs font-semibold">{t('playground.originalDoc')}</span>
       </div>
       <ScrollArea className="flex-1 p-4">
         <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">{renderOriginal()}</div>
@@ -434,7 +445,7 @@ const TextResultView: FC<{
 
     <div className={cn('flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'redacted' ? '' : 'hidden', 'md:flex')}>
       <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.redactedResult') || 'Redacted Result'}</span>
+        <span className="text-xs font-semibold">{t('playground.redactedResult')}</span>
       </div>
       <ScrollArea className="flex-1 p-4">
         <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">{renderRedacted()}</div>
@@ -453,7 +464,8 @@ const TextResultView: FC<{
       setVersionHistoryOpen={setVersionHistoryOpen}
     />
   </div>
-);
+  );
+};
 
 const ImageResultView: FC<{
   fileInfo: FileInfo | null;
@@ -483,11 +495,14 @@ const ImageResultView: FC<{
   versionHistory,
   versionHistoryOpen,
   setVersionHistoryOpen,
-}) => (
-  <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+}) => {
+  const t = useT();
+
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
     <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'original' ? '' : 'hidden', 'md:flex')}>
       <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.originalImage') || 'Original Image'}</span>
+        <span className="text-xs font-semibold">{t('playground.originalImage')}</span>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {fileInfo && (
@@ -510,13 +525,13 @@ const ImageResultView: FC<{
 
     <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'redacted' ? '' : 'hidden', 'md:flex')}>
       <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.redactedResult') || 'Redacted Result'}</span>
+        <span className="text-xs font-semibold">{t('playground.redactedResult')}</span>
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-muted/20">
         {fileInfo && (
           <img
             src={redactedImageUrl || `/api/v1/files/${fileInfo.file_id}/download?redacted=true`}
-            alt="redacted"
+            alt={t('playground.redactedResult')}
             className="block h-auto max-h-full w-auto max-w-full select-none object-contain"
           />
         )}
@@ -534,4 +549,5 @@ const ImageResultView: FC<{
       setVersionHistoryOpen={setVersionHistoryOpen}
     />
   </div>
-);
+  );
+};

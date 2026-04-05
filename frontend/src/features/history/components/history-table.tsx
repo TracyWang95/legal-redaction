@@ -2,7 +2,7 @@
  * History file list table.
  */
 import { ArrowLeftRight, Download, Trash2 } from 'lucide-react';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,14 @@ export function HistoryTable({
   onDelete,
   onCompare,
 }: HistoryTableProps) {
+  const t = useT();
+  const getFileTypeLabel = (value: string) => {
+    if (value === 'word') return t('file.word');
+    if (value === 'pdf') return t('file.pdf');
+    if (value === 'image') return t('file.image');
+    return value;
+  };
+
   if (loading) {
     return (
       <div className="space-y-2 p-4">
@@ -57,12 +65,12 @@ export function HistoryTable({
             <th className="w-10 p-3">
               <Checkbox checked={allSelected} onCheckedChange={(value) => onSelectAll(!!value)} data-testid="history-select-all" />
             </th>
-            <th className="p-3">{t('history.filename')}</th>
+            <th className="p-3">{t('history.col.filename')}</th>
             <th className="hidden p-3 sm:table-cell">{t('history.fileType')}</th>
-            <th className="hidden p-3 md:table-cell">{t('history.entities')}</th>
-            <th className="hidden p-3 md:table-cell">{t('history.status')}</th>
-            <th className="hidden p-3 lg:table-cell">{t('history.date')}</th>
-            <th className="p-3 text-right">{t('history.actions')}</th>
+            <th className="hidden p-3 md:table-cell">{t('history.col.entities')}</th>
+            <th className="hidden p-3 md:table-cell">{t('history.col.status')}</th>
+            <th className="hidden p-3 lg:table-cell">{t('history.col.time')}</th>
+            <th className="p-3 text-right">{t('history.col.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -83,7 +91,7 @@ export function HistoryTable({
                 </td>
                 <td className="hidden p-3 sm:table-cell">
                   <Badge variant="secondary" className="text-[10px]">
-                    {row.file_type}
+                    {getFileTypeLabel(row.file_type)}
                   </Badge>
                 </td>
                 <td className="hidden p-3 tabular-nums md:table-cell">{row.entity_count}</td>
@@ -103,7 +111,7 @@ export function HistoryTable({
                         size="icon"
                         className="h-8 w-8 rounded-xl"
                         onClick={() => onCompare(row)}
-                        title={t('history.compare')}
+                        title={t('history.viewCompare')}
                         data-testid={`compare-${row.file_id}`}
                       >
                         <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -114,7 +122,7 @@ export function HistoryTable({
                       size="icon"
                       className="h-8 w-8 rounded-xl"
                       onClick={() => onDownload(row)}
-                      title={t('history.download')}
+                      title={t('common.download')}
                     >
                       <Download className="h-3.5 w-3.5" />
                     </Button>
@@ -123,7 +131,7 @@ export function HistoryTable({
                       size="icon"
                       className="h-8 w-8 rounded-xl text-destructive hover:text-destructive"
                       onClick={() => onDelete(row)}
-                      title={t('history.delete')}
+                      title={t('common.delete')}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>

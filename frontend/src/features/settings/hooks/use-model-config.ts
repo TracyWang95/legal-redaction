@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
+import { t } from '@/i18n';
 
 /* ── Text NER (HaS / llama-server) ── */
 
@@ -236,10 +237,10 @@ export function useVisionModelConfig() {
 
   const getProviderLabel = (provider: string) => {
     switch (provider) {
-      case 'local': return '\u672C\u5730';
-      case 'zhipu': return '\u667A\u8C31\uFF08\u65E7\uFF09';
+      case 'local': return t('settings.visionModel.tag.local');
+      case 'zhipu': return t('settings.provider.legacyZhipu');
       case 'openai': return 'OpenAI';
-      case 'custom': return '\u81EA\u5B9A\u4E49';
+      case 'custom': return t('settings.visionModel.tag.custom');
       default: return provider;
     }
   };

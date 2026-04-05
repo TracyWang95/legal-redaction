@@ -1,10 +1,7 @@
-/**
- * Vision model settings — vision pipeline backends (PaddleOCR-VL, HaS Image, custom).
- * Replaces pages/VisionModelSettings.tsx with ShadCN components.
- */
 import { useState } from 'react';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,22 +9,41 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import {
-  useVisionModelConfig, BUILTIN_VISION_IDS, DEFAULT_MODEL_FORM,
+  BUILTIN_VISION_IDS,
+  DEFAULT_MODEL_FORM,
   type ModelConfig,
+  useVisionModelConfig,
 } from './hooks/use-model-config';
 
 export function VisionModel() {
+  const t = useT();
   const {
-    modelConfigs, loading, builtinLive, testingModelId, testResult,
-    saveModelConfig, deleteModelConfig, testModelConfig, resetModelConfigs,
-    liveForBuiltin, getProviderLabel,
+    modelConfigs,
+    loading,
+    builtinLive,
+    testingModelId,
+    testResult,
+    saveModelConfig,
+    deleteModelConfig,
+    testModelConfig,
+    resetModelConfigs,
+    liveForBuiltin,
+    getProviderLabel,
   } = useVisionModelConfig();
 
   const [showModal, setShowModal] = useState(false);
@@ -40,137 +56,169 @@ export function VisionModel() {
     setShowModal(true);
   };
 
-  const openEdit = (cfg: ModelConfig) => {
-    setEditingId(cfg.id);
-    setForm({ ...cfg });
+  const openEdit = (config: ModelConfig) => {
+    setEditingId(config.id);
+    setForm({ ...config });
     setShowModal(true);
   };
 
   const handleSave = async () => {
     const ok = await saveModelConfig(form, editingId);
-    if (ok) {
-      setShowModal(false);
-      setEditingId(null);
-      setForm({ ...DEFAULT_MODEL_FORM });
-    }
+    if (!ok) return;
+
+    setShowModal(false);
+    setEditingId(null);
+    setForm({ ...DEFAULT_MODEL_FORM });
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-7 h-7 border-2 border-muted border-t-foreground rounded-full animate-spin" />
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted border-t-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="h-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-background">
-      <div className="flex-1 min-h-0 overflow-auto overscroll-contain p-4 sm:p-6 w-full max-w-5xl mx-auto">
-        <div className="flex flex-col gap-5">
-          {/* Info card */}
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 overflow-auto overscroll-contain p-4 sm:p-6">
+        <div className="flex w-full flex-col gap-5">
           <Card className="bg-muted/30">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">视觉微服务</CardTitle>
-              <CardDescription className="text-xs leading-relaxed mt-2">
-                <strong className="font-medium text-foreground">PaddleOCR-VL</strong> 默认端口{' '}
-                <strong>8082</strong>（<code className="text-xs bg-background px-1 py-0.5 rounded border">OCR_BASE_URL</code>），启动示例{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded border">scripts\start_paddle_ocr.ps1</code>。{' '}
-                <strong className="font-medium text-foreground">HaS Image</strong> 默认端口 <strong>8081</strong>（
-                <code className="text-xs bg-background px-1 py-0.5 rounded border">HAS_IMAGE_BASE_URL</code>），
-                <code className="text-xs bg-background px-1 py-0.5 rounded border">has_image_server.py</code>，启动{' '}
-                <code className="text-xs bg-background px-1 py-0.5 rounded border">scripts\start_has_image.bat</code>。
-                下方列表为内置登记与自定义后端，均可「测试」连通性。
+              <CardTitle className="text-sm">{t('settings.visionModel.infoTitle')}</CardTitle>
+              <CardDescription className="mt-2 text-xs leading-relaxed">
+                {t('settings.visionModel.infoDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="flex flex-wrap gap-2 pt-3 border-t">
-                <Badge variant="outline">本地 HTTP</Badge>
-                <Badge variant="outline">OpenAI 兼容</Badge>
-                <Badge variant="outline">自定义 HTTP</Badge>
+              <div className="flex flex-wrap gap-2 border-t pt-3">
+                <Badge variant="outline">{t('settings.visionModel.tag.local')}</Badge>
+                <Badge variant="outline">{t('settings.visionModel.tag.openai')}</Badge>
+                <Badge variant="outline">{t('settings.visionModel.tag.custom')}</Badge>
               </div>
             </CardContent>
           </Card>
 
-          {/* Backend list */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-base">推理后端</CardTitle>
+                  <CardTitle className="text-base">{t('settings.visionModel.listTitle')}</CardTitle>
                   <CardDescription className="text-xs">
-                    PaddleOCR-VL 与 HaS Image 为内置登记；路由由后端环境变量决定，无需在此切换提供方。
+                    {t('settings.visionModel.listDesc')}
                   </CardDescription>
                 </div>
                 <Button size="sm" onClick={openAdd} data-testid="add-vision-backend">
-                  + 新增后端
+                  {t('settings.visionModel.add')}
                 </Button>
               </div>
             </CardHeader>
+
             <CardContent className="p-0">
               <div className="divide-y">
-                {modelConfigs.configs.map(cfg => (
-                  <div key={cfg.id} className="px-5 py-4 flex items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm">{cfg.name}</span>
-                        <Badge variant={
-                          BUILTIN_VISION_IDS.has(cfg.id) || cfg.enabled ? 'secondary' : 'outline'
-                        } className="text-xs">
-                          {BUILTIN_VISION_IDS.has(cfg.id) || cfg.enabled ? '启用' : '禁用'}
+                {modelConfigs.configs.map(config => (
+                  <div key={config.id} className="flex items-center gap-4 px-5 py-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{config.name}</span>
+                        <Badge
+                          variant={BUILTIN_VISION_IDS.has(config.id) || config.enabled ? 'secondary' : 'outline'}
+                          className="text-xs"
+                        >
+                          {BUILTIN_VISION_IDS.has(config.id) || config.enabled
+                            ? t('common.enabled')
+                            : t('common.disabled')}
                         </Badge>
-                        {BUILTIN_VISION_IDS.has(cfg.id) && (() => {
-                          const live = liveForBuiltin(cfg.id);
+                        {BUILTIN_VISION_IDS.has(config.id) && (() => {
+                          const live = liveForBuiltin(config.id);
                           return live === 'online'
-                            ? <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">在线</Badge>
+                            ? (
+                              <Badge className="border-emerald-200 bg-emerald-50 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                {t('common.online')}
+                              </Badge>
+                            )
                             : live === 'offline'
-                              ? <Badge variant="destructive" className="text-xs">离线</Badge>
+                              ? (
+                                <Badge variant="destructive" className="text-xs">
+                                  {t('common.offline')}
+                                </Badge>
+                              )
                               : builtinLive === null
-                                ? <Badge variant="outline" className="text-xs">检测中...</Badge>
-                                : <Badge variant="outline" className="text-xs">—</Badge>;
+                                ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {t('common.checking')}
+                                  </Badge>
+                                )
+                                : (
+                                  <Badge variant="outline" className="text-xs">
+                                    {t('common.unknown')}
+                                  </Badge>
+                                );
                         })()}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-[10px]">{getProviderLabel(cfg.provider)}</Badge>
+
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px]">
+                          {getProviderLabel(config.provider)}
+                        </Badge>
                         <span>|</span>
-                        <span className="font-mono">{cfg.model_name}</span>
-                        {cfg.base_url && (<><span>|</span><span className="truncate max-w-[200px]">{cfg.base_url}</span></>)}
+                        <span className="font-mono">{config.model_name}</span>
+                        {config.base_url && (
+                          <>
+                            <span>|</span>
+                            <span className="max-w-[200px] truncate">{config.base_url}</span>
+                          </>
+                        )}
                       </div>
-                      {cfg.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{cfg.description}</p>}
+
+                      {config.description && (
+                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{config.description}</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button
-                        size="sm" variant="outline"
-                        disabled={testingModelId === cfg.id}
-                        onClick={() => void testModelConfig(cfg.id)}
-                        data-testid={`test-model-${cfg.id}`}
+                        size="sm"
+                        variant="outline"
+                        disabled={testingModelId === config.id}
+                        onClick={() => void testModelConfig(config.id)}
+                        data-testid={`test-model-${config.id}`}
                       >
-                        {testingModelId === cfg.id ? '测试中...' : '测试'}
+                        {testingModelId === config.id ? t('common.testing') : t('common.test')}
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(cfg)} data-testid={`edit-model-${cfg.id}`}>
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(config)} data-testid={`edit-model-${config.id}`}>
                         <PencilIcon />
                       </Button>
                       <Button
-                        size="icon" variant="ghost"
-                        disabled={BUILTIN_VISION_IDS.has(cfg.id)}
-                        className={cn(BUILTIN_VISION_IDS.has(cfg.id) && 'opacity-20 cursor-not-allowed')}
-                        onClick={() => void deleteModelConfig(cfg.id)}
-                        data-testid={`delete-model-${cfg.id}`}
+                        size="icon"
+                        variant="ghost"
+                        disabled={BUILTIN_VISION_IDS.has(config.id)}
+                        className={cn(BUILTIN_VISION_IDS.has(config.id) && 'cursor-not-allowed opacity-20')}
+                        onClick={() => void deleteModelConfig(config.id)}
+                        data-testid={`delete-model-${config.id}`}
                       >
                         <TrashIcon />
                       </Button>
                     </div>
                   </div>
                 ))}
+
                 {modelConfigs.configs.length === 0 && (
-                  <p className="px-5 py-6 text-sm text-muted-foreground text-center">暂无推理后端配置</p>
+                  <p className="px-5 py-6 text-center text-sm text-muted-foreground">
+                    {t('settings.visionModel.empty')}
+                  </p>
                 )}
               </div>
 
               {testResult && (
-                <div className={cn(
-                  'mx-5 mb-4 p-3 rounded-lg text-sm border',
-                  testResult.success ? 'bg-green-50 text-green-800 border-green-100' : 'bg-red-50 text-red-800 border-red-100',
-                )}>
+                <div
+                  className={cn(
+                    'mx-5 mb-4 rounded-lg border p-3 text-sm',
+                    testResult.success
+                      ? 'border-green-100 bg-green-50 text-green-800 dark:border-green-900/60 dark:bg-green-950/60 dark:text-green-300'
+                      : 'border-red-100 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/60 dark:text-red-300',
+                  )}
+                >
                   {testResult.success ? '\u2713 ' : '\u2717 '}
                   {testResult.message}
                 </div>
@@ -178,56 +226,64 @@ export function VisionModel() {
             </CardContent>
           </Card>
 
-          {/* Reset */}
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => void resetModelConfigs()} data-testid="reset-vision-models">
-              重置为默认配置
+              {t('settings.visionModel.reset')}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Add / Edit modal */}
-      <Dialog open={showModal} onOpenChange={o => { if (!o) { setShowModal(false); setEditingId(null); } }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={showModal}
+        onOpenChange={nextOpen => {
+          if (!nextOpen) {
+            setShowModal(false);
+            setEditingId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingId ? '编辑推理后端' : '新增推理后端'}</DialogTitle>
-            <DialogDescription>配置视觉推理后端连接信息</DialogDescription>
+            <DialogTitle>
+              {editingId ? t('settings.visionModel.dialog.editTitle') : t('settings.visionModel.dialog.createTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('settings.visionModel.dialog.desc')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>显示名称 *</Label>
+              <Label>{t('settings.visionModel.nameLabel')} *</Label>
               <Input
                 value={form.name ?? ''}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="如：HaS Image 本机 8081"
+                onChange={e => setForm(current => ({ ...current, name: e.target.value }))}
+                placeholder={t('settings.visionModel.namePlaceholder')}
                 data-testid="vision-model-name"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label>类型 *</Label>
+              <Label>{t('settings.visionModel.providerLabel')} *</Label>
               <Select
                 value={form.provider ?? 'local'}
-                onValueChange={v => setForm(f => ({ ...f, provider: v as ModelConfig['provider'] }))}
+                onValueChange={value => setForm(current => ({ ...current, provider: value as ModelConfig['provider'] }))}
               >
                 <SelectTrigger data-testid="vision-model-provider">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="local">本地 HTTP（HaS Image /health）</SelectItem>
-                  <SelectItem value="openai">OpenAI 兼容（/v1/models）</SelectItem>
-                  <SelectItem value="custom">自定义 HTTP</SelectItem>
+                  <SelectItem value="local">{t('settings.visionModel.provider.local')}</SelectItem>
+                  <SelectItem value="openai">{t('settings.visionModel.provider.openai')}</SelectItem>
+                  <SelectItem value="custom">{t('settings.visionModel.provider.custom')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <Label>标识名 *</Label>
+              <Label>{t('settings.visionModel.modelLabel')} *</Label>
               <Input
                 value={form.model_name ?? ''}
-                onChange={e => setForm(f => ({ ...f, model_name: e.target.value }))}
+                onChange={e => setForm(current => ({ ...current, model_name: e.target.value }))}
                 className="font-mono text-sm"
                 placeholder={form.provider === 'local' ? 'HaS-Image-YOLO11' : 'gpt-4-vision-preview'}
                 data-testid="vision-model-model-name"
@@ -236,10 +292,10 @@ export function VisionModel() {
 
             {(form.provider === 'local' || form.provider === 'openai' || form.provider === 'custom') && (
               <div className="space-y-1.5">
-                <Label>服务基址（无尾斜杠）</Label>
+                <Label>{t('settings.visionModel.baseUrlLabel')}</Label>
                 <Input
                   value={form.base_url ?? ''}
-                  onChange={e => setForm(f => ({ ...f, base_url: e.target.value }))}
+                  onChange={e => setForm(current => ({ ...current, base_url: e.target.value }))}
                   className="font-mono text-sm"
                   placeholder={form.provider === 'local' ? 'http://127.0.0.1:8081' : 'https://api.openai.com'}
                   data-testid="vision-model-base-url"
@@ -249,11 +305,11 @@ export function VisionModel() {
 
             {(form.provider === 'openai' || form.provider === 'custom') && (
               <div className="space-y-1.5">
-                <Label>API Key（可选）</Label>
+                <Label>{t('settings.visionModel.apiKeyLabel')}</Label>
                 <Input
                   type="password"
                   value={form.api_key ?? ''}
-                  onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
+                  onChange={e => setForm(current => ({ ...current, api_key: e.target.value }))}
                   className="font-mono text-sm"
                   placeholder="sk-..."
                   data-testid="vision-model-api-key"
@@ -261,73 +317,92 @@ export function VisionModel() {
               </div>
             )}
 
-            {/* Generation params */}
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3">扩展字段（HaS Image 不使用，可保留默认）</h4>
+              <h4 className="mb-3 text-sm font-medium">{t('settings.visionModel.advancedTitle')}</h4>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Temperature</Label>
-                  <Input type="number" step={0.1} min={0} max={2}
+                  <Input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    max={2}
                     value={form.temperature ?? 0.8}
-                    onChange={e => setForm(f => ({ ...f, temperature: parseFloat(e.target.value) }))}
-                    data-testid="vision-model-temp" />
+                    onChange={e => setForm(current => ({ ...current, temperature: parseFloat(e.target.value) }))}
+                    data-testid="vision-model-temp"
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Top P</Label>
-                  <Input type="number" step={0.1} min={0} max={1}
+                  <Input
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    max={1}
                     value={form.top_p ?? 0.6}
-                    onChange={e => setForm(f => ({ ...f, top_p: parseFloat(e.target.value) }))}
-                    data-testid="vision-model-top-p" />
+                    onChange={e => setForm(current => ({ ...current, top_p: parseFloat(e.target.value) }))}
+                    data-testid="vision-model-top-p"
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Max Tokens</Label>
-                  <Input type="number" step={256} min={1} max={32768}
+                  <Input
+                    type="number"
+                    step={256}
+                    min={1}
+                    max={32768}
                     value={form.max_tokens ?? 4096}
-                    onChange={e => setForm(f => ({ ...f, max_tokens: parseInt(e.target.value) }))}
-                    data-testid="vision-model-max-tokens" />
+                    onChange={e => setForm(current => ({ ...current, max_tokens: parseInt(e.target.value, 10) }))}
+                    data-testid="vision-model-max-tokens"
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Enabled */}
             <div className="flex items-center gap-3">
               <Switch
                 checked={editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (form.enabled ?? true)}
-                disabled={!!editingId && BUILTIN_VISION_IDS.has(editingId)}
-                onCheckedChange={v => setForm(f => ({ ...f, enabled: v }))}
+                disabled={Boolean(editingId && BUILTIN_VISION_IDS.has(editingId))}
+                onCheckedChange={checked => setForm(current => ({ ...current, enabled: checked }))}
                 data-testid="vision-model-enabled"
               />
               <Label>
-                启用此配置
+                {t('settings.visionModel.enabledLabel')}
                 {editingId && BUILTIN_VISION_IDS.has(editingId) && (
-                  <span className="text-muted-foreground">（内置 PaddleOCR / HaS Image 固定为启用）</span>
+                  <span className="text-muted-foreground"> {t('settings.visionModel.enabledBuiltinHint')}</span>
                 )}
               </Label>
             </div>
 
-            {/* Description */}
             <div className="space-y-1.5">
-              <Label>备注说明</Label>
+              <Label>{t('settings.visionModel.notesLabel')}</Label>
               <Textarea
                 value={form.description ?? ''}
-                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                onChange={e => setForm(current => ({ ...current, description: e.target.value }))}
                 rows={2}
-                placeholder="可选，描述此配置的用途"
+                placeholder={t('settings.visionModel.notesPlaceholder')}
                 data-testid="vision-model-desc"
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowModal(false); setEditingId(null); }} data-testid="vision-model-cancel">
-              取消
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowModal(false);
+                setEditingId(null);
+              }}
+              data-testid="vision-model-cancel"
+            >
+              {t('settings.cancel')}
             </Button>
             <Button
               disabled={!form.name || !form.model_name}
               onClick={() => void handleSave()}
               data-testid="vision-model-save"
             >
-              {editingId ? '保存' : '创建'}
+              {editingId ? t('settings.save') : t('settings.create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -336,21 +411,28 @@ export function VisionModel() {
   );
 }
 
-/* ── inline icons ── */
 function PencilIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   );
 }
 
 function TrashIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   );
 }

@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { ENTITY_GROUPS, getEntityGroup, getEntityTypeName } from '@/config/entityTypes';
+import { ENTITY_GROUPS, getEntityGroup, getEntityGroupLabel, getEntityTypeName } from '@/config/entityTypes';
 import { computeEntityStats, getModePreview } from '../utils';
 import type { BoundingBox, Entity } from '../types';
 
@@ -48,29 +48,30 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
   onEntityClick,
   onRemoveEntity,
 }) => {
+  const t = useT();
   const stats = useMemo(() => computeEntityStats(entities), [entities]);
   const totalCount = isImageMode ? visibleBoxes.length : entities.length;
 
   return (
     <div
-      className="flex min-h-0 w-full flex-shrink-0 flex-col gap-3 self-stretch overflow-x-hidden overflow-y-auto pr-1 lg:w-[320px] lg:max-w-[340px]"
+      className="flex w-full flex-shrink-0 flex-col gap-3 self-stretch overflow-x-hidden overflow-y-auto pr-1 lg:w-[320px] lg:max-w-[340px]"
       data-testid="playground-entity-panel"
     >
       <Card className="overflow-hidden">
         <CardContent className="flex flex-col gap-3 p-4">
           <div className="space-y-1">
             <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Recognition
+              {t('playground.recognitionSection')}
             </div>
             <p className="text-sm text-foreground">
-              Refresh detection after changing rules or recognition settings.
+              {t('playground.recognitionSectionDesc')}
             </p>
           </div>
           <Button onClick={onRerunNer} disabled={isLoading} className="w-full" data-testid="playground-rerun-btn">
-            {isLoading ? t('playground.recognizing') || 'Recognizing...' : t('playground.reRecognize') || 'Run Recognition Again'}
+            {isLoading ? t('playground.recognizing') : t('playground.reRecognize')}
           </Button>
           <p className="text-xs leading-6 text-muted-foreground">
-            {t('playground.rerunHint') || 'Recognition updates the current file only. Use settings or upload options to change the wider recognition profile.'}
+            {t('playground.rerunHint')}
           </p>
         </CardContent>
       </Card>
@@ -79,9 +80,11 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
         <CardHeader className="p-4 pb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-sm">{isImageMode ? 'Regions' : t('playground.results') || 'Detection Results'}</CardTitle>
+              <CardTitle className="text-sm">{isImageMode ? t('playground.regionList') : t('playground.results')}</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                {selectedCount} selected out of {totalCount}
+                {t('playground.selectionSummary')
+                  .replace('{selected}', String(selectedCount))
+                  .replace('{total}', String(totalCount))}
               </p>
             </div>
             <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px]">
@@ -92,10 +95,10 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
         <CardContent className="flex flex-col gap-3 p-4 pt-0">
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" className="flex-1" onClick={onSelectAll} data-testid="playground-select-all">
-              {t('playground.selectAll') || 'Select All'}
+              {t('playground.selectAll')}
             </Button>
             <Button variant="outline" size="sm" className="flex-1" onClick={onDeselectAll} data-testid="playground-deselect-all">
-              {t('playground.deselectAll') || 'Deselect All'}
+              {t('playground.deselectAll')}
             </Button>
           </div>
 
@@ -125,7 +128,7 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
                   <div key={group.id} className="rounded-2xl border border-border/70 bg-muted/25">
                     <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        {group.label}
+                        {getEntityGroupLabel(group.id)}
                       </span>
                       <span className="text-[11px] tabular-nums text-muted-foreground">
                         {selected}/{total}
@@ -153,10 +156,10 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
         <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-4 py-3">
           <div>
             <span className="text-sm font-semibold text-foreground">
-              {isImageMode ? t('playground.regionList') || 'Regions' : t('playground.results') || 'Detection Results'}
+              {isImageMode ? t('playground.regionList') : t('playground.results')}
             </span>
             <p className="mt-1 text-xs text-muted-foreground">
-              {t('playground.clickToEdit') || 'Select any item to refine, remove, or review before export.'}
+              {t('playground.clickToEdit')}
             </p>
           </div>
           <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
@@ -178,7 +181,9 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = ({
         className={cn('h-12 rounded-2xl text-sm font-semibold shadow-[0_22px_44px_-28px_rgba(15,23,42,0.45)]', selectedCount === 0 && 'opacity-50')}
         data-testid="playground-redact-btn"
       >
-        {isLoading ? t('playground.processing') || 'Processing...' : `${t('playground.startRedact') || 'Start Redaction'} (${selectedCount})`}
+        {isLoading
+          ? t('playground.processing')
+          : `${t('playground.startRedact')} (${selectedCount})`}
       </Button>
     </div>
   );
@@ -189,17 +194,18 @@ const ReplacementModeSelector: FC<{
   mode: 'structured' | 'smart' | 'mask';
   onModeChange: (mode: 'structured' | 'smart' | 'mask') => void;
 }> = ({ entities, mode, onModeChange }) => {
+  const t = useT();
   const sampleEntity = entities.find((entity) => entity.text && entity.text.length > 0);
   const modes: { value: 'structured' | 'smart' | 'mask'; label: string; badge?: string }[] = [
-    { value: 'structured', label: 'Structured Tags', badge: 'Recommended' },
-    { value: 'smart', label: 'Smart Replace' },
-    { value: 'mask', label: 'Mask' },
+    { value: 'structured', label: t('mode.structured'), badge: t('playground.recommended') },
+    { value: 'smart', label: t('mode.smart') },
+    { value: 'mask', label: t('mode.mask') },
   ];
 
   return (
     <div className="space-y-2">
       <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {t('playground.redactMode') || 'Redaction Style'}
+        {t('playground.redactMode')}
       </label>
       <div className="space-y-2">
         {modes.map((item) => (
@@ -233,15 +239,21 @@ const ReplacementModeSelector: FC<{
 };
 
 const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({ boxes, onToggle }) => {
+  const t = useT();
+
   if (boxes.length === 0) {
-    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults') || 'No detections yet.'}</p>;
+    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>;
   }
 
   return (
     <>
       {boxes.map((box) => {
         const group = getEntityGroup(box.type);
-        const sourceLabel = box.source === 'ocr_has' ? 'OCR' : box.source === 'has_image' ? 'Image' : 'Manual';
+        const sourceLabel = box.source === 'ocr_has'
+          ? t('playground.sourceOcr')
+          : box.source === 'has_image'
+            ? t('playground.sourceImage')
+            : t('playground.sourceManual');
 
         return (
           <div
@@ -256,7 +268,7 @@ const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
                 <Badge variant="secondary" className="text-[10px]">{group?.label} / {getEntityTypeName(box.type)}</Badge>
                 <Badge variant="outline" className="text-[10px]">{sourceLabel}</Badge>
               </div>
-              <p className="truncate text-sm text-foreground">{box.text || 'Image region'}</p>
+              <p className="truncate text-sm text-foreground">{box.text || t('playground.imageRegion')}</p>
             </div>
           </div>
         );
@@ -270,8 +282,10 @@ const EntityList: FC<{
   onClick: (entity: Entity, event: ReactMouseEvent) => void;
   onRemove: (id: string) => void;
 }> = ({ entities, onClick, onRemove }) => {
+  const t = useT();
+
   if (entities.length === 0) {
-    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults') || 'No detections yet.'}</p>;
+    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>;
   }
 
   return (
@@ -284,7 +298,7 @@ const EntityList: FC<{
           <div key={group.id}>
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur">
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {group.label}
+                {getEntityGroupLabel(group.id)}
               </span>
               <span className="text-[11px] tabular-nums text-muted-foreground">
                 {groupedEntities.length}
@@ -292,7 +306,11 @@ const EntityList: FC<{
             </div>
 
             {groupedEntities.map((entity) => {
-              const sourceLabel = entity.source === 'regex' ? 'Regex' : entity.source === 'manual' ? 'Manual' : 'AI';
+              const sourceLabel = entity.source === 'regex'
+                ? t('playground.sourceRegex')
+                : entity.source === 'manual'
+                  ? t('playground.sourceManual')
+                  : t('playground.sourceAi');
 
               return (
                 <div
@@ -317,7 +335,7 @@ const EntityList: FC<{
                       event.stopPropagation();
                       onRemove(entity.id);
                     }}
-                    aria-label={t('playground.removeAnnotation') || 'Remove annotation'}
+                    aria-label={t('playground.removeAnnotation')}
                   >
                     <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

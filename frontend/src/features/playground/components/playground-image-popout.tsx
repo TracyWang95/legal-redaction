@@ -4,13 +4,14 @@
  */
 import { type FC, useEffect, useRef, useState } from 'react';
 import ImageBBoxEditor, { type BoundingBox } from '@/components/ImageBBoxEditor';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 
 interface TypeOption { id: string; name: string; color: string }
 
 const CHANNEL_NAME = 'playground-image-popout';
 
 export const PlaygroundImagePopout: FC = () => {
+  const t = useT();
   const [imageUrl, setImageUrl] = useState<string>('');
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [types, setTypes] = useState<TypeOption[]>([]);
@@ -43,7 +44,7 @@ export const PlaygroundImagePopout: FC = () => {
   }, []);
 
   const getTypeConfig = (typeId: string) => {
-    const found = types.find(x => x.id === typeId);
+    const found = types.find((item) => item.id === typeId);
     return found ? { name: found.name, color: found.color } : { name: typeId, color: '#6366F1' };
   };
 
@@ -64,16 +65,16 @@ export const PlaygroundImagePopout: FC = () => {
   if (!ready) {
     return (
       <div
-        className="h-screen w-screen flex items-center justify-center bg-muted text-sm text-muted-foreground"
+        className="flex h-screen w-screen items-center justify-center bg-muted text-sm text-muted-foreground"
         data-testid="playground-popout-loading"
       >
-        {t('playground.waitingConnection') || '等待主窗口连接...'}
+        {t('playground.waitingConnection')}
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-muted overflow-hidden" data-testid="playground-popout">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-muted" data-testid="playground-popout">
       <ImageBBoxEditor
         imageSrc={imageUrl}
         boxes={boxes}

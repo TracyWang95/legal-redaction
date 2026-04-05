@@ -62,15 +62,15 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
       {/* Brand header */}
-      <SidebarHeader className="h-[64px] flex-row items-center gap-3 border-b border-white/[0.08] px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-[#0f172a] shadow-[0_14px_34px_-18px_rgba(255,255,255,0.6)]">
+      <SidebarHeader className="h-[64px] flex-row items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent text-sidebar-foreground shadow-[0_14px_34px_-24px_rgba(15,23,42,0.18)]">
           <ShieldCheck className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <span className="block text-[13px] font-semibold leading-tight tracking-[-0.02em] text-white">
-            Redaction Console
+          <span className="block text-[13px] font-semibold leading-tight tracking-[-0.02em] text-sidebar-foreground">
+            {t('sidebar.productName')}
           </span>
-          <p className="text-[10px] text-white/45">{t('sidebar.subtitle')}</p>
+          <p className="text-[10px] text-sidebar-foreground/55">{t('sidebar.subtitle')}</p>
         </div>
       </SidebarHeader>
 
@@ -89,7 +89,7 @@ export function AppSidebar() {
                       tooltip={item.label}
                       className={cn(
                         'rounded-xl border border-transparent transition-all duration-150',
-                        active && 'border-white/[0.08] bg-white/[0.08] font-medium shadow-[0_16px_34px_-24px_rgba(0,0,0,0.65)]',
+                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[0_16px_34px_-24px_rgba(15,23,42,0.22)]',
                       )}
                     >
                       <NavLink
@@ -117,11 +117,11 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator className="opacity-[0.08]" />
+        <SidebarSeparator className="bg-sidebar-border opacity-100" />
 
         {/* Model config section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-[10px] font-medium uppercase tracking-[0.08em] opacity-40">
+          <SidebarGroupLabel className="px-2 text-[10px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/50">
             {t('nav.modelConfig')}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -136,7 +136,7 @@ export function AppSidebar() {
                       tooltip={item.label}
                       className={cn(
                         'rounded-xl border border-transparent transition-all duration-150',
-                        active && 'border-white/[0.08] bg-white/[0.08] font-medium shadow-[0_16px_34px_-24px_rgba(0,0,0,0.65)]',
+                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[0_16px_34px_-24px_rgba(15,23,42,0.22)]',
                       )}
                     >
                       <NavLink
@@ -158,10 +158,10 @@ export function AppSidebar() {
       {/* Data safety badge + health panel */}
       <SidebarFooter className="p-3 space-y-2">
         <div className={cn(
-          'flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-2.5 py-2',
+          'flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent px-2.5 py-2',
         )}>
-          <Lock className="h-3.5 w-3.5 shrink-0 text-white/80" />
-          <span className="text-[10px] font-medium leading-tight text-white/72">
+          <Lock className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/75" />
+          <span className="text-[10px] font-medium leading-tight text-sidebar-foreground/80">
             {t('safety.badge.short')}
           </span>
         </div>

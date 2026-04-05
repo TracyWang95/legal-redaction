@@ -20,7 +20,7 @@ export function AppHeader() {
   const { title, sub } = getPageHeader(location.pathname, t);
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border/60 bg-[rgba(251,251,248,0.7)] px-4 backdrop-blur-2xl sm:px-6 dark:bg-[rgba(17,17,16,0.72)]">
+    <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur-2xl sm:px-6">
       <div className="flex min-h-[36px] min-w-0 flex-1 items-center gap-3">
         <SidebarTrigger className="md:hidden" />
         <div className="flex min-w-0 flex-col justify-center">
@@ -68,7 +68,7 @@ export function AppHeader() {
           data-testid="lang-toggle"
         >
           <Globe className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{locale === 'zh' ? 'EN' : '\u4E2D'}</span>
+          <span className="hidden sm:inline">{locale === 'zh' ? 'EN' : 'ZH'}</span>
         </Button>
 
         <Button

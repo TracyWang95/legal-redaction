@@ -41,7 +41,7 @@ export function EntityTypeList({
   const dotColor = isRegex ? 'bg-[#007AFF]/90' : 'bg-[#34C759]/90';
 
   return (
-    <div className={cn('flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm', borderColor)}>
+    <div className={cn('flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm', borderColor)}>
       <div className={cn('shrink-0 px-4 py-3 border-b flex items-center justify-between gap-2', borderColor, headerBg)}>
         <div className="flex items-center gap-2 min-w-0">
           <span className={cn('w-2 h-2 rounded-full shrink-0', dotColor)} />

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ interface BatchHubJobListProps {
 }
 
 export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListProps) {
+  const t = useT();
+
   return (
     <Card data-testid="recent-jobs-card">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -50,6 +52,7 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
                 key={job.id}
                 job={job}
                 onContinue={onContinue}
+                t={t}
               />
             ))}
           </ul>
@@ -59,7 +62,7 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
   );
 }
 
-function JobRow({ job, onContinue }: { job: JobSummary; onContinue: (job: JobSummary) => void }) {
+function JobRow({ job, onContinue, t }: { job: JobSummary; onContinue: (job: JobSummary) => void; t: (key: string) => string }) {
   const primary = resolveJobPrimaryNavigation({
     jobId: job.id,
     status: job.status,

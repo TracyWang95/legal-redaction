@@ -4,13 +4,14 @@
  */
 import { Link } from 'react-router-dom';
 import { Plus, ArrowRight } from 'lucide-react';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useBatchHub } from './hooks/use-batch-hub';
 import { BatchHubJobList } from './components/batch-hub-job-list';
 
 export function BatchHub() {
+  const t = useT();
   const { busy, error, loading, recentByType, startNewJob, continueJob } = useBatchHub();
 
   return (
@@ -18,7 +19,7 @@ export function BatchHub() {
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <section className="saas-hero relative overflow-hidden px-6 py-7 sm:px-8">
           <div className="space-y-4">
-            <span className="saas-kicker">Batch Workspace</span>
+            <span className="saas-kicker">{t('batchHub.kicker')}</span>
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold tracking-[-0.04em]" data-testid="batch-hub-title">
                 {t('batchHub.title')}

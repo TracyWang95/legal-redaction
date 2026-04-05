@@ -16,7 +16,7 @@ const cardBase =
 /** 侧栏 / Playground 标准行（略大圆角、苹果式轻阴影） */
 export function selectableCardClass(selected: boolean, variant: SelectionVariant): string {
   if (!selected) {
-    return `${cardBase} border-black/[0.06] bg-white text-[#6e6e73] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-black/[0.1] hover:bg-[#fafafa] hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)]`;
+    return `${cardBase} border-border/70 bg-card text-foreground/80 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-border hover:bg-accent/40 hover:text-foreground hover:shadow-[0_1px_3px_rgba(0,0,0,0.06)]`;
   }
   switch (variant) {
     case 'regex':
@@ -31,7 +31,7 @@ export function selectableCardClass(selected: boolean, variant: SelectionVariant
 /** 批量向导等紧凑网格 */
 export function selectableCardClassCompact(selected: boolean, variant: SelectionVariant): string {
   if (!selected) {
-    return `${cardBase} border-black/[0.06] bg-white text-[#6e6e73] hover:border-black/[0.1] hover:bg-[#fafafa]`;
+    return `${cardBase} border-border/70 bg-card text-foreground/80 hover:border-border hover:bg-accent/40 hover:text-foreground`;
   }
   switch (variant) {
     case 'regex':
@@ -57,7 +57,7 @@ export function selectableCheckboxClass(variant: SelectionVariant, size: 'sm' | 
 /** 无分组时的通用列表（如设置里整表 NER） */
 export function selectableCardClassNeutral(selected: boolean): string {
   if (!selected) {
-    return `${cardBase} border-black/[0.06] bg-white text-[#6e6e73] hover:border-black/[0.1] hover:bg-[#fafafa]`;
+    return `${cardBase} border-border/70 bg-card text-foreground/80 hover:border-border hover:bg-accent/40 hover:text-foreground`;
   }
   return `${cardBase} border-[#34C759]/32 bg-[#34C759]/[0.09] text-[#0d5c2f] shadow-[0_1px_3px_rgba(52,199,89,0.12)]`;
 }

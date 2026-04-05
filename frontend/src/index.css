@@ -1580,3 +1580,136 @@ input[type="checkbox"]:focus-visible {
   background: rgba(96, 32, 32, 0.34) !important;
   border-color: rgba(255, 132, 132, 0.24) !important;
 }
+
+/* ============================================================
+   Final Theme Normalization
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --background-secondary: #f8fafc;
+  --background-tertiary: #f1f5f9;
+  --foreground: #0f172a;
+  --foreground-secondary: #1e293b;
+  --foreground-muted: #475569;
+  --foreground-subtle: #64748b;
+  --border: rgba(15, 23, 42, 0.10);
+  --border-light: rgba(15, 23, 42, 0.06);
+  --input: rgba(15, 23, 42, 0.10);
+  --ring: rgba(16, 163, 127, 0.22);
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --secondary: #f8fafc;
+  --secondary-foreground: #0f172a;
+  --muted: #f8fafc;
+  --muted-foreground: #475569;
+  --accent: #eef2f7;
+  --accent-foreground: #0f172a;
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-strong: #ffffff;
+  --sidebar-background: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #eef2f7;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #f8fafc;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: rgba(15, 23, 42, 0.08);
+  --sidebar-ring: rgba(16, 163, 127, 0.28);
+  --sidebar: var(--sidebar-background);
+  --sidebar-foreground-strong: #020617;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 36px -26px rgba(15, 23, 42, 0.10);
+  --shadow-md: 0 22px 44px -32px rgba(15, 23, 42, 0.14);
+  --shadow-lg: 0 30px 70px -40px rgba(15, 23, 42, 0.18);
+}
+
+:root.dark {
+  color-scheme: dark;
+  --background: #0f1115;
+  --background-secondary: #131722;
+  --background-tertiary: #181d2a;
+  --foreground: #f8fafc;
+  --foreground-secondary: #e2e8f0;
+  --foreground-muted: #94a3b8;
+  --foreground-subtle: #64748b;
+  --border: rgba(148, 163, 184, 0.16);
+  --border-light: rgba(148, 163, 184, 0.10);
+  --input: rgba(148, 163, 184, 0.18);
+  --ring: rgba(16, 163, 127, 0.30);
+  --card: #131722;
+  --card-foreground: #f8fafc;
+  --popover: #131722;
+  --popover-foreground: #f8fafc;
+  --secondary: #181d2a;
+  --secondary-foreground: #f8fafc;
+  --muted: #181d2a;
+  --muted-foreground: #94a3b8;
+  --accent: #1d2433;
+  --accent-foreground: #f8fafc;
+  --panel: rgba(19, 23, 34, 0.92);
+  --panel-strong: rgba(19, 23, 34, 0.98);
+  --sidebar-background: #11151d;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #1b2433;
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: #161e2c;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: rgba(148, 163, 184, 0.14);
+  --sidebar-ring: rgba(16, 163, 127, 0.34);
+  --sidebar: var(--sidebar-background);
+  --sidebar-foreground-strong: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.24), 0 16px 36px -26px rgba(2, 6, 23, 0.44);
+  --shadow-md: 0 24px 54px -34px rgba(2, 6, 23, 0.54);
+  --shadow-lg: 0 34px 80px -42px rgba(2, 6, 23, 0.64);
+}
+
+body,
+.dark body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+:root:not(.dark) .saas-page::before {
+  background: none;
+}
+
+:root.dark .saas-page::before {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(16, 163, 127, 0.08), transparent 26%),
+    radial-gradient(circle at 100% 0%, rgba(96, 165, 250, 0.08), transparent 28%);
+}
+
+.saas-panel {
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px);
+}
+
+.saas-hero {
+  background: var(--panel-strong);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.saas-kicker {
+  background: var(--secondary);
+  border-color: var(--border);
+  color: var(--foreground-muted);
+}
+
+[data-sidebar='sidebar'] {
+  background: var(--sidebar-background) !important;
+  color: var(--sidebar-foreground) !important;
+}
+
+.dark button[class*='bg-white'],
+.dark button[class*='bg-gray-50'],
+.dark button[class*='bg-[#fafafa]'] {
+  background: var(--secondary) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+  box-shadow: none !important;
+}

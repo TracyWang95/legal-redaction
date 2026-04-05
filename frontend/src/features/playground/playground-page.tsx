@@ -4,7 +4,7 @@
 import { type FC, type MouseEvent as ReactMouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/Toast';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { getEntityGroup, getEntityTypeName } from '@/config/entityTypes';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
 import { EntityTypeGroupPicker } from '@/components/EntityTypeGroupPicker';
@@ -39,6 +39,7 @@ function getSelectionOffsets(range: Range, root: HTMLElement): { start: number; 
 }
 
 export const Playground: FC = () => {
+  const t = useT();
   const ctx = usePlayground();
   const {
     stage,
@@ -258,21 +259,21 @@ export const Playground: FC = () => {
     applyEntities(nextEntities);
     showToast(
       selectedOverlapIds.length > 0
-        ? 'Annotation updated.'
-        : `Added ${recognition.getTypeConfig(typeId).name}.`,
+        ? t('playground.toast.updated')
+        : t('playground.toast.added').replace('{name}', recognition.getTypeConfig(typeId).name),
       'success',
     );
     clearTextSelection();
     window.getSelection()?.removeAllRanges();
-  }, [applyEntities, clearTextSelection, entities, recognition, selectedOverlapIds, selectedText]);
+  }, [applyEntities, clearTextSelection, entities, recognition, selectedOverlapIds, selectedText, t]);
 
   const removeSelectedEntities = useCallback(() => {
     if (selectedOverlapIds.length === 0) return;
     applyEntities(entities.filter((entity) => !selectedOverlapIds.includes(entity.id)));
     clearTextSelection();
     window.getSelection()?.removeAllRanges();
-    showToast('Annotation removed.', 'info');
-  }, [applyEntities, clearTextSelection, entities, selectedOverlapIds]);
+    showToast(t('playground.toast.removed'), 'info');
+  }, [applyEntities, clearTextSelection, entities, selectedOverlapIds, t]);
 
   const handleEntityClick = useCallback((entity: Entity, event: ReactMouseEvent) => {
     event.stopPropagation();
@@ -284,15 +285,15 @@ export const Playground: FC = () => {
   const confirmRemoveEntity = useCallback(() => {
     if (clickedEntity) {
       applyEntities(entities.filter((entity) => entity.id !== clickedEntity.id));
-      showToast('Annotation removed.', 'info');
+      showToast(t('playground.toast.removed'), 'info');
     }
     setClickedEntity(null);
     setEntityPopupPos(null);
-  }, [applyEntities, clickedEntity, entities]);
+  }, [applyEntities, clickedEntity, entities, t]);
 
   const renderMarkedContent = () => {
     if (!content) {
-      return <p className="text-muted-foreground">{t('playground.noContent') || 'No content available yet.'}</p>;
+      return <p className="text-muted-foreground">{t('playground.noContent')}</p>;
     }
 
     const sortedEntities = [...entities].sort((left, right) => left.start - right.start);
@@ -307,7 +308,11 @@ export const Playground: FC = () => {
       }
 
       const typeName = getEntityTypeName(entity.type);
-      const sourceLabel = entity.source === 'regex' ? 'Regex' : entity.source === 'manual' ? 'Manual' : 'AI';
+      const sourceLabel = entity.source === 'regex'
+        ? t('playground.sourceRegex')
+        : entity.source === 'manual'
+          ? t('playground.sourceManual')
+          : t('playground.sourceAi');
 
       segments.push(
         <span
@@ -349,8 +354,8 @@ export const Playground: FC = () => {
               onReset={handleReset}
               hintText={
                 isImageMode
-                  ? 'Draw or adjust regions, then choose what should be redacted.'
-                  : 'Review highlights, select new text, and refine annotations before export.'
+                  ? t('playground.previewHint.image')
+                  : t('playground.previewHint.text')
               }
               onPopout={isImageMode ? openPopout : undefined}
             />
@@ -399,7 +404,7 @@ export const Playground: FC = () => {
                 >
                   <div className="mb-3">
                     <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t('playground.selectedText') || 'Selected Text'}
+                      {t('playground.selectedText')}
                     </div>
                     <div className="break-all rounded-2xl border border-border/70 bg-muted/35 px-3 py-3 text-sm text-foreground">
                       {selectedText.text}
@@ -408,7 +413,7 @@ export const Playground: FC = () => {
 
                   <div className="mb-3">
                     <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t('playground.selectType') || 'Choose Type'}
+                      {t('playground.selectType')}
                     </div>
                     <EntityTypeGroupPicker
                       entityTypes={entityTypes}
@@ -423,15 +428,15 @@ export const Playground: FC = () => {
                       disabled={!selectedTypeId}
                       className="flex-1"
                     >
-                      {selectedOverlapIds.length > 0 ? 'Update Annotation' : 'Add Annotation'}
+                      {selectedOverlapIds.length > 0 ? t('playground.updateAnnotation') : t('playground.addAnnotation')}
                     </Button>
                     {selectedOverlapIds.length > 0 && (
                       <Button variant="outline" onClick={removeSelectedEntities} className="border-destructive/30 text-destructive hover:bg-destructive/10">
-                        Remove
+                        {t('playground.remove')}
                       </Button>
                     )}
                     <Button variant="ghost" onClick={clearTextSelection}>
-                      {t('common.cancel') || 'Cancel'}
+                      {t('common.cancel')}
                     </Button>
                   </div>
                 </div>
@@ -457,10 +462,10 @@ export const Playground: FC = () => {
 
                   <div className="flex flex-col gap-2">
                     <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={confirmRemoveEntity}>
-                      {t('playground.removeAnnotation') || 'Remove Annotation'}
+                      {t('playground.removeAnnotation')}
                     </Button>
                     <Button variant="ghost" onClick={() => { setClickedEntity(null); setEntityPopupPos(null); }}>
-                      {t('common.cancel') || 'Cancel'}
+                      {t('common.cancel')}
                     </Button>
                   </div>
                 </div>

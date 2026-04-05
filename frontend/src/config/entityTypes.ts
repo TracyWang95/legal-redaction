@@ -25,6 +25,8 @@ export interface EntityGroup {
  * 统一四套语义色（Playground 结果页 / 批量审阅 / 侧栏气泡共用），限定为蓝 / 绿 / 紫三色体系。
  * personal：紫 · org：蓝 · contact：绿 · time：靛紫（蓝紫过渡）
  */
+import { t } from '@/i18n';
+
 export const ENTITY_PALETTE = {
   personal: { color: '#9333EA', bgColor: '#FAF5FF', textColor: '#6B21A8' },
   org: { color: '#0284C7', bgColor: '#F0F9FF', textColor: '#075985' },
@@ -167,9 +169,26 @@ export const ENTITY_GROUPS: EntityGroup[] = [
 // 所有实体类型的扁平列表
 export const ALL_ENTITY_TYPES: EntityTypeConfig[] = ENTITY_GROUPS.flatMap(g => g.types);
 
+function prettifyTypeId(typeId: string) {
+  return typeId
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 // 根据类型ID获取所属分组
 export function getEntityGroup(typeId: string): EntityGroup | undefined {
   return ENTITY_GROUPS.find(g => g.types.some(t => t.id === typeId));
+}
+
+export function getEntityGroupLabel(groupId: string): string {
+  const key = `entityGroup.${groupId}`;
+  const translated = t(key);
+  if (translated !== key) return translated;
+
+  const group = ENTITY_GROUPS.find((item) => item.id === groupId);
+  return group?.label || groupId;
 }
 
 // 获取实体类型配置
@@ -197,8 +216,12 @@ export function getEntityTextColor(typeId: string): string {
 
 // 获取实体类型名称
 export function getEntityTypeName(typeId: string): string {
+  const key = `entity.${typeId}`;
+  const translated = t(key);
+  if (translated !== key) return translated;
+
   const config = getEntityTypeConfig(typeId);
-  return config?.name || typeId;
+  return config?.name || prettifyTypeId(typeId);
 }
 
 // 获取实体的完整样式配置
@@ -208,7 +231,7 @@ export function getEntityRiskConfig(typeId: string) {
     color: group?.color ?? ENTITY_FALLBACK_STYLE.color,
     bgColor: group?.bgColor ?? ENTITY_FALLBACK_STYLE.bgColor,
     textColor: group?.textColor ?? ENTITY_FALLBACK_STYLE.textColor,
-    groupLabel: group?.label || '其他',
+    groupLabel: group ? getEntityGroupLabel(group.id) : t('entityGroup.other'),
     groupId: group?.id || 'other',
     icon: '',
     riskLevel: 'MEDIUM' as const,

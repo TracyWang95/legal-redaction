@@ -1,7 +1,7 @@
 /**
  * History page: file processing history and comparison.
  */
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { HistoryTable } from './components/history-table';
 import type { FileListItem } from '@/types';
 
 export function History() {
+  const t = useT();
   const s = useHistory();
 
   const handleDownload = (row: FileListItem) => {
@@ -82,10 +83,10 @@ export function History() {
             </span>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)}>
-                Previous
+                {t('history.prevPage')}
               </Button>
               <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.page + 1)}>
-                Next
+                {t('history.nextPage')}
               </Button>
             </div>
           </div>
@@ -104,13 +105,13 @@ export function History() {
           ) : s.compareData ? (
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <h4 className="mb-2 font-medium">{t('history.original')}</h4>
+                <h4 className="mb-2 font-medium">{t('history.beforeRedaction')}</h4>
                 <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
                   {s.compareData.original_content}
                 </pre>
               </div>
               <div>
-                <h4 className="mb-2 font-medium">{t('history.redacted')}</h4>
+                <h4 className="mb-2 font-medium">{t('history.afterRedaction')}</h4>
                 <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
                   {s.compareData.redacted_content}
                 </pre>

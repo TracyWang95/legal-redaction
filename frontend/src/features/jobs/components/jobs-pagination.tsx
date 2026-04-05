@@ -1,4 +1,4 @@
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -37,6 +37,8 @@ export function JobsPagination({
   onChangePageSize,
   onJumpPageChange,
 }: JobsPaginationProps) {
+  const t = useT();
+
   if (total <= 0) return null;
 
   return (

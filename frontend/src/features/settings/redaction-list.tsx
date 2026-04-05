@@ -1,16 +1,16 @@
-/**
- * Redaction list settings — full entity type management with presets.
- * Replaces pages/RedactionListSettings.tsx.
- */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-/* Select is used via native <select> for bridge dropdowns */
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,32 +18,41 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import {
-  fetchPresets, createPreset, updatePreset, deletePreset,
-  type RecognitionPreset, type PresetPayload, type PresetKind,
-  presetAppliesText, presetAppliesVision,
+  createPreset,
+  deletePreset,
+  fetchPresets,
+  updatePreset,
+  type PresetKind,
+  type PresetPayload,
+  type RecognitionPreset,
+  presetAppliesText,
+  presetAppliesVision,
 } from '@/services/presetsApi';
 import { buildDefaultPipelineTypeIds, buildDefaultTextTypeIds } from '@/services/defaultRedactionPreset';
 import {
-  getActivePresetTextId, getActivePresetVisionId,
-  setActivePresetTextId, setActivePresetVisionId,
+  getActivePresetTextId,
+  getActivePresetVisionId,
+  setActivePresetTextId,
+  setActivePresetVisionId,
 } from '@/services/activePresetBridge';
-import { selectableCardClass, selectableCheckboxClass, type SelectionVariant } from '@/ui/selectionClasses';
+import {
+  selectableCardClass,
+  selectableCheckboxClass,
+  type SelectionVariant,
+} from '@/ui/selectionClasses';
 import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
 
-/* ── helpers ── */
-function presetKindLabel(k?: PresetKind): string {
-  return k === 'text' ? '文本' : k === 'vision' ? '图像' : '组合';
-}
-
-function sortPresets(ps: RecognitionPreset[]): RecognitionPreset[] {
-  return [...ps].sort((a, b) => {
-    const ta = a.created_at ? Date.parse(a.created_at) : Number.MAX_SAFE_INTEGER;
-    const tb = b.created_at ? Date.parse(b.created_at) : Number.MAX_SAFE_INTEGER;
-    return (Number.isFinite(ta) ? ta : Number.MAX_SAFE_INTEGER) - (Number.isFinite(tb) ? tb : Number.MAX_SAFE_INTEGER);
+function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
+  return [...presets].sort((left, right) => {
+    const leftTime = left.created_at ? Date.parse(left.created_at) : Number.MAX_SAFE_INTEGER;
+    const rightTime = right.created_at ? Date.parse(right.created_at) : Number.MAX_SAFE_INTEGER;
+    return (Number.isFinite(leftTime) ? leftTime : Number.MAX_SAFE_INTEGER)
+      - (Number.isFinite(rightTime) ? rightTime : Number.MAX_SAFE_INTEGER);
   });
 }
 
 export function RedactionList() {
+  const t = useT();
   const [entityTypes, setEntityTypes] = useState<EntityTypeConfig[]>([]);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,17 +60,30 @@ export function RedactionList() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetForm, setPresetForm] = useState<PresetPayload>({
-    name: '', kind: 'full', selectedEntityTypeIds: [],
-    ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured',
+    name: '',
+    kind: 'full',
+    selectedEntityTypeIds: [],
+    ocrHasTypes: [],
+    hasImageTypes: [],
+    replacementMode: 'structured',
   });
   const [saving, setSaving] = useState(false);
   const [bridgeText, setBridgeText] = useState(() => getActivePresetTextId() ?? '');
   const [bridgeVision, setBridgeVision] = useState(() => getActivePresetVisionId() ?? '');
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  /* ── fetch data ── */
+  const presetKindLabel = useCallback((kind?: PresetKind) => {
+    if (kind === 'text') return t('settings.redaction.kind.text');
+    if (kind === 'vision') return t('settings.redaction.kind.vision');
+    return t('settings.redaction.kind.full');
+  }, [t]);
+
   const reloadPresets = useCallback(async () => {
-    try { setPresets(await fetchPresets()); } catch { setPresets([]); }
+    try {
+      setPresets(await fetchPresets());
+    } catch {
+      setPresets([]);
+    }
   }, []);
 
   const fetchEntityTypes = useCallback(async () => {
@@ -71,8 +93,11 @@ export function RedactionList() {
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setEntityTypes(data.custom_types || []);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch {
+      setEntityTypes([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const fetchPipelines = useCallback(async () => {
@@ -80,179 +105,296 @@ export function RedactionList() {
       const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 25000 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setPipelines((data || []).map((p: PipelineConfig) =>
-        p.mode === 'has_image' ? { ...p, name: 'HaS Image', description: '使用视觉语言模型识别签名、印章、手写等视觉信息。' } : p
-      ));
-    } catch { /* ignore */ }
+      setPipelines((data || []).map((pipeline: PipelineConfig) =>
+        pipeline.mode === 'has_image'
+          ? { ...pipeline, name: 'HaS Image' }
+          : pipeline));
+    } catch {
+      setPipelines([]);
+    }
   }, []);
-
-  useEffect(() => { fetchEntityTypes(); fetchPipelines(); void reloadPresets(); }, [fetchEntityTypes, fetchPipelines, reloadPresets]);
 
   useEffect(() => {
-    const on = () => { setBridgeText(getActivePresetTextId() ?? ''); setBridgeVision(getActivePresetVisionId() ?? ''); };
-    window.addEventListener('datainfra-redaction-active-preset', on);
-    return () => window.removeEventListener('datainfra-redaction-active-preset', on);
+    void fetchEntityTypes();
+    void fetchPipelines();
+    void reloadPresets();
+  }, [fetchEntityTypes, fetchPipelines, reloadPresets]);
+
+  useEffect(() => {
+    const syncActivePreset = () => {
+      setBridgeText(getActivePresetTextId() ?? '');
+      setBridgeVision(getActivePresetVisionId() ?? '');
+    };
+    window.addEventListener('datainfra-redaction-active-preset', syncActivePreset);
+    return () => window.removeEventListener('datainfra-redaction-active-preset', syncActivePreset);
   }, []);
 
-  /* ── derived data ── */
   const textPresets = useMemo(() => sortPresets(presets.filter(presetAppliesText)), [presets]);
   const visionPresets = useMemo(() => sortPresets(presets.filter(presetAppliesVision)), [presets]);
-  const regexTypes = useMemo(() => entityTypes.filter(tp => tp.enabled !== false && tp.regex_pattern), [entityTypes]);
-  const semanticTypes = useMemo(() => entityTypes.filter(tp => tp.enabled !== false && tp.use_llm && !tp.regex_pattern), [entityTypes]);
+  const regexTypes = useMemo(
+    () => entityTypes.filter(type => type.enabled !== false && type.regex_pattern),
+    [entityTypes],
+  );
+  const semanticTypes = useMemo(
+    () => entityTypes.filter(type => type.enabled !== false && type.use_llm && !type.regex_pattern),
+    [entityTypes],
+  );
 
   const defaultTextPreset = useMemo<RecognitionPreset>(() => ({
-    id: '__default_text__', name: '默认文本脱敏配置清单', kind: 'text',
+    id: '__default_text__',
+    name: t('settings.redaction.defaultNameText'),
+    kind: 'text',
     selectedEntityTypeIds: buildDefaultTextTypeIds(entityTypes),
-    ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured',
-    created_at: '', updated_at: '',
-  }), [entityTypes]);
+    ocrHasTypes: [],
+    hasImageTypes: [],
+    replacementMode: 'structured',
+    created_at: '',
+    updated_at: '',
+  }), [entityTypes, t]);
 
   const defaultVisionPreset = useMemo<RecognitionPreset>(() => ({
-    id: '__default_vision__', name: '默认图像脱敏配置清单', kind: 'vision',
+    id: '__default_vision__',
+    name: t('settings.redaction.defaultNameVision'),
+    kind: 'vision',
     selectedEntityTypeIds: [],
     ocrHasTypes: buildDefaultPipelineTypeIds(pipelines, 'ocr_has'),
     hasImageTypes: buildDefaultPipelineTypeIds(pipelines, 'has_image'),
-    replacementMode: 'structured', created_at: '', updated_at: '',
-  }), [pipelines]);
+    replacementMode: 'structured',
+    created_at: '',
+    updated_at: '',
+  }), [pipelines, t]);
 
   const summaryTextLabel = useMemo(() => {
-    if (!bridgeText) return '默认';
-    return textPresets.find(p => p.id === bridgeText)?.name ?? '默认';
-  }, [bridgeText, textPresets]);
+    if (!bridgeText) return t('settings.redaction.defaultShort');
+    return textPresets.find(preset => preset.id === bridgeText)?.name ?? t('settings.redaction.defaultShort');
+  }, [bridgeText, textPresets, t]);
 
   const summaryVisionLabel = useMemo(() => {
-    if (!bridgeVision) return '默认';
-    return visionPresets.find(p => p.id === bridgeVision)?.name ?? '默认';
-  }, [bridgeVision, visionPresets]);
+    if (!bridgeVision) return t('settings.redaction.defaultShort');
+    return visionPresets.find(preset => preset.id === bridgeVision)?.name ?? t('settings.redaction.defaultShort');
+  }, [bridgeVision, t, visionPresets]);
 
-  /* ── sync bridge ── */
   useEffect(() => {
-    if (bridgeText && !textPresets.some(p => p.id === bridgeText)) { setBridgeText(''); setActivePresetTextId(null); }
+    if (bridgeText && !textPresets.some(preset => preset.id === bridgeText)) {
+      setBridgeText('');
+      setActivePresetTextId(null);
+    }
   }, [bridgeText, textPresets]);
 
   useEffect(() => {
-    if (bridgeVision && !visionPresets.some(p => p.id === bridgeVision)) { setBridgeVision(''); setActivePresetVisionId(null); }
+    if (bridgeVision && !visionPresets.some(preset => preset.id === bridgeVision)) {
+      setBridgeVision('');
+      setActivePresetVisionId(null);
+    }
   }, [bridgeVision, visionPresets]);
 
-  /* ── preset CRUD ── */
   const buildDefaultForm = useCallback((kind: PresetKind = 'full'): PresetPayload => {
     const textIds = buildDefaultTextTypeIds(entityTypes);
     const ocrIds = buildDefaultPipelineTypeIds(pipelines, 'ocr_has');
-    const hiIds = buildDefaultPipelineTypeIds(pipelines, 'has_image');
-    if (kind === 'text') return { name: '', kind: 'text', selectedEntityTypeIds: textIds, ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured' };
-    if (kind === 'vision') return { name: '', kind: 'vision', selectedEntityTypeIds: [], ocrHasTypes: ocrIds, hasImageTypes: hiIds, replacementMode: 'structured' };
-    return { name: '', kind: 'full', selectedEntityTypeIds: textIds, ocrHasTypes: ocrIds, hasImageTypes: hiIds, replacementMode: 'structured' };
+    const imageIds = buildDefaultPipelineTypeIds(pipelines, 'has_image');
+
+    if (kind === 'text') {
+      return {
+        name: '',
+        kind: 'text',
+        selectedEntityTypeIds: textIds,
+        ocrHasTypes: [],
+        hasImageTypes: [],
+        replacementMode: 'structured',
+      };
+    }
+
+    if (kind === 'vision') {
+      return {
+        name: '',
+        kind: 'vision',
+        selectedEntityTypeIds: [],
+        ocrHasTypes: ocrIds,
+        hasImageTypes: imageIds,
+        replacementMode: 'structured',
+      };
+    }
+
+    return {
+      name: '',
+      kind: 'full',
+      selectedEntityTypeIds: textIds,
+      ocrHasTypes: ocrIds,
+      hasImageTypes: imageIds,
+      replacementMode: 'structured',
+    };
   }, [entityTypes, pipelines]);
 
-  const openNew = (kind: PresetKind) => { setExpanded(null); setEditingPresetId(null); setPresetForm(buildDefaultForm(kind)); setModalOpen(true); };
-  const openEdit = (p: RecognitionPreset) => {
-    setExpanded(null); setEditingPresetId(p.id);
-    setPresetForm({ name: p.name, kind: p.kind ?? 'full', selectedEntityTypeIds: [...p.selectedEntityTypeIds], ocrHasTypes: [...p.ocrHasTypes], hasImageTypes: [...p.hasImageTypes], replacementMode: p.replacementMode });
+  const openNew = (kind: PresetKind) => {
+    setExpanded(null);
+    setEditingPresetId(null);
+    setPresetForm(buildDefaultForm(kind));
+    setModalOpen(true);
+  };
+
+  const openEdit = (preset: RecognitionPreset) => {
+    setExpanded(null);
+    setEditingPresetId(preset.id);
+    setPresetForm({
+      name: preset.name,
+      kind: preset.kind ?? 'full',
+      selectedEntityTypeIds: [...preset.selectedEntityTypeIds],
+      ocrHasTypes: [...preset.ocrHasTypes],
+      hasImageTypes: [...preset.hasImageTypes],
+      replacementMode: preset.replacementMode,
+    });
     setModalOpen(true);
   };
 
   const saveModal = async () => {
-    if (!presetForm.name.trim()) { showToast('请填写预设名称', 'error'); return; }
-    const norm: PresetPayload = presetForm.kind === 'text'
+    if (!presetForm.name.trim()) {
+      showToast(t('settings.redaction.nameRequired'), 'error');
+      return;
+    }
+
+    const normalized: PresetPayload = presetForm.kind === 'text'
       ? { ...presetForm, ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured' }
       : presetForm.kind === 'vision'
         ? { ...presetForm, selectedEntityTypeIds: [], replacementMode: 'structured' }
         : presetForm;
+
     setSaving(true);
     try {
-      if (editingPresetId) { await updatePreset(editingPresetId, norm); }
-      else {
-        const c = await createPreset(norm);
-        if (norm.kind === 'text' || norm.kind === 'full') { setActivePresetTextId(c.id); setBridgeText(c.id); }
-        if (norm.kind === 'vision' || norm.kind === 'full') { setActivePresetVisionId(c.id); setBridgeVision(c.id); }
+      if (editingPresetId) {
+        await updatePreset(editingPresetId, normalized);
+      } else {
+        const created = await createPreset(normalized);
+        if (normalized.kind === 'text' || normalized.kind === 'full') {
+          setActivePresetTextId(created.id);
+          setBridgeText(created.id);
+        }
+        if (normalized.kind === 'vision' || normalized.kind === 'full') {
+          setActivePresetVisionId(created.id);
+          setBridgeVision(created.id);
+        }
       }
       setModalOpen(false);
       await reloadPresets();
-    } catch (e) { showToast(e instanceof Error ? e.message : '保存失败', 'error'); }
-    finally { setSaving(false); }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('settings.redaction.saveFailed'), 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removePreset = async (id: string) => {
-    if (!confirm('确定删除该预设？')) return;
+    if (!confirm(t('settings.redaction.confirmDelete'))) return;
+
     try {
       await deletePreset(id);
-      setExpanded(k => (k === `text:${id}` || k === `vision:${id}` ? null : k));
+      setExpanded(current => (current === `text:${id}` || current === `vision:${id}` ? null : current));
       await reloadPresets();
-      if (bridgeText === id) { setBridgeText(''); setActivePresetTextId(null); }
-      if (bridgeVision === id) { setBridgeVision(''); setActivePresetVisionId(null); }
-    } catch (e) { showToast(e instanceof Error ? e.message : '删除失败', 'error'); }
+      if (bridgeText === id) {
+        setBridgeText('');
+        setActivePresetTextId(null);
+      }
+      if (bridgeVision === id) {
+        setBridgeVision('');
+        setActivePresetVisionId(null);
+      }
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('settings.deleteTypeFailed'), 'error');
+    }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-7 h-7 border-2 border-muted border-t-foreground rounded-full animate-spin" />
+        <div className="h-7 w-7 animate-spin rounded-full border-2 border-muted border-t-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden bg-background">
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden px-3 py-2 sm:px-4 sm:py-3 w-full max-w-[min(100%,1920px)] mx-auto gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 flex-col gap-3 overflow-hidden px-3 py-2 sm:px-4 sm:py-3">
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <CardTitle className="text-sm">脱敏清单配置</CardTitle>
-                <CardDescription className="text-xs mt-0.5">
-                  共用 <code className="text-xs bg-muted px-1 rounded">/api/v1/presets</code>；选用同步 Playground / 批量向导（新会话）。
+                <CardTitle className="text-sm">{t('settings.redaction.configTitle')}</CardTitle>
+                <CardDescription className="mt-0.5 text-xs">
+                  {t('settings.redaction.configDesc')}
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <Button size="sm" variant="outline" onClick={() => openNew('text')} data-testid="new-text-preset">
-                  + 新建文本配置清单
+                  {t('settings.redaction.newText')}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => openNew('vision')} data-testid="new-vision-preset">
-                  + 新建图像配置清单
+                  {t('settings.redaction.newVision')}
                 </Button>
               </div>
             </div>
           </CardHeader>
+
           <CardContent className="space-y-4">
-            {/* Summary */}
-            <div className="text-xs rounded-lg border bg-muted/30 px-3 py-2">
-              <p className="text-[0.65rem] font-semibold text-muted-foreground uppercase tracking-wide mb-1">当前选用</p>
-              <p><span className="text-muted-foreground">文本链：</span><span className="font-medium">{summaryTextLabel}</span></p>
-              <p className="mt-0.5"><span className="text-muted-foreground">图像链：</span><span className="font-medium">{summaryVisionLabel}</span></p>
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+              <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('settings.redaction.currentSelection')}
+              </p>
+              <p>
+                <span className="text-muted-foreground">{t('settings.redaction.currentText')}</span>
+                <span className="font-medium">{summaryTextLabel}</span>
+              </p>
+              <p className="mt-0.5">
+                <span className="text-muted-foreground">{t('settings.redaction.currentVision')}</span>
+                <span className="font-medium">{summaryVisionLabel}</span>
+              </p>
             </div>
 
-            {/* Bridge selectors */}
             <div className="grid gap-2 md:grid-cols-2">
               <div className="space-y-1">
-                <Label className="text-xs">选用 - 文本链</Label>
+                <Label className="text-xs">{t('settings.redaction.linkText')}</Label>
                 <select
-                  className="w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-xs"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
                   value={bridgeText}
-                  onChange={e => { setBridgeText(e.target.value); setActivePresetTextId(e.target.value || null); }}
+                  onChange={e => {
+                    setBridgeText(e.target.value);
+                    setActivePresetTextId(e.target.value || null);
+                  }}
                   data-testid="bridge-text-select"
                 >
-                  <option value="">默认（系统预设全选，不含自定义）</option>
-                  {textPresets.map(p => <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>)}
+                  <option value="">{t('settings.redaction.defaultOption')}</option>
+                  {textPresets.map(preset => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                      {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
+
               <div className="space-y-1">
-                <Label className="text-xs">选用 - 图像链</Label>
+                <Label className="text-xs">{t('settings.redaction.linkVision')}</Label>
                 <select
-                  className="w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-xs"
+                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
                   value={bridgeVision}
-                  onChange={e => { setBridgeVision(e.target.value); setActivePresetVisionId(e.target.value || null); }}
+                  onChange={e => {
+                    setBridgeVision(e.target.value);
+                    setActivePresetVisionId(e.target.value || null);
+                  }}
                   data-testid="bridge-vision-select"
                 >
-                  <option value="">默认（系统预设全选，不含自定义）</option>
-                  {visionPresets.map(p => <option key={p.id} value={p.id}>{p.name}{p.kind === 'full' ? '（组合）' : ''}</option>)}
+                  <option value="">{t('settings.redaction.defaultOption')}</option>
+                  {visionPresets.map(preset => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                      {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            {/* Preset lists */}
             <div className="grid gap-2 md:grid-cols-2">
               <PresetColumn
-                title="文本脱敏配置清单"
+                title={t('settings.redaction.textColumn')}
                 defaultPreset={defaultTextPreset}
                 presets={textPresets}
                 entityTypes={entityTypes}
@@ -264,7 +406,7 @@ export function RedactionList() {
                 onDelete={removePreset}
               />
               <PresetColumn
-                title="图像脱敏配置清单"
+                title={t('settings.redaction.visionColumn')}
                 defaultPreset={defaultVisionPreset}
                 presets={visionPresets}
                 entityTypes={entityTypes}
@@ -280,26 +422,26 @@ export function RedactionList() {
         </Card>
       </div>
 
-      {/* ── Preset create/edit modal ── */}
       {modalOpen && (
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="sm:max-w-[56rem] max-h-[92vh] overflow-hidden flex flex-col">
+          <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden sm:max-w-[56rem]">
             <DialogHeader>
               <DialogTitle>
                 {editingPresetId
-                  ? `编辑${presetKindLabel(presetForm.kind)}脱敏配置清单`
-                  : `新建${presetKindLabel(presetForm.kind)}脱敏配置清单`}
+                  ? t('settings.redaction.editTitle').replace('{kind}', presetKindLabel(presetForm.kind))
+                  : t('settings.redaction.createTitle').replace('{kind}', presetKindLabel(presetForm.kind))}
               </DialogTitle>
-              <DialogDescription>配置脱敏预设的识别项选择</DialogDescription>
+              <DialogDescription>{t('settings.redaction.dialogDesc')}</DialogDescription>
             </DialogHeader>
+
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-5 py-2">
                 <div className="space-y-1.5">
-                  <Label>名称 *</Label>
+                  <Label>{t('settings.redaction.nameLabel')} *</Label>
                   <Input
                     value={presetForm.name}
-                    onChange={e => setPresetForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="如：合同默认、仅人名与金额"
+                    onChange={e => setPresetForm(current => ({ ...current, name: e.target.value }))}
+                    placeholder={t('settings.redaction.namePlaceholder')}
                     data-testid="preset-name"
                   />
                 </div>
@@ -307,26 +449,26 @@ export function RedactionList() {
                 {(presetForm.kind === 'text' || presetForm.kind === 'full') && (
                   <>
                     <TypeCheckboxGrid
-                      title="正则规则"
+                      title={t('settings.redaction.regexGroup')}
                       types={regexTypes}
                       selectedIds={presetForm.selectedEntityTypeIds}
-                      onToggle={id => setPresetForm(f => ({
-                        ...f,
-                        selectedEntityTypeIds: f.selectedEntityTypeIds.includes(id)
-                          ? f.selectedEntityTypeIds.filter(x => x !== id)
-                          : [...f.selectedEntityTypeIds, id],
+                      onToggle={id => setPresetForm(current => ({
+                        ...current,
+                        selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
+                          ? current.selectedEntityTypeIds.filter(item => item !== id)
+                          : [...current.selectedEntityTypeIds, id],
                       }))}
                       variant="regex"
                     />
                     <TypeCheckboxGrid
-                      title="AI 语义（HaS）"
+                      title={t('settings.redaction.semanticGroup')}
                       types={semanticTypes}
                       selectedIds={presetForm.selectedEntityTypeIds}
-                      onToggle={id => setPresetForm(f => ({
-                        ...f,
-                        selectedEntityTypeIds: f.selectedEntityTypeIds.includes(id)
-                          ? f.selectedEntityTypeIds.filter(x => x !== id)
-                          : [...f.selectedEntityTypeIds, id],
+                      onToggle={id => setPresetForm(current => ({
+                        ...current,
+                        selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
+                          ? current.selectedEntityTypeIds.filter(item => item !== id)
+                          : [...current.selectedEntityTypeIds, id],
                       }))}
                       variant="ner"
                     />
@@ -334,29 +476,36 @@ export function RedactionList() {
                 )}
 
                 {(presetForm.kind === 'vision' || presetForm.kind === 'full') &&
-                  pipelines.filter(p => p.enabled).map(p => (
+                  pipelines.filter(pipeline => pipeline.enabled).map(pipeline => (
                     <PipelineCheckboxGrid
-                      key={p.mode}
-                      pipeline={p}
+                      key={pipeline.mode}
+                      pipeline={pipeline}
                       selectedOcr={presetForm.ocrHasTypes}
                       selectedImg={presetForm.hasImageTypes}
-                      onToggle={(mode, id) => setPresetForm(f => {
+                      onToggle={(mode, id) => setPresetForm(current => {
                         if (mode === 'ocr_has') {
-                          const next = f.ocrHasTypes.includes(id) ? f.ocrHasTypes.filter(x => x !== id) : [...f.ocrHasTypes, id];
-                          return { ...f, ocrHasTypes: next };
+                          const next = current.ocrHasTypes.includes(id)
+                            ? current.ocrHasTypes.filter(item => item !== id)
+                            : [...current.ocrHasTypes, id];
+                          return { ...current, ocrHasTypes: next };
                         }
-                        const next = f.hasImageTypes.includes(id) ? f.hasImageTypes.filter(x => x !== id) : [...f.hasImageTypes, id];
-                        return { ...f, hasImageTypes: next };
+
+                        const next = current.hasImageTypes.includes(id)
+                          ? current.hasImageTypes.filter(item => item !== id)
+                          : [...current.hasImageTypes, id];
+                        return { ...current, hasImageTypes: next };
                       })}
                     />
-                  ))
-                }
+                  ))}
               </div>
             </ScrollArea>
+
             <DialogFooter className="border-t pt-4">
-              <Button variant="outline" onClick={() => setModalOpen(false)} data-testid="preset-cancel">取消</Button>
+              <Button variant="outline" onClick={() => setModalOpen(false)} data-testid="preset-cancel">
+                {t('settings.cancel')}
+              </Button>
               <Button disabled={saving} onClick={() => void saveModal()} data-testid="preset-save">
-                {saving ? '处理中...' : editingPresetId ? '保存修改' : '创建'}
+                {saving ? t('settings.redaction.processing') : (editingPresetId ? t('settings.save') : t('settings.create'))}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -366,48 +515,91 @@ export function RedactionList() {
   );
 }
 
-/* ── sub-components ── */
-
-function PresetColumn({ title, defaultPreset, presets, entityTypes, pipelines, expanded, setExpanded, colPrefix, onEdit, onDelete }: {
-  title: string; defaultPreset: RecognitionPreset; presets: RecognitionPreset[];
-  entityTypes: EntityTypeConfig[]; pipelines: PipelineConfig[];
-  expanded: string | null; setExpanded: (fn: (k: string | null) => string | null) => void;
-  colPrefix: string; onEdit: (p: RecognitionPreset) => void; onDelete: (id: string) => void;
+function PresetColumn({
+  title,
+  defaultPreset,
+  presets,
+  entityTypes,
+  pipelines,
+  expanded,
+  setExpanded,
+  colPrefix,
+  onEdit,
+  onDelete,
+}: {
+  title: string;
+  defaultPreset: RecognitionPreset;
+  presets: RecognitionPreset[];
+  entityTypes: EntityTypeConfig[];
+  pipelines: PipelineConfig[];
+  expanded: string | null;
+  setExpanded: React.Dispatch<React.SetStateAction<string | null>>;
+  colPrefix: string;
+  onEdit: (preset: RecognitionPreset) => void;
+  onDelete: (id: string) => void;
 }) {
-  const defKey = `${colPrefix}:__default__`;
+  const t = useT();
+  const defaultKey = `${colPrefix}:__default__`;
+
   return (
-    <div className="flex flex-col min-h-0">
-      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{title}</h4>
-      <ul className="divide-y divide-border overflow-y-auto rounded-md border text-xs max-h-[min(55vh,520px)]">
+    <div className="flex min-h-0 flex-col">
+      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h4>
+      <ul className="max-h-[min(55vh,520px)] divide-y divide-border overflow-y-auto rounded-md border text-xs">
         <li className="bg-muted/30">
           <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-1.5">
             <div>
               <span className="font-medium">{defaultPreset.name}</span>
-              <Badge variant="secondary" className="ml-2 text-[0.65rem]">系统默认</Badge>
+              <Badge variant="secondary" className="ml-2 text-[0.65rem]">
+                {t('settings.redaction.systemDefault')}
+              </Badge>
             </div>
-            <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setExpanded(c => c === defKey ? null : defKey)}>
-              {expanded === defKey ? '收起' : '预览'}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 text-xs"
+              onClick={() => setExpanded(current => current === defaultKey ? null : defaultKey)}
+            >
+              {expanded === defaultKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
             </Button>
           </div>
-          {expanded === defKey && (
-            <PresetPreview p={defaultPreset} entityTypes={entityTypes} pipelines={pipelines} />
+          {expanded === defaultKey && (
+            <PresetPreview preset={defaultPreset} entityTypes={entityTypes} pipelines={pipelines} />
           )}
         </li>
-        {presets.map(p => {
-          const rk = `${colPrefix}:${p.id}`;
+
+        {presets.map(preset => {
+          const rowKey = `${colPrefix}:${preset.id}`;
           return (
-            <li key={p.id} className="bg-muted/30">
+            <li key={preset.id} className="bg-muted/30">
               <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-1.5">
-                <span className="font-medium">{p.name}</span>
+                <span className="font-medium">{preset.name}</span>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => setExpanded(c => c === rk ? null : rk)}>
-                    {expanded === rk ? '收起' : '预览'}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs"
+                    onClick={() => setExpanded(current => current === rowKey ? null : rowKey)}
+                  >
+                    {expanded === rowKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
                   </Button>
-                  <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onEdit(p)}>编辑</Button>
-                  <Button size="sm" variant="outline" className="h-6 text-xs text-destructive" onClick={() => void onDelete(p.id)}>删除</Button>
+                  <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onEdit(preset)}>
+                    {t('settings.redaction.edit')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 text-xs text-destructive"
+                    onClick={() => void onDelete(preset.id)}
+                  >
+                    {t('settings.redaction.delete')}
+                  </Button>
                 </div>
               </div>
-              {expanded === rk && <PresetPreview p={p} entityTypes={entityTypes} pipelines={pipelines} />}
+              {expanded === rowKey && (
+                <PresetPreview preset={preset} entityTypes={entityTypes} pipelines={pipelines} />
+              )}
             </li>
           );
         })}
@@ -416,37 +608,66 @@ function PresetColumn({ title, defaultPreset, presets, entityTypes, pipelines, e
   );
 }
 
-function PresetPreview({ p, entityTypes, pipelines }: { p: RecognitionPreset; entityTypes: EntityTypeConfig[]; pipelines: PipelineConfig[] }) {
-  const ocrPipe = pipelines.find(pl => pl.mode === 'ocr_has');
-  const imgPipe = pipelines.find(pl => pl.mode === 'has_image');
-  const chip = 'inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-medium bg-background';
+function PresetPreview({
+  preset,
+  entityTypes,
+  pipelines,
+}: {
+  preset: RecognitionPreset;
+  entityTypes: EntityTypeConfig[];
+  pipelines: PipelineConfig[];
+}) {
+  const t = useT();
+  const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
+  const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
+  const chipClass = 'inline-flex items-center rounded-lg border bg-background px-2 py-0.5 text-[10px] font-medium';
+
   return (
-    <div className="border-t px-2 pb-3 pt-2 space-y-2">
-      {presetAppliesText(p) && (
+    <div className="space-y-2 border-t px-2 pb-3 pt-2">
+      {presetAppliesText(preset) && (
         <div>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">正则 ({p.selectedEntityTypeIds.filter(id => entityTypes.find(t => t.id === id)?.regex_pattern).length})</p>
+          <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+            {t('settings.redaction.regexGroup')} ({preset.selectedEntityTypeIds.filter(id => entityTypes.find(type => type.id === id)?.regex_pattern).length})
+          </p>
           <div className="flex flex-wrap gap-1">
-            {p.selectedEntityTypeIds.filter(id => entityTypes.find(t => t.id === id)?.regex_pattern).map(id => (
-              <span key={id} className={chip}>{entityTypes.find(t => t.id === id)?.name ?? id}</span>
-            ))}
+            {preset.selectedEntityTypeIds
+              .filter(id => entityTypes.find(type => type.id === id)?.regex_pattern)
+              .map(id => (
+                <span key={id} className={chipClass}>
+                  {entityTypes.find(type => type.id === id)?.name ?? id}
+                </span>
+              ))}
           </div>
         </div>
       )}
-      {presetAppliesVision(p) && (
+
+      {presetAppliesVision(preset) && (
         <>
-          {p.ocrHasTypes.length > 0 && (
+          {preset.ocrHasTypes.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">OCR+HaS ({p.ocrHasTypes.length})</p>
+              <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                {t('settings.redaction.ocrGroup')} ({preset.ocrHasTypes.length})
+              </p>
               <div className="flex flex-wrap gap-1">
-                {p.ocrHasTypes.map(id => <span key={id} className={chip}>{ocrPipe?.types.find(t => t.id === id)?.name ?? id}</span>)}
+                {preset.ocrHasTypes.map(id => (
+                  <span key={id} className={chipClass}>
+                    {ocrPipeline?.types.find(type => type.id === id)?.name ?? id}
+                  </span>
+                ))}
               </div>
             </div>
           )}
-          {p.hasImageTypes.length > 0 && (
+          {preset.hasImageTypes.length > 0 && (
             <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">HaS Image ({p.hasImageTypes.length})</p>
+              <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                {t('settings.redaction.imageGroup')} ({preset.hasImageTypes.length})
+              </p>
               <div className="flex flex-wrap gap-1">
-                {p.hasImageTypes.map(id => <span key={id} className={chip}>{imgPipe?.types.find(t => t.id === id)?.name ?? id}</span>)}
+                {preset.hasImageTypes.map(id => (
+                  <span key={id} className={chipClass}>
+                    {imagePipeline?.types.find(type => type.id === id)?.name ?? id}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -456,20 +677,42 @@ function PresetPreview({ p, entityTypes, pipelines }: { p: RecognitionPreset; en
   );
 }
 
-function TypeCheckboxGrid({ title, types, selectedIds, onToggle, variant }: {
-  title: string; types: EntityTypeConfig[]; selectedIds: string[];
-  onToggle: (id: string) => void; variant: SelectionVariant;
+function TypeCheckboxGrid({
+  title,
+  types,
+  selectedIds,
+  onToggle,
+  variant,
+}: {
+  title: string;
+  types: EntityTypeConfig[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  variant: SelectionVariant;
 }) {
   return (
     <div>
-      <p className="text-sm font-semibold mb-2 pl-2 border-l-[3px] border-muted-foreground/30">{title} <span className="text-xs text-muted-foreground">({types.length})</span></p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[min(40vh,360px)] overflow-y-auto border rounded-xl p-3 bg-muted/20">
-        {types.map(tp => {
-          const checked = selectedIds.includes(tp.id);
+      <p className="mb-2 border-l-[3px] border-muted-foreground/30 pl-2 text-sm font-semibold">
+        {title} <span className="text-xs text-muted-foreground">({types.length})</span>
+      </p>
+      <div className="grid max-h-[min(40vh,360px)] grid-cols-2 gap-2 overflow-y-auto rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+        {types.map(type => {
+          const checked = selectedIds.includes(type.id);
           return (
-            <label key={tp.id} className={cn('flex items-center gap-2 text-xs px-2.5 py-2 cursor-pointer transition-colors', selectableCardClass(checked, variant))}>
-              <input type="checkbox" checked={checked} onChange={() => onToggle(tp.id)} className={selectableCheckboxClass(variant, 'md')} />
-              <span className="truncate">{tp.name}</span>
+            <label
+              key={type.id}
+              className={cn(
+                'flex cursor-pointer items-center gap-2 px-2.5 py-2 text-xs transition-colors',
+                selectableCardClass(checked, variant),
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={() => onToggle(type.id)}
+                className={selectableCheckboxClass(variant, 'md')}
+              />
+              <span className="truncate">{type.name}</span>
             </label>
           );
         })}
@@ -478,24 +721,49 @@ function TypeCheckboxGrid({ title, types, selectedIds, onToggle, variant }: {
   );
 }
 
-function PipelineCheckboxGrid({ pipeline, selectedOcr, selectedImg, onToggle }: {
-  pipeline: PipelineConfig; selectedOcr: string[]; selectedImg: string[];
+function PipelineCheckboxGrid({
+  pipeline,
+  selectedOcr,
+  selectedImg,
+  onToggle,
+}: {
+  pipeline: PipelineConfig;
+  selectedOcr: string[];
+  selectedImg: string[];
   onToggle: (mode: string, id: string) => void;
 }) {
-  const v: SelectionVariant = pipeline.mode === 'ocr_has' ? 'ner' : 'yolo';
-  const selected = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
+  const t = useT();
+  const variant: SelectionVariant = pipeline.mode === 'ocr_has' ? 'ner' : 'yolo';
+  const selectedIds = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
+
   return (
     <div>
-      <p className={cn('text-sm font-semibold mb-2 pl-2 border-l-[3px]', pipeline.mode === 'ocr_has' ? 'border-[#34C759]' : 'border-[#AF52DE]')}>
-        {pipeline.mode === 'ocr_has' ? '图片类文本（OCR+HaS）' : '图像特征（HaS Image）'}
+      <p
+        className={cn(
+          'mb-2 border-l-[3px] pl-2 text-sm font-semibold',
+          pipeline.mode === 'ocr_has' ? 'border-[#34C759]' : 'border-[#AF52DE]',
+        )}
+      >
+        {pipeline.mode === 'ocr_has' ? t('settings.redaction.ocrGroup') : t('settings.redaction.imageGroup')}
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-[min(48vh,420px)] overflow-y-auto border rounded-xl p-3 bg-muted/20">
-        {pipeline.types.filter(tp => tp.enabled).map(tp => {
-          const active = selected.includes(tp.id);
+      <div className="grid max-h-[min(48vh,420px)] grid-cols-2 gap-2 overflow-y-auto rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+        {pipeline.types.filter(type => type.enabled).map(type => {
+          const active = selectedIds.includes(type.id);
           return (
-            <label key={tp.id} className={cn('flex items-center gap-2 text-xs px-2.5 py-2 cursor-pointer transition-colors', selectableCardClass(active, v))}>
-              <input type="checkbox" checked={active} onChange={() => onToggle(pipeline.mode, tp.id)} className={selectableCheckboxClass(v, 'md')} />
-              <span className="truncate">{tp.name}</span>
+            <label
+              key={type.id}
+              className={cn(
+                'flex cursor-pointer items-center gap-2 px-2.5 py-2 text-xs transition-colors',
+                selectableCardClass(active, variant),
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={() => onToggle(pipeline.mode, type.id)}
+                className={selectableCheckboxClass(variant, 'md')}
+              />
+              <span className="truncate">{type.name}</span>
             </label>
           );
         })}

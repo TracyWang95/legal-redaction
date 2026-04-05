@@ -7,8 +7,9 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getEntityTypeName } from '@/config/entityTypes';
 import { cn } from '@/lib/utils';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import type { usePlayground } from '../hooks/use-playground';
 
 type PlaygroundCtx = ReturnType<typeof usePlayground>;
@@ -18,12 +19,8 @@ interface PlaygroundUploadProps {
   ctx: PlaygroundCtx;
 }
 
-function tr(key: string, fallback: string) {
-  const value = t(key);
-  return value === key ? fallback : value;
-}
-
 export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
+  const t = useT();
   const { dropzone, recognition: rec } = ctx;
   const { getRootProps, getInputProps, isDragActive } = dropzone;
 
@@ -35,13 +32,13 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
       <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
         <div className="w-full max-w-xl">
           <div className="mb-4 space-y-2">
-            <span className="saas-kicker">Workspace Intake</span>
+            <span className="saas-kicker">{t('playground.upload.kicker')}</span>
             <div>
               <h2 className="text-2xl font-semibold tracking-[-0.04em] text-foreground">
-                Upload one file and start reviewing immediately
+                {t('playground.upload.title')}
               </h2>
               <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                Keep the first step simple: drop a document in, choose what to detect, then review before export.
+                {t('playground.upload.desc')}
               </p>
             </div>
           </div>
@@ -69,16 +66,16 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
                 </svg>
               </div>
               <p className="mb-1.5 text-lg font-semibold tracking-[-0.02em]">
-                {tr('playground.dropHere', 'Drop a file here to upload')}
+                {t('playground.dropHere')}
               </p>
               <p className="mb-5 text-sm text-muted-foreground">
-                {tr('playground.supportedFormats', 'Supports .doc, .docx, .pdf, .jpg, and .png')}
+                {t('playground.supportedFormats')}
               </p>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-4 py-2 text-xs font-medium text-foreground">
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                {tr('playground.clickToUpload', 'Or click to choose a file')}
+                {t('playground.clickToUpload')}
               </div>
             </div>
           </div>
@@ -93,21 +90,21 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           <div className="space-y-1.5 border-b px-3 py-2">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold tracking-tight">
-                {tr('playground.recognitionTypes', 'Recognition Types')}
+                {t('playground.recognitionTypes')}
               </h3>
               <TabsList className="h-7">
                 <TabsTrigger value="text" className="px-2.5 py-1 text-xs">
-                  {tr('playground.text', 'Text')}
+                  {t('playground.text')}
                 </TabsTrigger>
                 <TabsTrigger value="vision" className="px-2.5 py-1 text-xs">
-                  {tr('playground.vision', 'Vision')}
+                  {t('playground.vision')}
                 </TabsTrigger>
               </TabsList>
             </div>
             <PresetSelectors rec={rec} />
           </div>
 
-          <ScrollArea className="flex-1 min-h-0">
+          <ScrollArea className="min-h-0 flex-1">
             <TabsContent value="text" className="mt-0 space-y-3 p-2">
               <TextTypeGroups rec={rec} />
             </TabsContent>
@@ -119,8 +116,8 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           <div className="shrink-0 border-t px-3 py-1.5">
             <p className="text-center text-xs text-muted-foreground" data-testid="playground-type-summary">
               {rec.typeTab === 'vision'
-                ? `OCR ${rec.selectedOcrHasTypes.length} / HaS ${rec.selectedHasImageTypes.length}`
-                : `${rec.selectedTypes.length} / ${rec.entityTypes.length} ${tr('playground.selected', 'selected')}`}
+                ? `${t('playground.ocrShort')} ${rec.selectedOcrHasTypes.length} / ${t('playground.imageShort')} ${rec.selectedHasImageTypes.length}`
+                : `${rec.selectedTypes.length} / ${rec.entityTypes.length} ${t('playground.selected')}`}
             </p>
           </div>
         </Tabs>
@@ -129,26 +126,39 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
   );
 };
 
-const PresetSelectors: FC<{ rec: RecognitionCtx }> = ({ rec }) => (
-  <div className="flex flex-col gap-2">
-    <PresetRow
-      label={tr('playground.textPresetLabel', 'Text preset')}
-      presets={rec.textPresetsPg}
-      activeId={rec.playgroundPresetTextId}
-      onSelect={rec.selectPlaygroundTextPresetById}
-      onSave={rec.saveTextPresetFromPlayground}
-      saveLabel={tr('playground.saveAsTextPreset', 'Save Text Preset')}
-    />
-    <PresetRow
-      label={tr('playground.visionPresetLabel', 'Vision preset')}
-      presets={rec.visionPresetsPg}
-      activeId={rec.playgroundPresetVisionId}
-      onSelect={rec.selectPlaygroundVisionPresetById}
-      onSave={rec.saveVisionPresetFromPlayground}
-      saveLabel={tr('playground.saveAsVisionPreset', 'Save Vision Preset')}
-    />
-  </div>
-);
+function getTextGroupLabel(key: string, fallback: string, t: (key: string) => string) {
+  const map: Record<string, string> = {
+    regex: t('playground.group.regex'),
+    llm: t('playground.group.llm'),
+    other: t('playground.group.other'),
+  };
+  return map[key] || fallback;
+}
+
+const PresetSelectors: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
+  const t = useT();
+
+  return (
+    <div className="flex flex-col gap-2">
+      <PresetRow
+        label={t('playground.textPresetLabel')}
+        presets={rec.textPresetsPg}
+        activeId={rec.playgroundPresetTextId}
+        onSelect={rec.selectPlaygroundTextPresetById}
+        onSave={rec.saveTextPresetFromPlayground}
+        saveLabel={t('playground.saveAsTextPreset')}
+      />
+      <PresetRow
+        label={t('playground.visionPresetLabel')}
+        presets={rec.visionPresetsPg}
+        activeId={rec.playgroundPresetVisionId}
+        onSelect={rec.selectPlaygroundVisionPresetById}
+        onSave={rec.saveVisionPresetFromPlayground}
+        saveLabel={t('playground.saveAsVisionPreset')}
+      />
+    </div>
+  );
+};
 
 const PresetRow: FC<{
   label: string;
@@ -157,33 +167,39 @@ const PresetRow: FC<{
   onSelect: (id: string) => void;
   onSave: () => void;
   saveLabel: string;
-}> = ({ label, presets, activeId, onSelect, onSave, saveLabel }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[10px] text-muted-foreground">{label}</span>
-    <div className="flex min-w-0 items-center gap-1.5">
-      <select
-        className="min-w-0 flex-1 rounded-md border bg-background px-1.5 py-1 text-xs"
-        value={activeId ?? ''}
-        onChange={(event) => onSelect(event.target.value)}
-        data-testid="playground-preset-select"
-      >
-        <option value="">{tr('playground.defaultPreset', 'Default Preset')}</option>
-        {presets.map((preset) => (
-          <option key={preset.id} value={preset.id}>
-            {preset.name}{preset.kind === 'full' ? ' (Full)' : ''}
-          </option>
-        ))}
-      </select>
-      <Button variant="outline" size="sm" className="h-7 shrink-0 text-[10px]" onClick={() => void onSave()}>
-        {saveLabel}
-      </Button>
+}> = ({ label, presets, activeId, onSelect, onSave, saveLabel }) => {
+  const t = useT();
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <select
+          className="min-w-0 flex-1 rounded-md border bg-background px-1.5 py-1 text-xs"
+          value={activeId ?? ''}
+          onChange={(event) => onSelect(event.target.value)}
+          data-testid="playground-preset-select"
+        >
+          <option value="">{t('playground.defaultPreset')}</option>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.name}{preset.kind === 'full' ? ` (${t('playground.fullPreset')})` : ''}
+            </option>
+          ))}
+        </select>
+        <Button variant="outline" size="sm" className="h-7 shrink-0 text-[10px]" onClick={() => void onSave()}>
+          {saveLabel}
+        </Button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
+  const t = useT();
+
   if (rec.sortedEntityTypes.length === 0) {
-    return <p className="py-8 text-center text-xs text-muted-foreground">{tr('playground.loading', 'Loading...')}</p>;
+    return <p className="py-8 text-center text-xs text-muted-foreground">{t('playground.loading')}</p>;
   }
 
   return (
@@ -197,10 +213,10 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
           <div key={group.key} data-testid={`playground-text-group-${group.key}`}>
             <div className="mb-1.5 flex items-center justify-between border-b pb-1">
               <span className={cn('border-l-[3px] pl-2 text-[10px] font-semibold', borderColor)}>
-                {group.label}
+                {getTextGroupLabel(group.key, group.label, t)}
               </span>
               <Button variant="ghost" size="sm" className="h-5 px-1 text-[10px]" onClick={() => rec.setPlaygroundTextTypeGroupSelection(ids, !allOn)}>
-                {allOn ? tr('playground.clear', 'Clear') : tr('playground.selectAll', 'Select All')}
+                {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3">
@@ -210,11 +226,10 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   <label
                     key={`${group.key}-${type.id}`}
                     className={cn(
-                      'min-w-0 cursor-pointer rounded-lg border px-1.5 py-1 text-[10px] leading-tight transition-colors',
-                      'flex items-center gap-1',
+                      'flex min-w-0 cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] leading-tight transition-colors',
                       checked ? 'border-primary/40 bg-primary/5' : 'border-transparent hover:bg-accent',
                     )}
-                    title={type.description || type.name}
+                    title={type.description || getEntityTypeName(type.id)}
                   >
                     <Checkbox
                       checked={checked}
@@ -224,7 +239,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                       }}
                       className="h-3 w-3"
                     />
-                    <span className="min-w-0 break-words">{type.name}</span>
+                    <span className="min-w-0 break-words">{getEntityTypeName(type.id)}</span>
                   </label>
                 );
               })}
@@ -237,8 +252,10 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 };
 
 const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
+  const t = useT();
+
   if (rec.pipelines.length === 0) {
-    return <p className="py-8 text-center text-xs text-muted-foreground">{tr('playground.loading', 'Loading...')}</p>;
+    return <p className="py-8 text-center text-xs text-muted-foreground">{t('playground.loading')}</p>;
   }
 
   return (
@@ -254,7 +271,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
           <div key={pipeline.mode} data-testid={`playground-pipeline-${pipeline.mode}`}>
             <div className="mb-1.5 flex items-center justify-between border-b pb-1">
               <span className={cn('border-l-[3px] pl-2 text-[10px] font-semibold', borderColor)}>
-                {isHasImage ? tr('playground.imageFeatures', 'Image Features') : tr('playground.ocrText', 'OCR Text')}
+                {isHasImage ? t('playground.imageFeatures') : t('playground.ocrText')}
               </span>
               <Button
                 variant="ghost"
@@ -270,7 +287,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   }
                 }}
               >
-                {allSelected ? tr('playground.clear', 'Clear') : tr('playground.selectAll', 'Select All')}
+                {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-3">
@@ -280,8 +297,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   <label
                     key={type.id}
                     className={cn(
-                      'min-w-0 cursor-pointer rounded-lg border px-1.5 py-1 text-[10px] leading-tight transition-colors',
-                      'flex items-center gap-1',
+                      'flex min-w-0 cursor-pointer items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] leading-tight transition-colors',
                       checked ? 'border-primary/40 bg-primary/5' : 'border-transparent hover:bg-accent',
                     )}
                     title={type.description || type.name}

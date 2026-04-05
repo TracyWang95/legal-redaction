@@ -2,7 +2,7 @@
  * Jobs page — task center for batch processing jobs.
  * Rebuilt from pages/Jobs.tsx (990 lines) into feature module.
  */
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SkeletonCard } from '@/components/Skeleton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -14,6 +14,7 @@ import { JobsPagination } from './components/jobs-pagination';
 export { JobDetailPage } from './job-detail-page';
 
 export function Jobs() {
+  const t = useT();
   const s = useJobs();
 
   return (

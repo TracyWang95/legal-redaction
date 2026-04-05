@@ -4,7 +4,7 @@
 import { type FC } from 'react';
 import { ArrowUpRight, FileText, Redo2, RotateCcw, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 
 export interface PlaygroundToolbarProps {
   filename?: string;
@@ -29,6 +29,8 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = ({
   onPopout,
   hintText,
 }) => {
+  const t = useT();
+
   return (
     <div
       className="flex shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl"
@@ -56,7 +58,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = ({
             data-testid="playground-popout-btn"
           >
             <ArrowUpRight data-icon="inline-start" />
-            {t('playground.popout') || 'Pop Out'}
+            {t('playground.popout')}
           </Button>
         )}
 
@@ -65,12 +67,12 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = ({
           size="sm"
           onClick={onUndo}
           disabled={!canUndo}
-          title={t('playground.undo') || 'Undo (Ctrl+Z)'}
+          title={t('playground.undo')}
           data-testid="playground-undo-btn"
           className="h-9 rounded-xl px-3 text-xs"
         >
           <Undo2 data-icon="inline-start" />
-          {t('playground.undo') || 'Undo'}
+          {t('playground.undo')}
         </Button>
 
         <Button
@@ -78,12 +80,12 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = ({
           size="sm"
           onClick={onRedo}
           disabled={!canRedo}
-          title={t('playground.redo') || 'Redo (Ctrl+Y)'}
+          title={t('playground.redo')}
           data-testid="playground-redo-btn"
           className="h-9 rounded-xl px-3 text-xs"
         >
           <Redo2 data-icon="inline-start" />
-          {t('playground.redo') || 'Redo'}
+          {t('playground.redo')}
         </Button>
 
         <Button
@@ -94,7 +96,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = ({
           data-testid="playground-reset-btn"
         >
           <RotateCcw data-icon="inline-start" />
-          {t('playground.reupload') || 'Start Over'}
+          {t('playground.reupload')}
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Sparkles, Upload, ScanText, ShieldCheck, Layers3 } from 'lucide-react';
 import { useT } from '../i18n';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type Step = {
   title: string;
@@ -45,29 +46,16 @@ export function OnboardingGuide() {
     setShow(false);
   }, []);
 
-  useEffect(() => {
-    if (!show) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') finish();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [show, finish]);
-
-  if (!show) return null;
-
   const current = steps[step];
   const isLast = step === steps.length - 1;
   const Icon = current.icon;
 
   return (
-    <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45 p-4 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="onboarding-title"
-    >
-      <div className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/15 bg-popover shadow-[0_48px_120px_-56px_rgba(15,23,42,0.6)]">
+    <Dialog open={show} onOpenChange={(nextOpen) => { if (!nextOpen) finish(); }}>
+      <DialogContent
+        className="w-full max-w-lg overflow-hidden rounded-[28px] border border-border/80 bg-background p-0 shadow-[0_48px_120px_-56px_rgba(15,23,42,0.6)] [&>button]:hidden"
+        aria-labelledby="onboarding-title"
+      >
         <div className="h-1.5 bg-muted">
           <div
             className="h-full bg-gradient-to-r from-primary to-accent-500 transition-all duration-500 ease-out"
@@ -125,7 +113,7 @@ export function OnboardingGuide() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

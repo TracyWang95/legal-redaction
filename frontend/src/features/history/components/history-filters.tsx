@@ -1,5 +1,5 @@
 import { Download, RefreshCw, SlidersHorizontal, Trash2 } from 'lucide-react';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -58,20 +58,22 @@ export function HistoryFilters({
   pageSize,
   onPageSizeChange,
 }: HistoryFiltersProps) {
+  const t = useT();
+
   return (
     <section className="saas-panel mb-4 flex shrink-0 flex-col gap-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <span className="saas-kicker inline-flex items-center gap-2">
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filters
+            {t('history.filters.kicker')}
           </span>
           <div>
             <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-              Delivery History
+              {t('history.filters.title')}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Review completed files, compare outputs, and export clean bundles without leaving the page.
+              {t('history.filters.desc')}
             </p>
           </div>
         </div>
@@ -97,7 +99,7 @@ export function HistoryFilters({
             data-testid="history-cleanup"
           >
             <Trash2 data-icon="inline-start" />
-            Clear History
+            {t('history.cleanupButton')}
           </Button>
 
           <Button
@@ -132,7 +134,7 @@ export function HistoryFilters({
               {t('history.tab.all')}
             </TabsTrigger>
             <TabsTrigger value="playground" className="px-3 py-1.5 text-xs" data-testid="source-tab-playground">
-              Playground
+              {t('history.tab.playground')}
             </TabsTrigger>
             <TabsTrigger value="batch" className="px-3 py-1.5 text-xs" data-testid="source-tab-batch">
               {t('history.tab.batch')}
@@ -154,8 +156,8 @@ export function HistoryFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('history.filter.allTypes')}</SelectItem>
-            <SelectItem value="word">Word</SelectItem>
-            <SelectItem value="pdf">PDF</SelectItem>
+            <SelectItem value="word">{t('file.word')}</SelectItem>
+            <SelectItem value="pdf">{t('file.pdf')}</SelectItem>
             <SelectItem value="image">{t('history.filter.image')}</SelectItem>
           </SelectContent>
         </Select>
@@ -174,12 +176,12 @@ export function HistoryFilters({
 
         {hasActiveFilter && (
           <Button variant="ghost" size="sm" className="h-10 rounded-xl px-3 text-xs" onClick={onClearFilters} data-testid="clear-filters">
-            {t('history.clearFilter') || 'Clear Filters'}
+            {t('history.clearFilter')}
           </Button>
         )}
 
         <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{t('history.perPage') || 'Per page'}</span>
+          <span>{t('history.perPage')}</span>
           <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
             <SelectTrigger className="h-10 min-w-[92px] rounded-xl text-xs" data-testid="page-size-select">
               <SelectValue />
@@ -187,7 +189,7 @@ export function HistoryFilters({
             <SelectContent>
               {PAGE_SIZE_OPTIONS.map((option) => (
                 <SelectItem key={option} value={String(option)}>
-                  {option} {t('history.itemsUnit') || 'items'}
+                  {option} {t('history.itemsUnit')}
                 </SelectItem>
               ))}
             </SelectContent>

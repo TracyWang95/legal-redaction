@@ -1,5 +1,5 @@
 import { RefreshCw, Sparkles, Trash2 } from 'lucide-react';
-import { t } from '@/i18n';
+import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { JobTypeApi } from '@/services/jobsApi';
@@ -33,20 +33,22 @@ export function JobsFilters({
   visibleCount,
   metrics,
 }: JobsFiltersProps) {
+  const t = useT();
+
   return (
     <section className="saas-panel mb-4 flex shrink-0 flex-col gap-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <span className="saas-kicker inline-flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5" />
-            Operations
+            {t('jobs.filters.kicker')}
           </span>
           <div>
             <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
-              Jobs Console
+              {t('jobs.filters.title')}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Keep the queue, review backlog, and finished runs in one clean control surface.
+              {t('jobs.filters.desc')}
             </p>
           </div>
         </div>
@@ -81,18 +83,18 @@ export function JobsFilters({
             data-testid="jobs-cleanup-btn"
           >
             <Trash2 data-icon="inline-start" />
-            Clear Finished
+            {t('jobs.cleanupButton')}
           </Button>
         </div>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-        <MetricPill label="Visible" value={visibleCount} />
-        <MetricPill label="Draft" value={metrics.draft} />
-        <MetricPill label="Running" value={metrics.processing} />
-        <MetricPill label="Awaiting Review" value={metrics.awaitingReview} />
-        <MetricPill label="Completed" value={metrics.completed} />
-        <MetricPill label="Attention Needed" value={metrics.risk} tone="alert" />
+        <MetricPill label={t('jobs.metric.visible')} value={visibleCount} />
+        <MetricPill label={t('jobs.metric.draft')} value={metrics.draft} />
+        <MetricPill label={t('jobs.metric.running')} value={metrics.processing} />
+        <MetricPill label={t('jobs.metric.awaitingReview')} value={metrics.awaitingReview} />
+        <MetricPill label={t('jobs.metric.completed')} value={metrics.completed} />
+        <MetricPill label={t('jobs.metric.attention')} value={metrics.risk} tone="alert" />
       </div>
     </section>
   );
