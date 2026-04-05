@@ -149,7 +149,6 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const deleteType = useCallback(async (id: string) => {
-    if (!confirm(t('settings.confirmDeleteType'))) return;
     const res = await fetch(`/api/v1/custom-types/${id}`, { method: 'DELETE' });
     if (res.ok) await fetchEntityTypes();
     else {
@@ -159,7 +158,6 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const resetToDefault = useCallback(async () => {
-    if (!confirm(t('settings.confirmReset'))) return;
     const res = await fetch('/api/v1/custom-types/reset', { method: 'POST' });
     if (res.ok) await fetchEntityTypes();
   }, [fetchEntityTypes]);
@@ -199,7 +197,6 @@ export function useEntityTypes() {
   }, [fetchPipelines]);
 
   const deletePipelineType = useCallback(async (mode: string, typeId: string) => {
-    if (!confirm(t('settings.confirmDeleteType'))) return;
     const res = await fetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, { method: 'DELETE' });
     if (res.ok) await fetchPipelines();
     else {
@@ -209,7 +206,6 @@ export function useEntityTypes() {
   }, [fetchPipelines]);
 
   const resetPipelines = useCallback(async () => {
-    if (!confirm(t('settings.confirmResetPipelines'))) return;
     const res = await fetch('/api/v1/vision-pipelines/reset', { method: 'POST' });
     if (res.ok) await fetchPipelines();
   }, [fetchPipelines]);

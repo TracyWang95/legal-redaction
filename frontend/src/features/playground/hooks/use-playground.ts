@@ -8,6 +8,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { downloadFile } from '@/services/api';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import { safeJson, authBlobUrl, runVisionDetection } from '../utils';
 import { usePlaygroundRecognition } from './use-playground-recognition';
 import type { FileInfo, Entity, BoundingBox, Stage } from '../types';
@@ -222,7 +223,7 @@ export function usePlayground() {
         content: parsedContent,
       });
     } catch (err) {
-      showToast(err instanceof Error ? err.message : t('playground.processFailed') || '处理失败', 'error');
+      showToast(localizeErrorMessage(err, 'playground.processFailed'), 'error');
       setIsLoading(false);
       setLoadingMessage('');
     }
@@ -289,7 +290,7 @@ export function usePlayground() {
         setStage('preview');
       } catch (err) {
         if (signal.aborted) return;
-        showToast(err instanceof Error ? err.message : '识别失败', 'error');
+        showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
       } finally {
         if (!signal.aborted) {
           setIsLoading(false);
@@ -364,7 +365,7 @@ export function usePlayground() {
         showToast(`重新识别完成：${entitiesWithSource.length} 处`, 'success');
       }
     } catch (err) {
-      showToast(err instanceof Error ? err.message : '重新识别失败', 'error');
+      showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
     } finally {
       setIsLoading(false);
       setLoadingMessage('');
@@ -414,7 +415,7 @@ export function usePlayground() {
 
       showToast(`完成，共处理 ${result.redacted_count} 处`, 'success');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : '脱敏失败', 'error');
+      showToast(localizeErrorMessage(err, 'playground.redactFailed'), 'error');
     } finally {
       setIsLoading(false);
       setLoadingMessage('');

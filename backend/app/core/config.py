@@ -132,6 +132,8 @@ class Settings(BaseSettings):
     JOB_DB_PATH: str = ""
     PIPELINE_STORE_PATH: str = ""
     PRESET_STORE_PATH: str = ""
+    ENTITY_TYPES_STORE_PATH: str = ""
+    MODEL_CONFIG_PATH: str = ""
 
     # PaddleOCR-VL 微服务配置（独立进程，端口8082）
     OCR_BASE_URL: str = "http://127.0.0.1:8082"
@@ -215,6 +217,14 @@ class Settings(BaseSettings):
             self.PRESET_STORE_PATH = os.path.join(d, "presets.json")
         else:
             self.PRESET_STORE_PATH = _resolve_local_path(self.PRESET_STORE_PATH)
+        if not self.ENTITY_TYPES_STORE_PATH:
+            self.ENTITY_TYPES_STORE_PATH = os.path.join(d, "entity_types.json")
+        else:
+            self.ENTITY_TYPES_STORE_PATH = _resolve_local_path(self.ENTITY_TYPES_STORE_PATH)
+        if not self.MODEL_CONFIG_PATH:
+            self.MODEL_CONFIG_PATH = os.path.join(d, "model_config.json")
+        else:
+            self.MODEL_CONFIG_PATH = _resolve_local_path(self.MODEL_CONFIG_PATH)
         # JWT 密钥：优先环境变量，否则从 data 目录加载或首次生成并持久化
         if not self.JWT_SECRET_KEY:
             env_key = os.environ.get("JWT_SECRET_KEY", "") or os.environ.get("LEGAL_REDACTION_JWT_SECRET", "")

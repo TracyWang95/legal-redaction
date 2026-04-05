@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { t } from '@/i18n';
 import { fileApi, redactionApi } from '@/services/api';
 import { showToast } from '@/components/Toast';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveRedactionState } from '@/utils/redactionState';
 import type { CompareData, FileListItem } from '@/types';
 
@@ -202,7 +203,7 @@ export function useHistory() {
         setCompareBlobUrls({ original, redacted });
       }
     } catch (e) {
-      setCompareErr(e instanceof Error ? e.message : t('history.compareFailed'));
+      setCompareErr(localizeErrorMessage(e, 'history.compareFailed'));
     } finally {
       setCompareLoading(false);
     }
@@ -237,7 +238,7 @@ export function useHistory() {
         setPageSize(res.page_size);
         setSelected(new Set());
       } catch (e) {
-        setMsg({ text: e instanceof Error ? e.message : t('history.loadFailed'), tone: 'err' });
+        setMsg({ text: localizeErrorMessage(e, 'history.loadFailed'), tone: 'err' });
       } finally {
         firstLoadRef.current = false;
         setInitialLoading(false);
@@ -340,7 +341,7 @@ export function useHistory() {
       showToast(t('history.zipStarted'), 'success');
       setMsg({ text: t('history.zipStarted'), tone: 'ok' });
     } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : t('history.downloadFailed'), tone: 'err' });
+      setMsg({ text: localizeErrorMessage(e, 'history.downloadFailed'), tone: 'err' });
     } finally { setZipLoading(false); }
   }, [rows]);
 
@@ -371,7 +372,7 @@ export function useHistory() {
           await fileApi.delete(id);
           await load(true, page, pageSize);
           setMsg({ text: t('history.deleted'), tone: 'ok' });
-        } catch (e) { setMsg({ text: e instanceof Error ? e.message : t('history.deleteFailed'), tone: 'err' }); }
+        } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
       },
     });
   }, [load, page, pageSize]);
@@ -387,7 +388,7 @@ export function useHistory() {
           for (const id of fileIds) await fileApi.delete(id);
           await load(true, page, pageSize);
           setMsg({ text: t('history.deletedGroup').replace('{n}', String(fileIds.length)), tone: 'ok' });
-        } catch (e) { setMsg({ text: e instanceof Error ? e.message : t('history.deleteFailed'), tone: 'err' }); }
+        } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
       },
     });
   }, [load, page, pageSize]);

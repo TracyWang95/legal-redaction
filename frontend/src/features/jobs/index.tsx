@@ -60,7 +60,7 @@ export function Jobs() {
               requeueingJobId={s.requeueingJobId}
               tableBusy={s.tableBusy}
               onToggleExpand={s.toggleExpand}
-              onDelete={s.onDelete}
+              onDelete={s.requestDelete}
               onRequeueFailed={s.onRequeueFailed}
             />
             <JobsPagination
@@ -88,6 +88,17 @@ export function Jobs() {
         onConfirm={s.onCleanup}
         onCancel={() => s.setCleanupConfirmOpen(false)}
       />
+      {s.deleteCandidate && (
+        <ConfirmDialog
+          open
+          title={t('jobs.deleteTask')}
+          message={t('jobs.confirmDelete').replace('{title}', s.deleteCandidate.title?.trim() || t('jobs.unnamedTask'))}
+          confirmText={t('jobs.deleteAction')}
+          danger
+          onConfirm={s.confirmDelete}
+          onCancel={s.cancelDelete}
+        />
+      )}
     </div>
   );
 }

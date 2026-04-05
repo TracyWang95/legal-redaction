@@ -20,6 +20,7 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 import { t } from '@/i18n';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import { useDropzone } from 'react-dropzone';
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 
@@ -528,7 +529,7 @@ export function useBatchWizard() {
           fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 25000 }),
           fetchPresets().catch(() => [] as RecognitionPreset[]),
         ]);
-        if (!ctRes.ok || !pipeRes.ok) throw new Error('Failed to load config');
+          if (!ctRes.ok || !pipeRes.ok) throw new Error(t('batchWizard.loadJobFailed'));
         const ctData = await ctRes.json();
         const pipes: PipelineCfg[] = await pipeRes.json();
         if (cancelled) return;
@@ -628,7 +629,7 @@ export function useBatchWizard() {
         if (hydrateGen !== batchHydrateGenRef.current) return;
         const validTypes: string[] = ['smart_batch', 'text_batch', 'image_batch'];
         if (!validTypes.includes(detail.job_type)) {
-          setMsg({ text: 'Job type mismatch', tone: 'warn' });
+          setMsg({ text: t('batchWizard.jobTypeMismatch'), tone: 'warn' });
           return;
         }
         setActiveJobId(jobId);
@@ -673,7 +674,7 @@ export function useBatchWizard() {
 
         const badItemIdInUrl = Boolean(itemId && !detail.items.some(i => i.id === itemId));
         const item = itemId && !badItemIdInUrl ? detail.items.find(i => i.id === itemId) : detail.items[0];
-        if (!item) { setMsg({ text: 'Item not found', tone: 'warn' }); return; }
+        if (!item) { setMsg({ text: t('batchWizard.itemNotFound'), tone: 'warn' }); return; }
 
         const sn0 = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
         const urlStepNum0 = Number.isFinite(sn0) ? (Math.min(5, Math.max(1, sn0)) as Step) : null;
@@ -729,7 +730,7 @@ export function useBatchWizard() {
             reviewConfirmed: deriveReviewConfirmed(entry.item),
             entity_count: typeof entry.item.entity_count === 'number' ? entry.item.entity_count : Array.isArray(rowInfo.entities) ? rowInfo.entities.length : 0,
             analyzeStatus: mapBackendStatus(entry.item.status),
-            analyzeError: entry.item.status === 'failed' || entry.item.status === 'cancelled' ? (entry.item.error_message || 'Failed') : undefined,
+            analyzeError: entry.item.status === 'failed' || entry.item.status === 'cancelled' ? (entry.item.error_message || t('batchWizard.actionFailed')) : undefined,
             isImageMode: rowFileType === FileType.IMAGE || rowFileType === FileType.PDF_SCANNED,
           };
         });
@@ -753,7 +754,7 @@ export function useBatchWizard() {
         hydratedFromUrlRef.current = true;
       } catch (e) {
         if (hydrateGen === batchHydrateGenRef.current) {
-          setMsg({ text: e instanceof Error ? e.message : 'Failed to load job', tone: 'err' });
+          setMsg({ text: localizeErrorMessage(e, 'batchWizard.loadJobFailed'), tone: 'err' });
         }
       }
     })();
@@ -851,7 +852,7 @@ export function useBatchWizard() {
       reviewDraftDirtyRef.current = false;
       return true;
     } catch (e) {
-      setReviewDraftError(e instanceof Error ? e.message : 'Auto-save failed');
+      setReviewDraftError(localizeErrorMessage(e, 'batchWizard.autoSaveFailed'));
       return false;
     } finally {
       setReviewDraftSaving(false);
@@ -1102,7 +1103,7 @@ export function useBatchWizard() {
 
   // ── Queue submit ──
   const submitQueueToWorker = useCallback(async () => {
-    if (!activeJobId) { setMsg({ text: 'No active job', tone: 'warn' }); return; }
+    if (!activeJobId) { setMsg({ text: t('batchWizard.noActiveJob'), tone: 'warn' }); return; }
     setMsg(null);
     setRows(prev => prev.map(r => !RECOGNITION_DONE_STATUSES.has(r.analyzeStatus) && r.analyzeStatus !== 'failed' ? { ...r, analyzeStatus: 'pending' as const } : r));
     try {
@@ -1110,7 +1111,7 @@ export function useBatchWizard() {
       try { await updateJobDraft(activeJobId, { config: jobCfg }); lastSavedJobConfigJson.current = JSON.stringify(jobCfg); } catch { /* */ }
       await apiSubmitJob(activeJobId);
       clearLocalWizardMaxStep(activeJobId);
-    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Submit failed', tone: 'err' }); }
+    } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.submitFailed'), tone: 'err' }); }
   }, [activeJobId, cfg, mode, furthestStep]);
 
   // ── Polling ──
@@ -1127,7 +1128,7 @@ export function useBatchWizard() {
         setRows(prev => prev.map(r => {
           const item = itemMap.get(r.file_id);
           if (!item) return r;
-          return { ...r, analyzeStatus: mapBackendStatus(item.status), reviewConfirmed: deriveReviewConfirmed(item), has_output: Boolean(item.has_output), isImageMode: r.isImageMode ?? false, analyzeError: item.status === 'failed' || item.status === 'cancelled' ? (item.error_message || 'Failed') : undefined, entity_count: typeof item.entity_count === 'number' ? item.entity_count : r.entity_count };
+          return { ...r, analyzeStatus: mapBackendStatus(item.status), reviewConfirmed: deriveReviewConfirmed(item), has_output: Boolean(item.has_output), isImageMode: r.isImageMode ?? false, analyzeError: item.status === 'failed' || item.status === 'cancelled' ? (item.error_message || t('batchWizard.actionFailed')) : undefined, entity_count: typeof item.entity_count === 'number' ? item.entity_count : r.entity_count };
         }));
       } catch { /* ignore network jitter */ }
     };
@@ -1159,7 +1160,7 @@ export function useBatchWizard() {
     try {
       const jid = activeJobId;
       const linkedItemId = itemIdByFileIdRef.current[currentFileId];
-      if (!jid || !linkedItemId) throw new Error('No linked item');
+      if (!jid || !linkedItemId) throw new Error(t('batchWizard.noLinkedItem'));
       const entitiesPayload = reviewEntities.map(e => ({ id: e.id, text: e.text, type: e.type, start: e.start, end: e.end, page: e.page ?? 1, confidence: e.confidence ?? 1, selected: e.selected, source: e.source, coref_id: e.coref_id, replacement: e.replacement }));
       const boxesPayload = reviewBoxes.map(b => ({ id: b.id, x: b.x, y: b.y, width: b.width, height: b.height, page: 1, type: b.type, text: b.text, selected: b.selected, source: b.source, confidence: b.confidence }));
 
@@ -1168,7 +1169,7 @@ export function useBatchWizard() {
       if (!isLastFile) setReviewIndex(reviewIndex + 1);
 
       const ok = await flushCurrentReviewDraft();
-      if (!ok) throw new Error(reviewDraftError || 'Auto-save failed');
+      if (!ok) throw new Error(reviewDraftError || t('batchWizard.autoSaveFailed'));
       const commitResult = await commitItemReview(jid, linkedItemId, { entities: entitiesPayload as Array<Record<string, unknown>>, bounding_boxes: boxesPayload as Array<Record<string, unknown>> });
       const committedStatus = mapBackendStatus(commitResult.status ?? 'completed');
       setRows(prev => prev.map(r => r.file_id === currentFileId ? { ...r, has_output: Boolean(commitResult.has_output ?? true), reviewConfirmed: deriveReviewConfirmed(commitResult), analyzeStatus: committedStatus, entity_count: typeof commitResult.entity_count === 'number' ? commitResult.entity_count : currentIsImage ? boxesPayload.length : entitiesPayload.length } : r));
@@ -1177,17 +1178,17 @@ export function useBatchWizard() {
       if (isLastFile) setFurthestStep(prev => Math.max(prev, 5) as Step);
     } catch (e) {
       setRows(prev => prev.map(r => r.file_id === currentFileId ? { ...r, reviewConfirmed: false, has_output: false, analyzeStatus: 'awaiting_review' as const } : r));
-      setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'err' });
+      setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
     } finally { setReviewExecuteLoading(false); }
   }, [activeJobId, doneRows.length, flushCurrentReviewDraft, reviewBoxes, reviewDraftError, reviewEntities, reviewFile, reviewIndex]);
 
   // ── Download ZIP ──
   const downloadZip = useCallback(async (redacted: boolean) => {
     const selectedIds = rows.filter(r => selected.has(r.file_id)).map(r => r.file_id);
-    if (!selectedIds.length) { setMsg({ text: 'No files selected', tone: 'warn' }); return; }
+    if (!selectedIds.length) { setMsg({ text: t('batchWizard.noFilesSelected'), tone: 'warn' }); return; }
     if (redacted) {
       const noOut = rows.filter(r => selected.has(r.file_id) && !r.has_output);
-      if (noOut.length) { setMsg({ text: 'Some files not yet redacted', tone: 'warn' }); return; }
+      if (noOut.length) { setMsg({ text: t('batchWizard.someFilesNotRedacted'), tone: 'warn' }); return; }
     }
     setZipLoading(true);
     setMsg(null);
@@ -1195,7 +1196,7 @@ export function useBatchWizard() {
       const blob = await fileApi.batchDownloadZip(selectedIds, redacted);
       triggerDownload(blob, redacted ? 'batch_redacted.zip' : 'batch_original.zip');
       if (redacted && activeJobId) clearLocalWizardMaxStep(activeJobId);
-    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Download failed', tone: 'err' }); }
+    } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.downloadFailed'), tone: 'err' }); }
     finally { setZipLoading(false); }
   }, [activeJobId, rows, selected]);
 
@@ -1284,11 +1285,11 @@ export function useBatchWizard() {
       setStep(2);
       setFurthestStep(prev => Math.max(prev, 2) as Step);
       setMsg(null);
-    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'err' }); }
+    } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' }); }
   }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isStep1Complete, jobPriority, mode]);
 
   const advanceToExportStep = useCallback(async () => {
-    if (!rows.length) { setMsg({ text: 'No files to export', tone: 'warn' }); return; }
+    if (!rows.length) { setMsg({ text: t('batchWizard.noFilesToExport'), tone: 'warn' }); return; }
     await flushCurrentReviewDraft();
     if (activeJobId) {
       try {
@@ -1297,7 +1298,7 @@ export function useBatchWizard() {
         const backendFileIds = new Set(detail.items.map(it => it.file_id));
         setRows(prev => prev.filter(r => backendFileIds.has(r.file_id)).map(r => { const item = itemMap.get(r.file_id); if (!item) return r; return { ...r, has_output: Boolean(item.has_output), analyzeStatus: mapBackendStatus(item.status), reviewConfirmed: deriveReviewConfirmed(item) }; }));
         const freshConfirmed = detail.items.every(it => deriveReviewConfirmed(it));
-        if (!freshConfirmed) { setMsg({ text: 'Not all files confirmed', tone: 'warn' }); return; }
+        if (!freshConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
         internalStepNavRef.current = true;
         setStep(5);
         setFurthestStep(prev => Math.max(prev, 5) as Step);
@@ -1305,7 +1306,7 @@ export function useBatchWizard() {
         return;
       } catch { /* fallback */ }
     }
-    if (!allReviewConfirmed) { setMsg({ text: 'Not all files confirmed', tone: 'warn' }); return; }
+    if (!allReviewConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
     internalStepNavRef.current = true;
     setStep(5);
     setFurthestStep(prev => Math.max(prev, 5) as Step);

@@ -22,6 +22,7 @@ import {
 } from '@/services/activePresetBridge';
 import { t } from '@/i18n';
 import { showToast } from '@/components/Toast';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import { safeJson } from '../utils';
 import type {
   EntityTypeConfig,
@@ -174,7 +175,7 @@ export function usePlaygroundRecognition() {
       setActivePresetTextId(created.id);
       showToast(t('preset.saveText.success'), 'success');
     } catch (e) {
-      showToast(e instanceof Error ? e.message : t('preset.save.failed'), 'error');
+      showToast(localizeErrorMessage(e, 'preset.save.failed'), 'error');
     }
   }, [selectedTypes]);
 
@@ -196,7 +197,7 @@ export function usePlaygroundRecognition() {
       setActivePresetVisionId(created.id);
       showToast(t('preset.saveVision.success'), 'success');
     } catch (e) {
-      showToast(e instanceof Error ? e.message : t('preset.save.failed'), 'error');
+      showToast(localizeErrorMessage(e, 'preset.save.failed'), 'error');
     }
   }, [selectedOcrHasTypes, selectedHasImageTypes]);
 

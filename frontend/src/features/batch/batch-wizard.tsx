@@ -34,7 +34,7 @@ export function BatchWizard() {
 
   return (
     <div
-      className="h-full min-h-0 min-w-0 flex flex-col bg-muted/30 overflow-hidden"
+      className="h-full min-h-0 min-w-0 flex flex-col bg-background overflow-hidden"
       data-testid="batch-wizard"
     >
       <div

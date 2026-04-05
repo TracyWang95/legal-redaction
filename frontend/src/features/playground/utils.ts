@@ -1,6 +1,7 @@
 /**
  * Playground shared utility functions
  */
+import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,19 +40,8 @@ export function clampPopoverInCanvas(
 
 /** Preview entity mark style by source */
 export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
-  const base: React.CSSProperties = (() => {
-    switch (entity.source) {
-      case 'regex':
-        return { backgroundColor: 'rgba(0, 122, 255, 0.09)', color: '#0a4a8c' };
-      case 'llm':
-        return { backgroundColor: 'rgba(52, 199, 89, 0.09)', color: '#0d5c2f' };
-      case 'manual':
-        return { backgroundColor: 'rgba(175, 82, 222, 0.11)', color: '#5c2d7a' };
-      case 'has':
-      default:
-        return { backgroundColor: 'rgba(175, 82, 222, 0.11)', color: '#5c2d7a' };
-    }
-  })();
+  const tone = sourceToTone(entity.source);
+  const base = getSelectionMarkStyle(tone);
   if (!entity.selected) {
     return { ...base, opacity: 0.5, filter: 'saturate(0.55)' };
   }
@@ -60,17 +50,7 @@ export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
 
 /** Hover ring class consistent with sidebar selection semantics */
 export function previewEntityHoverRingClass(source: Entity['source']): string {
-  switch (source) {
-    case 'regex':
-      return 'hover:ring-[#007AFF]/25';
-    case 'llm':
-      return 'hover:ring-[#34C759]/25';
-    case 'manual':
-      return 'hover:ring-[#AF52DE]/25';
-    case 'has':
-    default:
-      return 'hover:ring-[#AF52DE]/25';
-  }
+  return getSelectionToneClasses(sourceToTone(source)).hoverRing;
 }
 
 export function getModePreview(mode: string, sampleEntity?: Entity) {
@@ -158,4 +138,17 @@ export function computeEntityStats(entities: Entity[]): Record<string, { total: 
     if (e.selected) stats[e.type].selected++;
   });
   return stats;
+}
+
+function sourceToTone(source: Entity['source']): SelectionTone {
+  switch (source) {
+    case 'regex':
+      return 'regex';
+    case 'llm':
+      return 'ner';
+    case 'manual':
+    case 'has':
+    default:
+      return 'yolo';
+  }
 }

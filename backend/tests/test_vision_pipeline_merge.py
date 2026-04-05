@@ -1,5 +1,5 @@
 """Pipeline 磁盘快照合并：glm_vision 迁移与 has_image 预置（发布前契约）。"""
-from app.api.vision_pipeline import (
+from app.services.pipeline_service import (
     PRESET_PIPELINES,
     PipelineMode,
     merge_pipeline_disk_snapshot,

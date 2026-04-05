@@ -1,7 +1,7 @@
 /**
  * 识别配置预设 API（与后端 /api/v1/presets 对齐）
  */
-const BASE = '/api/v1';
+import { get, post, put, del } from './api-client';
 
 export type ReplacementMode = 'structured' | 'smart' | 'mask';
 
@@ -42,59 +42,20 @@ export function presetAppliesVision(p: RecognitionPreset): boolean {
   return k === 'vision' || k === 'full';
 }
 
-const PRESETS_404_HINT =
-  '预设接口返回 404：当前连接的后端未提供 /api/v1/presets。请在 backend 目录重启服务（例如：python -m uvicorn app.main:app --host 0.0.0.0 --port 8000），并确认已更新到包含 app/api/presets.py 的版本。';
-
-async function parseJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail ?? err);
-    } catch {
-      /* ignore */
-    }
-    if (res.status === 404 && msg === 'Not Found') {
-      msg = PRESETS_404_HINT;
-    }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<T>;
-}
-
 export async function fetchPresets(): Promise<RecognitionPreset[]> {
-  const res = await fetch(`${BASE}/presets`);
-  const data = await parseJson<any>(res);
+  const data = await get<any>('/presets');
   // 兼容分页响应 { presets: [...] } 和旧的直接数组格式
   return Array.isArray(data) ? data : Array.isArray(data?.presets) ? data.presets : [];
 }
 
 export async function createPreset(body: PresetPayload): Promise<RecognitionPreset> {
-  const res = await fetch(`${BASE}/presets`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  return parseJson<RecognitionPreset>(res);
+  return post<RecognitionPreset>('/presets', body);
 }
 
 export async function updatePreset(id: string, patch: Partial<PresetPayload>): Promise<RecognitionPreset> {
-  const res = await fetch(`${BASE}/presets/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  return parseJson<RecognitionPreset>(res);
+  return put<RecognitionPreset>(`/presets/${id}`, patch);
 }
 
 export async function deletePreset(id: string): Promise<void> {
-  const res = await fetch(`${BASE}/presets/${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = typeof err.detail === 'string' ? err.detail : '';
-    if (res.status === 404 && detail === 'Not Found') {
-      throw new Error(PRESETS_404_HINT);
-    }
-    throw new Error(detail || `HTTP ${res.status}`);
-  }
+  return del(`/presets/${id}`);
 }

@@ -116,7 +116,6 @@ export function useNerBackend() {
   }, [payload]);
 
   const clearNerOverride = useCallback(async () => {
-    if (!confirm(t('settings.textModel.confirmClearOverride'))) return;
     try {
       const res = await fetch('/api/v1/ner-backend', { method: 'DELETE' });
       if (res.ok) {
@@ -209,7 +208,6 @@ export function useVisionModelConfig() {
   }, [fetchModelConfigs]);
 
   const deleteModelConfig = useCallback(async (configId: string) => {
-    if (!confirm(t('settings.visionModel.confirmDelete'))) return;
     const res = await fetch(`/api/v1/model-config/${configId}`, { method: 'DELETE' });
     if (res.ok) await fetchModelConfigs();
     else {
@@ -235,7 +233,6 @@ export function useVisionModelConfig() {
   }, []);
 
   const resetModelConfigs = useCallback(async () => {
-    if (!confirm(t('settings.visionModel.confirmReset'))) return;
     const res = await fetch('/api/v1/model-config/reset', { method: 'POST' });
     if (res.ok) await fetchModelConfigs();
   }, [fetchModelConfigs]);

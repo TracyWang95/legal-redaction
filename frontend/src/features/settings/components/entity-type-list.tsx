@@ -1,17 +1,18 @@
-/**
- * Entity type management table — ShadCN Table with color dot, name,
- * description, regex, LLM toggle, enabled switch, and row actions.
- */
 import { useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import {
-  Table, TableHeader, TableBody, TableRow,
-  TableHead, TableCell,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { EntityTypeConfig } from '../hooks/use-entity-types';
 
 interface EntityTypeListProps {
@@ -24,40 +25,49 @@ interface EntityTypeListProps {
 }
 
 export function EntityTypeList({
-  types, onEdit, onDelete, onAdd, onReset, variant,
+  types,
+  onEdit,
+  onDelete,
+  onAdd,
+  onReset,
+  variant,
 }: EntityTypeListProps) {
   const t = useT();
   const [filter] = useState('');
 
   const filtered = filter
-    ? types.filter(tp =>
-        tp.name.toLowerCase().includes(filter.toLowerCase()) ||
-        tp.id.toLowerCase().includes(filter.toLowerCase()))
+    ? types.filter(type =>
+        type.name.toLowerCase().includes(filter.toLowerCase()) ||
+        type.id.toLowerCase().includes(filter.toLowerCase()))
     : types;
 
   const isRegex = variant === 'regex';
-  const borderColor = isRegex ? 'border-[#007AFF]/22' : 'border-[#34C759]/22';
-  const headerBg = isRegex ? 'bg-[#007AFF]/[0.05]' : 'bg-[#34C759]/[0.06]';
-  const dotColor = isRegex ? 'bg-[#007AFF]/90' : 'bg-[#34C759]/90';
+  const tone: SelectionTone = isRegex ? 'regex' : 'ner';
+  const toneClasses = getSelectionToneClasses(tone);
 
   return (
-    <div className={cn('flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm', borderColor)}>
-      <div className={cn('shrink-0 px-4 py-3 border-b flex items-center justify-between gap-2', borderColor, headerBg)}>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={cn('w-2 h-2 rounded-full shrink-0', dotColor)} />
-          <span className="font-semibold text-sm truncate">
+    <div
+      className={cn('flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm', toneClasses.headerSurface)}
+      data-testid={`entity-type-list-${variant}`}
+    >
+      <div className={cn('flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3', toneClasses.headerSurface)}>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
+          <span className="truncate text-sm font-semibold">
             {isRegex ? t('settings.regexRules') : t('settings.aiSemantic')}
           </span>
-          <Badge variant="secondary" className="text-xs">{types.length}</Badge>
+          <Badge variant="secondary" className={cn('text-xs', toneClasses.badgeText)}>
+            {types.length}
+          </Badge>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             size="sm"
             variant="outline"
             onClick={onReset}
             data-testid={`reset-${variant}-types`}
           >
-            {isRegex ? t('settings.resetTextRules') : t('settings.resetTextRules')}
+            {t('settings.resetTextRules')}
           </Button>
           <Button
             size="sm"
@@ -69,9 +79,9 @@ export function EntityTypeList({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         {filtered.length === 0 ? (
-          <p className="py-8 text-sm text-muted-foreground text-center">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             {t('settings.noTypeConfig')}
           </p>
         ) : (
@@ -90,36 +100,36 @@ export function EntityTypeList({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(tp => (
-                <TableRow key={tp.id}>
+              {filtered.map(type => (
+                <TableRow key={type.id}>
                   <TableCell>
                     <span
-                      className="inline-block w-3 h-3 rounded-full border"
-                      style={{ backgroundColor: tp.color }}
+                      className="inline-block size-3 rounded-full border"
+                      style={{ backgroundColor: type.color }}
                     />
                   </TableCell>
                   <TableCell>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{tp.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{tp.id}</p>
+                      <p className="truncate text-sm font-medium">{type.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{type.id}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell max-w-[260px]">
+                  <TableCell className="hidden max-w-[260px] md:table-cell">
                     {isRegex ? (
-                      <code className="text-xs font-mono break-all line-clamp-2">
-                        {tp.regex_pattern ?? '—'}
+                      <code className="line-clamp-2 break-all text-xs font-mono">
+                        {type.regex_pattern ?? '-'}
                       </code>
                     ) : (
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {tp.description ?? '—'}
+                      <p className="line-clamp-2 text-xs text-muted-foreground">
+                        {type.description ?? '-'}
                       </p>
                     )}
                   </TableCell>
                   <TableCell className="text-center">
                     <Switch
-                      checked={!!tp.use_llm}
+                      checked={!!type.use_llm}
                       disabled
-                      data-testid={`llm-switch-${tp.id}`}
+                      data-testid={`llm-switch-${type.id}`}
                     />
                   </TableCell>
                   <TableCell className="text-right">
@@ -127,18 +137,18 @@ export function EntityTypeList({
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => onEdit(tp)}
-                        data-testid={`edit-type-${tp.id}`}
+                        onClick={() => onEdit(type)}
+                        data-testid={`edit-type-${type.id}`}
                       >
                         <PencilIcon />
                       </Button>
-                      {tp.id.startsWith('custom_') && (
+                      {type.id.startsWith('custom_') && (
                         <Button
                           size="icon"
                           variant="ghost"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => onDelete(tp.id)}
-                          data-testid={`delete-type-${tp.id}`}
+                          onClick={() => onDelete(type.id)}
+                          data-testid={`delete-type-${type.id}`}
                         >
                           <TrashIcon />
                         </Button>
@@ -155,21 +165,28 @@ export function EntityTypeList({
   );
 }
 
-/* ---------- tiny inline SVG icons ---------- */
 function PencilIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   );
 }
 
 function TrashIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   );
 }

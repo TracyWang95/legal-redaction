@@ -11,6 +11,7 @@ import {
   type JobTypeApi,
 } from '@/services/jobsApi';
 import { showToast } from '@/components/Toast';
+import { localizeErrorMessage } from '@/utils/localizeError';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const DELETABLE_STATUSES = new Set(['draft', 'awaiting_review', 'completed', 'failed', 'cancelled']);
@@ -100,6 +101,7 @@ export function useJobs() {
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<JobSummary | null>(null);
   const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(() => new Set());
   const [jobDetails, setJobDetails] = useState<Record<string, JobDetail>>({});
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<string>>(() => new Set());
@@ -128,7 +130,7 @@ export function useJobs() {
         setPageSize(prev => (prev === result.page_size ? prev : result.page_size));
         return result;
       } catch (e) {
-        setErr(e instanceof Error ? e.message : t('jobs.loadFailed'));
+        setErr(localizeErrorMessage(e, 'jobs.loadFailed'));
         if (!hasRows) setRows([]);
         return null;
       } finally {
@@ -152,7 +154,7 @@ export function useJobs() {
     let firstError: string | null = null;
     results.forEach(result => {
       if (result.status === 'fulfilled') patch[result.value.id] = result.value.detail;
-      else if (!firstError) firstError = result.reason instanceof Error ? result.reason.message : t('jobs.expandFailed');
+      else if (!firstError) firstError = localizeErrorMessage(result.reason, 'jobs.expandFailed');
     });
     if (Object.keys(patch).length > 0) {
       setJobDetails(prev => ({ ...prev, ...patch }));
@@ -236,12 +238,21 @@ export function useJobs() {
     [detailLoadingIds, expandedJobIds, fetchJobDetails, jobDetails],
   );
 
-  const onDelete = useCallback(
-    async (job: JobSummary) => {
-      if (!canDeleteJob(job.status) || deletingJobId) return;
+  const requestDelete = useCallback((job: JobSummary) => {
+    if (!canDeleteJob(job.status) || deletingJobId) return;
+    setDeleteCandidate(job);
+  }, [deletingJobId]);
+
+  const cancelDelete = useCallback(() => {
+    setDeleteCandidate(null);
+  }, []);
+
+  const confirmDelete = useCallback(
+    async () => {
+      if (!deleteCandidate || deletingJobId) return;
+      const job = deleteCandidate;
       const title = job.title?.trim() || t('jobs.unnamedTask');
-      const confirmed = window.confirm(t('jobs.confirmDelete').replace('{title}', title));
-      if (!confirmed) return;
+      setDeleteCandidate(null);
       setDeletingJobId(job.id);
       setNotice(null);
       setErr(null);
@@ -254,12 +265,12 @@ export function useJobs() {
         if (nextPage !== page) setPage(nextPage);
         else await refreshList();
       } catch (e) {
-        setErr(e instanceof Error ? e.message : t('jobs.deleteFailed'));
+        setErr(localizeErrorMessage(e, 'jobs.deleteFailed'));
       } finally {
         setDeletingJobId(null);
       }
     },
-    [deletingJobId, page, refreshList, rows.length],
+    [deleteCandidate, deletingJobId, page, refreshList, rows.length],
   );
 
   const onRequeueFailed = useCallback(
@@ -273,7 +284,7 @@ export function useJobs() {
         setNotice(t('jobs.requeuedNotice').replace('{n}', String(job.progress.failed)));
         await refreshList();
       } catch (e) {
-        setErr(e instanceof Error ? e.message : t('jobs.requeueFailed'));
+        setErr(localizeErrorMessage(e, 'jobs.requeueFailed'));
       } finally {
         setRequeuingJobId(null);
       }
@@ -323,11 +334,11 @@ export function useJobs() {
   return {
     // State
     tab, rows: visibleRows, total, page, pageSize, jumpPage, loading, refreshing,
-    cleanupConfirmOpen, err, notice, deletingJobId, expandedJobIds, jobDetails,
+    cleanupConfirmOpen, err, notice, deletingJobId, deleteCandidate, expandedJobIds, jobDetails,
     detailLoadingIds, requeueingJobId, totalPages, tableBusy, rangeStart, rangeEnd, pageMetrics,
     // Actions
     changeTab, refreshList, goPage, changePageSize, setJumpPage,
-    toggleExpand, onDelete, onRequeueFailed, onCleanup,
+    toggleExpand, requestDelete, cancelDelete, confirmDelete, onRequeueFailed, onCleanup,
     setCleanupConfirmOpen,
   };
 }

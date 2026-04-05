@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +50,12 @@ export function VisionModel() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<ModelConfig>>({ ...DEFAULT_MODEL_FORM });
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
 
   const openAdd = () => {
     setEditingId(null);
@@ -194,7 +201,12 @@ export function VisionModel() {
                         variant="ghost"
                         disabled={BUILTIN_VISION_IDS.has(config.id)}
                         className={cn(BUILTIN_VISION_IDS.has(config.id) && 'cursor-not-allowed opacity-20')}
-                        onClick={() => void deleteModelConfig(config.id)}
+                        onClick={() => setConfirmState({
+                          title: t('common.delete'),
+                          message: t('settings.visionModel.confirmDelete'),
+                          danger: true,
+                          onConfirm: () => void deleteModelConfig(config.id),
+                        })}
                         data-testid={`delete-model-${config.id}`}
                       >
                         <TrashIcon />
@@ -227,7 +239,16 @@ export function VisionModel() {
           </Card>
 
           <div className="flex justify-end">
-            <Button variant="outline" onClick={() => void resetModelConfigs()} data-testid="reset-vision-models">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmState({
+                title: t('settings.visionModel.reset'),
+                message: t('settings.visionModel.confirmReset'),
+                danger: true,
+                onConfirm: () => void resetModelConfigs(),
+              })}
+              data-testid="reset-vision-models"
+            >
               {t('settings.visionModel.reset')}
             </Button>
           </div>
@@ -407,6 +428,19 @@ export function VisionModel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {confirmState && (
+        <ConfirmDialog
+          open
+          title={confirmState.title}
+          message={confirmState.message}
+          danger={confirmState.danger}
+          onConfirm={() => {
+            confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

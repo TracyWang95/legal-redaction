@@ -2,7 +2,6 @@
 import secrets as _secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
 
 from app.core.auth import (
     check_password,
@@ -13,23 +12,9 @@ from app.core.auth import (
     set_password,
 )
 from app.core.config import settings
+from app.models.schemas import PasswordRequest, TokenResponse, AuthStatusResponse
 
 router = APIRouter(tags=["auth"])
-
-
-class PasswordRequest(BaseModel):
-    password: str
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int
-
-
-class AuthStatusResponse(BaseModel):
-    auth_enabled: bool
-    password_set: bool
 
 
 @router.get("/auth/status", response_model=AuthStatusResponse)

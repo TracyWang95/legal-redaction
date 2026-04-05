@@ -2,7 +2,7 @@
 Pydantic 数据模型定义
 """
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Literal
+from typing import Any, List, Optional, Literal
 from enum import Enum
 from datetime import datetime
 
@@ -550,3 +550,176 @@ class RedactionVersionsResponse(BaseModel):
     file_id: str
     versions: list[dict] = Field(default_factory=list)
     total: int = 0
+
+
+# ─── Auth Models ───
+
+class PasswordRequest(BaseModel):
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class AuthStatusResponse(BaseModel):
+    auth_enabled: bool
+    password_set: bool
+
+
+# ─── File Request Models ───
+
+class HybridNERRequest(BaseModel):
+    """混合识别请求（HaS 固定为 NER）"""
+    model_config = ConfigDict(extra="ignore")
+
+    entity_type_ids: List[str] = Field(default_factory=list, description="要识别的实体类型ID列表")
+
+
+class BatchDownloadRequest(BaseModel):
+    """批量打包下载"""
+    file_ids: List[str] = Field(..., min_length=1, description="要打包的文件 ID 列表")
+    redacted: bool = Field(default=False, description="为 True 时打包脱敏后的文件（需已脱敏）")
+
+
+# ─── Redaction Request/Report Models ───
+
+class VisionDetectRequest(BaseModel):
+    """视觉识别请求体"""
+    selected_ocr_has_types: Optional[List[str]] = None
+    selected_has_image_types: Optional[List[str]] = None
+
+
+class RedactionReport(BaseModel):
+    """脱敏质量报告"""
+    file_id: str
+    filename: str
+    total_entities: int
+    redacted_entities: int
+    entity_type_distribution: dict[str, int] = Field(default_factory=dict, description="各类型实体数量")
+    confidence_distribution: dict[str, int] = Field(
+        default_factory=dict,
+        description="置信度分布：high(>0.8), medium(0.5-0.8), low(<0.5)"
+    )
+    source_distribution: dict[str, int] = Field(
+        default_factory=dict,
+        description="来源分布：llm, regex, manual, has"
+    )
+    coverage_rate: float = Field(default=0.0, description="脱敏覆盖率（已脱敏/总识别）")
+    redaction_mode: str = ""
+    created_at: str = ""
+
+
+# ─── Job Request Models ───
+
+class JobCreateBody(BaseModel):
+    job_type: Literal["text_batch", "image_batch", "smart_batch"]
+    title: str = ""
+    config: dict[str, Any] = Field(default_factory=dict)
+    skip_item_review: bool = False
+    priority: int = 0
+
+
+class JobItemAddBody(BaseModel):
+    file_id: str = Field(..., min_length=1)
+    sort_order: int = 0
+
+
+class JobUpdateBody(BaseModel):
+    title: Optional[str] = None
+    config: Optional[dict[str, Any]] = None
+    skip_item_review: Optional[bool] = None
+    priority: Optional[int] = None
+
+
+class ReviewDraftBody(BaseModel):
+    entities: list[Entity] = Field(default_factory=list)
+    bounding_boxes: list[BoundingBox] = Field(default_factory=list)
+    updated_at: Optional[str] = None
+
+
+class ReviewCommitBody(ReviewDraftBody):
+    pass
+
+
+# ─── Model Config Models ───
+
+class ModelConfig(BaseModel):
+    """模型配置"""
+    id: str = Field(..., description="配置ID")
+    name: str = Field(..., description="配置名称")
+    provider: Literal["local", "zhipu", "openai", "custom"] = Field(..., description="提供商类型")
+    enabled: bool = Field(default=True, description="是否启用")
+
+    # API 配置
+    base_url: Optional[str] = Field(None, description="API 基础 URL（本地/自定义）")
+    api_key: Optional[str] = Field(None, description="API Key（云端服务）")
+    model_name: str = Field(..., description="模型名称")
+
+    # 生成参数
+    temperature: float = Field(default=0.8, ge=0, le=2)
+    top_p: float = Field(default=0.6, ge=0, le=1)
+    max_tokens: int = Field(default=4096, ge=1, le=32768)
+
+    enable_thinking: bool = Field(default=False, description="保留字段")
+
+    # 备注
+    description: Optional[str] = Field(None, description="配置说明")
+
+
+class ModelConfigList(BaseModel):
+    """模型配置列表"""
+    configs: list[ModelConfig]
+    active_id: Optional[str] = Field(None, description="当前激活的配置ID")
+
+
+# ─── Preset Models ───
+
+PresetKind = Literal["text", "vision", "full"]
+
+
+class PresetPayload(BaseModel):
+    """与前端 BatchWizardPersistedConfig 对齐的字段"""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    kind: PresetKind = Field(
+        default="full",
+        description="text=仅文本链；vision=仅视觉链；full=文本+图像（兼容旧数据）",
+    )
+    selectedEntityTypeIds: List[str] = Field(default_factory=list)
+    ocrHasTypes: List[str] = Field(default_factory=list)
+    hasImageTypes: List[str] = Field(default_factory=list)
+    replacementMode: Literal["structured", "smart", "mask"] = "structured"
+
+
+class PresetCreate(PresetPayload):
+    pass
+
+
+class PresetUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    kind: PresetKind | None = None
+    selectedEntityTypeIds: List[str] | None = None
+    ocrHasTypes: List[str] | None = None
+    hasImageTypes: List[str] | None = None
+    replacementMode: Literal["structured", "smart", "mask"] | None = None
+
+
+class PresetOut(PresetPayload):
+    id: str
+    created_at: str
+    updated_at: str
+
+
+class PresetsListResponse(BaseModel):
+    presets: List[PresetOut]
+    total: int
+    page: int = 1
+    page_size: int = 50
+
+
+class PresetImportRequest(BaseModel):
+    presets: list
+    merge: bool = False  # True=merge with existing, False=replace all

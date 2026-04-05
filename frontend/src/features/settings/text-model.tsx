@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useT } from '@/i18n';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useNerBackend } from './hooks/use-model-config';
 import { ModelEndpointCard } from './components/model-endpoint-card';
 
 export function TextModel() {
   const t = useT();
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const {
     llamacppBaseUrl,
     setLlamacppBaseUrl,
@@ -69,12 +72,23 @@ export function TextModel() {
           />
 
           <div className="flex justify-end">
-            <Button variant="outline" onClick={() => void clearNerOverride()} data-testid="reset-ner-default">
+            <Button variant="outline" onClick={() => setConfirmResetOpen(true)} data-testid="reset-ner-default">
               {t('settings.textModel.reset')}
             </Button>
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmResetOpen}
+        title={t('settings.textModel.reset')}
+        message={t('settings.textModel.confirmClearOverride')}
+        danger
+        onConfirm={() => {
+          setConfirmResetOpen(false);
+          void clearNerOverride();
+        }}
+        onCancel={() => setConfirmResetOpen(false)}
+      />
     </div>
   );
 }

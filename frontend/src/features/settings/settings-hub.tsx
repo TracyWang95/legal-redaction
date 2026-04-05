@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useT } from '@/i18n';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useEntityTypes } from './hooks/use-entity-types';
 import { EntityTypeList } from './components/entity-type-list';
 import { EntityTypeDialog } from './components/entity-type-dialog';
@@ -13,6 +14,7 @@ import { PipelineConfigPanel } from './components/pipeline-config';
 
 export function SettingsHub() {
   const t = useT();
+  const panelIntroClass = 'rounded-2xl border border-border/70 bg-card/70 px-4 py-3 text-sm text-muted-foreground shadow-[0_18px_50px_-38px_rgba(15,23,42,0.25)]';
   const {
     entityTypes, pipelines, loading, regexTypes, llmTypes,
     importFileRef, createType, updateType, deleteType, resetToDefault,
@@ -22,6 +24,12 @@ export function SettingsHub() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogUseLlm, setDialogUseLlm] = useState(true);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
 
   /* Edit state for entity types */
   const [editingType, setEditingType] = useState<typeof entityTypes[number] | null>(null);
@@ -94,12 +102,12 @@ export function SettingsHub() {
           </div>
 
           {/* ─── Text recognition rules ─── */}
-          <TabsContent value="text" className="flex-1 min-h-0 flex flex-col overflow-hidden gap-3">
-            <div className="shrink-0 text-xs text-muted-foreground">
+          <TabsContent value="text" className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+            <div className={panelIntroClass} data-testid="settings-text-intro">
               {t('settings.regex')} + {t('settings.aiSemantic')} | {t('settings.dualRules')}
             </div>
-            <Tabs defaultValue="regex" className="flex-1 min-h-0 flex flex-col overflow-hidden gap-2">
-              <div className="shrink-0 flex items-center justify-between gap-2">
+            <Tabs defaultValue="regex" className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+              <div className="shrink-0 flex items-center gap-2">
                 <TabsList>
                   <TabsTrigger value="regex" data-testid="subtab-regex">
                     {t('settings.regex')}
@@ -110,44 +118,71 @@ export function SettingsHub() {
                     <span className="ml-1 text-muted-foreground">({llmTypes.length})</span>
                   </TabsTrigger>
                 </TabsList>
-                <Button size="sm" variant="ghost" onClick={() => void resetToDefault()} data-testid="reset-text-rules">
-                  {t('settings.resetTextRules')}
-                </Button>
               </div>
-              <TabsContent value="regex" className="flex-1 min-h-0 overflow-hidden">
+              <TabsContent value="regex" className="mt-0 min-h-0 flex-1 overflow-hidden">
                 <EntityTypeList
                   types={regexTypes}
                   variant="regex"
                   onAdd={openAdd}
                   onEdit={openEdit}
-                  onDelete={id => void deleteType(id)}
-                  onReset={() => void resetToDefault()}
+                  onDelete={id => setConfirmState({
+                    title: t('common.delete'),
+                    message: t('settings.confirmDeleteType'),
+                    danger: true,
+                    onConfirm: () => void deleteType(id),
+                  })}
+                  onReset={() => setConfirmState({
+                    title: t('settings.resetTextRules'),
+                    message: t('settings.confirmReset'),
+                    danger: true,
+                    onConfirm: () => void resetToDefault(),
+                  })}
                 />
               </TabsContent>
-              <TabsContent value="llm" className="flex-1 min-h-0 overflow-hidden">
+              <TabsContent value="llm" className="mt-0 min-h-0 flex-1 overflow-hidden">
                 <EntityTypeList
                   types={llmTypes}
                   variant="llm"
                   onAdd={openAdd}
                   onEdit={openEdit}
-                  onDelete={id => void deleteType(id)}
-                  onReset={() => void resetToDefault()}
+                  onDelete={id => setConfirmState({
+                    title: t('common.delete'),
+                    message: t('settings.confirmDeleteType'),
+                    danger: true,
+                    onConfirm: () => void deleteType(id),
+                  })}
+                  onReset={() => setConfirmState({
+                    title: t('settings.resetTextRules'),
+                    message: t('settings.confirmReset'),
+                    danger: true,
+                    onConfirm: () => void resetToDefault(),
+                  })}
                 />
               </TabsContent>
             </Tabs>
           </TabsContent>
 
           {/* ─── Vision recognition rules ─── */}
-          <TabsContent value="vision" className="flex-1 min-h-0 flex flex-col overflow-hidden gap-3">
-            <div className="shrink-0 text-xs text-muted-foreground">
-              OCR+HaS + HaS Image | {t('settings.twoMergedOutput')}
+          <TabsContent value="vision" className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+            <div className={panelIntroClass} data-testid="settings-vision-intro">
+              {t('settings.pipelineDisplayName.ocr')} + {t('settings.pipelineDisplayName.image')} | {t('settings.twoMergedOutput')}
             </div>
             <PipelineConfigPanel
               pipelines={pipelines}
               onCreateType={createPipelineType}
               onUpdateType={updatePipelineType}
-              onDeleteType={deletePipelineType}
-              onReset={() => void resetPipelines()}
+              onDeleteType={(mode, id) => setConfirmState({
+                title: t('common.delete'),
+                message: t('settings.confirmDeleteType'),
+                danger: true,
+                onConfirm: () => void deletePipelineType(mode, id),
+              })}
+              onReset={() => setConfirmState({
+                title: t('settings.resetVisionRules'),
+                message: t('settings.confirmResetPipelines'),
+                danger: true,
+                onConfirm: () => void resetPipelines(),
+              })}
             />
           </TabsContent>
         </Tabs>
@@ -168,6 +203,19 @@ export function SettingsHub() {
         } : { use_llm: dialogUseLlm }}
         onSave={form => void handleSave(form)}
       />
+      {confirmState && (
+        <ConfirmDialog
+          open
+          title={confirmState.title}
+          message={confirmState.message}
+          danger={confirmState.danger}
+          onConfirm={() => {
+            confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onCancel={() => setConfirmState(null)}
+        />
+      )}
     </div>
   );
 }

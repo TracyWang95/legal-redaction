@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { PipelineConfig, PipelineTypeConfig } from '../hooks/use-entity-types';
 
 interface PipelineConfigPanelProps {
@@ -44,6 +45,8 @@ export function PipelineConfigPanel({
   const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
   const activePipeline = pipelines.find(pipeline => pipeline.mode === activeSub);
+  const ocrLabel = t('settings.pipelineDisplayName.ocr');
+  const imageLabel = t('settings.pipelineDisplayName.image');
 
   const openCreate = (mode: 'ocr_has' | 'has_image') => {
     setEditing(null);
@@ -79,16 +82,13 @@ export function PipelineConfigPanel({
   };
 
   const imageModeActive = activeSub === 'has_image';
-  const borderColor = imageModeActive ? 'border-[#AF52DE]/25' : 'border-[#34C759]/22';
-  const headerBg = imageModeActive ? 'bg-[#AF52DE]/[0.06]' : 'bg-[#34C759]/[0.05]';
-  const dotColor = imageModeActive ? 'bg-[#AF52DE]/90' : 'bg-[#34C759]/90';
-  const displayName = imageModeActive
-    ? t('settings.pipelineDisplayName.image')
-    : (activePipeline?.name ?? t('settings.pipelineDisplayName.ocr'));
+  const tone: SelectionTone = imageModeActive ? 'yolo' : 'ner';
+  const toneClasses = getSelectionToneClasses(tone);
+  const displayName = imageModeActive ? imageLabel : ocrLabel;
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2">
         <div className="flex w-fit gap-1 rounded-md border bg-muted p-0.5">
           <button
             type="button"
@@ -101,7 +101,7 @@ export function PipelineConfigPanel({
             )}
             data-testid="pipeline-tab-ocr"
           >
-            {ocrPipeline?.name ?? t('settings.pipelineDisplayName.ocr')}
+            {ocrLabel}
             <span className="ml-1 text-muted-foreground">({ocrPipeline?.types.length ?? 0})</span>
           </button>
           <button
@@ -115,68 +115,62 @@ export function PipelineConfigPanel({
             )}
             data-testid="pipeline-tab-image"
           >
-            {imagePipeline?.name ?? t('settings.pipelineDisplayName.image')}
+            {imageLabel}
             <span className="ml-1 text-muted-foreground">({imagePipeline?.types.length ?? 0})</span>
           </button>
         </div>
-        <Button size="sm" variant="ghost" onClick={onReset} data-testid="reset-pipelines">
-          {t('settings.resetVisionRules')}
-        </Button>
       </div>
 
       {!activePipeline ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">
-          {t('settings.loadingPipeline')}
-        </p>
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border bg-card px-6 py-10 text-center shadow-sm">
+          <p className="text-sm text-muted-foreground">
+            {t('settings.loadingPipeline')}
+          </p>
+        </div>
       ) : (
-        <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card shadow-sm', borderColor)}>
-          <div className={cn('flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3', borderColor, headerBg)}>
+        <div
+          className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border bg-card shadow-sm', toneClasses.headerSurface)}
+          data-testid="vision-pipeline-panel"
+        >
+          <div className={cn('flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3', toneClasses.headerSurface)}>
             <div className="flex min-w-0 items-center gap-2">
-              <span className={cn('h-2 w-2 shrink-0 rounded-full', dotColor)} />
+              <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
               <span className="truncate text-sm font-semibold">{displayName}</span>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className={cn('text-xs', toneClasses.badgeText)}>
                 {activePipeline.types.length}
               </Badge>
             </div>
-            <Button size="sm" onClick={() => openCreate(activeSub)} data-testid="add-pipeline-type">
-              {t('settings.addNew')}
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button size="sm" variant="outline" onClick={onReset} data-testid="reset-pipelines">
+                {t('settings.resetVisionRules')}
+              </Button>
+              <Button size="sm" onClick={() => openCreate(activeSub)} data-testid="add-pipeline-type">
+                {t('settings.addNew')}
+              </Button>
+            </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 overflow-y-auto p-2">
+          <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
             {activePipeline.types.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {t('settings.noTypeConfig')}
-              </p>
+              <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 bg-background/70 px-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {t('settings.noTypeConfig')}
+                </p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {activePipeline.types.map(type => (
                   <div
                     key={type.id}
-                    className={cn(
-                      'flex items-start gap-2 rounded-md border px-2 py-1.5 shadow-sm',
-                      imageModeActive
-                        ? 'border-[#AF52DE]/22 bg-[#AF52DE]/[0.07]'
-                        : 'border-[#34C759]/22 bg-[#34C759]/[0.06]',
-                    )}
+                    className={cn('flex min-h-[88px] items-start gap-2 rounded-lg border px-3 py-2 shadow-sm', toneClasses.tileSurface)}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-1">
                         <div className="min-w-0">
-                          <span
-                            className={cn(
-                              'block truncate text-xs font-medium leading-tight',
-                              imageModeActive ? 'text-[#5c2d7a]' : 'text-[#0d5c2f]',
-                            )}
-                          >
+                          <span className={cn('block truncate text-xs font-medium leading-tight', toneClasses.titleText)}>
                             {type.name}
                           </span>
-                          <span
-                            className={cn(
-                              'block truncate text-[10px]',
-                              imageModeActive ? 'text-[#AF52DE]/85' : 'text-[#34C759]/85',
-                            )}
-                          >
+                          <span className={cn('block truncate text-[10px]', toneClasses.metaText)}>
                             {type.id}
                           </span>
                         </div>
@@ -184,7 +178,7 @@ export function PipelineConfigPanel({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6"
+                            className="size-6"
                             onClick={() => openEdit(activePipeline.mode, type)}
                             data-testid={`edit-pipeline-${type.id}`}
                           >
@@ -193,7 +187,7 @@ export function PipelineConfigPanel({
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            className="size-6 text-destructive hover:text-destructive"
                             onClick={() => onDeleteType(activePipeline.mode, type.id)}
                             data-testid={`delete-pipeline-${type.id}`}
                           >
@@ -202,12 +196,7 @@ export function PipelineConfigPanel({
                         </div>
                       </div>
                       {type.description && (
-                        <p
-                          className={cn(
-                            'mt-0.5 line-clamp-2 text-[10px] leading-snug',
-                            imageModeActive ? 'text-[#6b2d7a]/90' : 'text-[#166534]/90',
-                          )}
-                        >
+                        <p className={cn('mt-0.5 line-clamp-2 text-[10px] leading-snug', toneClasses.descriptionText)}>
                           {type.description}
                         </p>
                       )}
@@ -237,12 +226,12 @@ export function PipelineConfigPanel({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1.5">
               <Label>{t('settings.nameLabel')} *</Label>
               <Input
                 value={form.name}
-                onChange={e => setForm(current => ({ ...current, name: e.target.value }))}
+                onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
                 placeholder={dialogMode === 'ocr_has'
                   ? t('settings.pipelineNamePlaceholder.ocr')
                   : t('settings.pipelineNamePlaceholder.image')}
@@ -250,11 +239,11 @@ export function PipelineConfigPanel({
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex flex-col gap-1.5">
               <Label>{t('settings.descLabel')}</Label>
               <Textarea
                 value={form.description}
-                onChange={e => setForm(current => ({ ...current, description: e.target.value }))}
+                onChange={event => setForm(current => ({ ...current, description: event.target.value }))}
                 rows={3}
                 data-testid="pipeline-type-desc"
               />
@@ -286,7 +275,7 @@ export function PipelineConfigPanel({
 
 function PencilIcon() {
   return (
-    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -299,7 +288,7 @@ function PencilIcon() {
 
 function TrashIcon() {
   return (
-    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"

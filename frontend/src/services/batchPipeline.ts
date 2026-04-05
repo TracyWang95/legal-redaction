@@ -3,48 +3,10 @@
  * 封装 parse / NER / vision / execute / 文件详情 等请求。
  */
 import type { ParseResult, NERResult, VisionResult, RedactionResult, RedactionRequest } from '../types';
-import { fetchWithTimeout } from '../utils/fetchWithTimeout';
-
-const BASE = '/api/v1';
-
-/** Build auth headers for fetch calls (mirrors api.ts interceptor logic). */
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('auth_token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-}
-
-/** Auth-only headers (no Content-Type) for non-JSON requests. */
-function authOnlyHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  const token = localStorage.getItem('auth_token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-}
-
-async function parseJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail ?? err);
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<T>;
-}
+import { get, post } from './api-client';
 
 export async function batchParse(fileId: string, signal?: AbortSignal): Promise<ParseResult> {
-  const res = await fetchWithTimeout(`${BASE}/files/${fileId}/parse`, {
-    method: 'GET',
-    headers: authOnlyHeaders(),
-    signal,
-    timeoutMs: 120_000,
-  });
-  return parseJson<ParseResult>(res);
+  return get<ParseResult>(`/files/${fileId}/parse`, { signal, timeout: 120_000 });
 }
 
 export async function batchHybridNer(
@@ -52,14 +14,7 @@ export async function batchHybridNer(
   body: { entity_type_ids: string[] },
   signal?: AbortSignal
 ): Promise<NERResult> {
-  const res = await fetchWithTimeout(`${BASE}/files/${fileId}/ner/hybrid`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-    signal,
-    timeoutMs: 120_000,
-  });
-  return parseJson<NERResult>(res);
+  return post<NERResult>(`/files/${fileId}/ner/hybrid`, body, { signal, timeout: 120_000 });
 }
 
 export async function batchVision(
@@ -69,34 +24,19 @@ export async function batchVision(
   selectedHasImageTypes: string[],
   signal?: AbortSignal
 ): Promise<VisionResult> {
-  const res = await fetchWithTimeout(`${BASE}/redaction/${fileId}/vision?page=${page}`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({
-      selected_ocr_has_types: selectedOcrHasTypes,
-      selected_has_image_types: selectedHasImageTypes,
-    }),
-    signal,
-    timeoutMs: 120_000,
-  });
-  return parseJson<VisionResult>(res);
+  const data = {
+    selected_ocr_has_types: selectedOcrHasTypes,
+    selected_has_image_types: selectedHasImageTypes,
+  };
+  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, { signal, timeout: 120_000 });
 }
 
 export async function batchGetFileRaw(fileId: string): Promise<Record<string, unknown>> {
-  const res = await fetchWithTimeout(`${BASE}/files/${fileId}`, {
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<Record<string, unknown>>(res);
+  return get<Record<string, unknown>>(`/files/${fileId}`);
 }
 
 export async function batchExecute(request: RedactionRequest): Promise<RedactionResult> {
-  const res = await fetchWithTimeout(`${BASE}/redaction/execute`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(request),
-    timeoutMs: 120_000,
-  });
-  return parseJson<RedactionResult>(res);
+  return post<RedactionResult>('/redaction/execute', request, { timeout: 120_000 });
 }
 
 /** 与后端 execute 一致的 entity_map 预览（不落盘） */
@@ -104,12 +44,7 @@ export async function batchPreviewEntityMap(body: {
   entities: unknown[];
   config: Record<string, unknown>;
 }): Promise<Record<string, string>> {
-  const res = await fetchWithTimeout(`${BASE}/redaction/preview-map`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  const data = await parseJson<{ entity_map?: Record<string, string> }>(res);
+  const data = await post<{ entity_map?: Record<string, string> }>('/redaction/preview-map', body);
   return data.entity_map ?? {};
 }
 
@@ -120,15 +55,13 @@ export async function batchPreviewImage(body: {
   config: Record<string, unknown>;
 }): Promise<string> {
   const page = body.page ?? 1;
-  const res = await fetchWithTimeout(`${BASE}/redaction/${encodeURIComponent(body.file_id)}/preview-image?page=${page}`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({
+  const data = await post<{ image_base64?: string }>(
+    `/redaction/${encodeURIComponent(body.file_id)}/preview-image?page=${page}`,
+    {
       bounding_boxes: body.bounding_boxes,
       config: body.config,
-    }),
-  });
-  const data = await parseJson<{ image_base64?: string }>(res);
+    }
+  );
   return data.image_base64 ?? '';
 }
 

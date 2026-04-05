@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, ShieldAlert, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
+import { localizeErrorMessage } from '@/utils/localizeError';
 
 export interface NetworkErrorFallbackProps {
   error: Error;
@@ -74,7 +75,7 @@ export const NetworkErrorFallback: React.FC<NetworkErrorFallbackProps> = ({
     <FallbackShell
       icon={<AlertTriangle className="h-5 w-5" />}
       title={t('errorBoundary.title')}
-      description={error.message}
+      description={localizeErrorMessage(error, 'common.requestFailed')}
       action={onRetry ? (
         <Button onClick={onRetry} variant="outline" className="rounded-full px-4">
           {t('common.retry')}

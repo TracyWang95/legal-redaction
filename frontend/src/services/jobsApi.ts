@@ -1,25 +1,7 @@
 /**
  * 任务中心：文本批量 / 图像批量 Job API
  */
-import { fetchWithTimeout } from '../utils/fetchWithTimeout';
-
-const BASE = '/api/v1/jobs';
-
-/** Build auth headers for fetch calls (mirrors api.ts interceptor logic). */
-function authHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = localStorage.getItem('auth_token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-}
-
-/** Auth-only headers (no Content-Type) for non-JSON requests. */
-function authOnlyHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  const token = localStorage.getItem('auth_token');
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  return headers;
-}
+import { get, post, put, del } from './api-client';
 
 export type JobTypeApi = 'text_batch' | 'image_batch' | 'smart_batch';
 
@@ -96,161 +78,89 @@ export type DeleteJobResult = {
   detached_file_count: number;
 };
 
-async function parseJson<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      if (typeof err.detail === 'string') {
-        msg = err.detail;
-      } else if (typeof err.message === 'string') {
-        // 自定义错误处理器返回 { error_code, message, detail: {} }
-        msg = err.message;
-      } else {
-        msg = JSON.stringify(err.detail ?? err);
-      }
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<T>;
-}
-
-export async function createJob(body: {
+export function createJob(body: {
   job_type: JobTypeApi;
   title?: string;
   config?: Record<string, unknown>;
   skip_item_review?: boolean;
   priority?: number;
 }): Promise<JobSummary> {
-  const res = await fetchWithTimeout(BASE, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  return parseJson<JobSummary>(res);
+  return post<JobSummary>('/jobs', body);
 }
 
-export async function updateJobDraft(
+export function updateJobDraft(
   jobId: string,
   body: { title?: string; config?: Record<string, unknown>; skip_item_review?: boolean }
 ): Promise<JobSummary> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    body: JSON.stringify(body),
-  });
-  return parseJson<JobSummary>(res);
+  return put<JobSummary>(`/jobs/${encodeURIComponent(jobId)}`, body);
 }
 
-export async function listJobs(params: {
+export function listJobs(params: {
   job_type?: JobTypeApi;
   page?: number;
   page_size?: number;
 }): Promise<{ jobs: JobSummary[]; total: number; page: number; page_size: number }> {
-  const sp = new URLSearchParams();
-  if (params.job_type) sp.set('job_type', params.job_type);
-  if (params.page) sp.set('page', String(params.page));
-  if (params.page_size) sp.set('page_size', String(params.page_size));
-  const q = sp.toString();
-  const res = await fetchWithTimeout(q ? `${BASE}?${q}` : BASE, {
-    headers: authOnlyHeaders(),
-  });
-  return parseJson(res);
+  return get('/jobs', { params });
 }
 
-export async function getJob(jobId: string): Promise<JobDetail> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}`, {
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<JobDetail>(res);
+export function getJob(jobId: string): Promise<JobDetail> {
+  return get<JobDetail>(`/jobs/${encodeURIComponent(jobId)}`);
 }
 
-export async function submitJob(jobId: string): Promise<JobSummary> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}/submit`, {
-    method: 'POST',
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<JobSummary>(res);
+export function submitJob(jobId: string): Promise<JobSummary> {
+  return post<JobSummary>(`/jobs/${encodeURIComponent(jobId)}/submit`);
 }
 
-export async function cancelJob(jobId: string): Promise<JobSummary> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}/cancel`, {
-    method: 'POST',
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<JobSummary>(res);
+export function cancelJob(jobId: string): Promise<JobSummary> {
+  return post<JobSummary>(`/jobs/${encodeURIComponent(jobId)}/cancel`);
 }
 
-export async function requeueFailed(jobId: string): Promise<JobSummary> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}/requeue-failed`, {
-    method: 'POST',
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<JobSummary>(res);
+export function requeueFailed(jobId: string): Promise<JobSummary> {
+  return post<JobSummary>(`/jobs/${encodeURIComponent(jobId)}/requeue-failed`);
 }
 
-export async function deleteJob(jobId: string): Promise<DeleteJobResult> {
-  const res = await fetchWithTimeout(`${BASE}/${encodeURIComponent(jobId)}`, {
-    method: 'DELETE',
-    headers: authOnlyHeaders(),
-  });
-  return parseJson<DeleteJobResult>(res);
+export function deleteJob(jobId: string): Promise<DeleteJobResult> {
+  return del<DeleteJobResult>(`/jobs/${encodeURIComponent(jobId)}`);
 }
 
-export async function approveItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
-  const res = await fetchWithTimeout(
-    `${BASE}/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/approve`,
-    { method: 'POST', headers: authHeaders(), body: '{}' }
+export function approveItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
+  return post<JobItemRow>(
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/approve`,
+    {}
   );
-  return parseJson<JobItemRow>(res);
 }
 
-export async function rejectItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
-  const res = await fetchWithTimeout(
-    `${BASE}/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/reject`,
-    { method: 'POST', headers: authHeaders(), body: '{}' }
+export function rejectItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
+  return post<JobItemRow>(
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/reject`,
+    {}
   );
-  return parseJson<JobItemRow>(res);
 }
 
-export async function getItemReviewDraft(jobId: string, itemId: string): Promise<JobItemReviewDraft> {
-  const res = await fetchWithTimeout(
-    `${BASE}/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`,
-    { headers: authOnlyHeaders() }
+export function getItemReviewDraft(jobId: string, itemId: string): Promise<JobItemReviewDraft> {
+  return get<JobItemReviewDraft>(
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`
   );
-  return parseJson<JobItemReviewDraft>(res);
 }
 
-export async function putItemReviewDraft(
+export function putItemReviewDraft(
   jobId: string,
   itemId: string,
   body: { entities: Array<Record<string, unknown>>; bounding_boxes: Array<Record<string, unknown>> }
 ): Promise<JobItemReviewDraft> {
-  const res = await fetchWithTimeout(
-    `${BASE}/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`,
-    {
-      method: 'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    }
+  return put<JobItemReviewDraft>(
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`,
+    body
   );
-  return parseJson(res);
 }
 
-export async function commitItemReview(
+export function commitItemReview(
   jobId: string,
   itemId: string,
   body: { entities: Array<Record<string, unknown>>; bounding_boxes: Array<Record<string, unknown>> }
 ): Promise<JobItemRow> {
-  const res = await fetchWithTimeout(
-    `${BASE}/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/commit`,
-    {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify(body),
-    }
+  return post<JobItemRow>(
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/commit`,
+    body
   );
-  return parseJson<JobItemRow>(res);
 }

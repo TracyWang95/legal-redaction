@@ -7,6 +7,7 @@ import {
   type JobSummary,
   type JobTypeApi,
 } from '@/services/jobsApi';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
 
 function isActiveJob(status: string): boolean {
@@ -60,7 +61,7 @@ export function useBatchHub() {
       });
       nav(`/batch/smart?jobId=${encodeURIComponent(j.id)}&step=1&new=1`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('batchHub.createFailed'));
+      setError(localizeErrorMessage(e, 'batchHub.createFailed'));
     } finally {
       setBusy(false);
     }

@@ -1623,6 +1623,27 @@ input[type="checkbox"]:focus-visible {
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 36px -26px rgba(15, 23, 42, 0.10);
   --shadow-md: 0 22px 44px -32px rgba(15, 23, 42, 0.14);
   --shadow-lg: 0 30px 70px -40px rgba(15, 23, 42, 0.18);
+  --selection-regex-accent: #6f86a7;
+  --selection-regex-border: rgba(111, 134, 167, 0.22);
+  --selection-regex-soft: rgba(111, 134, 167, 0.08);
+  --selection-regex-surface: rgba(111, 134, 167, 0.12);
+  --selection-regex-text: #38506d;
+  --selection-regex-muted: rgba(56, 80, 109, 0.82);
+  --selection-regex-ring: rgba(111, 134, 167, 0.28);
+  --selection-ner-accent: #10a37f;
+  --selection-ner-border: rgba(16, 163, 127, 0.22);
+  --selection-ner-soft: rgba(16, 163, 127, 0.08);
+  --selection-ner-surface: rgba(16, 163, 127, 0.12);
+  --selection-ner-text: #0f6c55;
+  --selection-ner-muted: rgba(15, 108, 85, 0.82);
+  --selection-ner-ring: rgba(16, 163, 127, 0.28);
+  --selection-yolo-accent: #8074a6;
+  --selection-yolo-border: rgba(128, 116, 166, 0.22);
+  --selection-yolo-soft: rgba(128, 116, 166, 0.08);
+  --selection-yolo-surface: rgba(128, 116, 166, 0.12);
+  --selection-yolo-text: #55487b;
+  --selection-yolo-muted: rgba(85, 72, 123, 0.82);
+  --selection-yolo-ring: rgba(128, 116, 166, 0.28);
 }
 
 :root.dark {
@@ -1663,6 +1684,27 @@ input[type="checkbox"]:focus-visible {
   --shadow-sm: 0 1px 2px rgba(2, 6, 23, 0.24), 0 16px 36px -26px rgba(2, 6, 23, 0.44);
   --shadow-md: 0 24px 54px -34px rgba(2, 6, 23, 0.54);
   --shadow-lg: 0 34px 80px -42px rgba(2, 6, 23, 0.64);
+  --selection-regex-accent: #9cb3d3;
+  --selection-regex-border: rgba(156, 179, 211, 0.26);
+  --selection-regex-soft: rgba(156, 179, 211, 0.12);
+  --selection-regex-surface: rgba(156, 179, 211, 0.18);
+  --selection-regex-text: #e5eefc;
+  --selection-regex-muted: rgba(229, 238, 252, 0.76);
+  --selection-regex-ring: rgba(156, 179, 211, 0.34);
+  --selection-ner-accent: #54d3b0;
+  --selection-ner-border: rgba(84, 211, 176, 0.26);
+  --selection-ner-soft: rgba(84, 211, 176, 0.12);
+  --selection-ner-surface: rgba(84, 211, 176, 0.18);
+  --selection-ner-text: #d9fff3;
+  --selection-ner-muted: rgba(217, 255, 243, 0.76);
+  --selection-ner-ring: rgba(84, 211, 176, 0.34);
+  --selection-yolo-accent: #b2a2e0;
+  --selection-yolo-border: rgba(178, 162, 224, 0.26);
+  --selection-yolo-soft: rgba(178, 162, 224, 0.12);
+  --selection-yolo-surface: rgba(178, 162, 224, 0.18);
+  --selection-yolo-text: #f0eaff;
+  --selection-yolo-muted: rgba(240, 234, 255, 0.76);
+  --selection-yolo-ring: rgba(178, 162, 224, 0.34);
 }
 
 body,

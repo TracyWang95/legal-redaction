@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import {
@@ -40,7 +49,10 @@ import {
   selectableCheckboxClass,
   type SelectionVariant,
 } from '@/ui/selectionClasses';
+import { getSelectionToneClasses } from '@/ui/selectionPalette';
 import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
+
+const DEFAULT_PRESET_OPTION = '__default__';
 
 function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
   return [...presets].sort((left, right) => {
@@ -71,6 +83,12 @@ export function RedactionList() {
   const [bridgeText, setBridgeText] = useState(() => getActivePresetTextId() ?? '');
   const [bridgeVision, setBridgeVision] = useState(() => getActivePresetVisionId() ?? '');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
 
   const presetKindLabel = useCallback((kind?: PresetKind) => {
     if (kind === 'text') return t('settings.redaction.kind.text');
@@ -283,8 +301,6 @@ export function RedactionList() {
   };
 
   const removePreset = async (id: string) => {
-    if (!confirm(t('settings.redaction.confirmDelete'))) return;
-
     try {
       await deletePreset(id);
       setExpanded(current => (current === `text:${id}` || current === `vision:${id}` ? null : current));
@@ -351,44 +367,56 @@ export function RedactionList() {
             <div className="grid gap-2 md:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">{t('settings.redaction.linkText')}</Label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
-                  value={bridgeText}
-                  onChange={e => {
-                    setBridgeText(e.target.value);
-                    setActivePresetTextId(e.target.value || null);
+                <Select
+                  value={bridgeText || DEFAULT_PRESET_OPTION}
+                  onValueChange={(value) => {
+                    const nextValue = value === DEFAULT_PRESET_OPTION ? '' : value;
+                    setBridgeText(nextValue);
+                    setActivePresetTextId(nextValue || null);
                   }}
-                  data-testid="bridge-text-select"
                 >
-                  <option value="">{t('settings.redaction.defaultOption')}</option>
-                  {textPresets.map(preset => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.name}
-                      {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 rounded-lg text-xs" data-testid="bridge-text-select">
+                    <SelectValue placeholder={t('settings.redaction.defaultOption')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value={DEFAULT_PRESET_OPTION}>{t('settings.redaction.defaultOption')}</SelectItem>
+                      {textPresets.map((preset) => (
+                        <SelectItem key={preset.id} value={preset.id}>
+                          {preset.name}
+                          {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1">
                 <Label className="text-xs">{t('settings.redaction.linkVision')}</Label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs"
-                  value={bridgeVision}
-                  onChange={e => {
-                    setBridgeVision(e.target.value);
-                    setActivePresetVisionId(e.target.value || null);
+                <Select
+                  value={bridgeVision || DEFAULT_PRESET_OPTION}
+                  onValueChange={(value) => {
+                    const nextValue = value === DEFAULT_PRESET_OPTION ? '' : value;
+                    setBridgeVision(nextValue);
+                    setActivePresetVisionId(nextValue || null);
                   }}
-                  data-testid="bridge-vision-select"
                 >
-                  <option value="">{t('settings.redaction.defaultOption')}</option>
-                  {visionPresets.map(preset => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.name}
-                      {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-8 rounded-lg text-xs" data-testid="bridge-vision-select">
+                    <SelectValue placeholder={t('settings.redaction.defaultOption')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value={DEFAULT_PRESET_OPTION}>{t('settings.redaction.defaultOption')}</SelectItem>
+                      {visionPresets.map((preset) => (
+                        <SelectItem key={preset.id} value={preset.id}>
+                          {preset.name}
+                          {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -403,7 +431,12 @@ export function RedactionList() {
                 setExpanded={setExpanded}
                 colPrefix="text"
                 onEdit={openEdit}
-                onDelete={removePreset}
+                    onDelete={(id) => setConfirmState({
+                      title: t('common.delete'),
+                      message: t('settings.redaction.confirmDelete'),
+                      danger: true,
+                      onConfirm: () => void removePreset(id),
+                    })}
               />
               <PresetColumn
                 title={t('settings.redaction.visionColumn')}
@@ -415,7 +448,12 @@ export function RedactionList() {
                 setExpanded={setExpanded}
                 colPrefix="vision"
                 onEdit={openEdit}
-                onDelete={removePreset}
+                    onDelete={(id) => setConfirmState({
+                      title: t('common.delete'),
+                      message: t('settings.redaction.confirmDelete'),
+                      danger: true,
+                      onConfirm: () => void removePreset(id),
+                    })}
               />
             </div>
           </CardContent>
@@ -510,6 +548,19 @@ export function RedactionList() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      )}
+      {confirmState && (
+        <ConfirmDialog
+          open
+          title={confirmState.title}
+          message={confirmState.message}
+          danger={confirmState.danger}
+          onConfirm={() => {
+            confirmState.onConfirm();
+            setConfirmState(null);
+          }}
+          onCancel={() => setConfirmState(null)}
+        />
       )}
     </div>
   );
@@ -734,6 +785,7 @@ function PipelineCheckboxGrid({
 }) {
   const t = useT();
   const variant: SelectionVariant = pipeline.mode === 'ocr_has' ? 'ner' : 'yolo';
+  const toneClasses = getSelectionToneClasses(variant);
   const selectedIds = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
 
   return (
@@ -741,7 +793,7 @@ function PipelineCheckboxGrid({
       <p
         className={cn(
           'mb-2 border-l-[3px] pl-2 text-sm font-semibold',
-          pipeline.mode === 'ocr_has' ? 'border-[#34C759]' : 'border-[#AF52DE]',
+          toneClasses.dot,
         )}
       >
         {pipeline.mode === 'ocr_has' ? t('settings.redaction.ocrGroup') : t('settings.redaction.imageGroup')}
