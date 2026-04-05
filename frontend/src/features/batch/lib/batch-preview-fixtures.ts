@@ -1,8 +1,7 @@
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 import type { RecognitionPreset } from '@/services/presetsApi';
-import type { BatchWizardPersistedConfig } from '@/services/batchPipeline';
+import type { BatchWizardPersistedConfig, BatchWizardMode } from '@/services/batchPipeline';
 import { FileType } from '@/types';
-import type { BatchWizardMode } from '@/services/batchPipeline';
 import type { BatchRow, PipelineCfg, ReviewEntity, Step, TextEntityType } from '../types';
 
 export const PREVIEW_BATCH_JOB_ID = 'preview-smart-batch';
@@ -56,7 +55,7 @@ const previewImageRedactedSvg = encodeURIComponent(`
 const previewRowsBase: BatchRow[] = [
   {
     file_id: 'preview-file-contract',
-    original_filename: '股权协议-样例-A.docx',
+    original_filename: '合同审阅-样例-A.docx',
     file_size: 184320,
     file_type: FileType.DOCX,
     created_at: previewNow,
@@ -80,7 +79,7 @@ const previewRowsBase: BatchRow[] = [
   },
   {
     file_id: 'preview-file-scan',
-    original_filename: '扫描件-签章页-C.pdf',
+    original_filename: '扫描签章-样例-C.pdf',
     file_size: 1264032,
     file_type: FileType.PDF_SCANNED,
     created_at: previewNow,
@@ -92,7 +91,7 @@ const previewRowsBase: BatchRow[] = [
   },
   {
     file_id: 'preview-file-photo',
-    original_filename: '现场照片-回执-D.png',
+    original_filename: '现场照片-样例-D.png',
     file_size: 742112,
     file_type: FileType.IMAGE,
     created_at: previewNow,
@@ -106,9 +105,9 @@ const previewRowsBase: BatchRow[] = [
 
 export const previewTextTypes: TextEntityType[] = [
   { id: 'PERSON', name: '当事人姓名', color: '#0f766e', use_llm: true, order: 1 },
-  { id: 'ID_CARD', name: '身份证号', color: '#2563eb', regex_pattern: '\\\\b\\\\d{17}[\\\\dXx]\\\\b', order: 2 },
-  { id: 'BANK_CARD', name: '银行卡号', color: '#b45309', regex_pattern: '\\\\b\\\\d{12,19}\\\\b', order: 3 },
-  { id: 'CASE_NUMBER', name: '案号', color: '#7c3aed', use_llm: true, order: 4 },
+  { id: 'ID_CARD', name: '身份证号', color: '#2563eb', regex_pattern: '\\b\\d{17}[\\dXx]\\b', order: 2 },
+  { id: 'BANK_CARD', name: '银行卡号', color: '#b45309', regex_pattern: '\\b\\d{12,19}\\b', order: 3 },
+  { id: 'CASE_NUMBER', name: '案件编号', color: '#7c3aed', use_llm: true, order: 4 },
 ];
 
 export const previewPipelines: PipelineCfg[] = [
@@ -149,7 +148,7 @@ export const previewPresets: RecognitionPreset[] = [
   },
   {
     id: 'preview-vision-preset',
-    name: '扫描件图像预设',
+    name: '扫描图像预设',
     kind: 'vision',
     selectedEntityTypeIds: [],
     ocrHasTypes: ['seal_text', 'handwritten_name'],
@@ -224,7 +223,7 @@ const previewCaseEntities: ReviewEntity[] = [
   },
   {
     id: 'preview-entity-person-2',
-    text: '王珊',
+    text: '王敏',
     type: 'PERSON',
     start: 58,
     end: 60,
@@ -322,7 +321,7 @@ export function getPreviewReviewPayload(fileId: string): {
 } {
   if (fileId === 'preview-file-contract') {
     return {
-      content: '合同主体张宁，身份证号为310101199201013422，关联案号沪民终字第2026-083号，需在导出前统一处理。',
+      content: '合同主体张宁，身份证号为310101199201013422，关联案件编号沪民终字第2026-083号，需要在导出前统一处理。',
       entities: previewTextEntities,
       boxes: [],
       imageSrc: '',
@@ -332,7 +331,7 @@ export function getPreviewReviewPayload(fileId: string): {
 
   if (fileId === 'preview-file-case') {
     return {
-      content: '回款账户 6214850200123456789 已写入附页，复核人员王珊需要确认最终脱敏结果。',
+      content: '回款账户6214850200123456789已写入附件，复核人员王敏需要确认最终脱敏结果。',
       entities: previewCaseEntities,
       boxes: [],
       imageSrc: '',

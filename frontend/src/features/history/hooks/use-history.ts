@@ -1,11 +1,17 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { authFetch } from '@/services/api-client';
+import { authFetch, downloadFile as downloadAuthenticatedFile } from '@/services/api-client';
 import { t } from '@/i18n';
 import { fileApi, redactionApi } from '@/services/api';
 import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveRedactionState } from '@/utils/redactionState';
 import type { CompareData, FileListItem } from '@/types';
+import {
+  buildHistoryPreviewCompare,
+  buildHistoryPreviewDownloadBlob,
+  buildHistoryPreviewResponse,
+  isHistoryPreviewRow,
+} from '../lib/history-preview-fixtures';
 
 
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
@@ -144,6 +150,7 @@ export function useHistory() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [fileTypeFilter, setFileTypeFilter] = useState<FileTypeFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [previewMode, setPreviewMode] = useState(false);
 
   /* Compare modal state */
   const [compareOpen, setCompareOpen] = useState(false);
@@ -189,6 +196,10 @@ export function useHistory() {
     const useBinaryPreview = isBinaryPreviewRow(row);
     setCompareTab(useBinaryPreview ? 'preview' : 'text');
     try {
+      if (previewMode && isHistoryPreviewRow(row)) {
+        setCompareData(buildHistoryPreviewCompare(row));
+        return;
+      }
       const [data, fileInfo] = await Promise.all([
         redactionApi.getComparison(row.file_id),
         fileApi.getInfo(row.file_id).catch(() => null),
@@ -208,7 +219,7 @@ export function useHistory() {
     } finally {
       setCompareLoading(false);
     }
-  }, [revokeCompareBlobs]);
+  }, [previewMode, revokeCompareBlobs]);
 
   useEffect(() => {
     if (!compareOpen) return;
@@ -238,8 +249,17 @@ export function useHistory() {
         setPage(typeof res?.page === 'number' ? res.page : p);
         setPageSize(typeof res?.page_size === 'number' ? res.page_size : ps);
         setSelected(new Set());
+        setPreviewMode(false);
       } catch (e) {
-        setMsg({ text: localizeErrorMessage(e, 'history.loadFailed'), tone: 'err' });
+        const source = src === 'all' ? undefined : src;
+        const preview = buildHistoryPreviewResponse(p, ps, source);
+        setRows(preview.files);
+        setTotal(preview.total);
+        setPage(preview.page);
+        setPageSize(preview.page_size);
+        setSelected(new Set());
+        setPreviewMode(true);
+        setMsg({ text: t('history.previewBanner'), tone: 'warn' });
       } finally {
         firstLoadRef.current = false;
         setInitialLoading(false);
@@ -336,6 +356,20 @@ export function useHistory() {
     }
     setZipLoading(true);
     try {
+      if (previewMode) {
+        const previewRows = rows.filter((row) => ids.includes(row.file_id));
+        const blob = new Blob(
+          [
+            `${redacted ? '脱敏结果' : '原始文件'}预览包`,
+            '',
+            ...previewRows.map((row) => row.original_filename),
+          ].join('\n'),
+          { type: 'text/plain;charset=utf-8' },
+        );
+        triggerDownload(blob, filename.replace('.zip', '-preview.txt'));
+        setMsg({ text: t('history.zipStarted'), tone: 'ok' });
+        return;
+      }
       const blob = await fileApi.batchDownloadZip(ids, redacted);
       triggerDownload(blob, filename);
       showToast(t('history.zipStarted'), 'success');
@@ -343,7 +377,7 @@ export function useHistory() {
     } catch (e) {
       setMsg({ text: localizeErrorMessage(e, 'history.downloadFailed'), tone: 'err' });
     } finally { setZipLoading(false); }
-  }, [rows]);
+  }, [previewMode, rows]);
 
   const downloadZip = useCallback(async (redacted: boolean) => {
     if (!selectedIds.length) { setMsg({ text: t('history.selectFirst'), tone: 'warn' }); return; }
@@ -369,13 +403,19 @@ export function useHistory() {
       onConfirm: async () => {
         setConfirmDlg(null);
         try {
+          if (previewMode && id.startsWith('preview-history-')) {
+            setRows((current) => current.filter((row) => row.file_id !== id));
+            setTotal((current) => Math.max(0, current - 1));
+            setMsg({ text: t('history.deleted'), tone: 'ok' });
+            return;
+          }
           await fileApi.delete(id);
           await load(true, page, pageSize);
           setMsg({ text: t('history.deleted'), tone: 'ok' });
         } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
       },
     });
-  }, [load, page, pageSize]);
+  }, [load, page, pageSize, previewMode]);
 
   const removeGroup = useCallback((fileIds: string[]) => {
     if (!fileIds.length) return;
@@ -385,19 +425,32 @@ export function useHistory() {
       onConfirm: async () => {
         setConfirmDlg(null);
         try {
+          if (previewMode && fileIds.every((id) => id.startsWith('preview-history-'))) {
+            setRows((current) => current.filter((row) => !fileIds.includes(row.file_id)));
+            setTotal((current) => Math.max(0, current - fileIds.length));
+            setMsg({ text: t('history.deletedGroup').replace('{n}', String(fileIds.length)), tone: 'ok' });
+            return;
+          }
           for (const id of fileIds) await fileApi.delete(id);
           await load(true, page, pageSize);
           setMsg({ text: t('history.deletedGroup').replace('{n}', String(fileIds.length)), tone: 'ok' });
         } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
       },
     });
-  }, [load, page, pageSize]);
+  }, [load, page, pageSize, previewMode]);
 
   /* Cleanup */
 
   const handleCleanup = useCallback(async () => {
     setCleanupConfirmOpen(false);
     try {
+      if (previewMode) {
+        const removedCount = rows.filter((row) => row.has_output).length;
+        setRows((current) => current.filter((row) => !row.has_output));
+        setTotal((current) => Math.max(0, current - removedCount));
+        setMsg({ text: t('history.cleanupButton'), tone: 'ok' });
+        return;
+      }
       const res = await authFetch('/api/v1/safety/cleanup', { method: 'POST' });
       if (!res.ok) throw new Error(t('safety.cleanup.failed'));
       const data = await res.json();
@@ -411,11 +464,24 @@ export function useHistory() {
     } catch {
       showToast(t('safety.cleanup.failed'), 'error');
     }
-  }, [load, pageSize]);
+  }, [load, pageSize, previewMode, rows]);
+
+  const downloadRow = useCallback(async (row: FileListItem) => {
+    if (previewMode && isHistoryPreviewRow(row)) {
+      const suffix = row.has_output ? '-脱敏预览.txt' : '-原始预览.txt';
+      triggerDownload(
+        buildHistoryPreviewDownloadBlob(row, row.has_output),
+        row.original_filename.replace(/\.[^.]+$/, suffix),
+      );
+      return;
+    }
+
+    await downloadAuthenticatedFile(fileApi.getDownloadUrl(row.file_id, row.has_output), row.original_filename);
+  }, [previewMode]);
 
   return {
     /* list data */
-    rows, filteredRows, total, page, pageSize, totalPages, historyGroups, statsData,
+    rows, filteredRows, total, page, pageSize, totalPages, historyGroups, statsData, previewMode,
     /* loading */
     initialLoading, tableLoading, refreshing, zipLoading,
     /* selection */
@@ -426,7 +492,7 @@ export function useHistory() {
     /* pagination */
     goPage, changePageSize,
     /* actions */
-    load, downloadZip, remove, removeGroup, toggleBatchCollapse, collapsedBatchIds,
+    load, downloadZip, downloadRow, remove, removeGroup, toggleBatchCollapse, collapsedBatchIds,
     /* cleanup */
     cleanupConfirmOpen, setCleanupConfirmOpen, handleCleanup,
     /* messages */

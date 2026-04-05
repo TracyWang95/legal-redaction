@@ -5,6 +5,7 @@ import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { selectionToneHex, type SelectionTone } from '@/ui/selectionPalette';
+import { buildPreviewEntityTypes, buildPreviewPipelines } from '../lib/settings-preview-fixtures';
 
 export interface EntityTypeConfig {
   id: string;
@@ -82,17 +83,21 @@ export function useEntityTypes() {
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [pipelinesLoading, setPipelinesLoading] = useState(true);
+  const [previewMode, setPreviewMode] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 25000 });
+      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 3500 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setEntityTypes(data.custom_types || []);
+      setPreviewMode(false);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', err);
+      setEntityTypes(buildPreviewEntityTypes(t) as EntityTypeConfig[]);
+      setPreviewMode(true);
     } finally {
       setLoading(false);
     }
@@ -101,7 +106,7 @@ export function useEntityTypes() {
   const fetchPipelines = useCallback(async () => {
     try {
       setPipelinesLoading(true);
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 25000 });
+      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 3500 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       const normalized = (data || []).map((p: PipelineConfig) =>
@@ -114,8 +119,11 @@ export function useEntityTypes() {
           : p
       );
       setPipelines(normalized);
+      setPreviewMode(false);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch pipelines failed', err);
+      setPipelines(buildPreviewPipelines(t) as PipelineConfig[]);
+      setPreviewMode(true);
     } finally {
       setPipelinesLoading(false);
     }
@@ -274,7 +282,7 @@ export function useEntityTypes() {
   }, []);
 
   return {
-    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, importFileRef,
+    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, previewMode, importFileRef,
     createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets, fetchEntityTypes, fetchPipelines,

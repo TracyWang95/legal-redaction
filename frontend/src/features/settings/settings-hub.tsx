@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useT } from '@/i18n';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useEntityTypes } from './hooks/use-entity-types';
 import { EntityTypeList } from './components/entity-type-list';
@@ -13,7 +14,7 @@ export function SettingsHub() {
   const t = useT();
   const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
   const {
-    entityTypes: _entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes,
+    entityTypes: _entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, previewMode,
     importFileRef, createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets,
@@ -75,6 +76,12 @@ export function SettingsHub() {
     <div className="saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="page-shell">
         <Tabs defaultValue="text" className="page-stack overflow-hidden gap-3">
+          {previewMode && (
+            <Alert>
+              <AlertDescription>{t('settings.redaction.previewBanner')}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
             <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1" data-testid="settings-tabs">
               <TabsTrigger value="text" data-testid="tab-text">{t('settings.textRules')}</TabsTrigger>

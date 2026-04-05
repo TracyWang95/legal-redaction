@@ -54,82 +54,13 @@ import {
 import { getSelectionToneClasses } from '@/ui/selectionPalette';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
+import {
+  buildPreviewEntityTypes,
+  buildPreviewPipelines,
+  buildPreviewPresets,
+} from './lib/settings-preview-fixtures';
 
 const DEFAULT_PRESET_OPTION = '__default__';
-
-function buildPreviewEntityTypes(): EntityTypeConfig[] {
-  return [
-    { id: 'person_name', name: '姓名', color: '#0f766e', regex_pattern: '[\\u4e00-\\u9fa5]{2,4}', enabled: true },
-    { id: 'id_card', name: '身份证号', color: '#0f766e', regex_pattern: '\\b\\d{17}[\\dXx]\\b', enabled: true },
-    { id: 'bank_card', name: '银行卡号', color: '#0f766e', regex_pattern: '\\b\\d{12,19}\\b', enabled: true },
-    { id: 'company_name', name: '公司名称', color: '#2563eb', use_llm: true, enabled: true },
-    { id: 'project_name', name: '项目名称', color: '#2563eb', use_llm: true, enabled: true },
-  ];
-}
-
-function buildPreviewPipelines(t: (key: string) => string): PipelineConfig[] {
-  return [
-    {
-      mode: 'ocr_has',
-      name: t('settings.redaction.ocrGroup'),
-      description: '',
-      enabled: true,
-      types: [
-        { id: 'seal_text', name: '公章文字', color: '#2563eb', enabled: true, order: 1 },
-        { id: 'handwritten_name', name: '手写姓名', color: '#2563eb', enabled: true, order: 2 },
-      ],
-    },
-    {
-      mode: 'has_image',
-      name: t('settings.pipelineDisplayName.image'),
-      description: '',
-      enabled: true,
-      types: [
-        { id: 'signature_region', name: '签名区域', color: '#dc2626', enabled: true, order: 1 },
-        { id: 'portrait_face', name: '人像头像', color: '#dc2626', enabled: true, order: 2 },
-      ],
-    },
-  ];
-}
-
-function buildPreviewPresets(): RecognitionPreset[] {
-  const now = new Date().toISOString();
-  return [
-    {
-      id: 'preview-contract-text',
-      name: '合同默认清单',
-      kind: 'text',
-      selectedEntityTypeIds: ['person_name', 'id_card', 'company_name'],
-      ocrHasTypes: [],
-      hasImageTypes: [],
-      replacementMode: 'structured',
-      created_at: now,
-      updated_at: now,
-    },
-    {
-      id: 'preview-scan-vision',
-      name: '扫描件识别清单',
-      kind: 'vision',
-      selectedEntityTypeIds: [],
-      ocrHasTypes: ['seal_text', 'handwritten_name'],
-      hasImageTypes: ['signature_region', 'portrait_face'],
-      replacementMode: 'structured',
-      created_at: now,
-      updated_at: now,
-    },
-    {
-      id: 'preview-mixed-full',
-      name: '混合批次交付清单',
-      kind: 'full',
-      selectedEntityTypeIds: ['person_name', 'project_name'],
-      ocrHasTypes: ['seal_text'],
-      hasImageTypes: ['signature_region'],
-      replacementMode: 'structured',
-      created_at: now,
-      updated_at: now,
-    },
-  ];
-}
 
 function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
   return [...presets].sort((left, right) => {
@@ -142,9 +73,9 @@ function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
 
 export function RedactionList() {
   const t = useT();
-  const previewEntityTypes = useMemo(() => buildPreviewEntityTypes(), []);
-  const previewPipelines = useMemo(() => buildPreviewPipelines(t), [t]);
-  const previewPresets = useMemo(() => buildPreviewPresets(), []);
+  const previewEntityTypes = useMemo(() => buildPreviewEntityTypes(t) as EntityTypeConfig[], [t]);
+  const previewPipelines = useMemo(() => buildPreviewPipelines(t) as PipelineConfig[], [t]);
+  const previewPresets = useMemo(() => buildPreviewPresets(t), [t]);
   const [entityTypes, setEntityTypes] = useState<EntityTypeConfig[]>([]);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);

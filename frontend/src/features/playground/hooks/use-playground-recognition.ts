@@ -1,6 +1,5 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { authFetch } from '@/services/api-client';
 import {
   fetchPresets,
   createPreset,
@@ -21,6 +20,7 @@ import {
 import { t } from '@/i18n';
 import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
+import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { safeJson } from '../utils';
 import {
   buildPlaygroundTextGroups,
@@ -29,6 +29,11 @@ import {
   normalizeVisionPipelines,
   sortEntityTypes,
 } from '../lib/recognition-config';
+import {
+  buildPreviewEntityTypes,
+  buildPreviewPipelines,
+  buildPreviewPresets,
+} from '@/features/settings/lib/settings-preview-fixtures';
 import type {
   EntityTypeConfig,
   VisionTypeConfig,
@@ -164,7 +169,7 @@ export function usePlaygroundRecognition() {
   useEffect(() => {
     void fetchPresets()
       .then(setPlaygroundPresets)
-      .catch(() => setPlaygroundPresets([]));
+      .catch(() => setPlaygroundPresets(buildPreviewPresets(t)));
   }, []);
 
   const saveTextPresetFromPlayground = useCallback(async () => {
@@ -215,7 +220,7 @@ export function usePlaygroundRecognition() {
 
   const fetchEntityTypes = useCallback(async () => {
     try {
-      const res = await authFetch('/api/v1/custom-types?enabled_only=true');
+      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=true', { timeoutMs: 3500 });
       if (!res.ok) throw new Error('fetch failed');
 
       const data = await safeJson(res);
@@ -225,15 +230,16 @@ export function usePlaygroundRecognition() {
       setSelectedTypes(buildDefaultTextTypeIds(types));
     } catch (error) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', error);
-      setEntityTypes([]);
-      setSelectedTypes([]);
-      setTextConfigState('unavailable');
+      const previewTypes = sortEntityTypes(buildPreviewEntityTypes(t) as EntityTypeConfig[]);
+      setEntityTypes(previewTypes);
+      setSelectedTypes(buildDefaultTextTypeIds(previewTypes));
+      setTextConfigState('ready');
     }
   }, []);
 
   const fetchVisionTypes = useCallback(async () => {
     try {
-      const res = await authFetch('/api/v1/vision-pipelines');
+      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 3500 });
       if (!res.ok) throw new Error('fetch failed');
 
       const data = await safeJson<PipelineConfig[]>(res);
@@ -284,11 +290,13 @@ export function usePlaygroundRecognition() {
       }
     } catch (error) {
       if (import.meta.env.DEV) console.error('fetch vision pipelines failed', error);
-      setPipelines([]);
-      setVisionTypes([]);
-      setVisionConfigState('unavailable');
-      updateOcrHasTypes([]);
-      updateHasImageTypes([]);
+      const previewPipelines = normalizeVisionPipelines(buildPreviewPipelines(t) as PipelineConfig[]);
+      const previewVisionTypes = flattenVisionTypes(previewPipelines);
+      setPipelines(previewPipelines);
+      setVisionTypes(previewVisionTypes);
+      setVisionConfigState('ready');
+      updateOcrHasTypes(buildDefaultPipelineTypeIds(previewPipelines, 'ocr_has'));
+      updateHasImageTypes(buildDefaultPipelineTypeIds(previewPipelines, 'has_image'));
     }
   }, [updateOcrHasTypes, updateHasImageTypes]);
 

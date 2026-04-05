@@ -2,9 +2,10 @@
 import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BatchHubJobList } from './components/batch-hub-job-list';
-import { BatchLaunchGrid, batchLaunchIcons } from './components/batch-launch-grid';
 import { useBatchHub } from './hooks/use-batch-hub';
 
 export function BatchHub() {
@@ -13,43 +14,10 @@ export function BatchHub() {
     loading,
     jobsUnavailable,
     activeJobs,
-    openMode,
+    openBatch,
     continueJob,
     openPreview,
   } = useBatchHub();
-
-  const launchCards = [
-    {
-      mode: 'text' as const,
-      icon: batchLaunchIcons.text,
-      dotClassName: 'bg-[var(--selection-regex-accent)]',
-      title: t('batchHub.mode.text.title'),
-      description: t('batchHub.mode.text.desc'),
-      tags: [t('batchHub.mode.text.tag1'), t('batchHub.mode.text.tag2')] as [string, string],
-      summaryLabel: t('batchHub.mode.text.summaryLabel'),
-      summaryValue: t('batchHub.mode.text.summaryValue'),
-    },
-    {
-      mode: 'image' as const,
-      icon: batchLaunchIcons.image,
-      dotClassName: 'bg-[var(--selection-visual-accent)]',
-      title: t('batchHub.mode.image.title'),
-      description: t('batchHub.mode.image.desc'),
-      tags: [t('batchHub.mode.image.tag1'), t('batchHub.mode.image.tag2')] as [string, string],
-      summaryLabel: t('batchHub.mode.image.summaryLabel'),
-      summaryValue: t('batchHub.mode.image.summaryValue'),
-    },
-    {
-      mode: 'smart' as const,
-      icon: batchLaunchIcons.smart,
-      dotClassName: 'bg-[var(--selection-semantic-accent)]',
-      title: t('batchHub.mode.smart.title'),
-      description: t('batchHub.mode.smart.desc'),
-      tags: [t('batchHub.mode.smart.tag1'), t('batchHub.mode.smart.tag2')] as [string, string],
-      summaryLabel: t('batchHub.mode.smart.summaryLabel'),
-      summaryValue: t('batchHub.mode.smart.summaryValue'),
-    },
-  ];
 
   return (
     <div className="saas-page flex h-full min-h-0 overflow-y-auto bg-background">
@@ -80,23 +48,85 @@ export function BatchHub() {
             </Alert>
           )}
 
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-semibold tracking-[-0.02em] text-foreground">
-                {t('batchHub.modeSectionTitle')}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {t('batchHub.modeSectionDesc')}
-              </p>
-            </div>
-            <BatchLaunchGrid
-              jobsUnavailable={jobsUnavailable}
-              liveLabel={t('batchHub.liveBadge')}
-              previewLabel={t('batchHub.previewBadge')}
-              actionLabel={jobsUnavailable ? t('batchHub.previewCta') : t('batchHub.enterConfig')}
-              onOpenMode={openMode}
-              cards={launchCards}
-            />
+          <section>
+            <Card className="overflow-hidden border-border/70 shadow-[var(--shadow-md)]">
+              <CardHeader className="gap-3 border-b border-border/70 bg-muted/20 px-6 py-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <CardTitle className="text-xl font-semibold tracking-[-0.03em]">
+                        {t('batchHub.mode.smart.title')}
+                      </CardTitle>
+                      <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] font-medium">
+                        {jobsUnavailable ? t('batchHub.previewBadge') : t('batchHub.liveBadge')}
+                      </Badge>
+                    </div>
+                    <CardDescription className="max-w-3xl text-sm leading-7">
+                      {t('batchHub.mode.smart.desc')}
+                    </CardDescription>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    className="h-10 rounded-xl px-4"
+                    onClick={() => (jobsUnavailable ? openPreview() : openBatch())}
+                    data-testid="batch-launch-smart"
+                  >
+                    {jobsUnavailable ? t('batchHub.previewCta') : t('batchHub.enterConfig')}
+                  </Button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.95fr)]">
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                      {t('batchHub.mode.text.title')}
+                    </Badge>
+                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                      {t('batchHub.mode.image.title')}
+                    </Badge>
+                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                      {t('batchHub.mode.smart.tag1')}
+                    </Badge>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="surface-muted flex flex-col gap-2 px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-[var(--selection-regex-accent)]" />
+                        <span className="text-sm font-semibold text-foreground">{t('batchHub.mode.text.title')}</span>
+                      </div>
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {t('batchHub.mode.text.summaryValue')}
+                      </p>
+                    </div>
+
+                    <div className="surface-muted flex flex-col gap-2 px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-[var(--selection-visual-accent)]" />
+                        <span className="text-sm font-semibold text-foreground">{t('batchHub.mode.image.title')}</span>
+                      </div>
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {t('batchHub.mode.image.summaryValue')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="surface-muted flex flex-col gap-3 px-5 py-4">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t('batchHub.mode.smart.summaryLabel')}
+                  </span>
+                  <p className="text-sm leading-7 text-foreground">
+                    {t('batchHub.mode.smart.summaryValue')}
+                  </p>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {t('batchHub.modeSectionDesc')}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           <BatchHubJobList

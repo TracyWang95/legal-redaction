@@ -3,14 +3,7 @@ import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { PAGE_SIZE_OPTIONS } from '../hooks/use-history';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DateFilter, FileTypeFilter, SourceTab, StatusFilter } from '../hooks/use-history';
 
 interface HistoryFiltersProps {
@@ -32,8 +25,6 @@ interface HistoryFiltersProps {
   loading: boolean;
   zipLoading: boolean;
   hasSelection: boolean;
-  pageSize: number;
-  onPageSizeChange: (pageSize: number) => void;
 }
 
 export function HistoryFilters({
@@ -55,8 +46,6 @@ export function HistoryFilters({
   loading,
   zipLoading,
   hasSelection,
-  pageSize,
-  onPageSizeChange,
 }: HistoryFiltersProps) {
   const t = useT();
 
@@ -179,22 +168,6 @@ export function HistoryFilters({
             {t('history.clearFilter')}
           </Button>
         )}
-
-        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{t('history.perPage')}</span>
-          <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
-            <SelectTrigger className="h-10 min-w-[92px] rounded-xl text-xs" data-testid="page-size-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((option) => (
-                <SelectItem key={option} value={String(option)}>
-                  {option} {t('history.itemsUnit')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
     </section>
   );

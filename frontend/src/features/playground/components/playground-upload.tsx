@@ -41,11 +41,11 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
       className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-3 lg:grid-cols-[minmax(0,1.12fr)_minmax(22rem,27rem)] lg:gap-6 lg:p-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(23rem,28rem)] xl:px-6 xl:py-6"
       data-testid="playground-upload"
     >
-      <div className="flex min-h-0 min-w-0 flex-1 items-start justify-center lg:justify-start">
-        <div className="w-full max-w-[52rem] pt-1 xl:pt-3">
-          <div className="mb-5 space-y-2">
+      <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+        <div className="flex w-full max-w-[54rem] flex-col items-center pt-1 text-center xl:pt-3">
+          <div className="mb-5 flex w-full max-w-3xl flex-col items-center gap-2">
             <span className="saas-kicker">{t('playground.upload.kicker')}</span>
-            <div>
+            <div className="flex flex-col items-center">
               <h2 className="text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
                 {t('playground.upload.title')}
               </h2>
@@ -58,7 +58,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           <div
             {...getRootProps()}
             className={cn(
-              'saas-hero group relative min-h-[420px] cursor-pointer border-2 border-dashed p-12 text-center transition-all duration-300 ease-out lg:min-h-[460px] lg:px-14',
+              'saas-hero group relative min-h-[420px] w-full cursor-pointer border-2 border-dashed p-12 text-center transition-all duration-300 ease-out lg:min-h-[460px] lg:px-14',
               isDragActive
                 ? 'border-primary bg-primary/[0.04] ring-4 ring-primary/10'
                 : 'border-border hover:border-foreground/15 hover:shadow-lg',

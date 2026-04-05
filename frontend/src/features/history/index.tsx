@@ -5,23 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useHistory } from './hooks/use-history';
 import { HistoryFilters } from './components/history-filters';
 import { HistoryTable } from './components/history-table';
-import type { FileListItem } from '@/types';
+import { PAGE_SIZE_OPTIONS } from './hooks/use-history';
 
 export function History() {
   const t = useT();
   const s = useHistory();
-
-  const handleDownload = (row: FileListItem) => {
-    const url = `/api/v1/files/${row.file_id}/download?redacted=${row.has_output}`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = row.original_filename;
-    link.click();
-  };
 
   return (
     <div className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background" data-testid="history-page">
@@ -45,8 +38,6 @@ export function History() {
           loading={s.initialLoading}
           zipLoading={s.zipLoading}
           hasSelection={s.selectedIds.length > 0}
-          pageSize={s.pageSize}
-          onPageSizeChange={s.changePageSize}
         />
 
         {s.msg && (
@@ -67,18 +58,34 @@ export function History() {
                 if (checked) s.setSelected(new Set(s.filteredRows.map((row) => row.file_id)));
                 else s.setSelected(new Set());
               }}
-              onDownload={handleDownload}
+              onDownload={(row) => void s.downloadRow(row)}
               onDelete={(row) => s.remove(row.file_id)}
               onCompare={(row) => s.openCompareModal(row)}
             />
           </CardContent>
         </Card>
 
-        {s.totalPages > 1 && (
+        {(s.total > 0 || s.totalPages > 1) && (
           <div className="mt-3 flex items-center justify-between rounded-2xl border border-border/70 bg-muted/25 px-4 py-3 text-sm text-muted-foreground">
-            <span>
-              {(s.page - 1) * s.pageSize + 1} - {Math.min(s.page * s.pageSize, s.total)} / {s.total}
-            </span>
+            <div className="flex items-center gap-2">
+              <span>
+                {s.total === 0 ? 0 : (s.page - 1) * s.pageSize + 1} - {Math.min(s.page * s.pageSize, s.total)} / {s.total}
+              </span>
+              <span className="text-border">|</span>
+              <span>{t('history.perPage')}</span>
+              <Select value={String(s.pageSize)} onValueChange={(value) => s.changePageSize(Number(value))}>
+                <SelectTrigger className="h-9 min-w-[92px] rounded-xl text-xs" data-testid="history-footer-page-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAGE_SIZE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={String(option)}>
+                      {option} {t('history.itemsUnit')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)}>
                 {t('history.prevPage')}

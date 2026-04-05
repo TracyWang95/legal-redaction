@@ -5,11 +5,7 @@ import {
   type JobSummary,
 } from '@/services/jobsApi';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
-import {
-  buildPreviewBatchRoute,
-} from '../lib/batch-preview-fixtures';
-
-export type BatchLaunchMode = 'text' | 'image' | 'smart';
+import { buildPreviewBatchRoute } from '../lib/batch-preview-fixtures';
 
 function isActiveJob(status: string): boolean {
   return ['draft', 'queued', 'processing', 'running', 'awaiting_review', 'redacting'].includes(status);
@@ -53,16 +49,16 @@ export function useBatchHub() {
 
   const activeJobs = useMemo(() => recentJobs, [recentJobs]);
 
-  const openPreview = useCallback((mode: BatchLaunchMode = 'smart') => {
-    nav(buildPreviewBatchRoute(mode, 1));
+  const openPreview = useCallback(() => {
+    nav(buildPreviewBatchRoute('smart', 1));
   }, [nav]);
 
-  const openMode = useCallback((mode: BatchLaunchMode) => {
+  const openBatch = useCallback(() => {
     if (jobsUnavailable) {
-      nav(buildPreviewBatchRoute(mode, 1));
+      nav(buildPreviewBatchRoute('smart', 1));
       return;
     }
-    nav(`/batch/${mode}`);
+    nav('/batch/smart');
   }, [jobsUnavailable, nav]);
 
   const continueJob = useCallback((job: JobSummary) => {
@@ -86,7 +82,7 @@ export function useBatchHub() {
     loading,
     jobsUnavailable,
     activeJobs,
-    openMode,
+    openBatch,
     continueJob,
     openPreview,
   };
