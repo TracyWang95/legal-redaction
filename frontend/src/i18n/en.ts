@@ -504,7 +504,7 @@
   'batchHub.viewDetail': 'View Details',
   'batchHub.creating': 'Creating…',
   'batchHub.createFailed': 'Create failed',
-  'batchHub.previewDesc': 'The backend is unavailable. Open the batch preview flow to keep reviewing the layout and interactions.',
+  'batchHub.previewDesc': 'The backend is unavailable. You can still open the batch preview flow to inspect layout and interaction polish.',
   'batchHub.previewCta': 'Open preview flow',
   'batchHub.history': 'History',
   'batchHub.batchTaskTitle': 'Batch {time}',

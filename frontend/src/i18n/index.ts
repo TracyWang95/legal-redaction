@@ -10,12 +10,14 @@ interface I18nStore {
 }
 
 function resolveInitialLocale(): Locale {
+  let stored: string | null = null;
   try {
-    const stored = localStorage.getItem('locale');
-    if (stored === 'zh' || stored === 'en') return stored;
+    stored = localStorage.getItem('locale');
   } catch {
-    
+    stored = null;
   }
+
+  if (stored === 'zh' || stored === 'en') return stored;
 
   if (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh')) {
     return 'zh';
@@ -46,11 +48,9 @@ export const useI18n = create<I18nStore>((set) => ({
   },
 }));
 
-
 export function t(key: string): string {
   return translate(useI18n.getState().locale, key);
 }
-
 
 export function useT() {
   const locale = useI18n((s) => s.locale);

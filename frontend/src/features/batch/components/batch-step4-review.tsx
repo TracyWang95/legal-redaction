@@ -19,7 +19,7 @@ import type {
 } from '../types';
 
 interface BatchStep4ReviewProps {
-  
+
   doneRows: BatchRow[];
   reviewIndex: number;
   reviewFile: BatchRow | null;
@@ -28,7 +28,6 @@ interface BatchStep4ReviewProps {
   reviewFileReadOnly: boolean;
   navigateReviewIndex: (idx: number) => void;
 
-  
   reviewEntities: ReviewEntity[];
   reviewTextContent: string;
   reviewTextContentRef: React.RefObject<HTMLDivElement | null>;
@@ -39,7 +38,6 @@ interface BatchStep4ReviewProps {
   applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
   toggleReviewEntitySelected: (id: string) => void;
 
-  
   reviewBoxes: EditorBox[];
   reviewOrigImageBlobUrl: string;
   reviewImagePreviewSrc: string;
@@ -51,7 +49,6 @@ interface BatchStep4ReviewProps {
   handleReviewBoxesCommit: (prev: EditorBox[], next: EditorBox[]) => void;
   toggleReviewBoxSelected: (id: string) => void;
 
-  
   undoReviewText: () => void;
   redoReviewText: () => void;
   undoReviewImage: () => void;
@@ -61,16 +58,13 @@ interface BatchStep4ReviewProps {
   reviewImageUndoStack: EditorBox[][];
   reviewImageRedoStack: EditorBox[][];
 
-  
   reviewDraftSaving: boolean;
   reviewDraftError: string | null;
 
-  
   reviewedOutputCount: number;
   rows: BatchRow[];
   allReviewConfirmed: boolean;
 
-  
   confirmCurrentReview: () => Promise<void>;
   advanceToExportStep: () => Promise<void>;
 }

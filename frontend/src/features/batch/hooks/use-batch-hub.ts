@@ -5,12 +5,10 @@ import {
   createJob,
   listJobs,
   type JobSummary,
-  type JobTypeApi,
 } from '@/services/jobsApi';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
 import {
-  buildPreviewBatchHubJobs,
   buildPreviewBatchRoute,
 } from '../lib/batch-preview-fixtures';
 
@@ -34,12 +32,20 @@ export function useBatchHub() {
         const res = await listJobs({ page: 1, page_size: 20 });
         if (!cancelled) {
           setJobsUnavailable(false);
-          setRecentJobs(res.jobs.filter(j => isActiveJob(j.status)));
+          setRecentJobs(
+            res.jobs
+              .filter((job) => isActiveJob(job.status))
+              .sort((left, right) => {
+                const leftTime = left.updated_at ? Date.parse(left.updated_at) : 0;
+                const rightTime = right.updated_at ? Date.parse(right.updated_at) : 0;
+                return rightTime - leftTime;
+              }),
+          );
         }
       } catch {
         if (!cancelled) {
           setJobsUnavailable(true);
-          setRecentJobs(buildPreviewBatchHubJobs());
+          setRecentJobs([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -48,38 +54,28 @@ export function useBatchHub() {
     return () => { cancelled = true; };
   }, []);
 
-  const recentByType = useMemo(() => {
-    const seen = new Set<JobTypeApi>();
-    const out: JobSummary[] = [];
-    for (const j of recentJobs) {
-      if (seen.has(j.job_type)) continue;
-      seen.add(j.job_type);
-      out.push(j);
-    }
-    return out;
-  }, [recentJobs]);
+  const activeJobs = useMemo(() => recentJobs, [recentJobs]);
 
   const openPreview = useCallback(() => {
-    nav(buildPreviewBatchRoute(1));
+    nav(buildPreviewBatchRoute('smart', 1));
   }, [nav]);
 
-  const startNewJob = useCallback(async (jobType: JobTypeApi) => {
+  const startNewJob = useCallback(async () => {
     setError(null);
     setBusy(true);
     try {
       const j = await createJob({
-        job_type: jobType,
+        job_type: 'smart_batch',
         title: t('batchHub.batchTaskTitle').replace('{time}', new Date().toLocaleString()),
         config: {},
       });
       nav(`/batch/smart?jobId=${encodeURIComponent(j.id)}&step=1&new=1`);
     } catch (e) {
       setError(localizeErrorMessage(e, 'batchHub.createFailed'));
-      openPreview();
     } finally {
       setBusy(false);
     }
-  }, [nav, openPreview]);
+  }, [nav]);
 
   const continueJob = useCallback((job: JobSummary) => {
     const navTarget = resolveJobPrimaryNavigation({
@@ -103,7 +99,7 @@ export function useBatchHub() {
     error,
     loading,
     jobsUnavailable,
-    recentByType,
+    activeJobs,
     startNewJob,
     continueJob,
     openPreview,

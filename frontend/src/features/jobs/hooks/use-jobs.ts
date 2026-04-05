@@ -199,7 +199,6 @@ export function useJobs() {
 
   useEffect(() => { void load(); }, [load]);
 
-  
   useEffect(() => {
     const hasActiveJobs = rows.some(j => !['completed', 'failed', 'cancelled', 'draft'].includes(j.status));
     if (!hasActiveJobs) return;
@@ -347,11 +346,11 @@ export function useJobs() {
   );
 
   return {
-    
+
     tab, rows: visibleRows, total, page, pageSize, jumpPage, loading, refreshing,
     cleanupConfirmOpen, err, notice, deletingJobId, deleteCandidate, expandedJobIds, jobDetails,
     detailLoadingIds, requeueingJobId, totalPages, tableBusy, rangeStart, rangeEnd, pageMetrics,
-    
+
     changeTab, refreshList, goPage, changePageSize, setJumpPage,
     toggleExpand, requestDelete, cancelDelete, confirmDelete, onRequeueFailed, onCleanup,
     setCleanupConfirmOpen,

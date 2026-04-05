@@ -225,8 +225,8 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       const normX = toNormalized(pos.x, 'x');
       const normY = toNormalized(pos.y, 'y');
       
-      let newBox = { ...box };
-      const minSize = 0.01; 
+      const newBox = { ...box };
+      const minSize = 0.01;
 
       switch (resizeHandle) {
         case 'nw':
@@ -382,7 +382,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     } else if (isResizing && resizeHandle) {
       const normX = toNormalized(pos.x, 'x');
       const normY = toNormalized(pos.y, 'y');
-      let newBox = { ...box };
+      const newBox = { ...box };
       const minSize = 0.01;
       switch (resizeHandle) {
         case 'nw': newBox.width = Math.max(minSize, box.x + box.width - normX); newBox.height = Math.max(minSize, box.y + box.height - normY); newBox.x = Math.min(normX, box.x + box.width - minSize); newBox.y = Math.min(normY, box.y + box.height - minSize); break;
@@ -584,8 +584,8 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         <button
           onClick={() => setDrawMode(!drawMode)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors ${
-            drawMode 
-              ? 'bg-foreground text-background shadow-[var(--shadow-control)]' 
+            drawMode
+              ? 'bg-foreground text-background shadow-[var(--shadow-control)]'
               : 'border border-input bg-[var(--surface-control)] text-muted-foreground hover:bg-accent hover:text-foreground'
           }`}
         >
@@ -662,7 +662,6 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
             style={
               naturalSize.width > 0 && naturalSize.height > 0
                 ? (() => {
-                    // Compute fitted size so img box === visible pixels (no object-contain gap)
                     const vw = viewportRef.current?.clientWidth || 800;
                     const vh = viewportRef.current?.clientHeight || 600;
                     const scale = Math.min(vw / naturalSize.width, vh / naturalSize.height, 1);

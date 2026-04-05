@@ -13,10 +13,9 @@ import type { FileInfo, Entity, BoundingBox, Stage } from '../types';
 import type { VersionHistoryEntry } from '@/types';
 
 export function usePlayground() {
-  
+
   const recognition = usePlaygroundRecognition();
 
-  
   const [stage, setStage] = useState<Stage>('upload');
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [content, setContent] = useState('');
@@ -30,21 +29,17 @@ export function usePlayground() {
   const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>([]);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
 
-  
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBox[]>([]);
   const [imageUrl, setImageUrl] = useState('');
   const [redactedImageUrl, setRedactedImageUrl] = useState('');
 
-  
   const entityHistory = useUndoRedo<Entity[]>();
   const imageHistory = useUndoRedo<BoundingBox[]>();
 
-  
   const abortRef = useRef<AbortController | null>(null);
   const popoutChannelRef = useRef<BroadcastChannel | null>(null);
   const popoutTimerRef = useRef<number | null>(null);
 
-  
   const isImageMode = !!fileInfo && (fileInfo.file_type === 'image' || !!fileInfo.is_scanned);
   const visibleBoxes = boundingBoxes;
   const selectedCount = isImageMode
@@ -57,7 +52,6 @@ export function usePlayground() {
     [recognition.selectedOcrHasTypes, recognition.selectedHasImageTypes],
   );
 
-  
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
@@ -66,7 +60,6 @@ export function usePlayground() {
     };
   }, []);
 
-  
   const imageUrlRaw = fileInfo ? `/api/v1/files/${fileInfo.file_id}/download` : '';
   useEffect(() => {
     let cancelled = false;
@@ -298,7 +291,6 @@ export function usePlayground() {
     };
 
     doRecognition();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingFile]);
 
   // --- Dropzone ---
@@ -457,7 +449,11 @@ export function usePlayground() {
       const key = e.key.toLowerCase();
       if (key === 'z') {
         e.preventDefault();
-        e.shiftKey ? handleRedo() : handleUndo();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
       } else if (key === 'y') {
         e.preventDefault();
         handleRedo();

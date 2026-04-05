@@ -38,7 +38,7 @@ export type JobItemRow = {
 };
 
 export type JobItemReviewDraft = {
-  
+
   exists?: boolean;
   entities: Array<Record<string, unknown>>;
   bounding_boxes: Array<Record<string, unknown>>;
@@ -56,7 +56,7 @@ export type JobSummary = {
   created_at: string;
   updated_at: string;
   progress: JobProgress;
-  
+
   nav_hints?: {
     item_count: number;
     first_awaiting_review_item_id?: string | null;

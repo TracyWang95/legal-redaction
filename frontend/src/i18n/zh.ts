@@ -504,7 +504,7 @@
   'batchHub.viewDetail': '查看详情',
   'batchHub.creating': '正在创建…',
   'batchHub.createFailed': '创建失败',
-  'batchHub.previewDesc': '后端当前不可用，已切换到批量界面预览入口，方便继续检查版式和交互。',
+  'batchHub.previewDesc': '后端当前不可用。你仍然可以打开批量界面预览，继续检查版式和交互。',
   'batchHub.previewCta': '打开界面预览',
   'batchHub.history': '处理历史',
   'batchHub.batchTaskTitle': '批量任务 {time}',

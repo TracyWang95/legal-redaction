@@ -252,7 +252,6 @@ export function useHistory() {
 
   useEffect(() => {
     load(false, 1, pageSize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* Filter / page actions */

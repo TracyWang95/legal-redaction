@@ -7,7 +7,6 @@ export interface FileInfo {
   is_scanned?: boolean;
 }
 
-
 export interface Entity {
   id: string;
   text: string;
@@ -18,7 +17,6 @@ export interface Entity {
   source: 'regex' | 'llm' | 'manual' | 'has';
   coref_id?: string | null;
 }
-
 
 export interface BoundingBox {
   id: string;

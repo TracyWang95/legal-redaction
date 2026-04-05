@@ -28,7 +28,7 @@ export function setActivePresetTextId(id: string | null): void {
     }
     window.dispatchEvent(new CustomEvent(ACTIVE_PRESET_EVENT));
   } catch {
-    
+    return;
   }
 }
 
@@ -54,6 +54,6 @@ export function setActivePresetVisionId(id: string | null): void {
     }
     window.dispatchEvent(new CustomEvent(ACTIVE_PRESET_EVENT));
   } catch {
-    
+    return;
   }
 }

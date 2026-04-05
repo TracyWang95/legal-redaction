@@ -2,7 +2,7 @@
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { type Step, STEPS } from '../types';
+import { type Step } from '../types';
 
 interface BatchStepProgressProps {
   currentStep: Step;
@@ -16,6 +16,7 @@ export function BatchStepProgress({
   onStepClick,
 }: BatchStepProgressProps) {
   const t = useT();
+  const stepOrder: Step[] = [1, 2, 3, 4, 5];
 
   const labels: Record<Step, string> = {
     1: t('batchWizard.step1'),
@@ -34,27 +35,27 @@ export function BatchStepProgress({
       aria-label={t('batchWizard.stepsOverview')}
       data-testid="batch-step-progress"
     >
-      {STEPS.map((s, i) => {
-        const reachable = canGoStep(s.n);
-        const isCurrent = currentStep === s.n;
+      {stepOrder.map((stepNumber, i) => {
+        const reachable = canGoStep(stepNumber);
+        const isCurrent = currentStep === stepNumber;
         return (
-          <div key={s.n} className="flex items-center gap-1.5">
+          <div key={stepNumber} className="flex items-center gap-1.5">
             <Button
               variant={isCurrent ? 'default' : reachable ? 'outline' : 'ghost'}
               size="sm"
               disabled={!reachable && !isCurrent}
-              onClick={() => reachable && onStepClick(s.n)}
+              onClick={() => reachable && onStepClick(stepNumber)}
               className={cn(
                 'text-xs font-medium transition-all duration-200',
                 isCurrent && 'shadow-sm',
                 !reachable && !isCurrent && 'opacity-40 cursor-not-allowed',
               )}
-              data-testid={`batch-step-${s.n}`}
+              data-testid={`batch-step-${stepNumber}`}
             >
-              <span className="tabular-nums mr-1">{s.n}</span>
-              {labels[s.n]}
+              <span className="tabular-nums mr-1">{stepNumber}</span>
+              {labels[stepNumber]}
             </Button>
-            {i < STEPS.length - 1 && (
+            {i < stepOrder.length - 1 && (
               <span className="text-muted-foreground hidden sm:inline" aria-hidden>
                 &rarr;
               </span>

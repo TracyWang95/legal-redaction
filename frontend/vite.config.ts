@@ -30,6 +30,23 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react-router-dom') || id.includes('react-dom') || id.includes('react')) {
+            return 'vendor-react';
+          }
+          if (id.includes('@radix-ui')) return 'vendor-radix';
+          if (id.includes('zustand')) return 'vendor-state';
+          if (id.includes('axios')) return 'vendor-network';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

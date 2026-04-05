@@ -1,8 +1,6 @@
 
 import axios, { type AxiosRequestConfig } from 'axios';
 
-
-
 const AUTH_TOKEN_KEY = 'auth_token';
 
 export function getAuthToken(): string | null {
@@ -17,13 +15,10 @@ export function clearAuthToken(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
-
-
 export const apiClient = axios.create({
   baseURL: '/api/v1',
   timeout: 60_000,
 });
-
 
 apiClient.interceptors.request.use((config) => {
   const token = getAuthToken();

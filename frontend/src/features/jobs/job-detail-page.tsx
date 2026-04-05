@@ -21,17 +21,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { JobStatusBadge, RedactionStateBadge } from './components/jobs-status-badge';
 
-
-
-
-
 function canDeleteJob(status: string): boolean {
   return ['draft', 'awaiting_review', 'completed', 'failed', 'cancelled'].includes(status);
 }
-
-
-
-
 
 export function JobDetailPage() {
   const { jobId = '' } = useParams<{ jobId: string }>();
@@ -44,8 +36,6 @@ export function JobDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const isFetchingRef = useRef(false);
-
-  
 
   const load = useCallback(async () => {
     if (!jobId || isFetchingRef.current) return;
@@ -65,7 +55,6 @@ export function JobDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  
   useEffect(() => {
     const terminal = ['completed', 'failed', 'cancelled'];
     if (data && terminal.includes(data.status)) return;
@@ -83,8 +72,6 @@ export function JobDetailPage() {
       document.removeEventListener('visibilitychange', tick);
     };
   }, [load, data?.status]);
-
-  
 
   const onSubmit = async () => {
     if (!jobId) return;
@@ -139,8 +126,6 @@ export function JobDetailPage() {
 
   const items = useMemo(() => data?.items ?? [], [data]);
 
-  
-
   const redactedCount = useMemo(
     () => items.filter(it => resolveRedactionState(Boolean(it.has_output), it.status) === 'redacted').length,
     [items],
@@ -149,8 +134,6 @@ export function JobDetailPage() {
     () => items.filter(it => resolveRedactionState(Boolean(it.has_output), it.status) === 'awaiting_review').length,
     [items],
   );
-
-  
 
   if (!jobId) {
     return (

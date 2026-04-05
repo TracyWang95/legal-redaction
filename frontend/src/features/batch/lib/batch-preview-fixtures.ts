@@ -1,8 +1,8 @@
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 import type { RecognitionPreset } from '@/services/presetsApi';
 import type { BatchWizardPersistedConfig } from '@/services/batchPipeline';
-import type { JobSummary } from '@/services/jobsApi';
 import { FileType } from '@/types';
+import type { BatchWizardMode } from '@/services/batchPipeline';
 import type { BatchRow, PipelineCfg, ReviewEntity, Step, TextEntityType } from '../types';
 
 export const PREVIEW_BATCH_JOB_ID = 'preview-smart-batch';
@@ -274,48 +274,12 @@ const previewImageBoxes: EditorBox[] = [
   },
 ];
 
-export function buildPreviewBatchRoute(step: Step = 1): string {
-  return `/batch/smart?preview=1&jobId=${encodeURIComponent(PREVIEW_BATCH_JOB_ID)}&step=${step}`;
+export function buildPreviewBatchRoute(mode: BatchWizardMode = 'smart', step: Step = 1): string {
+  return `/batch/${mode}?preview=1&jobId=${encodeURIComponent(PREVIEW_BATCH_JOB_ID)}&step=${step}`;
 }
 
 export function isPreviewBatchJobId(jobId: string | null | undefined): boolean {
   return jobId === PREVIEW_BATCH_JOB_ID;
-}
-
-export function buildPreviewBatchHubJobs(): JobSummary[] {
-  return [
-    {
-      id: PREVIEW_BATCH_JOB_ID,
-      job_type: 'smart_batch',
-      title: '批量样例任务',
-      status: 'awaiting_review',
-      skip_item_review: false,
-      config: {},
-      created_at: previewNow,
-      updated_at: previewNow,
-      progress: {
-        total_items: 4,
-        pending: 0,
-        queued: 0,
-        parsing: 0,
-        ner: 0,
-        vision: 0,
-        awaiting_review: 3,
-        review_approved: 0,
-        redacting: 0,
-        completed: 1,
-        failed: 0,
-      },
-      nav_hints: {
-        item_count: 4,
-        first_awaiting_review_item_id: 'preview-item-1',
-        wizard_furthest_step: 4,
-        batch_step1_configured: true,
-        redacted_count: 1,
-        awaiting_review_count: 3,
-      },
-    },
-  ];
 }
 
 export function buildPreviewBatchRows(step: Step): BatchRow[] {

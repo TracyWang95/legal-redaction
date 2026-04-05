@@ -3,7 +3,6 @@ import { authFetch } from '@/services/api-client';
 import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
-
 export async function safeJson<T = any>(res: Response): Promise<T> {
   try {
     return await res.json();
@@ -11,7 +10,6 @@ export async function safeJson<T = any>(res: Response): Promise<T> {
     throw new Error('服务端返回了非 JSON 响应');
   }
 }
-
 
 export function clampPopoverInCanvas(
   anchorRect: DOMRect,
@@ -37,7 +35,6 @@ export function clampPopoverInCanvas(
   return { left, top };
 }
 
-
 export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
   const tone = sourceToTone(entity.source);
   const base = getSelectionMarkStyle(tone);
@@ -46,7 +43,6 @@ export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
   }
   return base;
 }
-
 
 export function previewEntityHoverRingClass(source: Entity['source']): string {
   return getSelectionToneClasses(sourceToTone(source)).hoverRing;

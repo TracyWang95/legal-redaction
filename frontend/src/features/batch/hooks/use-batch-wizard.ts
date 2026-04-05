@@ -87,6 +87,10 @@ import {
   type TextEntityType,
 } from '../types';
 
+function isBatchWizardMode(value: string | null | undefined): value is BatchWizardMode {
+  return value === 'text' || value === 'image' || value === 'smart';
+}
+
 function mapBackendStatus(status: string): BatchRow['analyzeStatus'] {
   switch (status) {
     case 'failed':
@@ -231,7 +235,7 @@ function writeLocalWizardMaxStep(jobId: string, step: Step) {
     const merged = Math.max(step, prev ?? 1) as Step;
     if (merged >= 2) localStorage.setItem(BATCH_WIZ_FURTHEST_LS_PREFIX + jobId, String(merged));
   } catch {
-    
+    return;
   }
 }
 
@@ -239,7 +243,7 @@ function clearLocalWizardMaxStep(jobId: string) {
   try {
     localStorage.removeItem(BATCH_WIZ_FURTHEST_LS_PREFIX + jobId);
   } catch {
-    
+    return;
   }
 }
 
@@ -304,7 +308,10 @@ async function fetchBatchPreviewMap(
     });
     if (map && Object.keys(map).length > 0) return map;
   } catch {
-    
+    return buildFallbackPreviewEntityMap(
+      payload.map((item) => ({ text: item.text, type: item.type, selected: item.selected })),
+      modeKey,
+    );
   }
   return buildFallbackPreviewEntityMap(
     payload.map(p => ({ text: p.text, type: p.type, selected: p.selected })),
@@ -312,14 +319,12 @@ async function fetchBatchPreviewMap(
   );
 }
 
-
-
 export function useBatchWizard() {
   const { batchMode } = useParams<{ batchMode: string }>();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const modeValid = batchMode === 'text' || batchMode === 'image' || batchMode === 'smart';
-  const mode: BatchWizardMode = 'smart';
+  const modeValid = isBatchWizardMode(batchMode);
+  const mode: BatchWizardMode = modeValid ? batchMode : 'smart';
   const previewRequested = searchParams.get('preview') === '1';
   const queryJobId = searchParams.get('jobId');
   const isPreviewMode = previewRequested || isPreviewBatchJobId(queryJobId);
@@ -327,7 +332,12 @@ export function useBatchWizard() {
 
   // ── Job identity ──
   const [activeJobId, setActiveJobId] = useState<string | null>(() => {
-    try { return sessionStorage.getItem(sessionJobKey); } catch { return null; }
+    try {
+      const stored = sessionStorage.getItem(sessionJobKey);
+      return stored && !isPreviewBatchJobId(stored) ? stored : null;
+    } catch {
+      return null;
+    }
   });
   const [jobSkipItemReview, setJobSkipItemReview] = useState(false);
   const itemIdByFileIdRef = useRef<Record<string, string>>({});
@@ -393,10 +403,19 @@ export function useBatchWizard() {
   // ── Session persistence ──
   useEffect(() => {
     try {
-      if (activeJobId) sessionStorage.setItem(sessionJobKey, activeJobId);
-      else sessionStorage.removeItem(sessionJobKey);
+      if (activeJobId && !isPreviewMode && !isPreviewBatchJobId(activeJobId)) {
+        sessionStorage.setItem(sessionJobKey, activeJobId);
+      } else {
+        sessionStorage.removeItem(sessionJobKey);
+      }
     } catch { /* ignore */ }
-  }, [activeJobId, sessionJobKey]);
+  }, [activeJobId, isPreviewMode, sessionJobKey]);
+
+  useEffect(() => {
+    if (!isPreviewMode && activeJobId && isPreviewBatchJobId(activeJobId)) {
+      setActiveJobId(null);
+    }
+  }, [activeJobId, isPreviewMode]);
 
   useEffect(() => {
     const jid = searchParams.get('jobId');

@@ -5,8 +5,6 @@ import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 
-
-
 export function useNerBackend() {
   const [llamacppBaseUrl, setLlamacppBaseUrl] = useState('http://127.0.0.1:8080/v1');
   const [nerLoading, setNerLoading] = useState(true);
@@ -123,8 +121,6 @@ export function useNerBackend() {
     testResult, nerLive, saveNerBackend, testConnection, clearNerOverride,
   };
 }
-
-
 
 export interface ModelConfig {
   id: string;

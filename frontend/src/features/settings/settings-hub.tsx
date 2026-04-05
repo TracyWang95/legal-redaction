@@ -13,7 +13,7 @@ export function SettingsHub() {
   const t = useT();
   const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
   const {
-    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes,
+    entityTypes: _entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes,
     importFileRef, createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets,
@@ -28,8 +28,7 @@ export function SettingsHub() {
     onConfirm: () => void;
   } | null>(null);
 
-  
-  const [editingType, setEditingType] = useState<typeof entityTypes[number] | null>(null);
+  const [editingType, setEditingType] = useState<typeof _entityTypes[number] | null>(null);
 
   const openAdd = (useLlm: boolean) => {
     setEditingType(null);
@@ -37,7 +36,7 @@ export function SettingsHub() {
     setDialogOpen(true);
   };
 
-  const openEdit = (tp: typeof entityTypes[number]) => {
+  const openEdit = (tp: typeof _entityTypes[number]) => {
     setEditingType(tp);
     setDialogUseLlm(!!tp.use_llm);
     setDialogOpen(true);

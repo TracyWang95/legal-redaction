@@ -14,7 +14,7 @@ export function BatchHub() {
     error,
     loading,
     jobsUnavailable,
-    recentByType,
+    activeJobs,
     startNewJob,
     continueJob,
     openPreview,
@@ -63,7 +63,7 @@ export function BatchHub() {
           <button
             type="button"
             className="saas-panel group relative w-full p-6 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/15 sm:p-7"
-            onClick={() => void startNewJob('smart_batch')}
+            onClick={() => void startNewJob()}
             data-testid="new-batch-btn"
             disabled={busy}
           >
@@ -86,7 +86,7 @@ export function BatchHub() {
           </button>
 
           <BatchHubJobList
-            jobs={recentByType}
+            jobs={activeJobs}
             loading={loading}
             onContinue={continueJob}
           />

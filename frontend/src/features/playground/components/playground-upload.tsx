@@ -393,9 +393,17 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   rec.clearPlaygroundVisionPresetTracking();
                   const ids = pipeline.types.map((type) => type.id);
                   if (allSelected) {
-                    isHasImage ? rec.updateHasImageTypes([]) : rec.updateOcrHasTypes([]);
+                    if (isHasImage) {
+                      rec.updateHasImageTypes([]);
+                    } else {
+                      rec.updateOcrHasTypes([]);
+                    }
                   } else {
-                    isHasImage ? rec.updateHasImageTypes(ids) : rec.updateOcrHasTypes(ids);
+                    if (isHasImage) {
+                      rec.updateHasImageTypes(ids);
+                    } else {
+                      rec.updateOcrHasTypes(ids);
+                    }
                   }
                 }}
               >

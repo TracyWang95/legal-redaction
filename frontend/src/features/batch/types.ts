@@ -1,4 +1,3 @@
-import { t } from '@/i18n';
 import type { FileListItem } from '@/types';
 
 export type Step = 1 | 2 | 3 | 4 | 5;
@@ -55,22 +54,3 @@ export const RECOGNITION_DONE_STATUSES: ReadonlySet<BatchRow['analyzeStatus']> =
   'redacting',
   'completed',
 ]);
-
-export const ANALYZE_STATUS_LABEL: Record<BatchRow['analyzeStatus'], string> = {
-  pending: '等待中',
-  parsing: '解析中',
-  analyzing: '识别中',
-  awaiting_review: '待审阅',
-  review_approved: '待脱敏',
-  redacting: '脱敏中',
-  completed: '已完成',
-  failed: '失败',
-};
-
-export const STEPS: { n: Step; label: string }[] = [
-  { n: 1, label: t('batchWizard.step1') },
-  { n: 2, label: t('batchWizard.step2') },
-  { n: 3, label: t('batchWizard.step3') },
-  { n: 4, label: t('batchWizard.step4') },
-  { n: 5, label: t('batchWizard.step5') },
-];

@@ -794,7 +794,6 @@ input[type="checkbox"]:focus-visible {
 }
 
 
-
 :root {
   color-scheme: light;
   --background: #ffffff;
@@ -1022,8 +1021,6 @@ body {
 .tone-progress-brand {
   background: var(--primary);
 }
-
-
 
 .page-shell {
   width: 100%;
