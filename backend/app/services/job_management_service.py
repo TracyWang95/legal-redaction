@@ -26,7 +26,7 @@ from app.services.job_store import (
 )
 from app.services.wizard_furthest import coerce_wizard_furthest_step, infer_batch_step1_configured
 
-log = logging.getLogger("legal_redaction.jobs")
+logger = logging.getLogger(__name__)
 
 DELETABLE_JOB_STATUSES = frozenset(
     {
@@ -227,7 +227,7 @@ def enqueue_task(task_type: str, job_id: str, item_id: str, file_id: str) -> Non
             task_type=task_type,
         ))
     except Exception:
-        log.exception("enqueue_task: 投递 %s 失败（item=%s）", task_type, item_id[:8])
+        logger.exception("enqueue_task: 投递 %s 失败（item=%s）", task_type, item_id[:8])
 
 
 # ---------------------------------------------------------------------------
@@ -610,7 +610,7 @@ async def commit_review(
         refresh_job_status(store, job_id)
     except Exception as exc:
         import traceback
-        log.error("commit_review Exception for item %s: %s\n%s", item_id, str(exc), traceback.format_exc())
+        logger.error("commit_review Exception for item %s: %s\n%s", item_id, str(exc), traceback.format_exc())
         try:
             store.update_item_status(item_id, JobItemStatus.AWAITING_REVIEW, error_message=str(exc))
         except Exception:

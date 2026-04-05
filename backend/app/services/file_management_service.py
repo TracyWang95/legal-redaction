@@ -1,61 +1,45 @@
 """
 文件管理业务逻辑服务层 — 从 api/files.py 提取。
 
-管理 file_store (SQLite) 实例、文件校验辅助、元数据组装、
+管理 file_store (SQLite) 实例、元数据组装、
 JSON→SQLite 迁移、文件上传处理、批量下载 ZIP 等。
+
+文件校验（魔术字节、扩展名、类型推断、路径安全）已提取到
+:mod:`app.core.file_validation`，此处仅 re-export 保持向后兼容。
 """
 from __future__ import annotations
 
 import asyncio
 import io
-import json
 import logging
 import os
 import re
-import shutil
 import uuid
 import zipfile
-from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-import aiofiles
-
 from app.core.config import settings
-from app.core.persistence import load_json, to_jsonable
+from app.core.file_validation import (  # canonical source; re-exported for backward compat
+    MAGIC_BYTES,  # noqa: F401
+    TEXT_EXTENSIONS as _TEXT_EXTENSIONS,  # noqa: F401
+    get_file_type,
+    safe_path_in_dir,
+    validate_magic_bytes,
+)
+from app.core.persistence import load_json
 from app.models.schemas import (
     BatchDownloadRequest,
-    FileListItem,
     FileType,
     FileUploadResponse,
-    JobEmbedSummary,
-    JobItemMini,
 )
 from app.services.file_store_db import FileStoreDB
-from app.services.wizard_furthest import coerce_wizard_furthest_step, infer_batch_step1_configured
 
 logger = logging.getLogger(__name__)
 
 _BATCH_GROUP_ID_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,80}$")
 _BACKEND_ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _PROJECT_ROOT = os.path.realpath(os.path.join(_BACKEND_ROOT, ".."))
-
-# ---- Magic bytes for file validation ----
-MAGIC_BYTES = {
-    b'%PDF': {'.pdf'},
-    b'PK\x03\x04': {'.docx', '.doc'},
-    b'\xff\xd8\xff': {'.jpg', '.jpeg'},
-    b'\x89PNG': {'.png'},
-    b'GIF8': {'.gif'},
-    b'BM': {'.bmp'},
-    b'RIFF': {'.webp'},
-    b'\xd0\xcf\x11\xe0': {'.doc', '.rtf'},
-    b'II\x2a\x00': {'.tif', '.tiff'},
-    b'MM\x00\x2a': {'.tif', '.tiff'},
-    b'{\\rtf': {'.rtf'},
-}
-
-_TEXT_EXTENSIONS = frozenset({'.txt', '.md', '.rtf', '.html', '.htm'})
 
 # ---------------------------------------------------------------------------
 # Primary file store: SQLite-backed (FileStoreDB)
@@ -115,7 +99,9 @@ def sanitize_batch_group_id(raw: Optional[str]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# File type / validation helpers
+# File type / validation helpers  (re-exported from app.core.file_validation)
+# get_file_type, validate_magic_bytes, safe_path_in_dir, MAGIC_BYTES
+# are imported at the top of this module for backward compatibility.
 # ---------------------------------------------------------------------------
 
 def normalize_file_type(value: Any) -> Any:
@@ -124,46 +110,6 @@ def normalize_file_type(value: Any) -> Any:
         return FileType(value) if isinstance(value, str) else value
     except (ValueError, KeyError):
         return value
-
-
-def get_file_type(filename: str) -> FileType:
-    """根据文件扩展名判断文件类型"""
-    ext = os.path.splitext(filename)[1].lower()
-    if ext == ".doc":
-        return FileType.DOC
-    elif ext == ".docx":
-        return FileType.DOCX
-    elif ext in (".txt", ".md", ".rtf", ".html", ".htm"):
-        return FileType.TXT
-    elif ext == ".pdf":
-        return FileType.PDF
-    elif ext in (".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".tif", ".tiff"):
-        return FileType.IMAGE
-    else:
-        return None  # caller should raise HTTPException
-
-
-def validate_magic_bytes(file_path: str, ext: str) -> bool:
-    """Validate file magic bytes match extension. Reject unknown binary signatures."""
-    try:
-        with open(file_path, 'rb') as f:
-            header = f.read(8)
-        for magic, exts in MAGIC_BYTES.items():
-            if header.startswith(magic):
-                return ext in exts
-        # 未知签名：仅允许纯文本类扩展名通过（文本文件无固定魔术字节）
-        if ext in _TEXT_EXTENSIONS:
-            return True
-        # 非文本扩展名且无匹配签名 → 拒绝（防止伪造文件）
-        return False
-    except OSError:
-        return False
-
-
-def safe_path_in_dir(file_path: str, allowed_dir: str) -> bool:
-    real_file = os.path.realpath(file_path)
-    real_dir = os.path.realpath(allowed_dir)
-    return real_file == real_dir or real_file.startswith(real_dir + os.sep)
 
 
 # ---------------------------------------------------------------------------
@@ -324,125 +270,13 @@ if _repaired_paths:
 
 
 # ---------------------------------------------------------------------------
-# File list building
+# File list building  (re-exported from app.services.file_list_service)
 # ---------------------------------------------------------------------------
-
-def build_file_list_items(
-    filtered_entries: list[tuple[str, dict]],
-    item_status_map: dict[str, dict],
-) -> list[FileListItem]:
-    """Build FileListItem list from filtered entries, grouped by batch."""
-    batch_counts: dict[str, int] = defaultdict(int)
-    for _fid, info in filtered_entries:
-        bg = info.get("batch_group_id")
-        if isinstance(bg, str) and bg.strip():
-            batch_counts[bg.strip()] += 1
-
-    raw_items: list[FileListItem] = []
-    for fid, info in filtered_entries:
-        ft = info.get("file_type")
-        if ft is not None and not isinstance(ft, FileType):
-            try:
-                ft = FileType(ft) if isinstance(ft, str) else ft
-            except (ValueError, KeyError):
-                ft = FileType.DOCX
-        bg_raw = info.get("batch_group_id")
-        bg_key: Optional[str] = None
-        if isinstance(bg_raw, str) and bg_raw.strip():
-            bg_key = bg_raw.strip()
-        cnt = batch_counts.get(bg_key) if bg_key else None
-        eff = effective_upload_source(info)
-        jid = info.get("job_id")
-        job_key = jid.strip() if isinstance(jid, str) and jid.strip() else None
-        raw_items.append(
-            FileListItem(
-                file_id=fid,
-                original_filename=info.get("original_filename", ""),
-                file_size=int(info.get("file_size", 0)),
-                file_type=ft if isinstance(ft, FileType) else FileType.DOCX,
-                created_at=info.get("created_at"),
-                has_output=bool(info.get("output_path")),
-                entity_count=entity_count(info),
-                upload_source=eff,
-                job_id=job_key,
-                batch_group_id=bg_key,
-                batch_group_count=cnt,
-                item_status=(item_status_map.get(fid) or {}).get("status"),
-                item_id=(item_status_map.get(fid) or {}).get("item_id"),
-            )
-        )
-    return raw_items
-
-
-def group_and_sort_items(raw_items: list[FileListItem]) -> list[FileListItem]:
-    """Group items by batch, sort groups by newest timestamp descending."""
-    groups: dict[str, list[FileListItem]] = defaultdict(list)
-    for it in raw_items:
-        gk = it.batch_group_id if it.batch_group_id else f"single:{it.file_id}"
-        groups[gk].append(it)
-
-    for gk in groups:
-        groups[gk].sort(key=lambda x: x.created_at or "")
-
-    def _group_max_ts(k: str) -> str:
-        xs = groups[k]
-        return max((x.created_at or "" for x in xs), default="")
-
-    ordered_keys = sorted(groups.keys(), key=_group_max_ts, reverse=True)
-    items: list[FileListItem] = []
-    for k in ordered_keys:
-        items.extend(groups[k])
-    return items
-
-
-def build_job_embed_map(page_items: list[FileListItem], store: Any) -> dict[str, JobEmbedSummary]:
-    """Build job embed summaries for page items that have job_id."""
-    jids = {it.job_id for it in page_items if it.job_id}
-    embed_map: dict[str, JobEmbedSummary] = {}
-    for jid in jids:
-        row = store.get_job(jid)
-        if not row:
-            continue
-        jt = row.get("job_type")
-        if jt not in ("text_batch", "image_batch", "smart_batch"):
-            continue
-        raw_items = store.list_items(jid)
-        mini = [JobItemMini(id=str(x["id"]), status=str(x["status"])) for x in raw_items]
-        first_awaiting_embed: str | None = None
-        for x in raw_items:
-            if str(x.get("status")) == "awaiting_review":
-                first_awaiting_embed = str(x["id"])
-                break
-        progress = {
-            "total_items": len(raw_items),
-            "pending": sum(1 for x in raw_items if str(x.get("status")) == "pending"),
-            "queued": sum(1 for x in raw_items if str(x.get("status")) == "queued"),
-            "parsing": sum(1 for x in raw_items if str(x.get("status")) == "parsing"),
-            "ner": sum(1 for x in raw_items if str(x.get("status")) == "ner"),
-            "vision": sum(1 for x in raw_items if str(x.get("status")) == "vision"),
-            "awaiting_review": sum(1 for x in raw_items if str(x.get("status")) == "awaiting_review"),
-            "review_approved": sum(1 for x in raw_items if str(x.get("status")) == "review_approved"),
-            "redacting": sum(1 for x in raw_items if str(x.get("status")) == "redacting"),
-            "completed": sum(1 for x in raw_items if str(x.get("status")) == "completed"),
-            "failed": sum(1 for x in raw_items if str(x.get("status")) == "failed"),
-            "cancelled": sum(1 for x in raw_items if str(x.get("status")) == "cancelled"),
-        }
-        try:
-            cfg_row = json.loads(row.get("config_json") or "{}")
-        except json.JSONDecodeError:
-            cfg_row = {}
-        wf_embed = coerce_wizard_furthest_step(cfg_row.get("wizard_furthest_step"))
-        step1_ok = infer_batch_step1_configured(cfg_row, jt)
-        embed_map[jid] = JobEmbedSummary(
-            status=str(row["status"]),
-            job_type=jt,
-            items=mini,
-            progress=progress,
-            wizard_furthest_step=wf_embed,
-            first_awaiting_review_item_id=first_awaiting_embed,
-            batch_step1_configured=step1_ok,
-        )
-    return embed_map
+from app.services.file_list_service import (  # noqa: E402, F401
+    build_file_list_items,
+    build_job_embed_map,
+    group_and_sort_items,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -457,11 +291,11 @@ async def process_upload(
     batch_group_id: Optional[str],
     job_id: Optional[str],
     upload_source: Optional[str],
-) -> FileUploadResponse:
+) -> tuple:
     """
     Core upload processing after the file has been saved to disk.
     Validates magic bytes, runs virus scan, registers in file_store.
-    Returns FileUploadResponse. Raises ValueError/RuntimeError on failure.
+    Returns (FileUploadResponse, Optional[str] job_id). Raises ValueError/RuntimeError on failure.
     """
     # 验证文件 magic bytes 与扩展名匹配
     if not validate_magic_bytes(file_path, file_ext):
@@ -559,7 +393,7 @@ async def rollback_upload(file_id: str, file_path: str) -> None:
 
 def _get_job_store():
     """Deferred import to avoid circular dependency."""
-    from app.api.jobs import get_job_store
+    from app.services.job_store import get_job_store
     return get_job_store()
 
 
@@ -669,131 +503,25 @@ async def delete_file(file_id: str) -> Optional[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
-# Parse / NER helpers
+# Parse / NER helpers  (re-exported from app.services.file_processing_service)
+# ---------------------------------------------------------------------------
+from app.services.file_processing_service import (  # noqa: E402, F401
+    parse_file,
+    run_default_ner,
+    run_hybrid_ner,
+)
+
+
+# ---------------------------------------------------------------------------
+# Public accessor functions — use these instead of importing module-level
+# singletons directly, so that other layers don't couple to internal names.
 # ---------------------------------------------------------------------------
 
-async def parse_file(file_id: str) -> dict[str, Any]:
-    """
-    Parse an uploaded file. Returns ParseResult-compatible dict.
-    Raises ValueError if file not found.
-    """
-    from app.services.file_parser import FileParser
-
-    async with _file_store_lock:
-        file_info = file_store.get(file_id)
-        if not file_info:
-            raise ValueError(f"file_id={file_id} NOT in file_store (keys={len(file_store)}, path={file_store._path})")
-        snapshot = dict(file_info)
-
-    file_path = snapshot["file_path"]
-    file_type = snapshot["file_type"]
-
-    parser = FileParser()
-    result = await parser.parse(file_path, file_type)
-
-    async with _file_store_lock:
-        if file_id in file_store:
-            file_store.update_fields(file_id, {
-                "content": result.content,
-                "pages": result.pages,
-                "page_count": result.page_count,
-                "is_scanned": result.is_scanned,
-            })
-
-    result.file_id = file_id
-    return result
+def get_file_store() -> FileStoreDB:
+    """Return the singleton file-store (SQLite-backed) instance."""
+    return file_store
 
 
-async def run_hybrid_ner(file_id: str, entity_type_ids: Optional[list[str]] = None) -> dict[str, Any]:
-    """
-    Run hybrid NER on parsed file. Returns NERResult-compatible values.
-    Raises ValueError if file not found or not yet parsed.
-    """
-    from app.services.hybrid_ner_service import perform_hybrid_ner, HybridNERService
-
-    async with _file_store_lock:
-        file_info = file_store.get(file_id)
-        if not file_info:
-            raise ValueError("文件不存在")
-        snapshot = dict(file_info)
-
-    if "content" not in snapshot:
-        raise ValueError("请先解析文件内容")
-
-    if snapshot.get("is_scanned", False):
-        return {"entities": [], "entity_count": 0, "entity_summary": {}, "warnings": []}
-
-    content = snapshot["content"]
-
-    from app.api.entity_types import get_enabled_types, entity_types_db
-
-    if entity_type_ids:
-        entity_types = [entity_types_db[tid] for tid in entity_type_ids if tid in entity_types_db]
-    else:
-        entity_types = get_enabled_types()
-
-    warnings: list[str] = []
-    if len(content) > HybridNERService.MAX_TEXT_LENGTH:
-        warnings.append(
-            f"文本过长（{len(content)} 字符），已截断至 {HybridNERService.MAX_TEXT_LENGTH} 字符，"
-            "超出部分未进行识别。"
-        )
-
-    try:
-        entities = await perform_hybrid_ner(content, entity_types)
-        logger.info("混合识别完成，共 %d 个实体", len(entities))
-    except Exception as e:
-        logger.exception("混合识别失败: %s", e)
-        entities = []
-
-    entity_summary = {}
-    for ent in entities:
-        etype = ent.type
-        entity_summary[etype] = entity_summary.get(etype, 0) + 1
-
-    async with _file_store_lock:
-        if file_id in file_store:
-            file_store.update_fields(file_id, {"entities": entities})
-
-    return {
-        "entities": entities,
-        "entity_count": len(entities),
-        "entity_summary": entity_summary,
-        "warnings": warnings,
-    }
-
-
-async def run_default_ner(file_id: str) -> dict[str, Any]:
-    """Run NER with default entity types."""
-    from app.services.hybrid_ner_service import perform_hybrid_ner
-
-    async with _file_store_lock:
-        file_info = file_store.get(file_id)
-        if not file_info:
-            raise ValueError("文件不存在")
-        snapshot = dict(file_info)
-
-    if "content" not in snapshot:
-        raise ValueError("请先解析文件内容")
-
-    if snapshot.get("is_scanned", False):
-        return {"entities": [], "entity_count": 0, "entity_summary": {}}
-
-    from app.api.entity_types import get_enabled_types
-    entity_types = get_enabled_types()
-    entities = await perform_hybrid_ner(snapshot["content"], entity_types)
-
-    entity_summary = {}
-    for ent in entities:
-        etype = ent.type
-        entity_summary[etype] = entity_summary.get(etype, 0) + 1
-
-    async with _file_store_lock:
-        if file_id in file_store:
-            file_store.update_fields(file_id, {"entities": entities})
-
-    return {
-        "entities": entities,
-        "entity_count": len(entities),
-        "entity_summary": entity_summary,
-    }
+def get_file_store_lock() -> asyncio.Lock:
+    """Return the async lock guarding read-modify-write on file_store."""
+    return _file_store_lock

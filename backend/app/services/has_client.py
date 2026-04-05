@@ -19,7 +19,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 from typing import List, Dict, Optional, Tuple, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.core.retry import retry_sync, RETRYABLE_HTTPX
 from app.core.circuit_breaker import ner_breaker
@@ -62,11 +62,6 @@ class HaSClient:
         self.timeout = httpx.Timeout(timeout or settings.HAS_TIMEOUT)
         # 复用 httpx 连接池，避免每次请求创建新连接
         self._http_client = httpx.Client(timeout=self.timeout, trust_env=False)
-        # 注意：_history_mapping 不再作为实例级共享状态
-        # 每次 hide() 调用应显式传入或创建新的 mapping，避免并发请求互相污染
-        import threading
-        self._history_lock = threading.Lock()
-        self._history_mapping: Dict[str, List[str]] = {}  # 仅用于单请求内的映射
 
     def _effective_base_url(self) -> str:
         from app.core.config import get_has_chat_base_url
@@ -83,13 +78,9 @@ class HaSClient:
         return ner_breaker.call_sync(_request)
 
     def _call_model(self, messages: List[Dict]) -> str:
-        """调用 OpenAI 兼容接口（llama.cpp HaS 或 Ollama）。"""
-        from app.core.config import is_ner_ollama, get_ollama_model
+        """调用 OpenAI 兼容接口（llama.cpp HaS）。"""
         base = self._effective_base_url()
         payload: Dict[str, Any] = {"messages": messages}
-        if is_ner_ollama():
-            payload["model"] = get_ollama_model()
-            payload["temperature"] = 0.1
         response = retry_sync(
             self._do_chat_request, base, payload,
             max_retries=2, base_delay=1.0,
@@ -104,13 +95,12 @@ class HaSClient:
         message = choices[0].get("message", {})
         return message.get("content", "")
     
-    def reset_history(self):
-        """重置历史映射"""
-        with self._history_lock:
-            self._history_mapping = {}
-
     def create_session_mapping(self) -> Dict[str, List[str]]:
-        """创建一个独立的会话映射（用于并发安全的批处理）"""
+        """创建一个独立的会话映射（用于并发安全的批处理）。
+
+        调用方应在请求开始时创建，然后传给 hide() 的 mapping 参数，
+        这样每个请求拥有独立的映射，不会互相污染。
+        """
         return {}
     
     def ner(
@@ -168,47 +158,50 @@ Specified types:{types_str}
             return {}
     
     def hide(
-        self, 
-        text: str, 
+        self,
+        text: str,
         entity_types: Optional[List[str]] = None,
-        use_history: bool = True
+        use_history: bool = True,
+        mapping: Optional[Dict[str, List[str]]] = None,
     ) -> Tuple[str, Dict[str, List[str]]]:
         """
         使用Hide能力进行标签化脱敏
-        
+
         流程：
         1. 先调用NER识别实体
         2. 再调用Hide替换为结构化标签
-        
+
         Args:
             text: 待脱敏文本
             entity_types: 要识别的实体类型
-            use_history: 是否使用历史映射（保持指代一致性）
-            
+            use_history: 是否使用已有映射（保持指代一致性）
+            mapping: 请求级映射字典，由调用方通过 create_session_mapping()
+                     创建并在同一请求内复用。若为 None 则每次创建新的空映射。
+
         Returns:
             (脱敏后文本, 映射表)
         """
         types = entity_types or self.LEGAL_ENTITY_TYPES
         types_str = json.dumps(types, ensure_ascii=False)
-        
+
+        # 使用调用方传入的映射，或创建一个请求局部的空映射
+        session_mapping: Dict[str, List[str]] = mapping if mapping is not None else {}
+
         # Step 1: NER识别
         ner_result = self.ner(text, types)
         if not ner_result or all(len(v) == 0 for v in ner_result.values()):
             return text, {}
-        
+
         ner_json = json.dumps(ner_result, ensure_ascii=False)
-        
+
         # Step 2: Hide 第 1 轮与 ner() 使用相同 NER 模板
         ner_prompt = f"""Recognize the following entity types in the text.
 Specified types:{types_str}
 <text>{text}</text>"""
-        
-        # 使用线程锁安全读取历史映射
-        with self._history_lock:
-            history_snapshot = dict(self._history_mapping) if use_history else {}
-        if use_history and history_snapshot:
+
+        if use_history and session_mapping:
             # 带历史映射
-            history_json = json.dumps(history_snapshot, ensure_ascii=False)
+            history_json = json.dumps(session_mapping, ensure_ascii=False)
             messages = [
                 {
                     "role": "user",
@@ -239,24 +232,23 @@ Specified types:{types_str}
                     "content": "Replace the above-mentioned entity types in the text."
                 }
             ]
-        
+
         try:
             masked_text = self._call_model(messages)
-            
+
             # Step 3: 提取映射
-            mapping = self.pair(text, masked_text)
-            
-            # 线程安全更新历史映射
-            with self._history_lock:
-                for tag, values in mapping.items():
-                    if tag not in self._history_mapping:
-                        self._history_mapping[tag] = []
-                    for v in values:
-                        if v not in self._history_mapping[tag]:
-                            self._history_mapping[tag].append(v)
-            
-            return masked_text, mapping
-            
+            new_mapping = self.pair(text, masked_text)
+
+            # 将新映射合并到 session_mapping（调用方持有同一引用）
+            for tag, values in new_mapping.items():
+                if tag not in session_mapping:
+                    session_mapping[tag] = []
+                for v in values:
+                    if v not in session_mapping[tag]:
+                        session_mapping[tag].append(v)
+
+            return masked_text, new_mapping
+
         except Exception as e:
             logger.error("HaS Hide 失败: %s", e)
             return text, {}
@@ -300,19 +292,18 @@ Extract the mapping from anonymized entities to original entities."""
     def seek(self, masked_text: str, mapping: Optional[Dict[str, List[str]]] = None) -> str:
         """
         使用Seek能力进行标签还原
-        
+
         Args:
             masked_text: 脱敏后的文本
-            mapping: 映射表，默认使用历史映射
-            
+            mapping: 映射表（必须由调用方显式提供）
+
         Returns:
             还原后的原文
         """
-        use_mapping = mapping or self._history_mapping
-        if not use_mapping:
+        if not mapping:
             return masked_text
-        
-        mapping_json = json.dumps(use_mapping, ensure_ascii=False)
+
+        mapping_json = json.dumps(mapping, ensure_ascii=False)
         
         messages = [
             {
@@ -376,7 +367,7 @@ Restore the original text based on the above mapping:
         return cn_to_id(chinese_type)
     
     def is_available(self) -> bool:
-        """检查 NER 后端是否可用（llama.cpp /v1/models 或 Ollama /api/tags）。"""
+        """检查 NER 后端是否可用（llama.cpp /v1/models）。"""
         from app.core.config import get_has_health_check_url
         url = get_has_health_check_url()
         import httpx

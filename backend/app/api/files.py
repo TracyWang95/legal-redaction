@@ -6,7 +6,6 @@ Thin routing layer — business logic lives in
 app.services.file_management_service.
 """
 import os
-import re
 import shutil
 import uuid
 
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, UploadFile, File, Form, Header, HTTPException, BackgroundTasks, Body, Query, Depends
 from fastapi.responses import FileResponse, Response
-from typing import Optional, List
+from typing import Optional
 
 from app.core.idempotency import check_idempotency, save_idempotency
 from app.core.audit import audit_log
@@ -26,35 +25,14 @@ from app.api.jobs import get_job_store
 from app.models.schemas import (
     FileUploadResponse,
     FileListResponse,
-    FileListItem,
     ParseResult,
     NERResult,
     NERRequest,
-    FileType,
     APIResponse,
     HybridNERRequest,
     BatchDownloadRequest,
 )
 from app.services.job_store import JobStore
-
-# --- Re-export from service layer for backward compatibility ---
-# Other modules (redaction.py, jobs.py, safety.py, job_store.py, etc.)
-# import file_store, _file_store_lock, _entity_count from this module.
-from app.services.file_management_service import (
-    file_store,
-    _file_store_lock,
-    entity_count as _entity_count,
-    bounding_box_total as _bounding_box_total,
-    recognition_count_from_stored_fields as _recognition_count_from_stored_fields,
-    effective_upload_source as _effective_upload_source,
-    safe_path_in_dir as _safe_path_in_dir,
-    get_file_type,
-    validate_magic_bytes,
-    MAGIC_BYTES,
-    sanitize_job_id as _sanitize_job_id,
-    sanitize_upload_source as _sanitize_upload_source,
-    sanitize_batch_group_id as _sanitize_batch_group_id,
-)
 
 import app.services.file_management_service as _fms
 
@@ -100,13 +78,14 @@ async def list_files(
         items = store.list_items(job_id)
         job_file_ids = {it["file_id"] for it in items}
 
+    file_store = _fms.get_file_store()
     filtered_entries: list[tuple[str, dict]] = []
     for fid, info in file_store.items():
         if not isinstance(info, dict):
             continue
         if job_file_ids is not None and fid not in job_file_ids:
             continue
-        eff = _effective_upload_source(info)
+        eff = _fms.effective_upload_source(info)
         if src_filter and eff != src_filter:
             continue
         filtered_entries.append((fid, info))
@@ -375,7 +354,7 @@ async def download_file(file_id: str, redacted: bool = False):
 
     # 路径遍历保护
     expected_dir = settings.OUTPUT_DIR if redacted else settings.UPLOAD_DIR
-    if not _safe_path_in_dir(file_path, expected_dir):
+    if not _fms.safe_path_in_dir(file_path, expected_dir):
         raise HTTPException(status_code=403, detail="禁止访问该路径")
 
     if not os.path.exists(file_path):

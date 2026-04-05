@@ -38,7 +38,8 @@ def cleanup_orphan_files() -> int:
     a failed migration that left file_store empty).
     """
     import time
-    from app.api.files import file_store
+    from app.services.file_management_service import get_file_store
+    file_store = get_file_store()
 
     # Count files on disk first
     disk_count = 0
@@ -122,7 +123,7 @@ async def lifespan(app: FastAPI):
         logger.info("OCR service offline (expected at %s)", ocr_service.base_url)
 
     # 2b. Repair dirty data
-    from app.api.jobs import get_job_store
+    from app.services.job_store import get_job_store
     _store = get_job_store()
 
     _repaired = _store.repair_completed_without_output()

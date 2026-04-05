@@ -48,12 +48,12 @@ def _load_or_create_jwt_secret(data_dir: str) -> str:
     On Windows the file is marked *hidden* as a best-effort protection
     (``os.chmod 0o600`` has no effect on NTFS).
     """
-    _log = logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
 
     # --- 1. Environment variable -------------------------------------------------
     env_secret = os.environ.get("LEGAL_REDACTION_JWT_SECRET", "").strip()
     if env_secret:
-        _log.debug("JWT secret loaded from LEGAL_REDACTION_JWT_SECRET env var")
+        logger.debug("JWT secret loaded from LEGAL_REDACTION_JWT_SECRET env var")
         return env_secret
 
     # --- 2. Existing file --------------------------------------------------------
@@ -65,7 +65,7 @@ def _load_or_create_jwt_secret(data_dir: str) -> str:
             if secret:
                 return secret
         except (json.JSONDecodeError, OSError, KeyError) as e:
-            _log.warning("JWT secret file corrupted, regenerating: %s", e)
+            logger.warning("JWT secret file corrupted, regenerating: %s", e)
 
     # --- 3. Generate & persist ---------------------------------------------------
     secret = secrets.token_urlsafe(32)
@@ -74,12 +74,12 @@ def _load_or_create_jwt_secret(data_dir: str) -> str:
         with open(secret_path, "w") as f:
             json.dump({"secret": secret}, f)
     except OSError as e:
-        _log.error("Failed to persist JWT secret: %s", e)
+        logger.error("Failed to persist JWT secret: %s", e)
 
     # Platform-specific file protection
     if os.name == "nt":
         _hide_file_windows(secret_path)
-        _log.warning(
+        logger.warning(
             "Windows: JWT secret file '%s' is hidden but NOT permission-protected "
             "(NTFS does not honour POSIX chmod). Consider setting the "
             "LEGAL_REDACTION_JWT_SECRET environment variable instead.",
@@ -142,17 +142,12 @@ class Settings(BaseSettings):
     # 主后端探测 OCR /health 的超时（秒）；首启加载模型较慢，过短会误显示「离线」
     OCR_HEALTH_PROBE_TIMEOUT: float = 45.0
 
-    # 文本 NER：二选一
-    # - llamacpp: HaS Text 0209 Q4_K_M（llama-server，默认 8080/v1，OpenAI 兼容，可不传 model）
-    # - ollama:    本地 Ollama（默认 11434/v1），必须在 HAS_OLLAMA_MODEL 指定模型名，如 qwen3:8b
-    HAS_NER_BACKEND: Literal["llamacpp", "ollama"] = "llamacpp"
+    # 文本 NER：HaS Text 0209 Q4_K_M（llama-server，默认 8080/v1，OpenAI 兼容）
     HAS_LLAMACPP_BASE_URL: str = "http://127.0.0.1:8080/v1"
-    HAS_OLLAMA_BASE_URL: str = "http://127.0.0.1:11434/v1"
-    HAS_OLLAMA_MODEL: str = "qwen3:8b"
-    HAS_MODEL_PATH: str = "./models/has/HaS_Text_0209_0.6B_Q4_K_M.gguf"  # 仅文档/脚本引用；实际路径见 HAS_NER_GGUF / start_has.ps1
+    HAS_MODEL_PATH: str = "./models/has/HaS_Text_0209_0.6B_Q4_K_M.gguf"
     HAS_TIMEOUT: float = 120.0
 
-    # 兼容旧环境变量 HAS_BASE_URL：若设置则覆盖当前 backend 对应 URL（见 get_has_chat_base_url）
+    # 兼容旧环境变量 HAS_BASE_URL
     HAS_BASE_URL: Optional[str] = None
 
     # 认证配置（JWT_SECRET_KEY 若未通过环境变量指定，则自动持久化到 data 目录）
@@ -250,60 +245,26 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 
-def is_ner_ollama() -> bool:
-    """是否按 Ollama 协议调 NER。优先 data/ner_backend.json（前端设置），否则读环境变量。"""
-    from app.core.ner_runtime import load_ner_runtime
-    rt = load_ner_runtime()
-    if rt is not None:
-        return rt.backend == "ollama"
-    s = get_settings()
-    if s.HAS_NER_BACKEND == "ollama":
-        return True
-    if s.HAS_BASE_URL and "11434" in s.HAS_BASE_URL:
-        return True
-    return False
-
-
 def get_has_chat_base_url() -> str:
     """NER 使用的 OpenAI 兼容 API 根路径（…/v1）。"""
     from app.core.ner_runtime import load_ner_runtime
     rt = load_ner_runtime()
     if rt is not None:
-        if rt.backend == "ollama":
-            return rt.ollama_base_url.rstrip("/")
         return rt.llamacpp_base_url.rstrip("/")
     s = get_settings()
-    # 无 ner_backend.json 时：Ollama 模式优先 HAS_OLLAMA_BASE_URL，避免遗留 HAS_BASE_URL 指向 8080 与协议不一致
-    if s.HAS_NER_BACKEND == "ollama":
-        return s.HAS_OLLAMA_BASE_URL.rstrip("/")
     if s.HAS_BASE_URL:
         return s.HAS_BASE_URL.rstrip("/")
     return s.HAS_LLAMACPP_BASE_URL.rstrip("/")
 
 
 def get_has_health_check_url() -> str:
-    """健康检查 URL（llama.cpp 用 /v1/models；Ollama 用 /api/tags）。"""
-    chat = get_has_chat_base_url()
-    if is_ner_ollama():
-        root = chat.replace("/v1", "").rstrip("/") or "http://127.0.0.1:11434"
-        return f"{root}/api/tags"
-    return f"{chat}/models"
-
-
-def get_ollama_model() -> str:
-    from app.core.ner_runtime import load_ner_runtime
-    rt = load_ner_runtime()
-    if rt is not None:
-        return rt.ollama_model
-    return get_settings().HAS_OLLAMA_MODEL
+    """健康检查 URL（llama.cpp /v1/models）。"""
+    return f"{get_has_chat_base_url()}/models"
 
 
 def get_has_display_name() -> str:
-    """侧栏 /health/services 中文本 NER 展示名（与 HaS_Text_0209 GGUF 一致）。"""
-    if is_ner_ollama():
-        return get_ollama_model()
+    """侧栏 /health/services 中文本 NER 展示名。"""
     import os
-
     custom = (os.environ.get("HAS_NER_DISPLAY_NAME") or "").strip()
     if custom:
         return custom

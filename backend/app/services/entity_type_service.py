@@ -243,3 +243,13 @@ def test_regex(pattern: str, test_text: str) -> RegexTestResult:
             "groups": list(m.groups()),
         })
     return RegexTestResult(valid=True, matches=matches)
+
+
+# ---------------------------------------------------------------------------
+# Public accessor — use this instead of importing entity_types_db directly,
+# so other layers don't couple to the module-level mutable dict.
+# ---------------------------------------------------------------------------
+
+def get_entity_types_db() -> Dict[str, EntityTypeConfig]:
+    """Return the in-memory entity-types dictionary."""
+    return entity_types_db

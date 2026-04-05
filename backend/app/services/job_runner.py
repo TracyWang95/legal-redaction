@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any
 
-log = logging.getLogger("legal_redaction.job_runner")
+logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException  # caught from API-layer delegates
 
@@ -57,7 +57,7 @@ def _walk_job_to(store: JobStore, job_id: str, target: JobStatus) -> None:
         try:
             store.update_job_status(job_id, step)
         except Exception as e:
-            log.debug("_walk_job_to: skip %s→%s for job %s: %s", current, step.value, job_id, e)
+            logger.debug("_walk_job_to: skip %s→%s for job %s: %s", current, step.value, job_id, e)
         if step == target:
             return
 
@@ -97,9 +97,9 @@ def _refresh_job_status(store: JobStore, job_id: str) -> None:
                 # 混合终态（failed + completed/awaiting_review）
                 _walk_job_to(store, job_id, JobStatus.AWAITING_REVIEW)
         else:
-            log.warning("_refresh_job_status: job %s has unhandled item statuses %s, not changing status", job_id, sts)
+            logger.warning("_refresh_job_status: job %s has unhandled item statuses %s, not changing status", job_id, sts)
     except Exception:
-        log.warning("_refresh_job_status: failed to update job %s status (items: %s)", job_id, sts, exc_info=True)
+        logger.warning("_refresh_job_status: failed to update job %s status (items: %s)", job_id, sts, exc_info=True)
 
 
 
@@ -131,18 +131,18 @@ async def _run_recognition(
             try:
                 store.update_job_status(job_row["id"], JobStatus.RUNNING)
             except Exception:
-                log.debug("job %s already in non-DRAFT state, skip RUNNING transition", job_row["id"][:8])
-            log.info("[worker] item=%s file=%s → parse_file", item_id[:8], file_id[:8])
+                logger.debug("job %s already in non-DRAFT state, skip RUNNING transition", job_row["id"][:8])
+            logger.info("[worker] item=%s file=%s → parse_file", item_id[:8], file_id[:8])
             await ports.parse_file(file_id)
 
             from app.services.file_operations import get_file_info
             fi = get_file_info(file_id) or {}
             ft = str(fi.get("file_type", ""))
             is_img = ft == "image" or bool(fi.get("is_scanned"))
-            log.info("[worker] item=%s file=%s → file_type=%s is_img=%s", item_id[:8], file_id[:8], ft, is_img)
+            logger.info("[worker] item=%s file=%s → file_type=%s is_img=%s", item_id[:8], file_id[:8], ft, is_img)
             if is_img:
                 store.update_item_status(item_id, JobItemStatus.VISION)
-                log.info("[worker] item=%s file=%s → vision_pages START", item_id[:8], file_id[:8])
+                logger.info("[worker] item=%s file=%s → vision_pages START", item_id[:8], file_id[:8])
                 await ports.vision_pages(file_id, cfg)
             else:
                 store.update_item_status(item_id, JobItemStatus.NER)
@@ -157,20 +157,20 @@ async def _run_recognition(
         except HTTPException as e:
             err_msg = str(e.detail)[:500]
             if attempt == MAX_ITEM_RETRIES:
-                log.exception("worker item failed (recognition): %s", err_msg)
+                logger.exception("worker item failed (recognition): %s", err_msg)
                 store.update_item_status(item_id, JobItemStatus.FAILED, error_message=err_msg)
             else:
                 delay = 2 ** (attempt - 1)
-                log.warning("Item %s attempt %d/%d failed: %s, retrying in %ds", item_id, attempt, MAX_ITEM_RETRIES, err_msg, delay)
+                logger.warning("Item %s attempt %d/%d failed: %s, retrying in %ds", item_id, attempt, MAX_ITEM_RETRIES, err_msg, delay)
                 await asyncio.sleep(delay)
         except Exception as e:
             err_msg = str(e)[:500]
             if attempt == MAX_ITEM_RETRIES:
-                log.exception("worker item failed (recognition): %s", err_msg)
+                logger.exception("worker item failed (recognition): %s", err_msg)
                 store.update_item_status(item_id, JobItemStatus.FAILED, error_message=err_msg)
             else:
                 delay = 2 ** (attempt - 1)
-                log.warning("Item %s attempt %d/%d failed: %s, retrying in %ds", item_id, attempt, MAX_ITEM_RETRIES, err_msg, delay)
+                logger.warning("Item %s attempt %d/%d failed: %s, retrying in %ds", item_id, attempt, MAX_ITEM_RETRIES, err_msg, delay)
                 await asyncio.sleep(delay)
 
     store.touch_job_updated(job_row["id"])
@@ -196,11 +196,11 @@ async def _run_redaction(
         store.update_item_status(item_id, JobItemStatus.COMPLETED)
     except HTTPException as e:
         err_msg = str(e.detail)[:500]
-        log.exception("worker item failed (redaction): %s", err_msg)
+        logger.exception("worker item failed (redaction): %s", err_msg)
         store.update_item_status(item_id, JobItemStatus.FAILED, error_message=err_msg)
     except Exception as e:
         err_msg = str(e)[:500]
-        log.exception("worker item failed (redaction): %s", err_msg)
+        logger.exception("worker item failed (redaction): %s", err_msg)
         store.update_item_status(item_id, JobItemStatus.FAILED, error_message=err_msg)
     finally:
         store.touch_job_updated(job_row["id"])

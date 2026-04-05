@@ -9,35 +9,24 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from functools import lru_cache
 from typing import Any, Optional
 
-log = logging.getLogger("legal_redaction.jobs")
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from app.core.audit import audit_log
-from app.core.config import settings
 from app.models.schemas import (
     JobResponse, JobItemResponse, JobListResponse, JobDetailResponse,
     JobDeleteResponse, JobProgressResponse, ReviewDraftResponse,
     JobCreateBody, JobItemAddBody, JobUpdateBody, ReviewDraftBody, ReviewCommitBody,
 )
-from app.services.job_store import JobStore
+from app.services.job_store import JobStore, get_job_store
 
 import app.services.job_management_service as _jms
 
 router = APIRouter(prefix="/jobs", tags=["batch jobs"])
-
-
-@lru_cache
-def _singleton_store() -> JobStore:
-    return JobStore(settings.JOB_DB_PATH)
-
-
-def get_job_store() -> JobStore:
-    return _singleton_store()
 
 
 @router.post("", response_model=JobResponse)

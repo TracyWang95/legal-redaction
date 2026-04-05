@@ -10,23 +10,23 @@ import logging
 
 from app.celery_app import celery_app
 
-log = logging.getLogger("legal_redaction.job_tasks")
+logger = logging.getLogger(__name__)
 
 
 def _get_store_job_item(job_id: str, item_id: str):
     """
     加载 store / job / item；任一不存在则返回 (None, None, None)，调用方直接 return。
     """
-    from app.api.jobs import get_job_store
+    from app.services.job_store import get_job_store
 
     store = get_job_store()
     job = store.get_job(job_id)
     if not job:
-        log.warning("job %s not found, skipping item %s", job_id[:8], item_id[:8])
+        logger.warning("job %s not found, skipping item %s", job_id[:8], item_id[:8])
         return None, None, None
     item = next((i for i in store.list_items(job_id) if i["id"] == item_id), None)
     if not item:
-        log.warning("item %s not found in job %s", item_id[:8], job_id[:8])
+        logger.warning("item %s not found in job %s", item_id[:8], job_id[:8])
         return None, None, None
     return store, job, item
 
@@ -59,19 +59,19 @@ def process_item(self, job_id: str, item_id: str, file_id: str) -> None:  # type
         JobItemStatus.VISION.value,
     }
     if item["status"] not in PROCESSABLE:
-        log.info(
+        logger.info(
             "process_item: item %s status=%s（已完成或终态），跳过",
             item_id[:8],
             item["status"],
         )
         return
 
-    log.info(
+    logger.info(
         "process_item START  job=%s item=%s file=%s status=%s",
         job_id[:8], item_id[:8], file_id[:8], item["status"],
     )
     asyncio.run(_run_recognition(store, DefaultJobRunnerPorts(), job, item_id, file_id))
-    log.info("process_item DONE   item=%s", item_id[:8])
+    logger.info("process_item DONE   item=%s", item_id[:8])
 
 
 @celery_app.task(
@@ -93,16 +93,16 @@ def process_redaction(self, job_id: str, item_id: str, file_id: str) -> None:  #
         return
 
     if item["status"] != JobItemStatus.REVIEW_APPROVED.value:
-        log.info(
+        logger.info(
             "process_redaction: item %s status=%s（非 REVIEW_APPROVED），跳过（幂等保护）",
             item_id[:8],
             item["status"],
         )
         return
 
-    log.info(
+    logger.info(
         "process_redaction START  job=%s item=%s file=%s",
         job_id[:8], item_id[:8], file_id[:8],
     )
     asyncio.run(_run_redaction(store, DefaultJobRunnerPorts(), job, item_id, file_id))
-    log.info("process_redaction DONE   item=%s", item_id[:8])
+    logger.info("process_redaction DONE   item=%s", item_id[:8])

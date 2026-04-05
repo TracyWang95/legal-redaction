@@ -38,15 +38,11 @@ def check_sync(url: str, default_name: str, timeout: float = 3.0) -> tuple:
 
 
 def check_has_ner() -> tuple:
-    """HaS：llama-server 部分构建无 GET /v1/models，需多路径探测；Ollama 仍用 /api/tags。"""
-    from app.core.config import is_ner_ollama
+    """HaS：llama-server 部分构建无 GET /v1/models，需多路径探测。"""
     from app.core.llamacpp_probe import probe_llamacpp
 
     default_name = get_has_display_name()
-    if is_ner_ollama():
-        return check_sync(get_has_health_check_url(), default_name)
     ok, _name, _, _strict = probe_llamacpp(get_has_chat_base_url(), timeout=3.0)
     if ok:
-        # 展示名固定为当前产品模型（HaS Text 0209），不暴露 llama /health 里的路径或旧 id
         return default_name, True
     return default_name, False

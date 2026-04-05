@@ -32,9 +32,6 @@ from app.models.schemas import (
     RedactionReport,
 )
 
-# Keep backward-compat imports — file_operations.py imports from here
-from app.api.files import _file_store_lock, file_store  # noqa: F401
-
 import app.services.redaction_orchestrator as _orch
 
 router = APIRouter()

@@ -12,7 +12,7 @@ import traceback
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-log = logging.getLogger("legal_redaction.task_queue")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -52,14 +52,14 @@ class SimpleTaskQueue:
             return
         self._running = True
         self._worker_task = asyncio.get_event_loop().create_task(self._worker_loop())
-        log.info("SimpleTaskQueue started (in-process, sequential)")
+        logger.info("SimpleTaskQueue started (in-process, sequential)")
 
     def stop(self) -> None:
         """在 FastAPI shutdown 事件中调用。"""
         self._running = False
         if self._worker_task and not self._worker_task.done():
             self._worker_task.cancel()
-        log.info("SimpleTaskQueue stopped")
+        logger.info("SimpleTaskQueue stopped")
 
     # ------------------------------------------------------------------
     # 入队
@@ -67,14 +67,14 @@ class SimpleTaskQueue:
 
     def enqueue(self, task: TaskItem) -> None:
         if task.item_id in self._pending_items:
-            log.info(
+            logger.info(
                 "skip duplicate enqueue %s  item=%s  (already pending)",
                 task.task_type, task.item_id[:8],
             )
             return
         self._pending_items.add(task.item_id)
         self._queue.put_nowait(task)
-        log.info(
+        logger.info(
             "enqueued %s  job=%s item=%s file=%s  (queue_size=%d)",
             task.task_type, task.job_id[:8], task.item_id[:8], task.file_id[:8],
             self._queue.qsize(),
@@ -93,7 +93,7 @@ class SimpleTaskQueue:
     # ------------------------------------------------------------------
 
     async def _worker_loop(self) -> None:
-        log.info("worker loop started (strict sequential, 1 item at a time)")
+        logger.info("worker loop started (strict sequential, 1 item at a time)")
         while self._running:
             try:
                 task = await asyncio.wait_for(self._queue.get(), timeout=2.0)
@@ -103,7 +103,7 @@ class SimpleTaskQueue:
                 break
 
             self._current = task
-            log.info(
+            logger.info(
                 "▶ processing %s  job=%s item=%s file=%s  (remaining=%d)",
                 task.task_type, task.job_id[:8], task.item_id[:8],
                 task.file_id[:8], self._queue.qsize(),
@@ -114,9 +114,9 @@ class SimpleTaskQueue:
                 elif task.task_type == "redaction":
                     await self._run_redaction(task)
                 else:
-                    log.warning("unknown task_type: %s", task.task_type)
+                    logger.warning("unknown task_type: %s", task.task_type)
             except Exception:
-                log.exception(
+                logger.exception(
                     "task failed: job=%s item=%s", task.job_id[:8], task.item_id[:8]
                 )
                 # 确保失败的 item 也被标记，不会被跳过
@@ -133,13 +133,13 @@ class SimpleTaskQueue:
                 self._current = None
                 self._pending_items.discard(task.item_id)
                 self._queue.task_done()
-                log.info(
+                logger.info(
                     "■ done %s  job=%s item=%s  (remaining=%d)",
                     task.task_type, task.job_id[:8], task.item_id[:8],
                     self._queue.qsize(),
                 )
 
-        log.info("worker loop exited")
+        logger.info("worker loop exited")
 
     # ------------------------------------------------------------------
     # 识别流水线
@@ -158,12 +158,12 @@ class SimpleTaskQueue:
         store = self._get_store()
         job = store.get_job(task.job_id)
         if not job:
-            log.warning("job %s not found, skip", task.job_id[:8])
+            logger.warning("job %s not found, skip", task.job_id[:8])
             return
 
         item = store.get_item(task.item_id)
         if not item:
-            log.warning("item %s not found, skip", task.item_id[:8])
+            logger.warning("item %s not found, skip", task.item_id[:8])
             return
 
         # 跳过已完成 / 已取消的（PENDING 和 PROCESSING 允许重试）
@@ -173,12 +173,12 @@ class SimpleTaskQueue:
             JobItemStatus.CANCELLED.value if hasattr(JobItemStatus, "CANCELLED") else "__none__",
         )
         if item["status"] in skip_statuses:
-            log.info("item %s already %s, skip", task.item_id[:8], item["status"])
+            logger.info("item %s already %s, skip", task.item_id[:8], item["status"])
             return
 
         # 检查 job 是否已被取消
         if job.get("status") == JobStatus.CANCELLED.value:
-            log.info("job %s cancelled, skip item %s", task.job_id[:8], task.item_id[:8])
+            logger.info("job %s cancelled, skip item %s", task.job_id[:8], task.item_id[:8])
             return
 
         cfg = json.loads(job.get("config_json") or "{}")
@@ -190,7 +190,7 @@ class SimpleTaskQueue:
             self._try_update_job_status(store, task.job_id, JobStatus.PROCESSING)
 
             # 1) 解析
-            log.info("[queue] item=%s → parse", task.item_id[:8])
+            logger.info("[queue] item=%s → parse", task.item_id[:8])
             await parse_file(task.file_id)
 
             # 2) 判断类型 → NER 或 Vision
@@ -199,14 +199,14 @@ class SimpleTaskQueue:
             is_img = ft == "image" or bool(fi.get("is_scanned"))
 
             if is_img:
-                log.info("[queue] item=%s → vision", task.item_id[:8])
+                logger.info("[queue] item=%s → vision", task.item_id[:8])
                 ocr_types = list(cfg.get("ocr_has_types") or [])
                 has_img_types = list(cfg.get("has_image_types") or [])
                 pages = int(fi.get("page_count") or 1)
                 for p in range(1, max(1, pages) + 1):
                     await vision_detect(task.file_id, p, ocr_types or None, has_img_types or None)
             else:
-                log.info("[queue] item=%s → NER (%d types)", task.item_id[:8], len(entity_type_ids))
+                logger.info("[queue] item=%s → NER (%d types)", task.item_id[:8], len(entity_type_ids))
                 await hybrid_ner(task.file_id, entity_type_ids)
 
             # 3) 完成识别
@@ -214,7 +214,7 @@ class SimpleTaskQueue:
             if skip_review:
                 # skip_item_review=true: 直接入队脱敏，不等人工审阅
                 store.update_item_status(task.item_id, JobItemStatus.AWAITING_REVIEW)
-                log.info("[queue] item=%s → skip review, enqueue redaction", task.item_id[:8])
+                logger.info("[queue] item=%s → skip review, enqueue redaction", task.item_id[:8])
                 self._queue.put_nowait(TaskItem(
                     job_id=task.job_id, item_id=task.item_id,
                     file_id=task.file_id, task_type="redaction",
@@ -222,15 +222,15 @@ class SimpleTaskQueue:
                 self._pending_items.add(task.item_id)
             else:
                 store.update_item_status(task.item_id, JobItemStatus.AWAITING_REVIEW)
-                log.info("[queue] item=%s → awaiting_review ✓", task.item_id[:8])
+                logger.info("[queue] item=%s → awaiting_review ✓", task.item_id[:8])
 
         except Exception as e:
             err_msg = str(e)[:500]
-            log.exception("[queue] item=%s recognition failed: %s", task.item_id[:8], err_msg)
+            logger.exception("[queue] item=%s recognition failed: %s", task.item_id[:8], err_msg)
             try:
                 store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
             except Exception:
-                log.exception("failed to mark item %s as FAILED", task.item_id[:8])
+                logger.exception("failed to mark item %s as FAILED", task.item_id[:8])
         finally:
             store.touch_job_updated(task.job_id)
             self._refresh_job_status(store, task.job_id)
@@ -307,11 +307,11 @@ class SimpleTaskQueue:
             )
             await execute_redaction_request(task.file_id, entities, boxes, config)
             store.update_item_status(task.item_id, JobItemStatus.COMPLETED)
-            log.info("[queue] item=%s → redaction completed ✓", task.item_id[:8])
+            logger.info("[queue] item=%s → redaction completed ✓", task.item_id[:8])
 
         except Exception as e:
             err_msg = str(e)[:500]
-            log.exception("[queue] item=%s redaction failed: %s", task.item_id[:8], err_msg)
+            logger.exception("[queue] item=%s redaction failed: %s", task.item_id[:8], err_msg)
             try:
                 store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
             except Exception:
@@ -325,7 +325,7 @@ class SimpleTaskQueue:
     # ------------------------------------------------------------------
 
     def _get_store(self) -> "JobStore":
-        from app.api.jobs import get_job_store
+        from app.services.job_store import get_job_store
         return get_job_store()
 
     def _try_update_job_status(self, store, job_id: str, status) -> None:
@@ -366,7 +366,7 @@ class SimpleTaskQueue:
                 else:
                     self._try_update_job_status(store, job_id, JobStatus.COMPLETED)
         except Exception:
-            log.warning("_refresh_job_status failed for job %s", job_id[:8], exc_info=True)
+            logger.warning("_refresh_job_status failed for job %s", job_id[:8], exc_info=True)
 
 
 # ------------------------------------------------------------------

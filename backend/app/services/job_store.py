@@ -10,6 +10,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Optional
 
 
@@ -568,7 +569,8 @@ class JobStore:
 
     def repair_completed_without_output(self) -> int:
         """修复脏数据：status=completed 但文件没有 output_path 的 item 重置为 awaiting_review。"""
-        from app.api.files import file_store
+        from app.services.file_management_service import get_file_store
+        file_store = get_file_store()
         repaired = 0
         with self._connect() as conn:
             rows = conn.execute(
@@ -585,7 +587,7 @@ class JobStore:
                     (JobItemStatus.AWAITING_REVIEW.value, _utc_iso(), row["id"]),
                 )
                 repaired += 1
-                logging.getLogger("legal_redaction.job_store").info("repair_completed_without_output: item %s (file %s) reset to awaiting_review", row["id"], fid)
+                logging.getLogger(__name__).info("repair_completed_without_output: item %s (file %s) reset to awaiting_review", row["id"], fid)
             if repaired:
                 # 受影响的 job 需要强制回退状态（state machine 不允许 COMPLETED→AWAITING_REVIEW）
                 affected_jobs = set(row["job_id"] for row in rows if not (file_store.get(row["file_id"]) or {}).get("output_path"))
@@ -594,15 +596,16 @@ class JobStore:
                         "UPDATE jobs SET status = ?, updated_at = ? WHERE id = ?",
                         (JobStatus.AWAITING_REVIEW.value, _utc_iso(), jid),
                     )
-                    logging.getLogger("legal_redaction.job_store").info(
+                    logging.getLogger(__name__).info(
                         "repair_completed_without_output: job %s reset to awaiting_review", jid
                     )
                 conn.commit()
         return repaired
 
     def repair_failed_missing_files(self) -> int:
-        """修复旧脏数据：文件仍存在，但 item 因“文件不存在”被错误标记为 failed。"""
-        from app.api.files import file_store
+        """Repair stale data: file exists but item was wrongly marked as failed."""
+        from app.services.file_management_service import get_file_store
+        file_store = get_file_store()
 
         repaired = 0
         affected_jobs: set[str] = set()
@@ -651,7 +654,7 @@ class JobStore:
         - REDACTING               → AWAITING_REVIEW  （交还人工复核，避免重复覆盖输出）
         直接操作 SQL，绕过状态机，与已有 repair_* 方法保持一致。
         """
-        _log = logging.getLogger("legal_redaction.job_store")
+        logger = logging.getLogger(__name__)
         to_redispatch: list[dict] = []
         stuck_recognition = [
             JobItemStatus.PARSING.value,
@@ -680,7 +683,7 @@ class JobStore:
                     "file_id": row["file_id"],
                     "task": "process_item",
                 })
-                _log.info(
+                logger.info(
                     "repair_stuck: item %s (status=%s) → queued, job=%s",
                     row["id"], row["status"], row["job_id"],
                 )
@@ -696,7 +699,7 @@ class JobStore:
                     (JobItemStatus.AWAITING_REVIEW.value, now, row["id"]),
                 )
                 affected_jobs.add(row["job_id"])
-                _log.info(
+                logger.info(
                     "repair_stuck: item %s (REDACTING) → awaiting_review, job=%s",
                     row["id"], row["job_id"],
                 )
@@ -749,3 +752,15 @@ class JobStore:
             conn.execute(f"UPDATE jobs SET {', '.join(sets)} WHERE id = ?", params)
             conn.commit()
         return True
+
+
+# ─── Singleton accessor ────────────────────────────────────
+@lru_cache
+def _singleton_store() -> JobStore:
+    from app.core.config import settings
+    return JobStore(settings.JOB_DB_PATH)
+
+
+def get_job_store() -> JobStore:
+    """Return the application-wide JobStore singleton."""
+    return _singleton_store()

@@ -15,10 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class NerBackendRuntime(BaseModel):
-    backend: Literal["llamacpp", "ollama"] = "llamacpp"
+    backend: Literal["llamacpp"] = "llamacpp"
     llamacpp_base_url: str = Field(default="http://127.0.0.1:8080/v1")
-    ollama_base_url: str = Field(default="http://127.0.0.1:11434/v1")
-    ollama_model: str = Field(default="qwen3:8b")
 
 
 def _path() -> str:

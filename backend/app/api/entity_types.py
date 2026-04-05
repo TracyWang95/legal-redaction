@@ -7,20 +7,12 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.models.schemas import ToggleResponse, MessageResponse
 from app.services.entity_type_service import (
-    # Re-export models so existing imports keep working
-    IdentifierCategory,
     EntityTypeConfig,
     EntityTypesResponse,
     CreateEntityTypeRequest,
     UpdateEntityTypeRequest,
     RegexTestRequest,
     RegexTestResult,
-    # Re-export data / helpers consumed by other modules
-    PRESET_ENTITY_TYPES,
-    entity_types_db,
-    get_enabled_types,
-    get_regex_types,
-    get_llm_types,
 )
 from app.services import entity_type_service
 

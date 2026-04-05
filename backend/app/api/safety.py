@@ -42,9 +42,11 @@ async def storage_info():
 @router.post("/cleanup")
 async def cleanup_all_data():
     """一键清理所有上传文件、脱敏产物和任务记录。"""
-    from app.api.files import file_store, _file_store_lock
-    from app.api.jobs import get_job_store
+    from app.services.file_management_service import get_file_store, get_file_store_lock
+    from app.services.job_store import get_job_store
 
+    file_store = get_file_store()
+    _file_store_lock = get_file_store_lock()
     # 先统计用户文件数（file_store 记录数，不是磁盘文件数）
     async with _file_store_lock:
         files_count = len(file_store)

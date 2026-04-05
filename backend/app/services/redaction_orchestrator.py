@@ -224,7 +224,7 @@ async def detect_vision(
         snapshot = dict(file_info)
 
     # 获取两个 Pipeline 的类型配置
-    from app.api.vision_pipeline import get_pipeline_types_for_mode, pipelines_db
+    from app.services.pipeline_service import get_pipeline_types_for_mode, pipelines_db
 
     all_ocr_has_types = get_pipeline_types_for_mode("ocr_has")
     all_has_image_types = get_pipeline_types_for_mode("has_image")
