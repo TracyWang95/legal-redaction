@@ -147,7 +147,7 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const updateType = useCallback(async (id: string, update: {
-    name: string; description: string; color: string;
+    name: string; description: string;
     regex_pattern: string; use_llm: boolean; tag_template: string;
   }) => {
     const res = await authFetch(`/api/v1/custom-types/${id}`, {

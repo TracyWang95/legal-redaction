@@ -9,7 +9,7 @@ interface EntityTypeListProps {
   types: EntityTypeConfig[];
   onEdit: (type: EntityTypeConfig) => void;
   onDelete: (id: string) => void;
-  onAdd: (useLlm: boolean) => void;
+  onAdd: () => void;
   onReset: () => void;
   variant: 'regex' | 'llm';
 }
@@ -59,7 +59,7 @@ export function EntityTypeList({
             </Button>
             <Button
               size="sm"
-              onClick={() => onAdd(variant === 'llm')}
+              onClick={onAdd}
               data-testid={`add-${variant}-type`}
             >
               {t('settings.addNew')}

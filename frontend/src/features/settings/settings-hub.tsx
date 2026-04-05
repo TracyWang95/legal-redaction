@@ -47,7 +47,7 @@ export function SettingsHub() {
   };
 
   const handleSave = async (form: {
-    name: string; description: string; color: string;
+    name: string; description: string;
     regex_pattern: string; use_llm: boolean; tag_template: string;
   }) => {
     if (editingType) {
@@ -123,7 +123,7 @@ export function SettingsHub() {
                 <EntityTypeList
                   types={regexTypes}
                   variant="regex"
-                  onAdd={openAdd}
+                  onAdd={() => openAdd(false)}
                   onEdit={openEdit}
                   onDelete={id => setConfirmState({
                     title: t('common.delete'),
@@ -143,7 +143,7 @@ export function SettingsHub() {
                 <EntityTypeList
                   types={llmTypes}
                   variant="llm"
-                  onAdd={openAdd}
+                  onAdd={() => openAdd(true)}
                   onEdit={openEdit}
                   onDelete={id => setConfirmState({
                     title: t('common.delete'),
@@ -196,7 +196,6 @@ export function SettingsHub() {
         initial={editingType ? {
           name: editingType.name,
           description: editingType.description ?? '',
-          color: editingType.color,
           regex_pattern: editingType.regex_pattern ?? '',
           use_llm: !!editingType.use_llm,
           tag_template: editingType.tag_template ?? '',
