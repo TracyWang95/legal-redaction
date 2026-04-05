@@ -213,7 +213,7 @@ export const ConfigPanel: React.FC = () => {
   const { config, toggleEntityType, setReplacementMode } = useRedactionConfigStore();
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border border-line dark:border-gray-700 overflow-hidden" role="form" aria-label="脱敏配置">
+    <div className="overflow-hidden rounded-lg border border-line bg-white" role="form" aria-label="脱敏配置">
       {/* 头部 */}
       <div className="p-4 border-b border-line">
         <h3 className="text-lg font-semibold text-ink" id="config-panel-title">脱敏配置</h3>
@@ -222,7 +222,7 @@ export const ConfigPanel: React.FC = () => {
 
       {/* 替换模式 */}
       <div className="p-4 border-b border-line">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3" id="replacement-mode-label">替换模式</h4>
+        <h4 className="mb-3 text-sm font-medium text-gray-700" id="replacement-mode-label">替换模式</h4>
         <div className="space-y-2" role="radiogroup" aria-labelledby="replacement-mode-label">
           {REPLACEMENT_MODES.map((mode) => (
             <label
@@ -231,7 +231,7 @@ export const ConfigPanel: React.FC = () => {
                 'flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all',
                 config.replacement_mode === mode.value
                   ? 'border-primary-500 bg-primary-50'
-                  : 'border-line dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                  : 'border-line hover:border-gray-300'
               )}
             >
               <input
@@ -245,7 +245,7 @@ export const ConfigPanel: React.FC = () => {
               <div>
                 <p className="font-medium text-ink">{mode.label}</p>
                 <p className="text-sm text-ink-muted">{mode.description}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">{mode.preview}</p>
+                <p className="mt-0.5 font-mono text-xs text-gray-400">{mode.preview}</p>
               </div>
             </label>
           ))}
@@ -254,7 +254,7 @@ export const ConfigPanel: React.FC = () => {
 
       {/* 实体类型 - 按GB/T 37964-2019分类 */}
       <div className="p-4">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">识别的实体类型</h4>
+        <h4 className="mb-1 text-sm font-medium text-gray-700">识别的实体类型</h4>
         <p className="text-xs text-ink-subtle mb-3">基于 GB/T 37964-2019 分类</p>
         
         {/* 按分类显示 */}

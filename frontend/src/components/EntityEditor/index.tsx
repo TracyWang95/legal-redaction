@@ -117,7 +117,7 @@ export const EntityEditor: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-line dark:border-gray-700 overflow-hidden" role="region" aria-label="识别结果编辑器">
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-white" role="region" aria-label="识别结果编辑器">
       {/* 头部 */}
       <div className="p-4 border-b border-line">
         <h3 className="text-lg font-semibold text-ink" id="entity-editor-title">识别结果</h3>
@@ -256,7 +256,7 @@ const EntityItem: React.FC<EntityItemProps> = ({
             'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors',
             entity.selected
               ? 'bg-primary-600 border-primary-600 text-white'
-              : 'border-gray-300 dark:border-gray-600 hover:border-primary-400'
+              : 'border-gray-300 hover:border-primary-400'
           )}
         >
           {entity.selected && <CheckIcon className="w-3 h-3" />}
@@ -298,7 +298,7 @@ const EntityItem: React.FC<EntityItemProps> = ({
                 type="text"
                 value={editValue}
                 onChange={(e) => onEditChange(e.target.value)}
-                className="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                 placeholder="输入替换文本"
                 autoFocus
               />

@@ -604,8 +604,6 @@
 
   // Layout
   'layout.navLabel': 'Main navigation',
-  'layout.darkMode.toLight': 'Switch to light mode',
-  'layout.darkMode.toDark': 'Switch to dark mode',
   'layout.languageSwitch': 'Switch language',
   'health.status.checking': 'Checking',
   'health.status.allOnline': 'All online',
@@ -683,8 +681,6 @@ const enOverrides: Record<string, string> = {
   'page.textModel.sub': 'Configure the text recognition service',
   'page.visionModel.title': 'Vision Service',
   'page.visionModel.sub': 'Configure OCR and image recognition',
-  'layout.darkMode.toLight': 'Switch to light mode',
-  'layout.darkMode.toDark': 'Switch to dark mode',
   'health.title': 'Service Status',
   'health.allOnline': 'All services online',
   'health.someOffline': 'Some services need attention',

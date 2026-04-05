@@ -1,10 +1,9 @@
 /**
- * Application header bar with page title, language toggle, theme switch, and health state.
+ * Application header bar with page title, language toggle, and health state.
  */
-import { Globe, Moon, Sun } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useI18n, useT } from '@/i18n';
-import { useDarkMode } from '@/hooks/useDarkMode';
 import { useServiceHealth } from '@/hooks/use-service-health';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 export function AppHeader() {
   const t = useT();
   const location = useLocation();
-  const { dark, toggle: toggleDark } = useDarkMode();
   const { locale, setLocale } = useI18n();
   const { health, checking } = useServiceHealth();
 
@@ -69,17 +67,6 @@ export function AppHeader() {
         >
           <Globe className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{locale === 'zh' ? 'EN' : 'ZH'}</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-          onClick={toggleDark}
-          aria-label={dark ? t('layout.darkMode.toLight') : t('layout.darkMode.toDark')}
-          data-testid="dark-mode-toggle"
-        >
-          {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
       </div>
     </header>

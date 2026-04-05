@@ -604,8 +604,6 @@
 
   // Layout
   'layout.navLabel': '主导航',
-  'layout.darkMode.toLight': '切换到亮色模式',
-  'layout.darkMode.toDark': '切换到深色模式',
   'health.status.checking': '检测中',
   'health.status.allOnline': '全部在线',
   'health.status.someOffline': '部分离线',
@@ -703,8 +701,6 @@ const zhOverrides: Record<string, string> = {
   'page.textModel.sub': '配置文本识别服务',
   'page.visionModel.title': '视觉服务',
   'page.visionModel.sub': '配置 OCR 和图像识别',
-  'layout.darkMode.toLight': '切换到亮色模式',
-  'layout.darkMode.toDark': '切换到暗色模式',
   'layout.languageSwitch': '切换语言',
   'health.title': '服务状态',
   'health.allOnline': '全部服务正常',
