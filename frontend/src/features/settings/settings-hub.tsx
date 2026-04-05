@@ -16,7 +16,7 @@ export function SettingsHub() {
   const t = useT();
   const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
   const {
-    entityTypes, pipelines, loading, regexTypes, llmTypes,
+    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes,
     importFileRef, createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets,
@@ -168,6 +168,7 @@ export function SettingsHub() {
               {t('settings.pipelineDisplayName.ocr')} + {t('settings.pipelineDisplayName.image')} | {t('settings.twoMergedOutput')}
             </div>
             <PipelineConfigPanel
+              loading={pipelinesLoading}
               pipelines={pipelines}
               onCreateType={createPipelineType}
               onUpdateType={updatePipelineType}

@@ -84,6 +84,7 @@ export function useEntityTypes() {
   const [entityTypes, setEntityTypes] = useState<EntityTypeConfig[]>([]);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pipelinesLoading, setPipelinesLoading] = useState(true);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const fetchEntityTypes = useCallback(async () => {
@@ -102,6 +103,7 @@ export function useEntityTypes() {
 
   const fetchPipelines = useCallback(async () => {
     try {
+      setPipelinesLoading(true);
       const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 25000 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
@@ -117,6 +119,8 @@ export function useEntityTypes() {
       setPipelines(normalized);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch pipelines failed', err);
+    } finally {
+      setPipelinesLoading(false);
     }
   }, []);
 
@@ -273,7 +277,7 @@ export function useEntityTypes() {
   }, []);
 
   return {
-    entityTypes, pipelines, loading, regexTypes, llmTypes, importFileRef,
+    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, importFileRef,
     createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets, fetchEntityTypes, fetchPipelines,

@@ -3,6 +3,7 @@ import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import {
 } from '../hooks/use-entity-types';
 
 interface PipelineConfigPanelProps {
+  loading: boolean;
   pipelines: PipelineConfig[];
   onCreateType: (mode: 'ocr_has' | 'has_image', name: string, desc: string) => Promise<boolean>;
   onUpdateType: (
@@ -35,6 +37,7 @@ interface PipelineConfigPanelProps {
 }
 
 export function PipelineConfigPanel({
+  loading,
   pipelines,
   onCreateType,
   onUpdateType,
@@ -90,135 +93,118 @@ export function PipelineConfigPanel({
   const tone: SelectionTone = imageModeActive ? 'visual' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
   const displayName = imageModeActive ? imageLabel : ocrLabel;
+  const activeCount = activePipeline?.types.length ?? 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <div className="flex shrink-0 items-center gap-2">
-        <div className="flex w-fit gap-1 rounded-xl border border-border/70 bg-muted/45 p-1">
-          <button
-            type="button"
-            onClick={() => setActiveSub('ocr_has')}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-              activeSub === 'ocr_has'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            data-testid="pipeline-tab-ocr"
-          >
-            {ocrLabel}
-            <span className="ml-1 text-muted-foreground">({ocrPipeline?.types.length ?? 0})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSub('has_image')}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-              activeSub === 'has_image'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            data-testid="pipeline-tab-image"
-          >
-            {imageLabel}
-            <span className="ml-1 text-muted-foreground">({imagePipeline?.types.length ?? 0})</span>
-          </button>
-        </div>
+      <div className="shrink-0 flex items-center gap-2">
+        <Tabs value={activeSub} onValueChange={(value) => setActiveSub(value as 'ocr_has' | 'has_image')}>
+          <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1">
+            <TabsTrigger value="ocr_has" data-testid="pipeline-tab-ocr">
+              {ocrLabel}
+              <span className="ml-1 text-muted-foreground">({ocrPipeline?.types.length ?? 0})</span>
+            </TabsTrigger>
+            <TabsTrigger value="has_image" data-testid="pipeline-tab-image">
+              {imageLabel}
+              <span className="ml-1 text-muted-foreground">({imagePipeline?.types.length ?? 0})</span>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
-      {!activePipeline ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border bg-card px-6 py-10 text-center shadow-sm">
-          <p className="text-sm text-muted-foreground">
-            {t('settings.loadingPipeline')}
-          </p>
-        </div>
-      ) : (
-        <div
-          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
-          data-testid="vision-pipeline-panel"
-        >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
-              <span className="truncate text-sm font-semibold tracking-[-0.02em]">{displayName}</span>
-              <Badge variant="secondary" className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}>
-                {activePipeline.types.length}
-              </Badge>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button size="sm" variant="outline" onClick={onReset} data-testid="reset-pipelines">
-                {t('settings.resetVisionRules')}
-              </Button>
-              <Button size="sm" onClick={() => openCreate(activeSub)} data-testid="add-pipeline-type">
-                {t('settings.addNew')}
-              </Button>
-            </div>
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
+        data-testid="vision-pipeline-panel"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
+            <span className="truncate text-sm font-semibold tracking-[-0.02em]">{displayName}</span>
+            <Badge variant="secondary" className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}>
+              {activeCount}
+            </Badge>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button size="sm" variant="outline" onClick={onReset} data-testid="reset-pipelines">
+              {t('settings.resetVisionRules')}
+            </Button>
+            <Button size="sm" onClick={() => openCreate(activeSub)} data-testid="add-pipeline-type">
+              {t('settings.addNew')}
+            </Button>
+          </div>
+        </div>
 
-          <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
-            {activePipeline.types.length === 0 ? (
-              <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  {t('settings.noTypeConfig')}
-                </p>
-              </div>
-            ) : (
-              <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {activePipeline.types.map(type => (
-                  <div
-                    key={type.id}
-                    className="flex min-h-[136px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col gap-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="block truncate text-sm font-semibold leading-tight text-foreground">
-                            {type.name}
-                          </span>
-                          <span className={cn('mt-1 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px]', toneClasses.cardSelectedCompact)}>
-                            <span className="truncate">{type.id}</span>
-                          </span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-0.5">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-6"
-                            onClick={() => openEdit(activePipeline.mode, type)}
-                            data-testid={`edit-pipeline-${type.id}`}
-                          >
-                            <PencilIcon />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-6 text-destructive hover:text-destructive"
-                            onClick={() => onDeleteType(activePipeline.mode, type.id)}
-                            data-testid={`delete-pipeline-${type.id}`}
-                          >
-                            <TrashIcon />
-                          </Button>
-                        </div>
+        <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
+          {loading ? (
+            <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                {t('settings.loadingPipeline')}
+              </p>
+            </div>
+          ) : !activePipeline || activePipeline.types.length === 0 ? (
+            <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                {t('settings.noTypeConfig')}
+              </p>
+            </div>
+          ) : (
+            <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {activePipeline.types.map(type => (
+                <article
+                  key={type.id}
+                  className="flex min-h-[164px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-semibold leading-tight text-foreground">
+                          {type.name}
+                        </span>
+                        <span className={cn('mt-1 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px]', toneClasses.cardSelectedCompact)}>
+                          <span className="truncate">{type.id}</span>
+                        </span>
                       </div>
-                      <div className="mt-auto space-y-2">
-                        {type.description && (
-                          <p className="line-clamp-2 text-[11px] leading-5 text-muted-foreground">
-                            {type.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span className={cn('size-1.5 rounded-full', toneClasses.dot)} />
-                          <span>{displayName}</span>
-                        </div>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-6"
+                          onClick={() => openEdit(activePipeline.mode, type)}
+                          data-testid={`edit-pipeline-${type.id}`}
+                        >
+                          <PencilIcon />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-6 text-destructive hover:text-destructive"
+                          onClick={() => onDeleteType(activePipeline.mode, type.id)}
+                          data-testid={`delete-pipeline-${type.id}`}
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-2.5">
+                      <div className="rounded-2xl border border-border/70 bg-muted/20 px-3 py-2.5">
+                        <p className="line-clamp-3 text-xs leading-5 text-muted-foreground">
+                          {type.description || t('settings.semanticDescriptionPlaceholder')}
+                        </p>
+                      </div>
+
+                      <div className="mt-auto flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className={cn('size-1.5 rounded-full', toneClasses.dot)} />
+                        <span>{displayName}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <Dialog
         open={dialogMode !== null}
