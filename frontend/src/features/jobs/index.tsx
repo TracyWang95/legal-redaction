@@ -1,7 +1,4 @@
-/**
- * Jobs page — task center for batch processing jobs.
- * Rebuilt from pages/Jobs.tsx (990 lines) into feature module.
- */
+
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SkeletonCard } from '@/components/Skeleton';

@@ -1,4 +1,4 @@
-/** Playground file info (file_type is string for flexibility) */
+
 export interface FileInfo {
   file_id: string;
   filename: string;
@@ -7,7 +7,7 @@ export interface FileInfo {
   is_scanned?: boolean;
 }
 
-/** Playground entity (type is string to support custom types) */
+
 export interface Entity {
   id: string;
   text: string;
@@ -19,7 +19,7 @@ export interface Entity {
   coref_id?: string | null;
 }
 
-/** Playground bounding box with vision detection metadata */
+
 export interface BoundingBox {
   id: string;
   x: number;

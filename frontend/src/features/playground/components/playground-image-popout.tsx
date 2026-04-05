@@ -1,7 +1,4 @@
-/**
- * Standalone image annotation editor for popout window.
- * Communicates with main Playground via BroadcastChannel.
- */
+
 import { type FC, useEffect, useRef, useState } from 'react';
 import ImageBBoxEditor, { type BoundingBox } from '@/components/ImageBBoxEditor';
 import { useT } from '@/i18n';

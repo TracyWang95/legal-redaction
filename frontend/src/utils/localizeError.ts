@@ -53,7 +53,7 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
     lower.includes('failed to fetch') ||
     lower.includes('network error') ||
     lower.includes('networkerror') ||
-    raw.includes('缃戠粶杩炴帴澶辫触')
+    raw.includes('网络连接失败')
   ) {
     return t('common.networkError');
   }
@@ -61,7 +61,7 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
   if (
     lower.includes('request failed with status code') ||
     lower === 'request failed' ||
-    raw.includes('璇锋眰澶辫触')
+    raw.includes('请求失败')
   ) {
     if (status) {
       return (Number(status) >= 500 ? t('common.serverErrorWithStatus') : t('common.requestFailedWithStatus'))
@@ -72,7 +72,7 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
 
   if (
     lower.includes('download failed') ||
-    raw.includes('涓嬭浇澶辫触')
+    raw.includes('下载失败')
   ) {
     if (status) {
       return t('common.downloadFailedWithStatus').replace('{status}', status);
@@ -85,7 +85,7 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
     lower.includes('failed to load config') ||
     lower.startsWith('failed to load ') ||
     lower === 'load failed' ||
-    raw.includes('鍔犺浇鏂囦欢澶辫触')
+    raw.includes('加载文件失败')
   ) {
     if (status) {
       return t('common.loadFailedWithStatus').replace('{status}', status);
@@ -105,7 +105,7 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
     return t(fallbackKey);
   }
 
-  if (lower === 'failed' || raw === '澶辫触') {
+  if (lower === 'failed' || raw === '失败') {
     return t(fallbackKey);
   }
 

@@ -1,14 +1,10 @@
-/**
- * BatchStep4Review — Step 4: Review & confirm redaction.
- * Supports both text entity review and image bbox review modes.
- * Delegates to the parent hook for all state management.
- */
+
 import type React from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-// Badge available for future use
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { getEntityRiskConfig, getEntityTypeName } from '@/config/entityTypes';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
@@ -17,13 +13,13 @@ import type { TextSegment } from '@/utils/textRedactionSegments';
 import { tonePanelClass } from '@/utils/toneClasses';
 import type {
   BatchRow,
-  ReviewEntity,
   PipelineCfg,
+  ReviewEntity,
   TextEntityType,
-} from '../hooks/use-batch-wizard';
+} from '../types';
 
 interface BatchStep4ReviewProps {
-  // Review navigation
+  
   doneRows: BatchRow[];
   reviewIndex: number;
   reviewFile: BatchRow | null;
@@ -32,7 +28,7 @@ interface BatchStep4ReviewProps {
   reviewFileReadOnly: boolean;
   navigateReviewIndex: (idx: number) => void;
 
-  // Text review
+  
   reviewEntities: ReviewEntity[];
   reviewTextContent: string;
   reviewTextContentRef: React.RefObject<HTMLDivElement | null>;
@@ -43,7 +39,7 @@ interface BatchStep4ReviewProps {
   applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
   toggleReviewEntitySelected: (id: string) => void;
 
-  // Image review
+  
   reviewBoxes: EditorBox[];
   reviewOrigImageBlobUrl: string;
   reviewImagePreviewSrc: string;
@@ -55,7 +51,7 @@ interface BatchStep4ReviewProps {
   handleReviewBoxesCommit: (prev: EditorBox[], next: EditorBox[]) => void;
   toggleReviewBoxSelected: (id: string) => void;
 
-  // Undo/redo
+  
   undoReviewText: () => void;
   redoReviewText: () => void;
   undoReviewImage: () => void;
@@ -65,16 +61,16 @@ interface BatchStep4ReviewProps {
   reviewImageUndoStack: EditorBox[][];
   reviewImageRedoStack: EditorBox[][];
 
-  // Draft
+  
   reviewDraftSaving: boolean;
   reviewDraftError: string | null;
 
-  // Counts
+  
   reviewedOutputCount: number;
   rows: BatchRow[];
   allReviewConfirmed: boolean;
 
-  // Actions
+  
   confirmCurrentReview: () => Promise<void>;
   advanceToExportStep: () => Promise<void>;
 }
@@ -118,7 +114,7 @@ export function BatchStep4Review(props: BatchStep4ReviewProps) {
       className="flex-1 flex flex-col min-h-0 overflow-hidden"
       data-testid="batch-step4-review"
     >
-      {/* Read-only banner */}
+      {}
       {reviewFileReadOnly && (
         <div className={`shrink-0 border-b px-4 py-2 text-sm ${tonePanelClass.success}`}>
           {t('batchWizard.step4.readOnlyHint')}
@@ -293,7 +289,7 @@ function ImageReviewContent(props: BatchStep4ReviewProps) {
             {selectedReviewBoxCount}/{reviewBoxes.length}
           </span>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2">
           {reviewBoxes.map(box => {
             const meta = getVisionTypeMeta(box.type);
             return (
@@ -454,7 +450,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
           {reviewEntities.map(e => {
             const repl = displayPreviewMap[e.text] ?? (
               typeof e.start === 'number' && typeof e.end === 'number' && e.end <= reviewTextContent.length

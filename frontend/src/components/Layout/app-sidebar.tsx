@@ -1,6 +1,4 @@
-/**
- * Application sidebar with product branding, navigation, and health state.
- */
+
 import { NavLink, useLocation } from 'react-router-dom';
 import { Lock, ShieldCheck } from 'lucide-react';
 import { useT } from '@/i18n';

@@ -1,7 +1,4 @@
-/**
- * BatchStep2Upload — Step 2: File upload with drag-and-drop.
- * Uses react-dropzone for file selection and displays upload queue.
- */
+
 import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';

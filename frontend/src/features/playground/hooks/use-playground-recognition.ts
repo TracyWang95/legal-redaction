@@ -1,7 +1,4 @@
-/**
- * Recognition configuration state for the Playground.
- * Keeps text and vision rules in sync with presets and backend config.
- */
+
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { authFetch } from '@/services/api-client';
 import {

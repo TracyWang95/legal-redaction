@@ -1,12 +1,4 @@
-/**
- * BatchWizard — page orchestrator for the 5-step batch workflow.
- * Imports the use-batch-wizard hook and delegates to step components.
- *
- * Rebuilt from pages/Batch.tsx (3510 lines) into feature module:
- *   - hooks/use-batch-wizard.ts (all wizard state and actions)
- *   - components/batch-step-progress.tsx (step indicator)
- *   - components/batch-step{1..5}-*.tsx (step UI)
- */
+
 import { Navigate } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -34,41 +26,47 @@ export function BatchWizard() {
 
   return (
     <div
-      className="h-full min-h-0 min-w-0 flex flex-col bg-background overflow-hidden"
+      className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background"
       data-testid="batch-wizard"
     >
       <div
         className={cn(
-          'flex-1 flex flex-col min-h-0 min-w-0 w-full max-w-[min(100%,1920px)] mx-auto',
+          'flex min-h-0 min-w-0 flex-1 flex-col',
           w.step === 1
-            ? 'px-3 py-2 sm:px-4 sm:py-2.5 overflow-hidden'
+            ? 'page-shell-narrow !max-w-[72rem] overflow-hidden'
             : w.step === 4
-              ? 'px-2 py-1.5 sm:px-3 sm:py-2 flex flex-col min-h-0 overflow-hidden'
-              : 'px-3 py-3 sm:px-5 sm:py-4 overflow-y-auto overscroll-contain',
+              ? 'page-shell overflow-hidden'
+              : 'page-shell-narrow !max-w-[80rem] overflow-y-auto overscroll-contain',
         )}
       >
-        {/* Overview text */}
+        {w.previewMode && (
+          <Alert className="mb-3">
+            <AlertDescription>{t('batchWizard.previewBanner')}</AlertDescription>
+          </Alert>
+        )}
+
+        {}
         {w.step !== 4 && (
-          <p className="mb-1 shrink-0 text-xs text-muted-foreground leading-tight">
+          <p className="mb-1 shrink-0 text-xs leading-tight text-muted-foreground">
             {t('batchWizard.stepsOverview')}
           </p>
         )}
 
-        {/* Step progress bar */}
+        {}
         <BatchStepProgress
           currentStep={w.step}
           canGoStep={w.canGoStep}
           onStepClick={w.goStep}
         />
 
-        {/* Status message */}
+        {}
         {w.msg && (
           <Alert variant={msgVariant} className="mb-2">
             <AlertDescription>{w.msg.text}</AlertDescription>
           </Alert>
         )}
 
-        {/* Step 1: Config */}
+        {}
         {w.step === 1 && (
           <BatchStep1Config
             cfg={w.cfg}
@@ -87,7 +85,7 @@ export function BatchWizard() {
           />
         )}
 
-        {/* Step 2: Upload */}
+        {}
         {w.step === 2 && (
           <BatchStep2Upload
             mode={w.mode}
@@ -101,7 +99,7 @@ export function BatchWizard() {
           />
         )}
 
-        {/* Step 3: Recognize */}
+        {}
         {w.step === 3 && (
           <BatchStep3Recognize
             rows={w.rows}
@@ -113,7 +111,7 @@ export function BatchWizard() {
           />
         )}
 
-        {/* Step 4: Review */}
+        {}
         {w.step === 4 && (
           <BatchStep4Review
             doneRows={w.doneRows}
@@ -160,7 +158,7 @@ export function BatchWizard() {
           />
         )}
 
-        {/* Step 5: Export */}
+        {}
         {w.step === 5 && (
           <BatchStep5Export
             rows={w.rows}

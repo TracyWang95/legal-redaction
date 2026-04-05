@@ -1,8 +1,4 @@
-/**
- * BatchStep1Config — Step 1: Task configuration.
- * Handles execution path, text/vision preset selection,
- * priority, and confirmation before advancing to upload.
- */
+
 import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 
@@ -71,15 +67,15 @@ export function BatchStep1Config({
       className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
       data-testid="batch-step1-config"
     >
-      <CardHeader className="flex flex-col gap-1 pb-3">
+      <CardHeader className="flex flex-col gap-1.5 border-b border-border/70 pb-4">
         <CardTitle className="text-base tracking-[-0.03em]">{t('batchWizard.step1.title')}</CardTitle>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {t('batchWizard.step1.desc')}
         </p>
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-0">
-        {/* Execution path */}
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-5">
+        {}
         <div className="surface-subtle flex flex-col gap-3 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{t('batchWizard.step1.execPath')}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
@@ -118,113 +114,111 @@ export function BatchStep1Config({
           </div>
         </div>
 
-        {/* Preset cards */}
-        <div className="flex gap-3 flex-1 min-h-0">
-          <div className="flex w-full flex-col gap-3 overflow-y-auto lg:max-w-[360px]">
-            {/* Text preset */}
-            <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-              <CardContent className="flex flex-col gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <span className="text-sm font-semibold">
-                    {t('batchWizard.step1.textPreset')}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('batchWizard.step1.textPresetDesc')}
-                </p>
-                <Select
-                  value={cfg.presetTextId || DEFAULT_PRESET_VALUE}
-                  onValueChange={value => onBatchTextPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
-                >
-                  <SelectTrigger className="text-xs" data-testid="text-preset-select">
-                    <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
-                    {textPresets.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-
-            {/* Vision preset */}
-            <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-              <CardContent className="flex flex-col gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--selection-yolo-accent)]" />
-                  <span className="text-sm font-semibold">
-                    {t('batchWizard.step1.imagePreset')}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t('batchWizard.step1.imagePresetDesc')}
-                </p>
-                <Select
-                  value={cfg.presetVisionId || DEFAULT_PRESET_VALUE}
-                  onValueChange={value => onBatchVisionPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
-                >
-                  <SelectTrigger className="text-xs" data-testid="vision-preset-select">
-                    <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
-                    {visionPresets.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
-
-            {/* Priority */}
-            <div className="surface-subtle flex items-center justify-between gap-3 px-4 py-3">
-              <span className="text-sm text-muted-foreground">
-                {t('batchWizard.step1.priority')}
-              </span>
+        {}
+        <div className="grid gap-3 xl:grid-cols-2">
+          {}
+          <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
+            <CardContent className="flex h-full flex-col gap-2 p-4">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <span className="text-sm font-semibold">
+                  {t('batchWizard.step1.textPreset')}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t('batchWizard.step1.textPresetDesc')}
+              </p>
               <Select
-                value={String(jobPriority)}
-                onValueChange={v => setJobPriority(Number(v))}
+                value={cfg.presetTextId || DEFAULT_PRESET_VALUE}
+                onValueChange={value => onBatchTextPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
               >
-                <SelectTrigger className="text-xs w-24" data-testid="priority-select">
-                  <SelectValue />
+                <SelectTrigger className="text-xs" data-testid="text-preset-select">
+                  <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">{t('batchWizard.step1.priorityNormal')}</SelectItem>
-                  <SelectItem value="5">{t('batchWizard.step1.priorityHigh')}</SelectItem>
-                  <SelectItem value="10">{t('batchWizard.step1.priorityUrgent')}</SelectItem>
+                  <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
+                  {textPresets.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Confirm + advance */}
-            <div className="flex flex-col gap-3 border-t border-border/70 pt-3">
-              <label className="flex cursor-pointer items-start gap-2 text-sm">
-                <Checkbox
-                  checked={confirmStep1}
-                  onCheckedChange={v => setConfirmStep1(v === true)}
-                  className="mt-0.5"
-                  data-testid="confirm-step1"
-                />
-                <span>{t('batchWizard.step1.confirm')}</span>
-              </label>
-              <Button
-                className="w-full"
-                disabled={!isStep1Complete}
-                onClick={() => advanceToUploadStep()}
-                data-testid="advance-upload"
+          {/* Vision preset */}
+          <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
+            <CardContent className="flex h-full flex-col gap-2 p-4">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--selection-yolo-accent)]" />
+                <span className="text-sm font-semibold">
+                  {t('batchWizard.step1.imagePreset')}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t('batchWizard.step1.imagePresetDesc')}
+              </p>
+              <Select
+                value={cfg.presetVisionId || DEFAULT_PRESET_VALUE}
+                onValueChange={value => onBatchVisionPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
               >
-                {t('batchWizard.step1.nextUpload')}
-              </Button>
-            </div>
+                <SelectTrigger className="text-xs" data-testid="vision-preset-select">
+                  <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
+                  {visionPresets.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+          <div className="surface-subtle flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-sm text-muted-foreground">
+              {t('batchWizard.step1.priority')}
+            </span>
+            <Select
+              value={String(jobPriority)}
+              onValueChange={v => setJobPriority(Number(v))}
+            >
+              <SelectTrigger className="w-24 text-xs" data-testid="priority-select">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">{t('batchWizard.step1.priorityNormal')}</SelectItem>
+                <SelectItem value="5">{t('batchWizard.step1.priorityHigh')}</SelectItem>
+                <SelectItem value="10">{t('batchWizard.step1.priorityUrgent')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="surface-subtle flex flex-col gap-3 px-4 py-3">
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <Checkbox
+                checked={confirmStep1}
+                onCheckedChange={v => setConfirmStep1(v === true)}
+                className="mt-0.5"
+                data-testid="confirm-step1"
+              />
+              <span>{t('batchWizard.step1.confirm')}</span>
+            </label>
+            <Button
+              className="w-full"
+              disabled={!isStep1Complete}
+              onClick={() => advanceToUploadStep()}
+              data-testid="advance-upload"
+            >
+              {t('batchWizard.step1.nextUpload')}
+            </Button>
           </div>
         </div>
 

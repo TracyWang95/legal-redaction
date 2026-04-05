@@ -9,6 +9,10 @@ import {
 } from '@/services/jobsApi';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
+import {
+  buildPreviewBatchHubJobs,
+  buildPreviewBatchRoute,
+} from '../lib/batch-preview-fixtures';
 
 function isActiveJob(status: string): boolean {
   return ['draft', 'queued', 'processing', 'running', 'awaiting_review', 'redacting'].includes(status);
@@ -20,6 +24,7 @@ export function useBatchHub() {
   const [error, setError] = useState<string | null>(null);
   const [recentJobs, setRecentJobs] = useState<JobSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [jobsUnavailable, setJobsUnavailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,10 +33,14 @@ export function useBatchHub() {
       try {
         const res = await listJobs({ page: 1, page_size: 20 });
         if (!cancelled) {
+          setJobsUnavailable(false);
           setRecentJobs(res.jobs.filter(j => isActiveJob(j.status)));
         }
       } catch {
-        if (!cancelled) setRecentJobs([]);
+        if (!cancelled) {
+          setJobsUnavailable(true);
+          setRecentJobs(buildPreviewBatchHubJobs());
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -50,6 +59,10 @@ export function useBatchHub() {
     return out;
   }, [recentJobs]);
 
+  const openPreview = useCallback(() => {
+    nav(buildPreviewBatchRoute(1));
+  }, [nav]);
+
   const startNewJob = useCallback(async (jobType: JobTypeApi) => {
     setError(null);
     setBusy(true);
@@ -62,10 +75,11 @@ export function useBatchHub() {
       nav(`/batch/smart?jobId=${encodeURIComponent(j.id)}&step=1&new=1`);
     } catch (e) {
       setError(localizeErrorMessage(e, 'batchHub.createFailed'));
+      openPreview();
     } finally {
       setBusy(false);
     }
-  }, [nav]);
+  }, [nav, openPreview]);
 
   const continueJob = useCallback((job: JobSummary) => {
     const navTarget = resolveJobPrimaryNavigation({
@@ -88,8 +102,10 @@ export function useBatchHub() {
     busy,
     error,
     loading,
+    jobsUnavailable,
     recentByType,
     startNewJob,
     continueJob,
+    openPreview,
   };
 }

@@ -1,8 +1,4 @@
-/**
- * BatchStep5Export — Step 5: Export redacted files as ZIP.
- * Provides download buttons for original and redacted ZIPs,
- * with file selection and status display.
- */
+
 import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +8,7 @@ import {
   getRedactionStateLabel,
   resolveRedactionState,
 } from '@/utils/redactionState';
-import type { Step, BatchRow } from '../hooks/use-batch-wizard';
+import type { BatchRow, Step } from '../types';
 
 interface BatchStep5ExportProps {
   rows: BatchRow[];
@@ -43,8 +39,8 @@ export function BatchStep5Export({
           {t('batchWizard.step5.desc')}
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Action buttons */}
+      <CardContent className="flex flex-col gap-4">
+        {}
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
@@ -70,7 +66,7 @@ export function BatchStep5Export({
           </Button>
         </div>
 
-        {/* File list with checkboxes */}
+        {}
         <div className="border rounded-lg divide-y max-h-72 overflow-y-auto">
           {rows.map(r => {
             const rs = resolveRedactionState(r.has_output, r.analyzeStatus);

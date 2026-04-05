@@ -1,11 +1,8 @@
-/**
- * BatchStepProgress — 5-step progress indicator for the batch wizard.
- * Displays current/completed/pending states with ShadCN styling.
- */
+
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 import { Button } from '@/components/ui/button';
-import { type Step, STEPS } from '../hooks/use-batch-wizard';
+import { type Step, STEPS } from '../types';
 
 interface BatchStepProgressProps {
   currentStep: Step;

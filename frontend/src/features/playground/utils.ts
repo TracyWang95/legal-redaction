@@ -1,11 +1,9 @@
-/**
- * Playground shared utility functions
- */
+
 import { authFetch } from '@/services/api-client';
 import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export async function safeJson<T = any>(res: Response): Promise<T> {
   try {
     return await res.json();
@@ -14,7 +12,7 @@ export async function safeJson<T = any>(res: Response): Promise<T> {
   }
 }
 
-/** Clamp popover anchor within the content canvas visible area */
+
 export function clampPopoverInCanvas(
   anchorRect: DOMRect,
   canvasRect: DOMRect,
@@ -39,7 +37,7 @@ export function clampPopoverInCanvas(
   return { left, top };
 }
 
-/** Preview entity mark style by source */
+
 export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
   const tone = sourceToTone(entity.source);
   const base = getSelectionMarkStyle(tone);
@@ -49,7 +47,7 @@ export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
   return base;
 }
 
-/** Hover ring class consistent with sidebar selection semantics */
+
 export function previewEntityHoverRingClass(source: Entity['source']): string {
   return getSelectionToneClasses(sourceToTone(source)).hoverRing;
 }

@@ -1,6 +1,4 @@
-/**
- * Playground page orchestrator.
- */
+
 import { type FC, type MouseEvent as ReactMouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/Toast';

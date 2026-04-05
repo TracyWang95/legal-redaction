@@ -1,7 +1,4 @@
-/**
- * Job detail page — shows a single job's metadata, progress, and item list.
- * Rebuilt from pages/JobDetail.tsx into feature module style.
- */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { t } from '@/i18n';
@@ -24,17 +21,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { JobStatusBadge, RedactionStateBadge } from './components/jobs-status-badge';
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
+
+
+
 
 function canDeleteJob(status: string): boolean {
   return ['draft', 'awaiting_review', 'completed', 'failed', 'cancelled'].includes(status);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+
+
+
 
 export function JobDetailPage() {
   const { jobId = '' } = useParams<{ jobId: string }>();
@@ -48,7 +45,7 @@ export function JobDetailPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const isFetchingRef = useRef(false);
 
-  /* ---- data loading ---- */
+  
 
   const load = useCallback(async () => {
     if (!jobId || isFetchingRef.current) return;
@@ -68,7 +65,7 @@ export function JobDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Polling for progress (SSE removed — EventSource cannot carry Bearer tokens)
+  
   useEffect(() => {
     const terminal = ['completed', 'failed', 'cancelled'];
     if (data && terminal.includes(data.status)) return;
@@ -87,7 +84,7 @@ export function JobDetailPage() {
     };
   }, [load, data?.status]);
 
-  /* ---- actions ---- */
+  
 
   const onSubmit = async () => {
     if (!jobId) return;
@@ -142,7 +139,7 @@ export function JobDetailPage() {
 
   const items = useMemo(() => data?.items ?? [], [data]);
 
-  /* ---- progress counts ---- */
+  
 
   const redactedCount = useMemo(
     () => items.filter(it => resolveRedactionState(Boolean(it.has_output), it.status) === 'redacted').length,
@@ -153,7 +150,7 @@ export function JobDetailPage() {
     [items],
   );
 
-  /* ---- early returns ---- */
+  
 
   if (!jobId) {
     return (
@@ -199,7 +196,7 @@ export function JobDetailPage() {
     <div className="flex-1 min-h-0 flex flex-col bg-background overflow-y-auto" data-testid="job-detail-page">
       <div className="px-3 py-3 sm:px-5 sm:py-4 max-w-5xl mx-auto w-full space-y-4">
 
-        {/* Breadcrumb */}
+        {}
         <nav className="flex items-center gap-2 text-sm">
           <Link to="/jobs" className="text-primary hover:underline">
             {t('jobDetail.jobCenter')}
@@ -208,14 +205,14 @@ export function JobDetailPage() {
           <span className="font-medium truncate">{j.title || t('jobDetail.unnamedTask')}</span>
         </nav>
 
-        {/* Action message */}
+        {}
         {actionMsg && (
           <Alert>
             <AlertDescription>{actionMsg}</AlertDescription>
           </Alert>
         )}
 
-        {/* Summary card */}
+        {}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -224,7 +221,7 @@ export function JobDetailPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Progress stats */}
+            {}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{t('jobDetail.type')}{t('jobDetail.batchTask')}</span>
               <span>{t('jobDetail.progressTotal').replace('{n}', String(j.progress.total_items))}</span>
@@ -235,7 +232,7 @@ export function JobDetailPage() {
               )}
             </div>
 
-            {/* Action buttons */}
+            {}
             <div className="flex flex-wrap gap-2">
               {j.status === 'draft' && (
                 <Button size="sm" onClick={onSubmit}>
@@ -282,7 +279,7 @@ export function JobDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Items table */}
+        {}
         <Card>
           <CardHeader className="pb-2">
             <h3 className="text-sm font-semibold">{t('jobDetail.fileDetail')}</h3>
@@ -335,7 +332,7 @@ export function JobDetailPage() {
         </Card>
       </div>
 
-      {/* Delete confirmation dialog */}
+      {}
       <ConfirmDialog
         open={deleteConfirmOpen}
         title={t('jobDetail.deleteTask')}

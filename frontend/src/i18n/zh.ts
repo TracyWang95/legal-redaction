@@ -1,5 +1,5 @@
 ﻿const zhBase: Record<string, string> = {
-  // Navigation
+  
   'nav.playground': 'Playground',
   'nav.batch': '批量任务',
   'nav.batch.sub': '新建或继续向导',
@@ -14,7 +14,7 @@
   'nav.textModel': '文本模型配置',
   'nav.visionModel': '视觉服务配置',
 
-  // Playground
+  
   'playground.title': '智能脱敏工作台',
   'playground.upload.hint': '拖拽或点击上传文件',
   'playground.upload.formats': '支持 Word、PDF、图片文件',
@@ -30,7 +30,7 @@
   'playground.entities': '识别实体',
   'playground.boundingBoxes': '检测区域',
 
-  // Common
+  
   'common.confirm': '确认',
   'common.cancel': '取消',
   'common.delete': '删除',
@@ -43,12 +43,12 @@
   'common.error': '操作失败',
   'common.retry': '重试',
 
-  // File types
+  
   'file.word': 'Word 文档',
   'file.pdf': 'PDF 文档',
   'file.image': '图片',
 
-  // Entity types
+  
   'entity.PERSON': '姓名',
   'entity.ID_CARD': '身份证号',
   'entity.PHONE': '电话号码',
@@ -59,13 +59,13 @@
   'entity.DATE': '日期',
   'entity.AMOUNT': '金额',
 
-  // Replacement modes
+  
   'mode.smart': '智能替换',
   'mode.mask': '掩码替换',
   'mode.custom': '自定义替换',
   'mode.structured': '结构化标签',
 
-  // Jobs
+  
   'job.status.draft': '草稿',
   'job.status.queued': '排队中',
   'job.status.pending': '待执行',
@@ -99,13 +99,13 @@
   'redactionState.awaiting_review': '待审核',
   'redactionState.unredacted': '未脱敏',
 
-  // Settings
+  
   'settings.title': '系统设置',
   'settings.presets': '预设管理',
   'settings.presets.export': '导出预设',
   'settings.presets.import': '导入预设',
 
-  // Report
+  
   'report.title': '脱敏质量报告',
   'report.totalEntities': '识别实体总数',
   'report.redactedEntities': '已脱敏数',
@@ -116,7 +116,7 @@
   'report.medium': '中',
   'report.low': '低',
 
-  // Health
+  
   'health.title': '服务状态',
   'health.allOnline': '全部服务正常',
   'health.someOffline': '部分服务异常',
@@ -132,10 +132,10 @@
   'health.probeTime': '探测时间',
   'health.refreshTitle': '立即刷新服务状态',
 
-  // Offline
+  
   'offline.banner': '网络连接已断开，部分功能可能不可用',
 
-  // Onboarding
+  
   'onboarding.skip': '跳过引导',
   'onboarding.prev': '上一步',
   'onboarding.next': '下一步',
@@ -151,7 +151,7 @@
   'onboarding.step5.title': '文件一多就切到批量',
   'onboarding.step5.desc': '当单文件变成多文件时，直接进入批量任务，用同一套标准把整批工作稳定做完。',
 
-  // Page headers
+  
   'page.batch.title': '批量任务',
   'page.batch.sub': '选择类型并创建工单',
   'page.batchText.title': '批量处理',
@@ -175,14 +175,14 @@
   'page.visionModel.title': '视觉服务配置',
   'page.visionModel.sub': 'HaS Image · PaddleOCR-VL 登记与检测',
 
-  // Preset actions
+  
   'preset.saveText.prompt': '另存为文本预设：请输入名称',
   'preset.saveText.success': '已另存为文本预设。',
   'preset.saveVision.prompt': '另存为图像预设：请输入名称',
   'preset.saveVision.success': '已另存为图像预设。',
   'preset.save.failed': '保存失败',
 
-  // Common actions & errors
+  
   'error.network': '网络连接失败，请检查后端服务是否启动',
   'error.auth': '认证失败，请重新登录',
   'error.server': '服务器内部错误，请稍后重试',
@@ -197,7 +197,7 @@
   'action.redacting': '正在执行脱敏...',
   'action.downloading': '正在下载...',
 
-  // JobDetail page
+  
   'jobDetail.batchTask': '批量任务',
   'jobDetail.loadFailed': '加载失败',
   'jobDetail.submitted': '已提交队列',
@@ -247,7 +247,7 @@
   'jobDetail.quickApprove': '快速确认',
   'jobDetail.reject': '打回',
 
-  // Jobs page
+  
   'jobs.batchTask': '批量任务',
   'jobs.localExec': '本页闭环',
   'jobs.queueExec': '后台队列',
@@ -325,7 +325,7 @@
   'jobs.nextPage': '下一页',
   'jobs.lastPage': '末页',
 
-  // History page
+  
   'history.loadPreviewFailed.redacted': '无法加载脱敏文件预览',
   'history.loadPreviewFailed.original': '无法加载原始文件预览',
   'history.loadFailed': '加载失败',
@@ -409,7 +409,7 @@
   'history.col.count': '次数',
   'history.confirmDeleteText': '删除',
 
-  // Settings page
+  
   'settings.testLabel': '测试文本（服务端 Python 正则引擎）',
   'settings.testPlaceholder': '输入测试文本...',
   'settings.testing': '测试中...',
@@ -471,23 +471,23 @@
   'settings.save': '保存',
   'settings.updateFailed': '更新失败',
 
-  // Sidebar
+  
   'sidebar.subtitle': '匿名化数据基础设施',
   'sidebar.devInProgress': '开发中',
 
-  // JobDetail progress (inline)
+  
   'jobDetail.progressTotal': '共 {n} 项',
   'jobDetail.progressRedacted': '已脱敏 {n}',
   'jobDetail.progressAwaiting': '待审核 {n}',
   'jobDetail.progressFailed': '失败 {n}',
 
-  // Jobs inline
+  
   'jobs.headlineRedacted': '已脱敏 {n}',
   'jobs.headlineAwaiting': '待审核 {n}',
   'jobs.itemCount': '{n} 项',
   'jobs.updatedAtLabel': '更新时间 {time}',
 
-  // BatchHub
+  
   'batchHub.title': '开始或恢复批量任务',
   'batchHub.desc': '先创建任务工单，再进入配置、上传、识别和审阅。最近活跃任务可以直接继续，不必重新创建。',
   'batchHub.newTask': '新建批量任务',
@@ -509,7 +509,7 @@
   'batchHub.history': '处理历史',
   'batchHub.batchTaskTitle': '批量任务 {time}',
 
-  // BatchWizard
+  
   'batchWizard.stepsOverview': '五步：配置 → 上传 → 批量识别 → 审阅确认 → 导出',
   'batchWizard.step1': '任务与配置',
   'batchWizard.step2': '上传',
@@ -591,7 +591,7 @@
   'batchWizard.selectTypesFirst': '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。',
   'batchWizard.waitConfig': '请等待识别配置加载完成。',
 
-  // History inline
+  
   'history.singleSession': '单次 · {id}',
   'history.batchLabel': '批量 {id}',
   'history.loadingEllipsis': '加载中…',
@@ -605,14 +605,14 @@
   'history.unredactedStatus': '未脱敏',
   'history.partiallyRedacted': '部分脱敏',
 
-  // Layout
+  
   'layout.navLabel': '主导航',
   'health.status.checking': '检测中',
   'health.status.allOnline': '全部在线',
   'health.status.someOffline': '部分离线',
   'health.status.backendDown': '后端未连接',
 
-  // EntityHighlighter
+  
   'entityTag.PERSON': '人名',
   'entityTag.ID_CARD': '身份证',
   'entityTag.PHONE': '电话',
@@ -624,13 +624,13 @@
   'entityTag.CUSTOM': '自定义',
   'entityTag.selected': '（已选中）',
 
-  // EmptyState
+  
   'emptyState.history': '暂无处理记录',
   'emptyState.historyDesc': '上传并处理文件后，记录会显示在这里',
   'emptyState.noActiveJobs': '暂无可恢复的活跃任务',
   'emptyState.noActiveJobsDesc': '可以直接新建一个批量工单',
 
-  // Data Safety
+  
   'safety.badge': '🔒 所有处理完全在本机完成，不上传任何数据',
   'safety.badge.short': '端侧处理',
   'safety.title': '数据安全',

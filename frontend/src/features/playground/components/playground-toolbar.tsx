@@ -1,6 +1,4 @@
-/**
- * Playground toolbar: file name, guidance, undo/redo, popout, and reset.
- */
+
 import { type FC } from 'react';
 import { ArrowUpRight, FileText, Redo2, RotateCcw, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

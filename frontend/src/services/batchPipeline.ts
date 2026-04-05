@@ -1,7 +1,4 @@
-/**
- * 批量向导专用：仅批量页使用，与 Playground 无代码耦合。
- * 封装 parse / NER / vision / execute / 文件详情 等请求。
- */
+
 import type { ParseResult, NERResult, VisionResult, RedactionResult, RedactionRequest } from '../types';
 import { get, post } from './api-client';
 

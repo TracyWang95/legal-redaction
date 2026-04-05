@@ -1,10 +1,4 @@
-/**
- * use-batch-wizard — all wizard state and actions for the 5-step batch wizard.
- *
- * Extracted from pages/Batch.tsx (3510 lines) into a standalone hook.
- * Handles: step navigation, job config, file upload, recognition polling,
- * review state (text entities + image bboxes), and export/download.
- */
+
 import {
   useCallback,
   useEffect,
@@ -58,7 +52,7 @@ import {
   buildTextSegments,
   mergePreviewMapWithDocumentSlices,
 } from '@/utils/textRedactionSegments';
-// redactionState used by step components directly
+
 import {
   createJob,
   getJob,
@@ -237,7 +231,7 @@ function writeLocalWizardMaxStep(jobId: string, step: Step) {
     const merged = Math.max(step, prev ?? 1) as Step;
     if (merged >= 2) localStorage.setItem(BATCH_WIZ_FURTHEST_LS_PREFIX + jobId, String(merged));
   } catch {
-    /* ignore */
+    
   }
 }
 
@@ -245,7 +239,7 @@ function clearLocalWizardMaxStep(jobId: string) {
   try {
     localStorage.removeItem(BATCH_WIZ_FURTHEST_LS_PREFIX + jobId);
   } catch {
-    /* ignore */
+    
   }
 }
 
@@ -310,7 +304,7 @@ async function fetchBatchPreviewMap(
     });
     if (map && Object.keys(map).length > 0) return map;
   } catch {
-    /* fallback */
+    
   }
   return buildFallbackPreviewEntityMap(
     payload.map(p => ({ text: p.text, type: p.type, selected: p.selected })),
@@ -318,7 +312,7 @@ async function fetchBatchPreviewMap(
   );
 }
 
-// ── Hook ───────────────────────────────────────────────────────────────
+
 
 export function useBatchWizard() {
   const { batchMode } = useParams<{ batchMode: string }>();

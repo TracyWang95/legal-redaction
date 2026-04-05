@@ -1,6 +1,4 @@
-/**
- * Playground result view: original vs redacted text/image plus mapping history.
- */
+
 import { type CSSProperties, type Dispatch, type FC, type ReactNode, type SetStateAction, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

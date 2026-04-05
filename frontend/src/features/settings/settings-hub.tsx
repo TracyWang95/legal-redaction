@@ -1,7 +1,4 @@
-/**
- * Settings Hub — main recognition pipeline configuration page.
- * Replaces pages/Settings.tsx with ShadCN Tabs for text/vision rule management.
- */
+
 import { useState } from 'react';
 import { useT } from '@/i18n';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -31,7 +28,7 @@ export function SettingsHub() {
     onConfirm: () => void;
   } | null>(null);
 
-  /* Edit state for entity types */
+  
   const [editingType, setEditingType] = useState<typeof entityTypes[number] | null>(null);
 
   const openAdd = (useLlm: boolean) => {
@@ -101,7 +98,7 @@ export function SettingsHub() {
             </div>
           </div>
 
-          {/* ─── Text recognition rules ─── */}
+          {}
           <TabsContent value="text" className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             <div className={panelIntroClass} data-testid="settings-text-intro">
               {t('settings.regex')} + {t('settings.aiSemantic')} | {t('settings.dualRules')}
@@ -162,7 +159,7 @@ export function SettingsHub() {
             </Tabs>
           </TabsContent>
 
-          {/* ─── Vision recognition rules ─── */}
+          {}
           <TabsContent value="vision" className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             <div className={panelIntroClass} data-testid="settings-vision-intro">
               {t('settings.pipelineDisplayName.ocr')} + {t('settings.pipelineDisplayName.image')} | {t('settings.twoMergedOutput')}
@@ -189,7 +186,7 @@ export function SettingsHub() {
         </Tabs>
       </div>
 
-      {/* Entity type create/edit dialog */}
+      {}
       <EntityTypeDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

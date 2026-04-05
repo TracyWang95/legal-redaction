@@ -1,6 +1,4 @@
-/**
- * 任务中心：文本批量 / 图像批量 Job API
- */
+
 import { get, post, put, del } from './api-client';
 
 export type JobTypeApi = 'text_batch' | 'image_batch' | 'smart_batch';
@@ -40,7 +38,7 @@ export type JobItemRow = {
 };
 
 export type JobItemReviewDraft = {
-  /** 后端表示是否已有持久化草稿行 */
+  
   exists?: boolean;
   entities: Array<Record<string, unknown>>;
   bounding_boxes: Array<Record<string, unknown>>;
@@ -58,7 +56,7 @@ export type JobSummary = {
   created_at: string;
   updated_at: string;
   progress: JobProgress;
-  /** 列表摘要：供导航解析（awaiting_review 时带出首个待审 itemId） */
+  
   nav_hints?: {
     item_count: number;
     first_awaiting_review_item_id?: string | null;

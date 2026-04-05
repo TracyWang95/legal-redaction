@@ -1,8 +1,4 @@
-/**
- * Service health polling hook.
- * Extracted from Layout component.
- * Polls /health/services every 15s (only when page is visible).
- */
+
 import { useCallback, useEffect, useState } from 'react';
 
 interface ServiceInfo {

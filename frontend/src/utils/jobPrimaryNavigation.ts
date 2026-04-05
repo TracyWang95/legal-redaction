@@ -1,6 +1,4 @@
-/**
- * 企业级导航：Job 聚合状态 -> 唯一主 CTA
- */
+
 export type JobTypeForNav = 'text_batch' | 'image_batch' | 'smart_batch';
 
 export type PrimaryNavAction =

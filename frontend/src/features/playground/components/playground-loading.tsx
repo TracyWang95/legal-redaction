@@ -1,6 +1,4 @@
-/**
- * Playground loading overlay with progress and step labels.
- */
+
 import { type FC } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { useT } from '@/i18n';

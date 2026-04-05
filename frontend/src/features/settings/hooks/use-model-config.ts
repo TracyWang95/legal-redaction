@@ -1,13 +1,11 @@
-/**
- * Hook: NER backend + vision model configuration management.
- */
+
 import { useState, useEffect, useCallback } from 'react';
 import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 
-/* ── Text NER (HaS / llama-server) ── */
+
 
 export function useNerBackend() {
   const [llamacppBaseUrl, setLlamacppBaseUrl] = useState('http://127.0.0.1:8080/v1');
@@ -126,7 +124,7 @@ export function useNerBackend() {
   };
 }
 
-/* ── Vision model configs ── */
+
 
 export interface ModelConfig {
   id: string;

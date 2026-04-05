@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 
 export interface BoundingBox {
   id: string;
-  x: number;      // 归一化坐标 0-1
+  x: number;      
   y: number;
   width: number;
   height: number;
@@ -10,7 +10,7 @@ export interface BoundingBox {
   text?: string;
   selected: boolean;
   confidence?: number;
-  source?: 'ocr_has' | 'has_image' | 'manual';  // 来源 Pipeline
+  source?: 'ocr_has' | 'has_image' | 'manual';  
 }
 
 interface TypeOption {
@@ -27,17 +27,17 @@ interface ImageBBoxEditorProps {
   getTypeConfig: (typeId: string) => { name: string; color: string };
   availableTypes?: TypeOption[];
   defaultType?: string;
-  /** 仅展示框与底图，隐藏拉框/缩放等工具栏，禁止编辑（如 Playground 脱敏完成对比） */
+  
   readOnly?: boolean;
-  /** 浮在图片区域顶部（如批量核对：文件名、翻张、上一步） */
+  
   viewportTopSlot?: React.ReactNode;
-  /** 浮在图片区域底部（如批量核对：确认本张） */
+  
   viewportBottomSlot?: React.ReactNode;
 }
 
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | null;
 
-/** 画布框线：浅 slate，避免深灰黑压图 */
+
 const BOX_STROKE = '#94a3b8';
 const BOX_STROKE_SELECTED = '#64748b';
 
@@ -76,7 +76,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
   const ZOOM_MAX = 3;
   const ZOOM_STEP = 0.1;
 
-  /** 视口尺寸：用于「按可用空间适应」缩放 */
+  
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
@@ -89,7 +89,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  /** 在视口内完整显示图片的基准比例；用户 zoom 在此基础上再放大/缩小 */
+  
   const fitScale = useMemo(() => {
     if (naturalSize.width <= 0 || naturalSize.height <= 0) return 0;
     if (viewportSize.width <= 0 || viewportSize.height <= 0) return 0;
@@ -99,7 +99,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
   const displayW = naturalSize.width * fitScale * zoom;
   const displayH = naturalSize.height * fitScale * zoom;
 
-  // 加载图片尺寸
+  
   const handleImageLoad = useCallback(() => {
     if (imageRef.current) {
       setNaturalSize({
@@ -133,18 +133,18 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     lastBoxesRef.current = boxes;
   }, [boxes]);
 
-  // 归一化坐标转像素
+  
   const toPixel = useCallback((normalized: number, dimension: 'x' | 'y') => {
     return normalized * (dimension === 'x' ? displaySize.width : displaySize.height);
   }, [displaySize]);
 
-  // 像素转归一化坐标
+  
   const toNormalized = useCallback((pixel: number, dimension: 'x' | 'y') => {
     const size = dimension === 'x' ? displaySize.width : displaySize.height;
     return size > 0 ? pixel / size : 0;
   }, [displaySize]);
 
-  // 获取鼠标相对于图片的位置（支持 React 事件与 document 上的原生事件）
+  
   const getMousePosFromClient = useCallback((clientX: number, clientY: number) => {
     if (!imageRef.current) return { x: 0, y: 0 };
     const rect = imageRef.current.getBoundingClientRect();
@@ -159,7 +159,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     [getMousePosFromClient]
   );
 
-  // 开始绘制新框
+  
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (readOnly) return;
     if (!drawMode) return;
@@ -172,7 +172,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     setSelectedBoxId(null);
   }, [readOnly, drawMode, getMousePos, boxes]);
 
-  // 开始拖拽或调整大小
+  
   const handleBoxMouseDown = useCallback((e: React.MouseEvent, boxId: string, handle?: ResizeHandle) => {
     if (readOnly) return;
     e.preventDefault();
@@ -196,7 +196,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     }
   }, [readOnly, boxes, getMousePos, toPixel]);
 
-  // 鼠标移动
+  
   const handleMouseMove = useCallback((e: React.MouseEvent | MouseEvent) => {
     if (readOnly) return;
     const pos = getMousePosFromClient(e.clientX, e.clientY);
@@ -214,7 +214,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       const newX = toNormalized(pos.x - dragOffset.x, 'x');
       const newY = toNormalized(pos.y - dragOffset.y, 'y');
       
-      // 确保不超出边界
+      
       const clampedX = Math.max(0, Math.min(newX, 1 - box.width));
       const clampedY = Math.max(0, Math.min(newY, 1 - box.height));
 
@@ -226,7 +226,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       const normY = toNormalized(pos.y, 'y');
       
       let newBox = { ...box };
-      const minSize = 0.01; // 最小尺寸
+      const minSize = 0.01; 
 
       switch (resizeHandle) {
         case 'nw':
@@ -265,7 +265,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
           break;
       }
 
-      // 边界检查
+      
       newBox.x = Math.max(0, newBox.x);
       newBox.y = Math.max(0, newBox.y);
       newBox.width = Math.min(newBox.width, 1 - newBox.x);
@@ -275,7 +275,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     }
   }, [readOnly, isDrawing, isDragging, isResizing, selectedBoxId, boxes, dragOffset, resizeHandle, getMousePosFromClient, toNormalized, onBoxesChange]);
 
-  // 鼠标释放
+  
   const handleMouseUp = useCallback(() => {
     if (readOnly) return;
     if (isDrawing) {
@@ -287,7 +287,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       const width = x2 - x1;
       const height = y2 - y1;
 
-      // 只有足够大的框才创建
+      
       if (width > 0.01 && height > 0.01) {
         const newBox: BoundingBox = {
           id: `manual_${Date.now()}`,

@@ -1,6 +1,4 @@
-/**
- * 与 Playground 结果页一致：按 entity_map 将原文切段，用于「原文 / 脱敏预览」两列对齐。
- */
+
 export type TextSegment =
   | { text: string; isMatch: false }
   | {
@@ -11,10 +9,7 @@ export type TextSegment =
       matchIdx: number;
     };
 
-/**
- * 后端 entity_map 以 NER 的 entity.text 为键；若与正文 slice(start,end) 不完全一致，
- * 则正则切段无法命中。将「文档中实际子串 → 替换」补进映射，与 Playground 行为一致。
- */
+
 export function mergePreviewMapWithDocumentSlices(
   content: string,
   entities: Array<{
@@ -41,7 +36,7 @@ export function mergePreviewMapWithDocumentSlices(
   return out;
 }
 
-/** 与后端 RedactionContext 对齐的简化预览（当 /redaction/preview-map 不可用或返回空时使用） */
+
 export function buildFallbackPreviewEntityMap(
   entities: Array<{ text: string; type: string; selected?: boolean }>,
   mode: 'structured' | 'smart' | 'mask'

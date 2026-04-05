@@ -1,7 +1,4 @@
-/**
- * 跨页面同步「当前选用的命名预设」：Playground / 批量向导 / 识别项配置
- * 与 /api/v1/presets 数据配合使用，仅存 ID，不重复存配置体。
- */
+
 const K_TEXT = 'datainfraRedaction:activePresetTextId';
 const K_TEXT_LEGACY = 'legalRedaction:activePresetTextId';
 const K_VISION = 'datainfraRedaction:activePresetVisionId';
@@ -31,7 +28,7 @@ export function setActivePresetTextId(id: string | null): void {
     }
     window.dispatchEvent(new CustomEvent(ACTIVE_PRESET_EVENT));
   } catch {
-    /* ignore */
+    
   }
 }
 
@@ -57,6 +54,6 @@ export function setActivePresetVisionId(id: string | null): void {
     }
     window.dispatchEvent(new CustomEvent(ACTIVE_PRESET_EVENT));
   } catch {
-    /* ignore */
+    
   }
 }

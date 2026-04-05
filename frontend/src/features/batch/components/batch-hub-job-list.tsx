@@ -20,7 +20,7 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
 
   return (
     <Card data-testid="recent-jobs-card">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
         <div>
           <CardTitle className="text-sm font-semibold">
             {t('batchHub.recentTitle')}
@@ -36,7 +36,7 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
 
       <CardContent className="p-0">
         {loading ? (
-          <div className="px-4 py-6 space-y-3">
+          <div className="flex flex-col gap-3 px-4 py-6">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
           </div>

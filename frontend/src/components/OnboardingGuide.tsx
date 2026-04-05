@@ -41,7 +41,7 @@ export function OnboardingGuide() {
     try {
       localStorage.setItem('onboarding_completed', 'true');
     } catch {
-      // ignore
+      
     }
     setShow(false);
   }, []);

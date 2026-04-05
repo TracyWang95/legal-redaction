@@ -1,7 +1,4 @@
-/**
- * Hook: entity type & pipeline management for Settings page.
- * Covers text rules (regex + semantic) and vision pipeline types.
- */
+
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';

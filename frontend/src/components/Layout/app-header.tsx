@@ -1,6 +1,4 @@
-/**
- * Application header bar with page title, language toggle, and health state.
- */
+
 import { Globe } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useI18n, useT } from '@/i18n';

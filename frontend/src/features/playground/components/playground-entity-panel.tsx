@@ -1,6 +1,4 @@
-/**
- * Playground entity panel: entity list, selection controls, and redact action.
- */
+
 import { type FC, type MouseEvent as ReactMouseEvent, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

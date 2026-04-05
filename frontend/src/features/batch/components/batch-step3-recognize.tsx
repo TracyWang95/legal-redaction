@@ -1,7 +1,4 @@
-/**
- * BatchStep3Recognize — Step 3: Batch recognition.
- * Submit to queue, display per-file progress, and polling updates.
- */
+
 import { useState, useRef } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -10,10 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import {
-  type Step,
   type BatchRow,
   RECOGNITION_DONE_STATUSES,
-} from '../hooks/use-batch-wizard';
+  type Step,
+} from '../types';
 
 interface BatchStep3RecognizeProps {
   rows: BatchRow[];
@@ -88,10 +85,10 @@ export function BatchStep3Recognize({
           {t('batchWizard.step3.desc')}
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-col gap-4">
         {/* Progress */}
         {rows.length > 0 && (
-          <div className="space-y-1.5">
+          <div className="flex flex-col gap-1.5">
             <div className="flex justify-between text-xs">
               <span
                 className={cn(

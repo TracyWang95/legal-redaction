@@ -1,16 +1,7 @@
-/**
- * Unified API client for DataInfra-RedactionEverything
- *
- * Consolidates the three different patterns previously used:
- * - api.ts (Axios with interceptors)
- * - jobsApi.ts (raw fetch with manual authHeaders)
- * - presetsApi.ts (raw fetch without auth)
- *
- * All API calls should go through this module.
- */
+
 import axios, { type AxiosRequestConfig } from 'axios';
 
-// ─── Auth helpers ─────────────────────────────────────────────
+
 
 const AUTH_TOKEN_KEY = 'auth_token';
 
@@ -26,14 +17,14 @@ export function clearAuthToken(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
-// ─── Axios instance ───────────────────────────────────────────
+
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
   timeout: 60_000,
 });
 
-// Request: attach JWT
+
 apiClient.interceptors.request.use((config) => {
   const token = getAuthToken();
   if (token) {

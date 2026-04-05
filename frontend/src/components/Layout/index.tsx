@@ -1,9 +1,4 @@
-/**
- * Layout shell.
- * Composes SidebarProvider + AppSidebar + AppHeader + Outlet.
- * All inline icons, health polling, and nav logic have been extracted
- * into app-sidebar.tsx, app-header.tsx, and shared hooks.
- */
+
 import { Outlet, useLocation } from 'react-router-dom';
 import { ToastContainer } from '@/components/Toast';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -21,7 +16,7 @@ export const Layout: React.FC = () => {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        {/* Content area: single scroll container per page */}
+        {}
         <div
           key={location.pathname}
           className="flex flex-1 flex-col overflow-hidden animate-fade-in"

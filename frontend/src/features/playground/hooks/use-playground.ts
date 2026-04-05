@@ -1,7 +1,4 @@
-/**
- * Main orchestration hook for the Playground feature.
- * Manages stage transitions, file upload, recognition, redaction, and reset.
- */
+
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
@@ -16,10 +13,10 @@ import type { FileInfo, Entity, BoundingBox, Stage } from '../types';
 import type { VersionHistoryEntry } from '@/types';
 
 export function usePlayground() {
-  // --- Recognition hook ---
+  
   const recognition = usePlaygroundRecognition();
 
-  // --- Core state ---
+  
   const [stage, setStage] = useState<Stage>('upload');
   const [fileInfo, setFileInfo] = useState<FileInfo | null>(null);
   const [content, setContent] = useState('');
@@ -33,21 +30,21 @@ export function usePlayground() {
   const [versionHistory, setVersionHistory] = useState<VersionHistoryEntry[]>([]);
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
 
-  // --- Image state ---
+  
   const [boundingBoxes, setBoundingBoxes] = useState<BoundingBox[]>([]);
   const [imageUrl, setImageUrl] = useState('');
   const [redactedImageUrl, setRedactedImageUrl] = useState('');
 
-  // --- Undo/Redo ---
+  
   const entityHistory = useUndoRedo<Entity[]>();
   const imageHistory = useUndoRedo<BoundingBox[]>();
 
-  // --- Refs ---
+  
   const abortRef = useRef<AbortController | null>(null);
   const popoutChannelRef = useRef<BroadcastChannel | null>(null);
   const popoutTimerRef = useRef<number | null>(null);
 
-  // --- Derived ---
+  
   const isImageMode = !!fileInfo && (fileInfo.file_type === 'image' || !!fileInfo.is_scanned);
   const visibleBoxes = boundingBoxes;
   const selectedCount = isImageMode
@@ -60,7 +57,7 @@ export function usePlayground() {
     [recognition.selectedOcrHasTypes, recognition.selectedHasImageTypes],
   );
 
-  // --- Cleanup on unmount ---
+  
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
@@ -69,7 +66,7 @@ export function usePlayground() {
     };
   }, []);
 
-  // --- Image URL management ---
+  
   const imageUrlRaw = fileInfo ? `/api/v1/files/${fileInfo.file_id}/download` : '';
   useEffect(() => {
     let cancelled = false;

@@ -1,7 +1,4 @@
-/**
- * Navigation sidebar icons.
- * Extracted from Layout/index.tsx to reduce file size.
- */
+
 import {
   Play,
   Archive,

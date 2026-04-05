@@ -49,7 +49,7 @@ export function JobsTable({
 
   return (
     <div className="jobs-surface flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
-      {/* Header */}
+      {}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
         <div className="page-section-heading">
           <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
@@ -64,7 +64,7 @@ export function JobsTable({
         </div>
       </div>
 
-      {/* Column header */}
+      {}
       {rows.length > 0 && (
         <div className="jobs-table-head shrink-0 border-b border-border/70 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span className="jobs-tree-cell" />
@@ -81,7 +81,7 @@ export function JobsTable({
         </div>
       )}
 
-      {/* Body */}
+      {}
       <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col">
         {refreshing && rows.length > 0 && (
           <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10 backdrop-blur-[1px]">

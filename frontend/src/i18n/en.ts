@@ -1,5 +1,5 @@
 ﻿const enBase: Record<string, string> = {
-  // Navigation
+  
   'nav.playground': 'Playground',
   'nav.batch': 'Batch',
   'nav.batch.sub': 'Create or resume wizard',
@@ -14,7 +14,7 @@
   'nav.textModel': 'Text Model',
   'nav.visionModel': 'Vision Service',
 
-  // Playground
+  
   'playground.title': 'Redaction Workspace',
   'playground.upload.hint': 'Drag & drop or click to upload',
   'playground.upload.formats': 'Supports Word, PDF, and image files',
@@ -30,7 +30,7 @@
   'playground.entities': 'Entities',
   'playground.boundingBoxes': 'Regions',
 
-  // Common
+  
   'common.confirm': 'Confirm',
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
@@ -43,12 +43,12 @@
   'common.error': 'Error',
   'common.retry': 'Retry',
 
-  // File types
+  
   'file.word': 'Word Document',
   'file.pdf': 'PDF Document',
   'file.image': 'Image',
 
-  // Entity types
+  
   'entity.PERSON': 'Name',
   'entity.ID_CARD': 'ID Card',
   'entity.PHONE': 'Phone',
@@ -59,13 +59,13 @@
   'entity.DATE': 'Date',
   'entity.AMOUNT': 'Amount',
 
-  // Replacement modes
+  
   'mode.smart': 'Smart Replace',
   'mode.mask': 'Mask',
   'mode.custom': 'Custom',
   'mode.structured': 'Structured Tags',
 
-  // Jobs
+  
   'job.status.draft': 'Draft',
   'job.status.queued': 'Queued',
   'job.status.pending': 'Pending',
@@ -99,13 +99,13 @@
   'redactionState.awaiting_review': 'Awaiting Review',
   'redactionState.unredacted': 'Unredacted',
 
-  // Settings
+  
   'settings.title': 'Settings',
   'settings.presets': 'Presets',
   'settings.presets.export': 'Export Presets',
   'settings.presets.import': 'Import Presets',
 
-  // Report
+  
   'report.title': 'Redaction Report',
   'report.totalEntities': 'Total Entities',
   'report.redactedEntities': 'Redacted',
@@ -116,7 +116,7 @@
   'report.medium': 'Medium',
   'report.low': 'Low',
 
-  // Health
+  
   'health.title': 'Service Status',
   'health.allOnline': 'All services online',
   'health.someOffline': 'Some services offline',
@@ -132,10 +132,10 @@
   'health.probeTime': 'Probe time',
   'health.refreshTitle': 'Refresh service status',
 
-  // Offline
+  
   'offline.banner': 'Network disconnected. Some features may be unavailable.',
 
-  // Onboarding
+  
   'onboarding.skip': 'Skip',
   'onboarding.prev': 'Previous',
   'onboarding.next': 'Next',
@@ -151,7 +151,7 @@
   'onboarding.step5.title': 'Scale To Batch Work',
   'onboarding.step5.desc': 'When one file becomes many, move into batch jobs and keep the same review quality across the whole queue.',
 
-  // Page headers
+  
   'page.batch.title': 'Batch',
   'page.batch.sub': 'Choose type & create a job',
   'page.batchText.title': 'Batch Processing',
@@ -175,14 +175,14 @@
   'page.visionModel.title': 'Vision Service',
   'page.visionModel.sub': 'HaS Image, PaddleOCR-VL registration & detection',
 
-  // Preset actions
+  
   'preset.saveText.prompt': 'Save as text preset: enter name',
   'preset.saveText.success': 'Text preset saved.',
   'preset.saveVision.prompt': 'Save as vision preset: enter name',
   'preset.saveVision.success': 'Vision preset saved.',
   'preset.save.failed': 'Save failed',
 
-  // Common actions & errors
+  
   'error.network': 'Network error. Please check if backend is running.',
   'error.auth': 'Authentication failed. Please log in again.',
   'error.server': 'Internal server error. Please try again later.',
@@ -197,7 +197,7 @@
   'action.redacting': 'Applying redaction...',
   'action.downloading': 'Downloading...',
 
-  // JobDetail page
+  
   'jobDetail.batchTask': 'Batch Task',
   'jobDetail.loadFailed': 'Failed to load',
   'jobDetail.submitted': 'Submitted to queue',
@@ -247,7 +247,7 @@
   'jobDetail.quickApprove': 'Quick Approve',
   'jobDetail.reject': 'Reject',
 
-  // Jobs page
+  
   'jobs.batchTask': 'Batch Task',
   'jobs.localExec': 'Local',
   'jobs.queueExec': 'Background Queue',
@@ -325,7 +325,7 @@
   'jobs.nextPage': 'Next',
   'jobs.lastPage': 'Last',
 
-  // History page
+  
   'history.loadPreviewFailed.redacted': 'Failed to load redacted file preview',
   'history.loadPreviewFailed.original': 'Failed to load original file preview',
   'history.loadFailed': 'Failed to load',
@@ -409,7 +409,7 @@
   'history.col.count': 'Count',
   'history.confirmDeleteText': 'Delete',
 
-  // Settings page
+  
   'settings.testLabel': 'Test Text (Server-side Python regex engine)',
   'settings.testPlaceholder': 'Enter test text...',
   'settings.testing': 'Testing...',
@@ -471,23 +471,23 @@
   'settings.save': 'Save',
   'settings.updateFailed': 'Update failed',
 
-  // Sidebar
+  
   'sidebar.subtitle': 'Anonymization Data Infrastructure',
   'sidebar.devInProgress': 'In Dev',
 
-  // JobDetail progress (inline)
+  
   'jobDetail.progressTotal': '{n} items total',
   'jobDetail.progressRedacted': '{n} redacted',
   'jobDetail.progressAwaiting': '{n} awaiting review',
   'jobDetail.progressFailed': '{n} failed',
 
-  // Jobs inline
+  
   'jobs.headlineRedacted': '{n} redacted',
   'jobs.headlineAwaiting': '{n} awaiting',
   'jobs.itemCount': '{n} items',
   'jobs.updatedAtLabel': 'Updated {time}',
 
-  // BatchHub
+  
   'batchHub.title': 'Start or Resume Batch Task',
   'batchHub.desc': 'Create a job first, then configure, upload, recognize, and review. Resume recent active tasks directly.',
   'batchHub.newTask': 'New Batch Task',
@@ -509,7 +509,7 @@
   'batchHub.history': 'History',
   'batchHub.batchTaskTitle': 'Batch {time}',
 
-  // BatchWizard
+  
   'batchWizard.stepsOverview': '5 steps: Config -> Upload -> Recognize -> Review -> Export',
   'batchWizard.step1': 'Config',
   'batchWizard.step2': 'Upload',
@@ -591,7 +591,7 @@
   'batchWizard.selectTypesFirst': 'Please complete step 1: select at least one text entity type or image recognition type.',
   'batchWizard.waitConfig': 'Please wait for configuration to load.',
 
-  // History inline
+  
   'history.singleSession': 'Single · {id}',
   'history.batchLabel': 'Batch {id}',
   'history.loadingEllipsis': 'Loading…',
@@ -605,7 +605,7 @@
   'history.unredactedStatus': 'Unredacted',
   'history.partiallyRedacted': 'Partially redacted',
 
-  // Layout
+  
   'layout.navLabel': 'Main navigation',
   'layout.languageSwitch': 'Switch language',
   'health.status.checking': 'Checking',
@@ -613,7 +613,7 @@
   'health.status.someOffline': 'Some offline',
   'health.status.backendDown': 'Backend disconnected',
 
-  // EntityHighlighter
+  
   'entityTag.PERSON': 'Name',
   'entityTag.ID_CARD': 'ID Card',
   'entityTag.PHONE': 'Phone',
@@ -625,7 +625,7 @@
   'entityTag.CUSTOM': 'Custom',
   'entityTag.selected': ' (selected)',
 
-  // EmptyState
+  
   'emptyState.history': 'No processing records',
   'emptyState.historyDesc': 'Records will appear here after you upload and process files',
   'emptyState.noFiles': 'No files yet',
@@ -634,7 +634,7 @@
   'emptyState.noActiveJobsDesc': 'Create a new batch job to get started',
   'playground.loading': 'Loading...',
 
-  // Data Safety
+  
   'safety.badge': '🔒 All processing runs locally — no data is uploaded',
   'safety.badge.short': 'On-device',
   'safety.title': 'Data Safety',

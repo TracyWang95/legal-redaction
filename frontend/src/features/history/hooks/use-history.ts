@@ -7,7 +7,7 @@ import { localizeErrorMessage } from '@/utils/localizeError';
 import { resolveRedactionState } from '@/utils/redactionState';
 import type { CompareData, FileListItem } from '@/types';
 
-/* Constants */
+
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 export type SourceTab = 'all' | 'playground' | 'batch';
@@ -27,7 +27,7 @@ export type HistoryPreviewItem = {
   meta: string;
 };
 
-/* Helpers */
+
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);

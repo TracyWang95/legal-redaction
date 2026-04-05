@@ -1,6 +1,4 @@
-/**
- * History page: file processing history and comparison.
- */
+
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

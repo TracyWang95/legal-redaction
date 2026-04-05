@@ -3,13 +3,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================
-   Light SaaS foundation
-   Crisp white surfaces with restrained accent color
-   ============================================ */
+
 
 :root {
-  /* 鏍稿績鑹叉澘 鈥?Slate neutrals + Indigo accent */
+  
   --background: #fbfbf8;
   --background-secondary: #f4f4ef;
   --background-tertiary: #ecece5;
@@ -40,25 +37,25 @@
   --panel: rgba(255, 255, 255, 0.72);
   --panel-strong: rgba(255, 255, 255, 0.92);
 
-  /* 鍕鹃€夎涔?*/
+  
   --select-regex: #7288ad;
   --select-ner: #10a37f;
   --select-yolo: #6d7c93;
 
-  /* 璇箟鑹?*/
+  
   --success: #10a37f;
   --warning: #d97706;
   --error: #dc2626;
   --info: #7288ad;
 
-  /* Depth system */
+  
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 24px -18px rgba(15, 23, 42, 0.12);
   --shadow-md: 0 18px 40px -28px rgba(15, 23, 42, 0.18);
   --shadow-lg: 0 28px 80px -32px rgba(15, 23, 42, 0.22);
   --shadow-glow: 0 0 0 1px rgba(16, 163, 127, 0.08), 0 18px 38px -28px rgba(16, 163, 127, 0.18);
 
-  /* Radius system */
+  
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -66,7 +63,7 @@
   --radius-2xl: 24px;
 }
 
-/* 瀛椾綋娓叉煋浼樺寲 */
+
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -74,7 +71,7 @@
 }
 
 html {
-  font-size: 15px; /* 鍩哄噯瀛楀彿璋冨ぇ */
+  font-size: 15px; 
   height: 100%;
   overflow: hidden;
 }
@@ -103,9 +100,7 @@ body {
   overflow: hidden;
 }
 
-/* ============================================
-   婊氬姩鏉?- 鏋佺畝椋庢牸
-   ============================================ */
+
 
 ::-webkit-scrollbar {
   width: 6px;
@@ -125,7 +120,7 @@ body {
   background: rgba(17, 24, 39, 0.28);
 }
 
-/* 閫変腑鏂囨湰锛堜笌绯荤粺钃濆崗璋冿級 */
+
 ::selection {
   background: rgba(16, 163, 127, 0.16);
 }
@@ -212,9 +207,7 @@ textarea {
   letter-spacing: 0.02em;
 }
 
-/* ============================================
-   鍔ㄧ敾
-   ============================================ */
+
 
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -252,9 +245,7 @@ textarea {
   animation: slideUp 0.25s ease-out;
 }
 
-/* ============================================
-   鐜荤拑鎬佹晥鏋?
-   ============================================ */
+
 
 .glass {
   background: rgba(255, 255, 255, 0.8);
@@ -262,7 +253,7 @@ textarea {
   -webkit-backdrop-filter: blur(16px) saturate(180%);
 }
 
-/* Premium surface 鈥?subtle gradient card */
+
 .surface-elevated {
   background: var(--background);
   border: 1px solid var(--border);
@@ -284,9 +275,7 @@ textarea {
   transform: translateY(-1px);
 }
 
-/* ============================================
-   鍗＄墖缁勪欢
-   ============================================ */
+
 
 .card {
   background: var(--background);
@@ -301,11 +290,9 @@ textarea {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-/* ============================================
-   鎸夐挳缁勪欢
-   ============================================ */
 
-/* 涓绘寜閽?- Indigo gradient */
+
+
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   color: var(--accent-foreground);
@@ -336,7 +323,7 @@ textarea {
   box-shadow: none;
 }
 
-/* 娆¤鎸夐挳 */
+
 .btn-secondary {
   background: var(--background);
   border: 1px solid var(--border);
@@ -359,7 +346,7 @@ textarea {
   cursor: not-allowed;
 }
 
-/* Ghost 鎸夐挳 */
+
 .btn-ghost {
   background: transparent;
   color: var(--foreground-muted);
@@ -377,16 +364,14 @@ textarea {
   color: var(--foreground);
 }
 
-/* 灏忔寜閽?*/
+
 .btn-sm {
   font-size: 12px;
   padding: 5px 10px;
   border-radius: 6px;
 }
 
-/* ============================================
-   杈撳叆妗嗙粍浠?
-   ============================================ */
+
 
 .input {
   background: var(--background);
@@ -413,7 +398,7 @@ textarea {
   font-size: 13px;
 }
 
-/* Select */
+
 .select {
   background: var(--background);
   border: 1px solid var(--border);
@@ -429,9 +414,7 @@ textarea {
   border-color: var(--foreground);
 }
 
-/* ============================================
-   鏍囩/寰界珷
-   ============================================ */
+
 
 .tag {
   display: inline-flex;
@@ -473,9 +456,7 @@ textarea {
   color: var(--background);
 }
 
-/* ============================================
-   鐘舵€佹寚绀哄櫒
-   ============================================ */
+
 
 .status-dot {
   width: 6px;
@@ -497,9 +478,7 @@ textarea {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* ============================================
-   鎷栨斁鍖哄煙
-   ============================================ */
+
 
 .drop-zone {
   border: 2px dashed var(--border);
@@ -519,9 +498,7 @@ textarea {
   box-shadow: var(--shadow-glow);
 }
 
-/* ============================================
-   鍔犺浇鍔ㄧ敾
-   ============================================ */
+
 
 .spinner {
   width: 18px;
@@ -538,9 +515,7 @@ textarea {
   border-width: 2.5px;
 }
 
-/* ============================================
-   浠ｇ爜/鏁版嵁鏄剧ず
-   ============================================ */
+
 
 .font-mono {
   font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', 
@@ -555,10 +530,7 @@ code {
   font-family: 'SF Mono', Monaco, Consolas, monospace;
 }
 
-/* ============================================
-   鏂囧瓧澶у皬锛堝叏绔欏敮涓€瀛楅樁锛涚粍浠惰鍙敤杩欎簺绫伙紝鍕垮啓 text-[Npx]锛?
-   2xs 10 路 caption 11 路 xs 12 路 sm 13 路 md 14 路 base 15 路 lg 17 路 xl 20锛堝崟浣?px锛?
-   ============================================ */
+
 
 .text-2xs { font-size: 10px; line-height: 1.4; }
 .text-caption { font-size: 11px; line-height: 1.4; }
@@ -569,9 +541,7 @@ code {
 .text-lg { font-size: 17px; line-height: 1.4; }
 .text-xl { font-size: 20px; line-height: 1.3; }
 
-/* ============================================
-   杈呭姪绫?
-   ============================================ */
+
 
 .text-muted {
   color: var(--foreground-muted);
@@ -601,18 +571,14 @@ code {
   border-color: var(--border-light);
 }
 
-/* ============================================
-   Focus Ring
-   ============================================ */
+
 
 .focus-ring:focus {
   outline: none;
   box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--accent);
 }
 
-/* ============================================
-   Checkbox锛氫笉寮哄埗濉厖鑹诧紝鐢辩粍浠?accent / Tailwind 鍐冲畾璇箟鑹?
-   ============================================ */
+
 
 input[type="checkbox"] {
   cursor: pointer;
@@ -623,9 +589,7 @@ input[type="checkbox"]:focus-visible {
   outline: none;
 }
 
-/* ============================================
-   鍒楄〃椤逛氦浜?
-   ============================================ */
+
 
 .list-item {
   padding: 10px 14px;
@@ -642,9 +606,7 @@ input[type="checkbox"]:focus-visible {
   background: var(--accent-light);
 }
 
-/* ============================================
-   鍒嗗壊绾?
-   ============================================ */
+
 
 .divider {
   height: 1px;
@@ -655,17 +617,13 @@ input[type="checkbox"]:focus-visible {
   background: var(--border);
 }
 
-/* ============================================
-   History 椤甸潰缁熶竴琛?grid
-   7 鍒楋細缂╄繘鏍囪 | 鍕鹃€夋 | 鏂囦欢鍚?| 鏃堕棿 | 璇嗗埆椤?| 鐘舵€?| 鎿嶄綔
-   鎵€鏈夎锛堣〃澶淬€佺嫭绔嬫枃浠躲€佹壒閲忓瓙鏂囦欢锛夊叡浜悓涓€妯℃澘锛岀‘淇濈旱鍚戝榻?
-   ============================================ */
+
 .history-head,
 .history-row,
 .history-batch-row,
 .history-batch-summary {
   display: grid;
-  /*                   indent  cb   filename       time            entities     status       actions     more */
+  
   grid-template-columns: 24px 24px minmax(0, 1fr) minmax(140px, auto) minmax(52px, auto) 72px 44px 36px;
   gap: 0 12px;
   align-items: center;
@@ -803,7 +761,7 @@ input[type="checkbox"]:focus-visible {
   min-width: 0;
 }
 
-/* 琛ㄥご鏍囩锛氬眳涓榻愬悇鑷寜閽?*/
+
 .jobs-action-head {
   text-align: center;
 }
@@ -835,7 +793,7 @@ input[type="checkbox"]:focus-visible {
   transform: translateY(-2px);
 }
 
-/* ============================================================`r`n   Final Theme Normalization`r`n   ============================================================ */
+
 
 :root {
   color-scheme: light;
@@ -1065,9 +1023,7 @@ body {
   background: var(--primary);
 }
 
-/* ============================================================
-   Shared Layout Rhythm
-   ============================================================ */
+
 
 .page-shell {
   width: 100%;

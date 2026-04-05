@@ -18,7 +18,7 @@ export function statusToneClass(status: string): string {
   return toneClass(getAggregateJobStatusMeta(status).tone);
 }
 
-/** Job status badge using ShadCN Badge */
+
 export function JobStatusBadge({ status }: { status: string }) {
   const meta = getAggregateJobStatusMeta(status);
   return (
@@ -33,7 +33,7 @@ export function JobStatusBadge({ status }: { status: string }) {
   );
 }
 
-/** Job type badge */
+
 export function JobTypeBadge({ jobType: _jobType }: { jobType: JobTypeApi }) {
   return (
     <Badge
@@ -46,7 +46,7 @@ export function JobTypeBadge({ jobType: _jobType }: { jobType: JobTypeApi }) {
   );
 }
 
-/** Redaction state badge for file items */
+
 export function RedactionStateBadge({ state }: { state: RedactionState }) {
   return (
     <Badge

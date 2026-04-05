@@ -1,6 +1,4 @@
-/**
- * Service health status panel for the sidebar footer.
- */
+
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';

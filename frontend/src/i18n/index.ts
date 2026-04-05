@@ -14,7 +14,7 @@ function resolveInitialLocale(): Locale {
     const stored = localStorage.getItem('locale');
     if (stored === 'zh' || stored === 'en') return stored;
   } catch {
-    // ignore localStorage access errors
+    
   }
 
   if (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh')) {
@@ -46,12 +46,12 @@ export const useI18n = create<I18nStore>((set) => ({
   },
 }));
 
-/** Non-reactive translation helper (use outside React components) */
+
 export function t(key: string): string {
   return translate(useI18n.getState().locale, key);
 }
 
-/** Reactive translation hook (use inside React components) */
+
 export function useT() {
   const locale = useI18n((s) => s.locale);
   return (key: string): string => translate(locale, key);

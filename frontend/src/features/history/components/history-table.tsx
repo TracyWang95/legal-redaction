@@ -1,6 +1,4 @@
-/**
- * History file list table.
- */
+
 import { ArrowLeftRight, Download, Trash2 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
