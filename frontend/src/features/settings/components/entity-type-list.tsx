@@ -47,13 +47,13 @@ export function EntityTypeList({
 
   return (
     <div
-      className={cn('flex flex-col overflow-hidden rounded-lg border bg-card shadow-sm', toneClasses.headerSurface)}
+      className={cn('flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]', toneClasses.headerSurface)}
       data-testid={`entity-type-list-${variant}`}
     >
-      <div className={cn('flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3', toneClasses.headerSurface)}>
+      <div className={cn('flex shrink-0 items-center justify-between gap-2 border-b border-border/70 px-4 py-3.5', toneClasses.headerSurface)}>
         <div className="flex min-w-0 items-center gap-2">
           <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
-          <span className="truncate text-sm font-semibold">
+          <span className="truncate text-sm font-semibold tracking-[-0.02em]">
             {isRegex ? t('settings.regexRules') : t('settings.aiSemantic')}
           </span>
           <Badge variant="secondary" className={cn('text-xs', toneClasses.badgeText)}>
@@ -81,7 +81,7 @@ export function EntityTypeList({
 
       <div className="min-h-0 flex-1 overflow-auto">
         {filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
+          <p className="py-12 text-center text-sm text-muted-foreground">
             {t('settings.noTypeConfig')}
           </p>
         ) : (

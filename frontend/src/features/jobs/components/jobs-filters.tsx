@@ -38,24 +38,24 @@ export function JobsFilters({
   return (
     <section className="saas-panel mb-4 flex shrink-0 flex-col gap-4 p-4 sm:p-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
+        <div className="page-section-heading">
           <span className="saas-kicker inline-flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5" />
             {t('jobs.filters.kicker')}
           </span>
-          <div>
-            <h2 className="text-lg font-semibold tracking-[-0.03em] text-foreground">
+          <div className="page-section-heading">
+            <h2 className="page-title text-lg">
               {t('jobs.filters.title')}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="page-copy">
               {t('jobs.filters.desc')}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="control-cluster">
           <Tabs value={tab} onValueChange={(value) => onTabChange(value as JobTypeApi | 'all')}>
-            <TabsList className="h-auto p-1" data-testid="jobs-tab-list">
+            <TabsList className="h-auto rounded-xl border border-border/70 bg-muted/45 p-1" data-testid="jobs-tab-list">
               <TabsTrigger value="all" className="px-3 py-1.5 text-xs" data-testid="jobs-tab-all">
                 {t('jobs.tab.all')}
               </TabsTrigger>
@@ -110,7 +110,7 @@ function MetricPill({
   tone?: 'default' | 'alert';
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-muted/35 px-3 py-3">
+    <div className="metric-card">
       <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </div>

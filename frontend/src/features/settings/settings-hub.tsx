@@ -14,7 +14,7 @@ import { PipelineConfigPanel } from './components/pipeline-config';
 
 export function SettingsHub() {
   const t = useT();
-  const panelIntroClass = 'rounded-2xl border border-border/70 bg-card/70 px-4 py-3 text-sm text-muted-foreground shadow-[var(--shadow-control)]';
+  const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
   const {
     entityTypes, pipelines, loading, regexTypes, llmTypes,
     importFileRef, createType, updateType, deleteType, resetToDefault,
@@ -77,14 +77,14 @@ export function SettingsHub() {
 
   return (
     <div className="saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 flex-col overflow-hidden px-3 py-4 sm:px-4 sm:py-5">
-        <Tabs defaultValue="text" className="flex-1 min-h-0 flex flex-col overflow-hidden gap-2">
-          <div className="shrink-0 flex flex-wrap items-center justify-between gap-2">
-            <TabsList data-testid="settings-tabs">
+      <div className="page-shell">
+        <Tabs defaultValue="text" className="page-stack overflow-hidden gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+            <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1" data-testid="settings-tabs">
               <TabsTrigger value="text" data-testid="tab-text">{t('settings.textRules')}</TabsTrigger>
               <TabsTrigger value="vision" data-testid="tab-vision">{t('settings.visionRules')}</TabsTrigger>
             </TabsList>
-            <div className="flex items-center gap-2">
+            <div className="control-cluster">
               <Button size="sm" variant="outline" onClick={() => void handleExportPresets()} data-testid="export-presets">
                 {t('settings.exportPresets')}
               </Button>
@@ -108,7 +108,7 @@ export function SettingsHub() {
             </div>
             <Tabs defaultValue="regex" className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
               <div className="shrink-0 flex items-center gap-2">
-                <TabsList>
+                <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1">
                   <TabsTrigger value="regex" data-testid="subtab-regex">
                     {t('settings.regex')}
                     <span className="ml-1 text-muted-foreground">({regexTypes.length})</span>

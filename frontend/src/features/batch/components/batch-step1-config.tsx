@@ -56,7 +56,7 @@ export function BatchStep1Config({
 
   if (!configLoaded) {
     return (
-      <Card data-testid="batch-step1-loading">
+      <Card className="rounded-[24px] border-border/70 shadow-[var(--shadow-control)]" data-testid="batch-step1-loading">
         <CardContent className="p-6">
           <p className="text-sm text-muted-foreground">
             {t('batchWizard.step1.loadingConfig')}
@@ -68,22 +68,22 @@ export function BatchStep1Config({
 
   return (
     <Card
-      className="flex flex-col flex-1 min-h-0 overflow-hidden"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
       data-testid="batch-step1-config"
     >
-      <CardHeader className="pb-2 space-y-1">
-        <CardTitle className="text-sm">{t('batchWizard.step1.title')}</CardTitle>
-        <p className="text-xs text-muted-foreground leading-snug">
+      <CardHeader className="flex flex-col gap-1 pb-3">
+        <CardTitle className="text-base tracking-[-0.03em]">{t('batchWizard.step1.title')}</CardTitle>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           {t('batchWizard.step1.desc')}
         </p>
       </CardHeader>
 
-      <CardContent className="flex-1 min-h-0 overflow-y-auto space-y-4 pt-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pt-0">
         {/* Execution path */}
-        <div className="rounded-lg border bg-muted/30 px-3 py-2.5 space-y-2">
-          <p className="text-xs font-medium">{t('batchWizard.step1.execPath')}</p>
+        <div className="surface-subtle flex flex-col gap-3 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{t('batchWizard.step1.execPath')}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
-            <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <label className="surface-muted flex cursor-pointer items-center gap-2 px-3 py-3 text-sm">
               <input
                 type="radio"
                 name="batch-exec-path"
@@ -99,7 +99,7 @@ export function BatchStep1Config({
                 </span>
               </span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer text-xs">
+            <label className="surface-muted flex cursor-pointer items-center gap-2 px-3 py-3 text-sm">
               <input
                 type="radio"
                 name="batch-exec-path"
@@ -120,17 +120,17 @@ export function BatchStep1Config({
 
         {/* Preset cards */}
         <div className="flex gap-3 flex-1 min-h-0">
-          <div className="w-[280px] shrink-0 flex flex-col gap-3 overflow-y-auto">
+          <div className="flex w-full flex-col gap-3 overflow-y-auto lg:max-w-[360px]">
             {/* Text preset */}
-            <Card>
-              <CardContent className="p-3 space-y-2">
+            <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
+              <CardContent className="flex flex-col gap-2 p-4">
                 <div className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                  <span className="text-xs font-semibold">
+                  <span className="text-sm font-semibold">
                     {t('batchWizard.step1.textPreset')}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {t('batchWizard.step1.textPresetDesc')}
                 </p>
                 <Select
@@ -154,15 +154,15 @@ export function BatchStep1Config({
             </Card>
 
             {/* Vision preset */}
-            <Card>
-              <CardContent className="p-3 space-y-2">
+            <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
+              <CardContent className="flex flex-col gap-2 p-4">
                 <div className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--selection-yolo-accent)]" />
-                  <span className="text-xs font-semibold">
+                  <span className="text-sm font-semibold">
                     {t('batchWizard.step1.imagePreset')}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {t('batchWizard.step1.imagePresetDesc')}
                 </p>
                 <Select
@@ -186,8 +186,8 @@ export function BatchStep1Config({
             </Card>
 
             {/* Priority */}
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-xs text-muted-foreground">
+            <div className="surface-subtle flex items-center justify-between gap-3 px-4 py-3">
+              <span className="text-sm text-muted-foreground">
                 {t('batchWizard.step1.priority')}
               </span>
               <Select
@@ -206,8 +206,8 @@ export function BatchStep1Config({
             </div>
 
             {/* Confirm + advance */}
-            <div className="space-y-3 pt-2 border-t">
-              <label className="flex items-start gap-2 cursor-pointer text-xs">
+            <div className="flex flex-col gap-3 border-t border-border/70 pt-3">
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
                 <Checkbox
                   checked={confirmStep1}
                   onCheckedChange={v => setConfirmStep1(v === true)}

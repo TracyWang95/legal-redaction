@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { JobDetail, JobItemRow, JobSummary } from '@/services/jobsApi';
 import { resolveJobPrimaryNavigation, buildBatchWorkbenchUrl } from '@/utils/jobPrimaryNavigation';
@@ -48,16 +48,16 @@ export function JobsTable({
   const stopEvent = (event: React.MouseEvent) => { event.stopPropagation(); };
 
   return (
-    <div className="jobs-surface w-full flex flex-col flex-1 min-h-0 bg-background rounded-xl border shadow-sm overflow-hidden overflow-x-auto">
+    <div className="jobs-surface flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
       {/* Header */}
-      <div className="px-5 py-3 border-b flex flex-wrap items-center justify-between gap-2 flex-shrink-0">
-        <div>
-          <h3 className="font-semibold text-sm">{t('jobs.taskRecords')}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
+        <div className="page-section-heading">
+          <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
+          <p className="text-sm text-muted-foreground">
             {t('jobs.totalAndPage').replace('{total}', String(total)).replace('{page}', String(page)).replace('{totalPages}', String(totalPages))}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-2xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           <span>{t('jobs.expandHint')}</span>
           <span className="text-border">|</span>
           <span className="text-[var(--warning-foreground)]">{t('jobs.cancelBeforeDelete')}</span>
@@ -66,7 +66,7 @@ export function JobsTable({
 
       {/* Column header */}
       {rows.length > 0 && (
-        <div className="jobs-table-head px-4 py-2 border-b bg-muted/40 text-xs text-muted-foreground font-medium flex-shrink-0">
+        <div className="jobs-table-head shrink-0 border-b border-border/70 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span className="jobs-tree-cell" />
           <span className="jobs-task-cell">{t('jobs.task')}</span>
           <span className="jobs-exec-cell">{t('jobs.execMethod')}</span>
@@ -94,7 +94,11 @@ export function JobsTable({
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
           </div>
         ) : rows.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            title={t('jobs.noRecords')}
+            description={t('jobs.noRecordsHint')}
+            action={{ label: t('jobs.gotoBatch'), onClick: () => { window.location.href = '/batch'; } }}
+          />
         ) : (
           <ul className="flex w-full flex-col divide-y divide-border/70">
             {rows.map((job, index) => (
@@ -116,26 +120,6 @@ export function JobsTable({
           </ul>
         )}
       </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
-        <svg className="w-8 h-8 text-muted-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </div>
-      <div className="text-center">
-        <p className="text-sm text-muted-foreground mb-1">{t('jobs.noRecords')}</p>
-        <p className="text-xs text-muted-foreground">{t('jobs.noRecordsHint')}</p>
-      </div>
-      <Button variant="outline" size="sm" asChild data-testid="jobs-goto-batch">
-        <Link to="/batch">{t('jobs.gotoBatch')}</Link>
-      </Button>
     </div>
   );
 }

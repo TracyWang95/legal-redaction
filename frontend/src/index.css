@@ -1894,3 +1894,98 @@ body {
 .tone-progress-brand {
   background: var(--primary);
 }
+
+/* ============================================================
+   Shared Layout Rhythm
+   ============================================================ */
+
+.page-shell {
+  width: 100%;
+  max-width: min(100%, 1920px);
+  margin-inline: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.75rem;
+}
+
+.page-shell-narrow {
+  width: 100%;
+  max-width: 80rem;
+  margin-inline: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.page-stack {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.page-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.page-title {
+  margin: 0;
+  color: var(--foreground);
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.5rem);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.page-copy {
+  max-width: 72ch;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.surface-subtle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--card) 86%, var(--muted) 14%);
+  box-shadow: var(--shadow-sm);
+}
+
+.surface-muted {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--muted) 70%, var(--card) 30%);
+}
+
+.metric-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--card) 88%, var(--muted) 12%);
+  padding: 0.875rem 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.control-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .page-shell {
+    padding: 1.25rem;
+  }
+
+  .page-shell-narrow {
+    padding: 1.25rem 1.5rem;
+  }
+}

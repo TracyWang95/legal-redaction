@@ -233,10 +233,10 @@ export function useHistory() {
       try {
         const source = src === 'all' ? undefined : src;
         const res = await fileApi.list(p, ps, { source, embed_job: src !== 'playground', job_id: urlJobId || undefined });
-        setRows(res.files);
-        setTotal(res.total);
-        setPage(res.page);
-        setPageSize(res.page_size);
+        setRows(Array.isArray(res?.files) ? res.files : []);
+        setTotal(typeof res?.total === 'number' ? res.total : 0);
+        setPage(typeof res?.page === 'number' ? res.page : p);
+        setPageSize(typeof res?.page_size === 'number' ? res.page_size : ps);
         setSelected(new Set());
       } catch (e) {
         setMsg({ text: localizeErrorMessage(e, 'history.loadFailed'), tone: 'err' });

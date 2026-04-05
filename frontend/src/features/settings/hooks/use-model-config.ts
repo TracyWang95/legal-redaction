@@ -164,7 +164,9 @@ export function useVisionModelConfig() {
       setLoading(true);
       const res = await fetchWithTimeout('/api/v1/model-config', { timeoutMs: 25000 });
       if (!res.ok) throw new Error('fetch failed');
-      setModelConfigs(await res.json());
+      const data = await res.json().catch(() => ({}));
+      const configs = Array.isArray(data?.configs) ? data.configs : [];
+      setModelConfigs({ configs, active_id: typeof data?.active_id === 'string' ? data.active_id : undefined });
     } catch (err) { if (import.meta.env.DEV) console.error('fetch model configs failed', err); }
     finally { setLoading(false); }
   }, []);

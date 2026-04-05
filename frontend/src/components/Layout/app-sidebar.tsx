@@ -1,6 +1,5 @@
 /**
- * Application sidebar — premium dark sidebar inspired by Linear / Raycast.
- * Contains navigation links, model config section, data safety badge, and health panel.
+ * Application sidebar with product branding, navigation, and health state.
  */
 import { NavLink, useLocation } from 'react-router-dom';
 import { Lock, ShieldCheck } from 'lucide-react';
@@ -61,24 +60,22 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
-      {/* Brand header */}
-      <SidebarHeader className="h-[64px] flex-row items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent text-sidebar-foreground shadow-[var(--shadow-sm)]">
+      <SidebarHeader className="h-16 flex-row items-center gap-3 border-b border-sidebar-border px-4">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent text-sidebar-foreground shadow-[var(--shadow-sm)]">
           <ShieldCheck className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <span className="block text-[13px] font-semibold leading-tight tracking-[-0.02em] text-sidebar-foreground">
+          <span className="block truncate text-sm font-semibold leading-tight tracking-[-0.03em] text-sidebar-foreground">
             {t('sidebar.productName')}
           </span>
-          <p className="text-[10px] text-sidebar-foreground/55">{t('sidebar.subtitle')}</p>
+          <p className="mt-0.5 truncate text-xs text-sidebar-foreground/55">{t('sidebar.subtitle')}</p>
         </div>
       </SidebarHeader>
 
-      {/* Main navigation */}
       <SidebarContent className="px-2 py-2">
-        <SidebarGroup>
+        <SidebarGroup className="px-2 py-1">
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
+            <SidebarMenu className="gap-1">
               {navItems.map((item) => {
                 const active = isNavActive(item, location.pathname);
                 return (
@@ -88,7 +85,7 @@ export function AppSidebar() {
                       isActive={active}
                       tooltip={item.label}
                       className={cn(
-                        'rounded-xl border border-transparent transition-all duration-150',
+                        'min-h-11 rounded-xl border border-transparent px-2.5 py-2 transition-all duration-150',
                         active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[var(--shadow-control)]',
                       )}
                     >
@@ -100,13 +97,13 @@ export function AppSidebar() {
                         <item.icon className="h-[16px] w-[16px] opacity-70" />
                         {item.sublabel ? (
                           <span className="flex flex-col gap-0.5 leading-snug">
-                            <span className="text-[13px]">{item.label}</span>
-                            <span className="line-clamp-1 text-[10px] font-normal opacity-40">
+                            <span className="text-sm">{item.label}</span>
+                            <span className="line-clamp-1 text-xs font-normal opacity-45">
                               {item.sublabel}
                             </span>
                           </span>
                         ) : (
-                          <span className="text-[13px]">{item.label}</span>
+                          <span className="text-sm">{item.label}</span>
                         )}
                       </NavLink>
                     </SidebarMenuButton>
@@ -119,13 +116,12 @@ export function AppSidebar() {
 
         <SidebarSeparator className="bg-sidebar-border opacity-100" />
 
-        {/* Model config section */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="px-2 text-[10px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/50">
+        <SidebarGroup className="px-2 py-1">
+          <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-[0.08em] text-sidebar-foreground/50">
             {t('nav.modelConfig')}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-0.5">
+            <SidebarMenu className="gap-1">
               {modelNavItems.map((item) => {
                 const active = isNavActive(item, location.pathname);
                 return (
@@ -135,7 +131,7 @@ export function AppSidebar() {
                       isActive={active}
                       tooltip={item.label}
                       className={cn(
-                        'rounded-xl border border-transparent transition-all duration-150',
+                        'min-h-11 rounded-xl border border-transparent px-2.5 py-2 transition-all duration-150',
                         active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[var(--shadow-control)]',
                       )}
                     >
@@ -144,7 +140,7 @@ export function AppSidebar() {
                         data-testid={`nav-${item.path.replace(/\//g, '-').replace(/^-/, '')}`}
                       >
                         <item.icon className="h-[16px] w-[16px] opacity-70" />
-                        <span className="text-[13px]">{item.label}</span>
+                        <span className="text-sm">{item.label}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -155,13 +151,10 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Data safety badge + health panel */}
-      <SidebarFooter className="p-3 space-y-2">
-        <div className={cn(
-          'flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent px-2.5 py-2',
-        )}>
+      <SidebarFooter className="space-y-2 p-3">
+        <div className="flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent px-3 py-2.5">
           <Lock className="h-3.5 w-3.5 shrink-0 text-sidebar-foreground/75" />
-          <span className="text-[10px] font-medium leading-tight text-sidebar-foreground/80">
+          <span className="text-xs font-medium leading-tight text-sidebar-foreground/80">
             {t('safety.badge.short')}
           </span>
         </div>
@@ -171,7 +164,6 @@ export function AppSidebar() {
   );
 }
 
-/** Determine if a nav item should be marked active based on the current path */
 function isNavActive(item: NavItem, pathname: string): boolean {
   if (item.end) return pathname === item.path;
   return pathname === item.path || pathname.startsWith(item.path + '/');

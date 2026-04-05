@@ -121,9 +121,23 @@ export function useJobs() {
       try {
         const jobType = tab === 'all' ? undefined : tab;
         let result = await listJobs({ job_type: jobType, page: targetPage, page_size: targetPageSize });
+        result = {
+          ...result,
+          jobs: Array.isArray(result?.jobs) ? result.jobs : [],
+          total: typeof result?.total === 'number' ? result.total : 0,
+          page: typeof result?.page === 'number' ? result.page : targetPage,
+          page_size: typeof result?.page_size === 'number' ? result.page_size : targetPageSize,
+        };
         const resolvedTotalPages = Math.max(1, Math.ceil(result.total / result.page_size));
         if (targetPage > resolvedTotalPages && result.total > 0) {
           result = await listJobs({ job_type: jobType, page: resolvedTotalPages, page_size: targetPageSize });
+          result = {
+            ...result,
+            jobs: Array.isArray(result?.jobs) ? result.jobs : [],
+            total: typeof result?.total === 'number' ? result.total : 0,
+            page: typeof result?.page === 'number' ? result.page : resolvedTotalPages,
+            page_size: typeof result?.page_size === 'number' ? result.page_size : targetPageSize,
+          };
         }
         setRows(prev => (jobsPollSignature(prev) === jobsPollSignature(result.jobs) ? prev : result.jobs));
         setTotal(prev => (prev === result.total ? prev : result.total));

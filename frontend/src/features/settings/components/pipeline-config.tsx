@@ -89,14 +89,14 @@ export function PipelineConfigPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="flex shrink-0 items-center gap-2">
-        <div className="flex w-fit gap-1 rounded-md border bg-muted p-0.5">
+        <div className="flex w-fit gap-1 rounded-xl border border-border/70 bg-muted/45 p-1">
           <button
             type="button"
             onClick={() => setActiveSub('ocr_has')}
             className={cn(
-              'rounded px-2 py-1 text-xs font-medium transition-colors',
+              'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
               activeSub === 'ocr_has'
-                ? 'bg-background text-foreground shadow'
+                ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
             data-testid="pipeline-tab-ocr"
@@ -108,9 +108,9 @@ export function PipelineConfigPanel({
             type="button"
             onClick={() => setActiveSub('has_image')}
             className={cn(
-              'rounded px-2 py-1 text-xs font-medium transition-colors',
+              'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
               activeSub === 'has_image'
-                ? 'bg-background text-foreground shadow'
+                ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
             data-testid="pipeline-tab-image"
@@ -132,10 +132,10 @@ export function PipelineConfigPanel({
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
           data-testid="vision-pipeline-panel"
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
             <div className="flex min-w-0 items-center gap-2">
               <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
-              <span className="truncate text-sm font-semibold">{displayName}</span>
+              <span className="truncate text-sm font-semibold tracking-[-0.02em]">{displayName}</span>
               <Badge variant="secondary" className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}>
                 {activePipeline.types.length}
               </Badge>
@@ -162,12 +162,12 @@ export function PipelineConfigPanel({
                 {activePipeline.types.map(type => (
                   <div
                     key={type.id}
-                    className="flex min-h-[132px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3 py-3 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                    className="flex min-h-[136px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <span className="block truncate text-xs font-semibold leading-tight text-foreground">
+                          <span className="block truncate text-sm font-semibold leading-tight text-foreground">
                             {type.name}
                           </span>
                           <span className={cn('mt-1 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px]', toneClasses.cardSelectedCompact)}>

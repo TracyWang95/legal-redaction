@@ -33,12 +33,12 @@ export function TextModel() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 overflow-auto overscroll-contain p-4 sm:p-6">
-        <div className="flex w-full flex-col gap-5">
-          <Card className="bg-muted/30">
+      <div className="page-shell-narrow overflow-auto overscroll-contain">
+        <div className="page-stack">
+          <Card className="rounded-[24px] border-border/70 bg-muted/30 shadow-[var(--shadow-control)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{t('settings.textModel.infoTitle')}</CardTitle>
-              <CardDescription className="mt-2 text-xs leading-relaxed">
+              <CardTitle className="text-base tracking-[-0.03em]">{t('settings.textModel.infoTitle')}</CardTitle>
+              <CardDescription className="mt-2 text-sm leading-relaxed">
                 {t('settings.textModel.infoDesc')}
               </CardDescription>
             </CardHeader>

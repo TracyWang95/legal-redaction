@@ -20,20 +20,20 @@ export function AppHeader() {
   const { title, sub } = getPageHeader(location.pathname, t);
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur-2xl sm:px-6">
-      <div className="flex min-h-[36px] min-w-0 flex-1 items-center gap-3">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur-2xl sm:px-6">
+      <div className="flex min-h-[40px] min-w-0 flex-1 items-center gap-3">
         <SidebarTrigger className="md:hidden" />
         <div className="flex min-w-0 flex-col justify-center">
-          <h1 className="text-[15px] font-semibold leading-tight tracking-[-0.03em] text-foreground">
+          <h1 className="truncate text-lg font-semibold leading-tight tracking-[-0.04em] text-foreground">
             {title}
           </h1>
           {sub && (
-            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{sub}</p>
+            <p className="mt-1 truncate text-xs leading-snug text-muted-foreground sm:text-sm">{sub}</p>
           )}
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1 shadow-[var(--shadow-control)]">
+      <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1.5 shadow-[var(--shadow-control)]">
         <div
           className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
           data-testid="health-indicator"
@@ -64,7 +64,7 @@ export function AppHeader() {
           size="sm"
           className="h-8 rounded-full px-2.5 text-xs text-muted-foreground hover:text-foreground"
           onClick={() => setLocale(locale === 'zh' ? 'en' : 'zh')}
-          aria-label={locale === 'zh' ? '切换语言' : 'Switch language'}
+          aria-label={t('layout.languageSwitch')}
           data-testid="lang-toggle"
         >
           <Globe className="h-3.5 w-3.5" />

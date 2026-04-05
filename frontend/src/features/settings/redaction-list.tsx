@@ -50,6 +50,7 @@ import {
   type SelectionVariant,
 } from '@/ui/selectionClasses';
 import { getSelectionToneClasses } from '@/ui/selectionPalette';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
 
 const DEFAULT_PRESET_OPTION = '__default__';
@@ -294,7 +295,7 @@ export function RedactionList() {
       setModalOpen(false);
       await reloadPresets();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t('settings.redaction.saveFailed'), 'error');
+      showToast(localizeErrorMessage(error, 'settings.redaction.saveFailed'), 'error');
     } finally {
       setSaving(false);
     }
@@ -314,7 +315,7 @@ export function RedactionList() {
         setActivePresetVisionId(null);
       }
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t('settings.deleteTypeFailed'), 'error');
+      showToast(localizeErrorMessage(error, 'settings.deleteTypeFailed'), 'error');
     }
   };
 

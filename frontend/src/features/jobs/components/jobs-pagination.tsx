@@ -42,7 +42,7 @@ export function JobsPagination({
   if (total <= 0) return null;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border/70 bg-muted/25 px-4 py-3">
+    <div className="surface-muted flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>
           {t('jobs.showRange')

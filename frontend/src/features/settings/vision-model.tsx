@@ -89,12 +89,12 @@ export function VisionModel() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 min-h-0 overflow-auto overscroll-contain p-4 sm:p-6">
-        <div className="flex w-full flex-col gap-5">
-          <Card className="bg-muted/30">
+      <div className="page-shell-narrow overflow-auto overscroll-contain">
+        <div className="page-stack">
+          <Card className="rounded-[24px] border-border/70 bg-muted/30 shadow-[var(--shadow-control)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">{t('settings.visionModel.infoTitle')}</CardTitle>
-              <CardDescription className="mt-2 text-xs leading-relaxed">
+              <CardTitle className="text-base tracking-[-0.03em]">{t('settings.visionModel.infoTitle')}</CardTitle>
+              <CardDescription className="mt-2 text-sm leading-relaxed">
                 {t('settings.visionModel.infoDesc')}
               </CardDescription>
             </CardHeader>
@@ -107,7 +107,7 @@ export function VisionModel() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="rounded-[24px] border-border/70 shadow-[var(--shadow-control)]">
             <CardHeader className="pb-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
@@ -123,7 +123,7 @@ export function VisionModel() {
             </CardHeader>
 
             <CardContent className="p-0">
-              <div className="divide-y">
+              <div className="divide-y divide-border/70">
                 {modelConfigs.configs.map(config => (
                   <div key={config.id} className="flex items-center gap-4 px-5 py-4">
                     <div className="min-w-0 flex-1">
@@ -343,7 +343,7 @@ export function VisionModel() {
               <h4 className="mb-3 text-sm font-medium">{t('settings.visionModel.advancedTitle')}</h4>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Temperature</Label>
+                  <Label className="text-xs">{t('settings.visionModel.temperatureLabel')}</Label>
                   <Input
                     type="number"
                     step={0.1}
@@ -355,7 +355,7 @@ export function VisionModel() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Top P</Label>
+                  <Label className="text-xs">{t('settings.visionModel.topPLabel')}</Label>
                   <Input
                     type="number"
                     step={0.1}
@@ -367,7 +367,7 @@ export function VisionModel() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Max Tokens</Label>
+                  <Label className="text-xs">{t('settings.visionModel.maxTokensLabel')}</Label>
                   <Input
                     type="number"
                     step={256}

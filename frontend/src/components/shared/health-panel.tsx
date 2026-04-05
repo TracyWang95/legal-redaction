@@ -1,6 +1,5 @@
 /**
  * Service health status panel for the sidebar footer.
- * Styled for dark sidebar context — uses opacity-based coloring.
  */
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,8 +18,7 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
 
   return (
     <div className="rounded-[18px] border border-sidebar-border bg-sidebar-accent px-3 py-3 text-sidebar-foreground backdrop-blur-xl" data-testid="health-panel">
-      {/* Header */}
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
             className={cn('h-1.5 w-1.5 rounded-full', {
@@ -30,7 +28,7 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
               'bg-[var(--error-foreground)]': !checking && !health,
             })}
           />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/65">{t('health.title')}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/65">{t('health.title')}</span>
         </div>
         <button
           type="button"
@@ -39,17 +37,17 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
           title={t('health.refreshTitle')}
           data-testid="health-refresh"
         >
-          <RefreshCw className={cn('w-3 h-3', checking && 'animate-spin')} />
+          <RefreshCw className={cn('h-3 w-3', checking && 'animate-spin')} />
         </button>
       </div>
 
       {health ? (
-        <div className="space-y-2 text-[10px]">
+        <div className="space-y-2.5 text-[11px]">
           <ServiceRow name={health.services.paddle_ocr.name} status={health.services.paddle_ocr.status} t={t} />
           <ServiceRow name={health.services.has_ner.name} status={health.services.has_ner.status} t={t} />
           <ServiceRow name={health.services.has_image.name} status={health.services.has_image.status} t={t} />
 
-          <div className="mt-1 space-y-0.5 border-t border-sidebar-border pt-2 pl-0.5 text-[9px] leading-snug text-sidebar-foreground/50">
+          <div className="mt-1 space-y-1 border-t border-sidebar-border pt-2 pl-0.5 text-[10px] leading-snug text-sidebar-foreground/50">
             {typeof health.probe_ms === 'number' && (
               <p className="truncate">{t('health.backendProbe')} {health.probe_ms} ms</p>
             )}
@@ -70,7 +68,7 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
           </div>
         </div>
       ) : (
-        <div className="text-[10px] text-[var(--error-foreground)]">
+        <div className="text-[11px] text-[var(--error-foreground)]">
           {checking ? t('health.detecting') : t('health.backendDown')}
         </div>
       )}
@@ -81,10 +79,10 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
 function ServiceRow({ name, status, t }: { name: string; status: string; t: (key: string) => string }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="truncate text-sidebar-foreground/55" title={name}>{name}</span>
+      <span className="truncate text-sidebar-foreground/58" title={name}>{name}</span>
       <span
         className={cn(
-          'shrink-0 rounded-full border px-2 py-0.5 font-medium',
+          'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium',
           status === 'online'
             ? 'border-[var(--success-border)] bg-[var(--success-surface)] text-[var(--success-foreground)]'
             : 'border-[var(--error-border)] bg-[var(--error-surface)] text-[var(--error-foreground)]',
