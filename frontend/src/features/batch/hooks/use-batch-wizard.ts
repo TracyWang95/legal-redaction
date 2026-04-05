@@ -25,7 +25,6 @@ import { useDropzone } from 'react-dropzone';
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 
 import { fileApi, authenticatedBlobUrl } from '@/services/api';
-import type { FileListItem } from '@/types';
 import { FileType, ReplacementMode } from '@/types';
 import {
   batchGetFileRaw,
@@ -74,84 +73,25 @@ import {
   effectiveWizardFurthestStep,
   parseWizardFurthestFromUnknown,
 } from '@/utils/jobPrimaryNavigation';
-
-// ── Types ──────────────────────────────────────────────────────────────
-
-export type Step = 1 | 2 | 3 | 4 | 5;
-
-export interface PipelineCfg {
-  mode: 'ocr_has' | 'has_image';
-  name: string;
-  description: string;
-  enabled: boolean;
-  types: { id: string; name: string; color: string; enabled: boolean; order?: number }[];
-}
-
-export interface TextEntityType {
-  id: string;
-  name: string;
-  color: string;
-  regex_pattern?: string | null;
-  use_llm?: boolean;
-  order?: number;
-}
-
-export interface BatchRow extends FileListItem {
-  analyzeStatus:
-    | 'pending'
-    | 'parsing'
-    | 'analyzing'
-    | 'awaiting_review'
-    | 'review_approved'
-    | 'redacting'
-    | 'completed'
-    | 'failed';
-  analyzeError?: string;
-  isImageMode?: boolean;
-  reviewConfirmed?: boolean;
-}
-
-export type ReviewEntity = {
-  id: string;
-  text: string;
-  type: string;
-  start: number;
-  end: number;
-  selected: boolean;
-  page?: number;
-  confidence?: number;
-  source?: string;
-  coref_id?: string | null;
-  replacement?: string;
-};
-
-export const RECOGNITION_DONE_STATUSES: ReadonlySet<BatchRow['analyzeStatus']> = new Set([
-  'awaiting_review',
-  'review_approved',
-  'redacting',
-  'completed',
-]);
-
-export const ANALYZE_STATUS_LABEL: Record<BatchRow['analyzeStatus'], string> = {
-  pending: '等待中',
-  parsing: '解析中',
-  analyzing: '识别中',
-  awaiting_review: '待审阅',
-  review_approved: '待脱敏',
-  redacting: '脱敏中',
-  completed: '已完成',
-  failed: '失败',
-};
-
-export const STEPS: { n: Step; label: string }[] = [
-  { n: 1, label: t('batchWizard.step1') },
-  { n: 2, label: t('batchWizard.step2') },
-  { n: 3, label: t('batchWizard.step3') },
-  { n: 4, label: t('batchWizard.step4') },
-  { n: 5, label: t('batchWizard.step5') },
-];
-
-// ── Helpers ────────────────────────────────────────────────────────────
+import {
+  buildPreviewBatchRows,
+  buildPreviewDownloadBlob,
+  getPreviewReviewPayload,
+  isPreviewBatchJobId,
+  PREVIEW_BATCH_JOB_ID,
+  previewBatchConfig,
+  previewPipelines,
+  previewPresets,
+  previewTextTypes,
+} from '../lib/batch-preview-fixtures';
+import {
+  RECOGNITION_DONE_STATUSES,
+  type BatchRow,
+  type PipelineCfg,
+  type ReviewEntity,
+  type Step,
+  type TextEntityType,
+} from '../types';
 
 function mapBackendStatus(status: string): BatchRow['analyzeStatus'] {
   switch (status) {
@@ -386,6 +326,9 @@ export function useBatchWizard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const modeValid = batchMode === 'text' || batchMode === 'image' || batchMode === 'smart';
   const mode: BatchWizardMode = 'smart';
+  const previewRequested = searchParams.get('preview') === '1';
+  const queryJobId = searchParams.get('jobId');
+  const isPreviewMode = previewRequested || isPreviewBatchJobId(queryJobId);
   const sessionJobKey = `lr_batch_job_id_${mode}`;
 
   // ── Job identity ──
@@ -472,6 +415,7 @@ export function useBatchWizard() {
 
   // ── Config auto-save to job draft ──
   useEffect(() => {
+    if (isPreviewMode) return;
     if (!configLoaded || !activeJobId) return;
     const payload = buildJobConfigForWorker(cfg, mode, furthestStep);
     const j = JSON.stringify(payload);
@@ -485,9 +429,10 @@ export function useBatchWizard() {
       })();
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [cfg, mode, activeJobId, configLoaded, furthestStep]);
+  }, [cfg, mode, activeJobId, configLoaded, furthestStep, isPreviewMode]);
 
   useEffect(() => {
+    if (isPreviewMode) return;
     if (!configLoaded || !activeJobId) return;
     const prev = prevFurthestForImmediateSaveRef.current;
     if (furthestStep < 2) { prevFurthestForImmediateSaveRef.current = furthestStep; return; }
@@ -499,14 +444,15 @@ export function useBatchWizard() {
     void (async () => {
       try { await updateJobDraft(activeJobId, { config: payload }); lastSavedJobConfigJson.current = j; } catch { /* */ }
     })();
-  }, [furthestStep, cfg, mode, activeJobId, configLoaded]);
+  }, [furthestStep, cfg, mode, activeJobId, configLoaded, isPreviewMode]);
 
   useEffect(() => {
+    if (isPreviewMode) return;
     const urlJobId = searchParams.get('jobId');
     if (!activeJobId || furthestStep < 2) return;
     if (activeJobId !== urlJobId) return;
     writeLocalWizardMaxStep(activeJobId, furthestStep);
-  }, [activeJobId, furthestStep, searchParams]);
+  }, [activeJobId, furthestStep, searchParams, isPreviewMode]);
 
   // ── Blocker for step 4 ──
   const navigationBlocker = useBlocker(
@@ -522,6 +468,18 @@ export function useBatchWizard() {
   // ── Load config from backend ──
   useEffect(() => {
     let cancelled = false;
+    if (isPreviewMode) {
+      setTextTypes(previewTextTypes);
+      setPipelines(previewPipelines);
+      setPresets(previewPresets);
+      setCfg({ ...previewBatchConfig });
+      setConfirmStep1(true);
+      setJobPriority(5);
+      setConfigLoaded(true);
+      setMsg(null);
+      if (!activeJobId) setActiveJobId(PREVIEW_BATCH_JOB_ID);
+      return () => { cancelled = true; };
+    }
     (async () => {
       try {
         const [ctRes, pipeRes, presetRes] = await Promise.all([
@@ -593,7 +551,7 @@ export function useBatchWizard() {
       }
     })();
     return () => { cancelled = true; };
-  }, [mode]);
+  }, [activeJobId, isPreviewMode, mode]);
 
   // ── URL hydration (deep-link restore) ──
   useEffect(() => {
@@ -618,6 +576,25 @@ export function useBatchWizard() {
     const urlStepParsed = Number.isFinite(snUrl) ? (Math.min(5, Math.max(1, snUrl)) as Step) : null;
     if (hydratedFromUrlRef.current && urlStepParsed !== null && step < urlStepParsed) {
       hydratedFromUrlRef.current = false;
+    }
+
+    if (isPreviewMode) {
+      const previewStep = urlStepParsed ?? 1;
+      const previewRows = buildPreviewBatchRows(previewStep);
+      setActiveJobId(PREVIEW_BATCH_JOB_ID);
+      setJobSkipItemReview(false);
+      itemIdByFileIdRef.current = Object.fromEntries(
+        previewRows.map((row, index) => [row.file_id, `preview-item-${index + 1}`]),
+      );
+      setRows(previewRows);
+      setSelected(new Set(previewRows.map((row) => row.file_id)));
+      setReviewIndex(0);
+      batchGroupIdRef.current = PREVIEW_BATCH_JOB_ID;
+      setConfirmStep1(true);
+      setStep(previewStep);
+      setFurthestStep(5);
+      hydratedFromUrlRef.current = true;
+      return;
     }
 
     if (!configLoaded || !jobId || hydratedFromUrlRef.current) return;
@@ -838,6 +815,7 @@ export function useBatchWizard() {
   }, [reviewEntities, reviewBoxes]);
 
   const flushCurrentReviewDraft = useCallback(async () => {
+    if (isPreviewMode) return true;
     const jid = activeJobId;
     const linkedItemId = reviewFile ? itemIdByFileIdRef.current[reviewFile.file_id] : undefined;
     if (!jid || !linkedItemId || !reviewDraftInitializedRef.current) return true;
@@ -857,7 +835,7 @@ export function useBatchWizard() {
     } finally {
       setReviewDraftSaving(false);
     }
-  }, [activeJobId, buildCurrentReviewDraftPayload, reviewFile]);
+  }, [activeJobId, buildCurrentReviewDraftPayload, isPreviewMode, reviewFile]);
 
   const pushReviewTextHistory = useCallback((prev: ReviewEntity[]) => {
     setReviewTextUndoStack(stack => [...stack, prev.map(e => ({ ...e }))]);
@@ -954,6 +932,32 @@ export function useBatchWizard() {
         window.clearTimeout(reviewAutosaveTimerRef.current);
         reviewAutosaveTimerRef.current = null;
       }
+      if (isPreviewMode) {
+        const previewPayload = getPreviewReviewPayload(fileId);
+        if (isImage) {
+          setReviewTextContent('');
+          setReviewEntities([]);
+          setReviewBoxes(previewPayload.boxes.map((box) => ({ ...box })));
+          setReviewOrigImageBlobUrl(previewPayload.imageSrc);
+          setReviewImagePreview(previewPayload.previewSrc);
+          setReviewImageUndoStack([]);
+          setReviewImageRedoStack([]);
+          reviewLastSavedJsonRef.current = JSON.stringify({ entities: [], bounding_boxes: previewPayload.boxes });
+        } else {
+          setReviewBoxes([]);
+          setReviewEntities(previewPayload.entities.map((entity) => ({ ...entity })));
+          setReviewTextContent(previewPayload.content);
+          setReviewTextUndoStack([]);
+          setReviewTextRedoStack([]);
+          const map = await fetchBatchPreviewMap(previewPayload.entities, cfg.replacementMode);
+          if (loadSeq !== reviewLoadSeqRef.current) return;
+          setPreviewEntityMap(map);
+          reviewLastSavedJsonRef.current = JSON.stringify({ entities: previewPayload.entities, bounding_boxes: [] });
+        }
+        reviewDraftInitializedRef.current = true;
+        setReviewLoading(false);
+        return;
+      }
       try {
         const info = await batchGetFileRaw(fileId);
         if (loadSeq !== reviewLoadSeqRef.current) return;
@@ -1004,7 +1008,7 @@ export function useBatchWizard() {
         if (loadSeq === reviewLoadSeqRef.current) setReviewLoading(false);
       }
     },
-    [activeJobId, cfg.replacementMode, cfg.selectedEntityTypeIds, textTypes],
+    [activeJobId, cfg.replacementMode, cfg.selectedEntityTypeIds, isPreviewMode, textTypes],
   );
 
   useEffect(() => {
@@ -1015,6 +1019,7 @@ export function useBatchWizard() {
 
   // ── Autosave ──
   useEffect(() => {
+    if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || !reviewDraftInitializedRef.current) return;
     if (!activeJobId || !reviewItemId) return;
     const payload = buildCurrentReviewDraftPayload();
@@ -1024,10 +1029,11 @@ export function useBatchWizard() {
     if (reviewAutosaveTimerRef.current !== null) window.clearTimeout(reviewAutosaveTimerRef.current);
     reviewAutosaveTimerRef.current = window.setTimeout(() => { void flushCurrentReviewDraft(); }, 900);
     return () => { if (reviewAutosaveTimerRef.current !== null) { window.clearTimeout(reviewAutosaveTimerRef.current); reviewAutosaveTimerRef.current = null; } };
-  }, [step, reviewFile?.file_id, reviewItemId, activeJobId, buildCurrentReviewDraftPayload, flushCurrentReviewDraft]);
+  }, [step, reviewFile?.file_id, reviewItemId, activeJobId, buildCurrentReviewDraftPayload, flushCurrentReviewDraft, isPreviewMode]);
 
   // ── Preview map refresh ──
   useEffect(() => {
+    if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || reviewLoading || reviewFile.isImageMode) return;
     if (!reviewTextContent || reviewEntities.length === 0) { setPreviewEntityMap({}); return; }
     let cancelled = false;
@@ -1036,10 +1042,11 @@ export function useBatchWizard() {
       if (!cancelled) setPreviewEntityMap(map);
     }, 300);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [step, reviewFile?.file_id, reviewEntities, reviewTextContent, reviewLoading, cfg.replacementMode]);
+  }, [step, reviewFile?.file_id, reviewEntities, reviewTextContent, reviewLoading, cfg.replacementMode, isPreviewMode]);
 
   // ── Image preview ──
   useEffect(() => {
+    if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || reviewLoading || !reviewFile.isImageMode) return;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
@@ -1055,20 +1062,57 @@ export function useBatchWizard() {
       finally { if (!cancelled) setReviewImagePreviewLoading(false); }
     }, 250);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [step, reviewFile?.file_id, reviewBoxes, reviewLoading, cfg.imageRedactionMethod, cfg.imageRedactionStrength, cfg.imageFillColor]);
+  }, [step, reviewFile?.file_id, reviewBoxes, reviewLoading, cfg.imageRedactionMethod, cfg.imageRedactionStrength, cfg.imageFillColor, isPreviewMode]);
 
   const displayPreviewMap = useMemo(() => mergePreviewMapWithDocumentSlices(reviewTextContent, reviewEntities, previewEntityMap), [reviewTextContent, reviewEntities, previewEntityMap]);
   const textPreviewSegments = useMemo(() => buildTextSegments(reviewTextContent, displayPreviewMap), [reviewTextContent, displayPreviewMap]);
 
   const selectedReviewEntityCount = useMemo(() => reviewEntities.filter(e => e.selected !== false).length, [reviewEntities]);
   const selectedReviewBoxCount = useMemo(() => reviewBoxes.filter(b => b.selected !== false).length, [reviewBoxes]);
-  const reviewImagePreviewSrc = useMemo(() => (reviewImagePreview ? `data:image/png;base64,${reviewImagePreview}` : ''), [reviewImagePreview]);
+  const reviewImagePreviewSrc = useMemo(() => {
+    if (!reviewImagePreview) return '';
+    return reviewImagePreview.startsWith('data:') ? reviewImagePreview : `data:image/png;base64,${reviewImagePreview}`;
+  }, [reviewImagePreview]);
 
   // ── File upload ──
   const onDrop = useCallback(async (accepted: File[]) => {
     if (!accepted.length) return;
     setLoading(true);
     setMsg(null);
+    if (isPreviewMode) {
+      const uploaded = accepted.map((file, index) => {
+        const name = file.name.toLowerCase();
+        const isImage = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.pdf');
+        const fileType = name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')
+          ? FileType.IMAGE
+          : name.endsWith('.pdf')
+            ? FileType.PDF
+            : name.endsWith('.doc')
+              ? FileType.DOC
+              : FileType.DOCX;
+        return {
+          file_id: `preview-upload-${Date.now()}-${index}`,
+          original_filename: file.name,
+          file_size: file.size,
+          file_type: fileType,
+          created_at: new Date().toISOString(),
+          has_output: false,
+          reviewConfirmed: false,
+          entity_count: 0,
+          analyzeStatus: 'pending' as const,
+          isImageMode: isImage,
+        };
+      });
+      setRows((prev) => [...uploaded, ...prev]);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        uploaded.forEach((row) => next.add(row.file_id));
+        return next;
+      });
+      setMsg({ text: t('batchWizard.previewFilesAdded').replace('{count}', String(uploaded.length)), tone: 'ok' });
+      setLoading(false);
+      return;
+    }
     const uploaded: BatchRow[] = [];
     const failed: string[] = [];
     try {
@@ -1097,12 +1141,23 @@ export function useBatchWizard() {
         }
       }
     } finally { setLoading(false); }
-  }, [activeJobId]);
+  }, [activeJobId, isPreviewMode]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, disabled: loading, multiple: true });
 
   // ── Queue submit ──
   const submitQueueToWorker = useCallback(async () => {
+    if (isPreviewMode) {
+      setRows((prev) => prev.map((row, index) => ({
+        ...row,
+        analyzeStatus: index === 0 ? 'completed' : 'awaiting_review',
+        has_output: index === 0,
+        reviewConfirmed: index === 0,
+      })));
+      setFurthestStep(5);
+      setMsg({ text: t('batchWizard.previewRecognitionDone'), tone: 'ok' });
+      return;
+    }
     if (!activeJobId) { setMsg({ text: t('batchWizard.noActiveJob'), tone: 'warn' }); return; }
     setMsg(null);
     setRows(prev => prev.map(r => !RECOGNITION_DONE_STATUSES.has(r.analyzeStatus) && r.analyzeStatus !== 'failed' ? { ...r, analyzeStatus: 'pending' as const } : r));
@@ -1112,12 +1167,13 @@ export function useBatchWizard() {
       await apiSubmitJob(activeJobId);
       clearLocalWizardMaxStep(activeJobId);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.submitFailed'), tone: 'err' }); }
-  }, [activeJobId, cfg, mode, furthestStep]);
+  }, [activeJobId, cfg, furthestStep, isPreviewMode, mode]);
 
   // ── Polling ──
   const hasItemsInProgress = useMemo(() => rows.some(r => r.analyzeStatus === 'pending' || r.analyzeStatus === 'parsing' || r.analyzeStatus === 'analyzing'), [rows]);
 
   useEffect(() => {
+    if (isPreviewMode) return;
     if (step !== 3 || !activeJobId || !hasItemsInProgress || analyzeRunning) return;
     let cancelled = false;
     const poll = async () => {
@@ -1135,11 +1191,18 @@ export function useBatchWizard() {
     const timer = setInterval(poll, 1000);
     poll();
     return () => { cancelled = true; clearInterval(timer); };
-  }, [step, activeJobId, hasItemsInProgress, analyzeRunning]);
+  }, [step, activeJobId, hasItemsInProgress, analyzeRunning, isPreviewMode]);
 
   // ── Requeue failed ──
   const requeueFailedItems = useCallback(async () => {
     if (!failedRows.length) return;
+    if (isPreviewMode) {
+      setRows((prev) => prev.map((row) => row.analyzeStatus === 'failed'
+        ? { ...row, analyzeStatus: 'awaiting_review', analyzeError: undefined }
+        : row));
+      setMsg({ text: t('batchWizard.previewRecognitionDone'), tone: 'ok' });
+      return;
+    }
     if (activeJobId && cfg.executionDefault !== 'local') {
       setMsg(null);
       try {
@@ -1148,7 +1211,7 @@ export function useBatchWizard() {
       } catch { /* fallback handled outside */ }
       return;
     }
-  }, [activeJobId, cfg.executionDefault, failedRows.length]);
+  }, [activeJobId, cfg.executionDefault, failedRows.length, isPreviewMode]);
 
   // ── Confirm review ──
   const confirmCurrentReview = useCallback(async () => {
@@ -1158,6 +1221,16 @@ export function useBatchWizard() {
     const currentFileId = reviewFile.file_id;
     const currentIsImage = reviewFile.isImageMode;
     try {
+      if (isPreviewMode) {
+        setRows((prev) => prev.map((row) => row.file_id === currentFileId
+          ? { ...row, reviewConfirmed: true, has_output: true, analyzeStatus: 'completed' as const }
+          : row));
+        const isLastFile = reviewIndex >= doneRows.length - 1;
+        if (!isLastFile) setReviewIndex(reviewIndex + 1);
+        if (isLastFile) setFurthestStep(5);
+        setMsg({ text: t('batchWizard.previewReviewDone'), tone: 'ok' });
+        return;
+      }
       const jid = activeJobId;
       const linkedItemId = itemIdByFileIdRef.current[currentFileId];
       if (!jid || !linkedItemId) throw new Error(t('batchWizard.noLinkedItem'));
@@ -1180,7 +1253,7 @@ export function useBatchWizard() {
       setRows(prev => prev.map(r => r.file_id === currentFileId ? { ...r, reviewConfirmed: false, has_output: false, analyzeStatus: 'awaiting_review' as const } : r));
       setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
     } finally { setReviewExecuteLoading(false); }
-  }, [activeJobId, doneRows.length, flushCurrentReviewDraft, reviewBoxes, reviewDraftError, reviewEntities, reviewFile, reviewIndex]);
+  }, [activeJobId, doneRows.length, flushCurrentReviewDraft, isPreviewMode, reviewBoxes, reviewDraftError, reviewEntities, reviewFile, reviewIndex]);
 
   // ── Download ZIP ──
   const downloadZip = useCallback(async (redacted: boolean) => {
@@ -1193,17 +1266,24 @@ export function useBatchWizard() {
     setZipLoading(true);
     setMsg(null);
     try {
+      if (isPreviewMode) {
+        const blob = buildPreviewDownloadBlob(redacted, rows.filter((row) => selected.has(row.file_id)));
+        triggerDownload(blob, redacted ? 'batch_redacted_preview.txt' : 'batch_original_preview.txt');
+        setMsg({ text: t('batchWizard.previewDownloadReady'), tone: 'ok' });
+        return;
+      }
       const blob = await fileApi.batchDownloadZip(selectedIds, redacted);
       triggerDownload(blob, redacted ? 'batch_redacted.zip' : 'batch_original.zip');
       if (redacted && activeJobId) clearLocalWizardMaxStep(activeJobId);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.downloadFailed'), tone: 'err' }); }
     finally { setZipLoading(false); }
-  }, [activeJobId, rows, selected]);
+  }, [activeJobId, isPreviewMode, rows, selected]);
 
   // ── Step navigation ──
   const selectedIds = rows.filter(r => selected.has(r.file_id)).map(r => r.file_id);
 
   const canGoStep = useCallback((target: Step): boolean => {
+    if (isPreviewMode) return true;
     if (target <= 1) return true;
     const allAnalyzeDone = rows.length > 0 && rows.every(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus));
     if (target === 4) return allAnalyzeDone;
@@ -1216,15 +1296,16 @@ export function useBatchWizard() {
       return furthestStep >= 5 && allReviewConfirmed;
     }
     return false;
-  }, [allReviewConfirmed, furthestStep, isStep1Complete, jobSkipItemReview, rows, step]);
+  }, [allReviewConfirmed, furthestStep, isPreviewMode, isStep1Complete, jobSkipItemReview, rows, step]);
 
   const flushJobDraftFromStep1 = useCallback(async () => {
+    if (isPreviewMode || !activeJobId) return;
     if (!activeJobId) return;
     const payload = buildJobConfigForWorker(cfg, mode, furthestStep);
     const j = JSON.stringify(payload);
     if (j === lastSavedJobConfigJson.current) return;
     try { await updateJobDraft(activeJobId, { config: payload }); lastSavedJobConfigJson.current = j; } catch { /* */ }
-  }, [activeJobId, cfg, mode, furthestStep]);
+  }, [activeJobId, cfg, furthestStep, isPreviewMode, mode]);
 
   const applyStep = useCallback((s: Step) => {
     if (s === step) return;
@@ -1243,7 +1324,7 @@ export function useBatchWizard() {
       const firstPending = doneRows.findIndex(r => !r.has_output);
       setReviewIndex(firstPending >= 0 ? firstPending : 0);
     }
-    if (s === 5 && activeJobId) {
+    if (s === 5 && activeJobId && !isPreviewMode) {
       void (async () => {
         try {
           const detail = await getJob(activeJobId);
@@ -1252,7 +1333,7 @@ export function useBatchWizard() {
         } catch { /* ignore */ }
       })();
     }
-  }, [activeJobId, canGoStep, configLoaded, confirmStep1, doneRows, flushJobDraftFromStep1, isStep1Complete, step]);
+  }, [activeJobId, canGoStep, configLoaded, confirmStep1, doneRows, flushJobDraftFromStep1, isPreviewMode, isStep1Complete, step]);
 
   const goStep = useCallback((s: Step) => {
     if (step === 4 && s !== 5) {
@@ -1268,6 +1349,19 @@ export function useBatchWizard() {
       return;
     }
     try {
+      if (isPreviewMode) {
+        setActiveJobId(PREVIEW_BATCH_JOB_ID);
+        setRows(buildPreviewBatchRows(2));
+        setSelected(new Set(buildPreviewBatchRows(2).map((row) => row.file_id)));
+        itemIdByFileIdRef.current = Object.fromEntries(
+          buildPreviewBatchRows(2).map((row, index) => [row.file_id, `preview-item-${index + 1}`]),
+        );
+        internalStepNavRef.current = true;
+        setStep(2);
+        setFurthestStep(5);
+        setMsg(null);
+        return;
+      }
       const nextFurthest = Math.max(furthestStep, 2) as Step;
       const payload = buildJobConfigForWorker(cfg, mode, nextFurthest);
       let jid = activeJobId;
@@ -1286,11 +1380,19 @@ export function useBatchWizard() {
       setFurthestStep(prev => Math.max(prev, 2) as Step);
       setMsg(null);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' }); }
-  }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isStep1Complete, jobPriority, mode]);
+  }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isPreviewMode, isStep1Complete, jobPriority, mode]);
 
   const advanceToExportStep = useCallback(async () => {
     if (!rows.length) { setMsg({ text: t('batchWizard.noFilesToExport'), tone: 'warn' }); return; }
     await flushCurrentReviewDraft();
+    if (isPreviewMode) {
+      if (!allReviewConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
+      internalStepNavRef.current = true;
+      setStep(5);
+      setFurthestStep(5);
+      setMsg(null);
+      return;
+    }
     if (activeJobId) {
       try {
         const detail = await getJob(activeJobId);
@@ -1311,7 +1413,7 @@ export function useBatchWizard() {
     setStep(5);
     setFurthestStep(prev => Math.max(prev, 5) as Step);
     setMsg(null);
-  }, [activeJobId, allReviewConfirmed, flushCurrentReviewDraft, rows.length]);
+  }, [activeJobId, allReviewConfirmed, flushCurrentReviewDraft, isPreviewMode, rows.length]);
 
   const navigateReviewIndex = useCallback(async (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex >= doneRows.length || nextIndex === reviewIndex) return;
@@ -1366,6 +1468,7 @@ export function useBatchWizard() {
     modeValid,
     mode,
     activeJobId,
+    previewMode: isPreviewMode,
 
     // Step
     step,

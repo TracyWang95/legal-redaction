@@ -7,8 +7,9 @@ import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Step, BatchRow } from '../hooks/use-batch-wizard';
 import type { BatchWizardMode } from '@/services/batchPipeline';
+import { isPreviewBatchJobId } from '../lib/batch-preview-fixtures';
+import type { BatchRow, Step } from '../types';
 
 interface BatchStep2UploadProps {
   mode: BatchWizardMode;
@@ -32,6 +33,8 @@ export function BatchStep2Upload({
   goStep,
 }: BatchStep2UploadProps) {
   const t = useT();
+  const previewJob = activeJobId ? isPreviewBatchJobId(activeJobId) : false;
+  const jobLabel = previewJob ? t('batchWizard.previewJobLabel') : activeJobId;
 
   const dropHint =
     mode === 'smart'
@@ -41,19 +44,25 @@ export function BatchStep2Upload({
         : t('batchWizard.step2.dropHintText');
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2" data-testid="batch-step2-upload">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.14fr)_minmax(23rem,0.86fr)]" data-testid="batch-step2-upload">
       <div className="flex flex-col gap-4">
         {activeJobId && (
-          <Card>
+          <Card className="rounded-[20px] border-border/70 shadow-[var(--shadow-control)]">
             <CardContent className="p-3">
               <p className="text-xs text-muted-foreground">
                 {t('batchWizard.step2.jobLinked')}{' '}
-                <Link
-                  to={`/jobs/${activeJobId}`}
-                  className="font-mono text-primary hover:underline break-all"
-                >
-                  {activeJobId}
-                </Link>
+                {previewJob ? (
+                  <span className="break-all font-medium text-primary">
+                    {jobLabel}
+                  </span>
+                ) : (
+                  <Link
+                    to={`/jobs/${activeJobId}`}
+                    className={cn('break-all font-mono text-primary hover:underline')}
+                  >
+                    {jobLabel}
+                  </Link>
+                )}
               </p>
             </CardContent>
           </Card>
@@ -63,7 +72,7 @@ export function BatchStep2Upload({
         <Card
           {...getRootProps()}
           className={cn(
-            'min-h-[220px] border-2 border-dashed flex flex-col items-center justify-center px-6 py-8 cursor-pointer transition-all',
+            'min-h-[320px] border-2 border-dashed flex flex-col items-center justify-center rounded-[24px] px-8 py-10 cursor-pointer transition-all',
             isDragActive
               ? 'border-primary bg-background shadow-sm'
               : 'border-muted-foreground/20 hover:border-muted-foreground/40',
@@ -95,14 +104,14 @@ export function BatchStep2Upload({
       </div>
 
       {/* Upload queue */}
-      <Card className="overflow-hidden flex flex-col min-h-[240px]">
-        <CardHeader className="py-3 pb-0">
+      <Card className="overflow-hidden flex flex-col min-h-[320px] rounded-[24px] border-border/70 shadow-[var(--shadow-control)]">
+        <CardHeader className="border-b border-border/70 py-4">
           <CardTitle className="text-sm">{t('batchWizard.step2.uploadQueue')}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            {rows.length} {t('batchWizard.step2.noFiles') === rows.length.toString() ? '' : ''}
+            {t('batchWizard.step2.queueCount').replace('{count}', String(rows.length))}
           </p>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto max-h-[320px] divide-y p-0">
+        <CardContent className="flex-1 overflow-y-auto max-h-[420px] divide-y p-0">
           {rows.length === 0 ? (
             <p className="p-6 text-sm text-muted-foreground text-center">
               {t('batchWizard.step2.noFiles')}

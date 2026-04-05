@@ -1,11 +1,11 @@
-﻿@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
-   绠€绾︾櫧搴曠鎶€椋庝富棰?
-   铻嶅悎鑻规灉鏋佺畝椋?+ form-filling 绉戞妧鎰?
+   Light SaaS foundation
+   Crisp white surfaces with restrained accent color
    ============================================ */
 
 :root {
@@ -1077,18 +1077,18 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  padding: 1rem 0.75rem;
+  padding: 1rem 1rem;
 }
 
 .page-shell-narrow {
   width: 100%;
-  max-width: 80rem;
+  max-width: 86rem;
   margin-inline: auto;
   min-height: 0;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: 1rem 1.25rem;
 }
 
 .page-stack {
@@ -1096,7 +1096,7 @@ body {
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.125rem;
 }
 
 .page-section-heading {
@@ -1152,11 +1152,11 @@ body {
 
 @media (min-width: 640px) {
   .page-shell {
-    padding: 1.25rem;
+    padding: 1.25rem 1.5rem;
   }
 
   .page-shell-narrow {
-    padding: 1.25rem 1.5rem;
+    padding: 1.25rem 1.75rem;
   }
 }
 

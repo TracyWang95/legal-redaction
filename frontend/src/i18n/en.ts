@@ -504,6 +504,8 @@
   'batchHub.viewDetail': 'View Details',
   'batchHub.creating': 'Creating…',
   'batchHub.createFailed': 'Create failed',
+  'batchHub.previewDesc': 'The backend is unavailable. Open the batch preview flow to keep reviewing the layout and interactions.',
+  'batchHub.previewCta': 'Open preview flow',
   'batchHub.history': 'History',
   'batchHub.batchTaskTitle': 'Batch {time}',
 
@@ -539,6 +541,7 @@
   'batchWizard.step2.dropHintText': 'Supports Word (.docx .doc) and PDF documents',
   'batchWizard.step2.jobLinked': 'Current job',
   'batchWizard.step2.uploadQueue': 'Upload Queue',
+  'batchWizard.step2.queueCount': '{count} files in the queue',
   'batchWizard.step2.noFiles': 'No files',
   'batchWizard.step2.prevStep': 'Previous',
   'batchWizard.step2.nextRecognize': 'Next: Recognize',
@@ -1052,6 +1055,12 @@ const enOverrides: Record<string, string> = {
   'batchWizard.downloadFailed': 'Failed to download the package.',
   'batchWizard.noFilesToExport': 'There are no files ready to export.',
   'batchWizard.notAllFilesConfirmed': 'Confirm every file before exporting.',
+  'batchWizard.previewBanner': 'You are viewing the batch preview flow. The data on this page is sample data and will not create or update real backend tasks.',
+  'batchWizard.previewFilesAdded': '{count} preview files added.',
+  'batchWizard.previewRecognitionDone': 'Preview data has been advanced to recognition results. You can keep checking the review and export screens.',
+  'batchWizard.previewReviewDone': 'The current preview file is confirmed. Continue checking the next file or the export step.',
+  'batchWizard.previewDownloadReady': 'A preview export file is ready so you can inspect the download entry and status states.',
+  'batchWizard.previewJobLabel': 'Preview task',
 };
 
 export const en: Record<string, string> = {

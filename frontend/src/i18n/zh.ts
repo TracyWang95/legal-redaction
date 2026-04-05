@@ -504,6 +504,8 @@
   'batchHub.viewDetail': '查看详情',
   'batchHub.creating': '正在创建…',
   'batchHub.createFailed': '创建失败',
+  'batchHub.previewDesc': '后端当前不可用，已切换到批量界面预览入口，方便继续检查版式和交互。',
+  'batchHub.previewCta': '打开界面预览',
   'batchHub.history': '处理历史',
   'batchHub.batchTaskTitle': '批量任务 {time}',
 
@@ -539,6 +541,7 @@
   'batchWizard.step2.dropHintText': '支持 Word (.docx .doc) 和 PDF 文档',
   'batchWizard.step2.jobLinked': '当前任务工单',
   'batchWizard.step2.uploadQueue': '上传队列',
+  'batchWizard.step2.queueCount': '当前共 {count} 个文件',
   'batchWizard.step2.noFiles': '暂无文件',
   'batchWizard.step2.prevStep': '上一步',
   'batchWizard.step2.nextRecognize': '下一步：批量识别',
@@ -668,6 +671,12 @@
   'batchWizard.downloadFailed': '下载打包文件失败。',
   'batchWizard.noFilesToExport': '当前没有可导出的文件。',
   'batchWizard.notAllFilesConfirmed': '请先确认完所有文件，再继续导出。',
+  'batchWizard.previewBanner': '当前是批量界面预览，页面里的数据是前端样例，不会创建真实任务或写入后端。',
+  'batchWizard.previewFilesAdded': '已加入 {count} 个预览文件。',
+  'batchWizard.previewRecognitionDone': '预览数据已推进到识别结果，接下来可以继续检查审阅和导出页面。',
+  'batchWizard.previewReviewDone': '当前预览文件已确认，可以继续检查下一份文件或导出页。',
+  'batchWizard.previewDownloadReady': '已生成预览导出文件，用来检查下载入口和状态展示。',
+  'batchWizard.previewJobLabel': '预览任务',
 };
 
 const zhOverrides: Record<string, string> = {
