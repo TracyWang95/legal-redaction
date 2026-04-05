@@ -15,7 +15,7 @@ export function SettingsHub() {
   const t = useT();
   const {
     entityTypes, pipelines, loading, regexTypes, llmTypes,
-    importFileRef, createType, deleteType, resetToDefault,
+    importFileRef, createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets,
   } = useEntityTypes();
@@ -43,28 +43,10 @@ export function SettingsHub() {
     regex_pattern: string; use_llm: boolean; tag_template: string;
   }) => {
     if (editingType) {
-      /* save via PUT */
-      try {
-        const res = await fetch(`/api/v1/custom-types/${editingType.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: form.name.trim(),
-            description: form.use_llm ? form.description?.trim() || null : null,
-            color: form.color,
-            regex_pattern: form.use_llm ? null : form.regex_pattern || null,
-            use_llm: form.use_llm,
-            tag_template: form.tag_template || null,
-          }),
-        });
-        if (res.ok) {
-          setDialogOpen(false);
-          /* fetchEntityTypes is called inside the hook automatically via reactivity;
-             call the parent level re-fetch manually */
-          window.location.reload(); // simplest approach for edit; hook doesn't expose updateType
-        }
-      } catch {
-        /* ignore */
+      const ok = await updateType(editingType.id, form);
+      if (ok) {
+        setDialogOpen(false);
+        setEditingType(null);
       }
       return;
     }

@@ -1,5 +1,12 @@
 import React from 'react';
-import { ENTITY_GROUPS, type EntityTypeConfig } from '../config/entityTypes';
+import { cn } from '@/lib/utils';
+import {
+  ENTITY_GROUPS,
+  getEntityGroupLabel,
+  getEntityRiskConfig,
+  getEntityTypeName,
+  type EntityTypeConfig,
+} from '../config/entityTypes';
 
 export type EntityTypeOption = { id: string; name: string; description?: string };
 
@@ -10,48 +17,80 @@ type Props = {
   className?: string;
 };
 
-/** 与 Playground 划词弹层一致：ENTITY_GROUPS 分组 + 网格（仅展示当前启用类型） */
 export const EntityTypeGroupPicker: React.FC<Props> = ({
   entityTypes,
   selectedTypeId,
   onSelectType,
   className = '',
 }) => {
-  const enabled = new Set(entityTypes.map(t => t.id));
+  const enabled = new Set(entityTypes.map((type) => type.id));
   const resolveName = (cfg: EntityTypeConfig) =>
-    entityTypes.find(et => et.id === cfg.id)?.name ?? cfg.name;
+    entityTypes.find((type) => type.id === cfg.id)?.name ?? getEntityTypeName(cfg.id);
 
   return (
-    <div className={`max-h-[240px] overflow-auto space-y-2 pr-1 ${className}`}>
-      {ENTITY_GROUPS.filter(group => group.types.some(t => enabled.has(t.id))).map(group => {
-        const availableTypes = group.types.filter(t => enabled.has(t.id));
+    <div className={cn('flex max-h-[280px] flex-col gap-3 overflow-auto pr-1', className)}>
+      {ENTITY_GROUPS.filter((group) => group.types.some((type) => enabled.has(type.id))).map((group) => {
+        const availableTypes = group.types.filter((type) => enabled.has(type.id));
         if (availableTypes.length === 0) return null;
+
         return (
-          <div key={group.id} className="rounded-lg border border-gray-200 overflow-hidden bg-white">
-            <div className="px-2.5 py-1.5 text-caption font-semibold text-[#262626] bg-gray-100 border-b border-gray-200">
-              {group.label}
+          <section
+            key={group.id}
+            className="overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.25)]"
+          >
+            <div
+              className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5"
+              style={{
+                background: `linear-gradient(135deg, ${group.bgColor} 0%, color-mix(in srgb, ${group.bgColor} 72%, transparent) 100%)`,
+              }}
+            >
+              <span
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: group.color }}
+                aria-hidden="true"
+              />
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.12em]"
+                style={{ color: group.textColor }}
+              >
+                {getEntityGroupLabel(group.id)}
+              </span>
             </div>
-            <div className="p-1.5 grid grid-cols-3 gap-1 bg-white">
-              {availableTypes.map(type => {
+
+            <div className="grid grid-cols-2 gap-2 p-2 sm:grid-cols-3">
+              {availableTypes.map((type) => {
                 const isSelected = selectedTypeId === type.id;
+                const risk = getEntityRiskConfig(type.id);
+
                 return (
                   <button
                     key={type.id}
                     type="button"
                     onClick={() => onSelectType(type.id)}
-                    className={`text-xs px-2 py-1.5 rounded-md text-left transition-all truncate text-[#262626] ${
+                    className={cn(
+                      'min-w-0 rounded-xl border px-3 py-2 text-left text-xs transition-all duration-200',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       isSelected
-                        ? 'font-semibold bg-gray-100 ring-2 ring-gray-400 ring-offset-0'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    title={type.description}
+                        ? 'border-transparent shadow-[0_18px_36px_-28px_rgba(15,23,42,0.4)]'
+                        : 'border-border/70 bg-background/80 hover:border-border hover:bg-accent/60',
+                    )}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: risk.bgColor,
+                            color: risk.textColor,
+                            boxShadow: `inset 0 0 0 1px ${risk.color}33`,
+                          }
+                        : undefined
+                    }
+                    title={type.description ?? resolveName(type)}
                   >
-                    {resolveName(type)}
+                    <span className="block truncate font-medium">{resolveName(type)}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

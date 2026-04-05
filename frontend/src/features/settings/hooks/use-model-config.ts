@@ -69,13 +69,13 @@ export function useNerBackend() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        showToast((d as { detail?: string }).detail || '\u4FDD\u5B58\u5931\u8D25', 'error');
+        showToast((d as { detail?: string }).detail || t('settings.saveFailed'), 'error');
         return;
       }
-      setTestResult({ success: true, message: '\u914D\u7F6E\u5DF2\u4FDD\u5B58\u5E76\u751F\u6548\u3002' });
+      setTestResult({ success: true, message: t('settings.textModel.saveSuccess') });
     } catch (e) {
       if (import.meta.env.DEV) console.error(e);
-      showToast('\u4FDD\u5B58\u5931\u8D25', 'error');
+      showToast(t('settings.saveFailed'), 'error');
     } finally { setNerSaving(false); }
   }, [payload]);
 
@@ -88,12 +88,15 @@ export function useNerBackend() {
       });
       let data: { success?: boolean; message?: string; detail?: unknown } = {};
       try { data = await res.json(); } catch {
-        setTestResult({ success: false, message: `HTTP ${res.status}\uFF1A\u54CD\u5E94\u4E0D\u662FJSON\uFF08\u8BF7\u786E\u8BA4\u540E\u7AEF\u5DF2\u542F\u52A8\uFF09` });
+        setTestResult({
+          success: false,
+          message: t('settings.textModel.responseNotJson').replace('{status}', String(res.status)),
+        });
         return;
       }
       if (!res.ok) {
         const d = data.detail;
-        let errMsg = `\u8BF7\u6C42\u5931\u8D25 (${res.status})`;
+        let errMsg = t('settings.textModel.requestFailedWithStatus').replace('{status}', String(res.status));
         if (Array.isArray(d)) errMsg = d.map((x: { msg?: string }) => x.msg || JSON.stringify(x)).join('\uFF1B');
         else if (typeof d === 'string') errMsg = d;
         else if (d && typeof d === 'object' && 'msg' in (d as object)) errMsg = String((d as { msg: string }).msg);
@@ -102,19 +105,23 @@ export function useNerBackend() {
       }
       setTestResult({
         success: Boolean(data.success),
-        message: data.message || (data.success ? '\u8FDE\u63A5\u6210\u529F' : '\u8FDE\u63A5\u5931\u8D25\uFF08\u8BF7\u67E5\u770B\u540E\u7AEF\u65E5\u5FD7\u6216\u4FDD\u5B58\u914D\u7F6E\u540E\u91CD\u8BD5\uFF09'),
+        message:
+          data.message
+          || (data.success ? t('settings.textModel.connectSuccess') : t('settings.textModel.connectFailed')),
       });
-    } catch { setTestResult({ success: false, message: '\u6D4B\u8BD5\u8BF7\u6C42\u5931\u8D25\uFF08\u7F51\u7EDC\u6216\u8DE8\u57DF\uFF09' }); }
+    } catch {
+      setTestResult({ success: false, message: t('settings.textModel.testRequestFailed') });
+    }
     finally { setTimeout(() => setTesting(false), 300); }
   }, [payload]);
 
   const clearNerOverride = useCallback(async () => {
-    if (!confirm('\u786E\u5B9A\u6E05\u9664\u524D\u7AEF\u4FDD\u5B58\u7684\u914D\u7F6E\uFF0C\u6062\u590D\u4E3A\u670D\u52A1\u5668\u73AF\u5883\u53D8\u91CF\u9ED8\u8BA4\u503C\uFF1F')) return;
+    if (!confirm(t('settings.textModel.confirmClearOverride'))) return;
     try {
       const res = await fetch('/api/v1/ner-backend', { method: 'DELETE' });
       if (res.ok) {
         await fetchNerBackend();
-        setTestResult({ success: true, message: '\u5DF2\u6062\u590D\u4E3A\u73AF\u5883\u53D8\u91CF\u9ED8\u8BA4\u3002' });
+        setTestResult({ success: true, message: t('settings.textModel.resetSuccess') });
       }
     } catch (e) { if (import.meta.env.DEV) console.error(e); }
   }, [fetchNerBackend]);
@@ -197,15 +204,18 @@ export function useVisionModelConfig() {
     const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (res.ok) { await fetchModelConfigs(); return true; }
     const data = await res.json();
-    showToast(data.detail || '\u4FDD\u5B58\u5931\u8D25', 'error');
+    showToast(data.detail || t('settings.saveFailed'), 'error');
     return false;
   }, [fetchModelConfigs]);
 
   const deleteModelConfig = useCallback(async (configId: string) => {
-    if (!confirm('\u786E\u5B9A\u8981\u5220\u9664\u6B64\u6A21\u578B\u914D\u7F6E\u5417\uFF1F')) return;
+    if (!confirm(t('settings.visionModel.confirmDelete'))) return;
     const res = await fetch(`/api/v1/model-config/${configId}`, { method: 'DELETE' });
     if (res.ok) await fetchModelConfigs();
-    else { const d = await res.json(); showToast(d.detail || '\u5220\u9664\u5931\u8D25', 'error'); }
+    else {
+      const d = await res.json();
+      showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
+    }
   }, [fetchModelConfigs]);
 
   const testModelConfig = useCallback(async (configId: string) => {
@@ -218,13 +228,14 @@ export function useVisionModelConfig() {
       setTestResult({
         success: false,
         message: configId === 'paddle_ocr_service'
-          ? '\u6D4B\u8BD5\u8BF7\u6C42\u5931\u8D25\u6216\u8D85\u65F6\uFF08OCR\u9996\u542F\u52A0\u8F7D\u53EF\u80FD\u8F83\u6162\uFF09' : '\u6D4B\u8BD5\u8BF7\u6C42\u5931\u8D25',
+          ? t('settings.visionModel.testFailedLong')
+          : t('settings.visionModel.testFailed'),
       });
     } finally { setTestingModelId(null); }
   }, []);
 
   const resetModelConfigs = useCallback(async () => {
-    if (!confirm('\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709\u6A21\u578B\u914D\u7F6E\u4E3A\u9ED8\u8BA4\u5417\uFF1F')) return;
+    if (!confirm(t('settings.visionModel.confirmReset'))) return;
     const res = await fetch('/api/v1/model-config/reset', { method: 'POST' });
     if (res.ok) await fetchModelConfigs();
   }, [fetchModelConfigs]);

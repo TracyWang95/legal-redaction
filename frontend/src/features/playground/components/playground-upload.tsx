@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getEntityTypeName } from '@/config/entityTypes';
 import { cn } from '@/lib/utils';
@@ -14,6 +22,7 @@ import type { usePlayground } from '../hooks/use-playground';
 
 type PlaygroundCtx = ReturnType<typeof usePlayground>;
 type RecognitionCtx = PlaygroundCtx['recognition'];
+const DEFAULT_PRESET_VALUE = '__default__';
 
 interface PlaygroundUploadProps {
   ctx: PlaygroundCtx;
@@ -172,22 +181,36 @@ const PresetRow: FC<{
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] text-muted-foreground">{label}</span>
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
       <div className="flex min-w-0 items-center gap-1.5">
-        <select
-          className="min-w-0 flex-1 rounded-md border bg-background px-1.5 py-1 text-xs"
-          value={activeId ?? ''}
-          onChange={(event) => onSelect(event.target.value)}
-          data-testid="playground-preset-select"
+        <Select
+          value={activeId ?? DEFAULT_PRESET_VALUE}
+          onValueChange={(value) => onSelect(value === DEFAULT_PRESET_VALUE ? '' : value)}
         >
-          <option value="">{t('playground.defaultPreset')}</option>
-          {presets.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.name}{preset.kind === 'full' ? ` (${t('playground.fullPreset')})` : ''}
-            </option>
-          ))}
-        </select>
-        <Button variant="outline" size="sm" className="h-7 shrink-0 text-[10px]" onClick={() => void onSave()}>
+          <SelectTrigger
+            className="h-7 min-w-0 flex-1 rounded-lg px-2 text-xs"
+            data-testid="playground-preset-select"
+          >
+            <SelectValue placeholder={t('playground.defaultPreset')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value={DEFAULT_PRESET_VALUE}>{t('playground.defaultPreset')}</SelectItem>
+              {presets.map((preset) => (
+                <SelectItem key={preset.id} value={preset.id}>
+                  {preset.name}
+                  {preset.kind === 'full' ? ` (${t('playground.fullPreset')})` : ''}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 shrink-0 rounded-lg px-2.5 text-[10px]"
+          onClick={() => void onSave()}
+        >
           {saveLabel}
         </Button>
       </div>

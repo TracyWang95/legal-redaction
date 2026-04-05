@@ -285,12 +285,17 @@ export function useJobs() {
     setCleanupConfirmOpen(false);
     try {
       const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
-      if (!res.ok) throw new Error('\u6e05\u7a7a\u5931\u8d25');
+      if (!res.ok) throw new Error(t('safety.cleanup.failed'));
       const data = await res.json();
-      showToast(`\u5df2\u6e05\u7a7a ${data.files_removed} \u4e2a\u6587\u4ef6\u3001${data.jobs_removed} \u6761\u4efb\u52a1`, 'success');
+      showToast(
+        t('safety.cleanup.success')
+          .replace('{files}', String(data.files_removed))
+          .replace('{jobs}', String(data.jobs_removed)),
+        'success',
+      );
       void refreshList();
     } catch {
-      showToast('\u6e05\u7a7a\u5931\u8d25', 'error');
+      showToast(t('safety.cleanup.failed'), 'error');
     }
   }, [refreshList]);
 

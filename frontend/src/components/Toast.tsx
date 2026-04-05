@@ -1,54 +1,79 @@
-import { create } from 'zustand';
+import { useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Toaster, toast } from 'sonner';
 
-interface ToastItem {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info';
+
+function useHtmlTheme(): 'light' | 'dark' {
+  const readTheme = () =>
+    typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+      ? 'dark'
+      : 'light';
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(readTheme);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setTheme(readTheme()));
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    setTheme(readTheme());
+    return () => observer.disconnect();
+  }, []);
+
+  return theme;
 }
 
-interface ToastStore {
-  toasts: ToastItem[];
-  add: (message: string, type?: 'success' | 'error' | 'info') => void;
-  remove: (id: number) => void;
-}
-
-let _nextId = 0;
-
-export const useToastStore = create<ToastStore>((set) => ({
-  toasts: [],
-  add: (message, type = 'info') => {
-    const id = ++_nextId;
-    set((s) => ({ toasts: [...s.toasts, { id, message, type }] }));
-    setTimeout(() => {
-      set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
-    }, 3500);
-  },
-  remove: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-}));
-
-export function showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
-  useToastStore.getState().add(message, type);
-}
-
-const typeStyles = {
-  success: 'border-emerald-500/20 bg-[#0f172a] text-white',
-  error: 'border-red-500/20 bg-[#1f1113] text-white',
-  info: 'border-border/70 bg-popover text-foreground',
+const TOAST_ICON: Record<ToastType, typeof CheckCircle2> = {
+  success: CheckCircle2,
+  error: AlertCircle,
+  info: Info,
 };
 
+const TOAST_CLASS: Record<ToastType, string> = {
+  success: 'border-emerald-500/18 bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
+  error: 'border-red-500/18 bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
+  info: 'border-border bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
+};
+
+const TOAST_ICON_CLASS: Record<ToastType, string> = {
+  success: 'text-emerald-600 dark:text-emerald-400',
+  error: 'text-red-600 dark:text-red-400',
+  info: 'text-muted-foreground',
+};
+
+export function showToast(message: string, type: ToastType = 'info') {
+  const Icon = TOAST_ICON[type];
+
+  toast(message, {
+    duration: 3500,
+    className: [
+      'rounded-2xl border px-4 py-3 shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl',
+      TOAST_CLASS[type],
+    ].join(' '),
+    descriptionClassName: 'text-sm text-muted-foreground',
+    icon: <Icon className={TOAST_ICON_CLASS[type]} />,
+  });
+}
+
 export function ToastContainer() {
-  const toasts = useToastStore((s) => s.toasts);
-  if (!toasts.length) return null;
+  const theme = useHtmlTheme();
+
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[9999] flex flex-col gap-2" role="alert" aria-live="assertive">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`${typeStyles[t.type]} pointer-events-auto max-w-sm rounded-2xl border px-4 py-3 text-sm shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl animate-fade-in`}
-        >
-          {t.message}
-        </div>
-      ))}
-    </div>
+    <Toaster
+      position="bottom-right"
+      theme={theme}
+      gap={10}
+      closeButton
+      richColors={false}
+      toastOptions={{
+        classNames: {
+          toast:
+            'group rounded-2xl border border-border bg-[rgba(255,255,255,0.96)] text-foreground shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:bg-[rgba(19,23,34,0.96)]',
+          title: 'text-sm font-medium text-foreground',
+          closeButton:
+            'border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
+        },
+      }}
+    />
   );
 }

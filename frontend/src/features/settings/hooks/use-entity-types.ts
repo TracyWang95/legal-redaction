@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
+import { t } from '@/i18n';
 
 export interface EntityTypeConfig {
   id: string;
@@ -85,7 +86,11 @@ export function useEntityTypes() {
       const data = await res.json();
       const normalized = (data || []).map((p: PipelineConfig) =>
         p.mode === 'has_image'
-          ? { ...p, name: 'HaS Image', description: '\u4F7F\u7528\u89C6\u89C9\u8BED\u8A00\u6A21\u578B\u8BC6\u522B\u7B7E\u540D\u3001\u5370\u7AE0\u3001\u624B\u5199\u7B49\u89C6\u89C9\u4FE1\u606F\u3002' }
+          ? {
+              ...p,
+              name: t('settings.pipelineDisplayName.image'),
+              description: t('settings.pipelineDescription.image'),
+            }
           : p
       );
       setPipelines(normalized);
@@ -119,15 +124,42 @@ export function useEntityTypes() {
     return res.ok;
   }, [fetchEntityTypes]);
 
+  const updateType = useCallback(async (id: string, update: {
+    name: string; description: string; color: string;
+    regex_pattern: string; use_llm: boolean; tag_template: string;
+  }) => {
+    const res = await fetch(`/api/v1/custom-types/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: update.name.trim(),
+        description: update.use_llm ? update.description?.trim() || null : null,
+        color: update.color,
+        regex_pattern: update.use_llm ? null : update.regex_pattern || null,
+        use_llm: update.use_llm,
+        tag_template: update.tag_template || null,
+      }),
+    });
+    if (res.ok) {
+      await fetchEntityTypes();
+      return true;
+    }
+    const data = await res.json().catch(() => ({}));
+    showToast((data as { detail?: string }).detail || t('settings.saveFailed'), 'error');
+    return false;
+  }, [fetchEntityTypes]);
+
   const deleteType = useCallback(async (id: string) => {
-    if (!confirm('\u786E\u5B9A\u8981\u5220\u9664\u6B64\u7C7B\u578B\u5417\uFF1F')) return;
+    if (!confirm(t('settings.confirmDeleteType'))) return;
     const res = await fetch(`/api/v1/custom-types/${id}`, { method: 'DELETE' });
     if (res.ok) await fetchEntityTypes();
-    else { const d = await res.json(); showToast(d.detail || '\u5220\u9664\u5931\u8D25', 'error'); }
+    else {
+      const d = await res.json();
+      showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
+    }
   }, [fetchEntityTypes]);
 
   const resetToDefault = useCallback(async () => {
-    if (!confirm('\u786E\u5B9A\u8981\u91CD\u7F6E\u4E3A\u9ED8\u8BA4\u914D\u7F6E\u5417\uFF1F\u8FD9\u5C06\u8986\u76D6\u6240\u6709\u81EA\u5B9A\u4E49\u4FEE\u6539\u3002')) return;
+    if (!confirm(t('settings.confirmReset'))) return;
     const res = await fetch('/api/v1/custom-types/reset', { method: 'POST' });
     if (res.ok) await fetchEntityTypes();
   }, [fetchEntityTypes]);
@@ -144,7 +176,10 @@ export function useEntityTypes() {
       }),
     });
     if (res.ok) await fetchPipelines();
-    else { const d = await res.json(); showToast(d.detail || '\u521B\u5EFA\u5931\u8D25', 'error'); }
+    else {
+      const d = await res.json();
+      showToast(d.detail || t('settings.createFailed'), 'error');
+    }
     return res.ok;
   }, [fetchPipelines]);
 
@@ -156,19 +191,25 @@ export function useEntityTypes() {
       body: JSON.stringify({ id: typeId, ...update }),
     });
     if (res.ok) await fetchPipelines();
-    else { const d = await res.json(); showToast(d.detail || '\u66F4\u65B0\u5931\u8D25', 'error'); }
+    else {
+      const d = await res.json();
+      showToast(d.detail || t('settings.saveFailed'), 'error');
+    }
     return res.ok;
   }, [fetchPipelines]);
 
   const deletePipelineType = useCallback(async (mode: string, typeId: string) => {
-    if (!confirm('\u786E\u5B9A\u8981\u5220\u9664\u6B64\u7C7B\u578B\u5417\uFF1F')) return;
+    if (!confirm(t('settings.confirmDeleteType'))) return;
     const res = await fetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, { method: 'DELETE' });
     if (res.ok) await fetchPipelines();
-    else { const d = await res.json(); showToast(d.detail || '\u5220\u9664\u5931\u8D25', 'error'); }
+    else {
+      const d = await res.json();
+      showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
+    }
   }, [fetchPipelines]);
 
   const resetPipelines = useCallback(async () => {
-    if (!confirm('\u786E\u5B9A\u8981\u91CD\u7F6E\u6240\u6709Pipeline\u914D\u7F6E\u4E3A\u9ED8\u8BA4\u5417\uFF1F')) return;
+    if (!confirm(t('settings.confirmResetPipelines'))) return;
     const res = await fetch('/api/v1/vision-pipelines/reset', { method: 'POST' });
     if (res.ok) await fetchPipelines();
   }, [fetchPipelines]);
@@ -186,7 +227,7 @@ export function useEntityTypes() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      showToast('\u5BFC\u51FA\u9884\u8BBE\u5931\u8D25', 'error');
+      showToast(t('settings.exportFailed'), 'error');
     }
   }, []);
 
@@ -202,9 +243,9 @@ export function useEntityTypes() {
         body: JSON.stringify({ presets, merge: false }),
       });
       if (!res.ok) throw new Error('import failed');
-      showToast('\u9884\u8BBE\u5BFC\u5165\u6210\u529F', 'success');
+      showToast(t('settings.importSuccess'), 'success');
     } catch {
-      showToast('\u5BFC\u5165\u9884\u8BBE\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u6587\u4EF6\u683C\u5F0F', 'error');
+      showToast(t('settings.importFormatError'), 'error');
     } finally {
       if (importFileRef.current) importFileRef.current.value = '';
     }
@@ -212,7 +253,7 @@ export function useEntityTypes() {
 
   return {
     entityTypes, pipelines, loading, regexTypes, llmTypes, importFileRef,
-    createType, deleteType, resetToDefault,
+    createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets, fetchEntityTypes, fetchPipelines,
   };
