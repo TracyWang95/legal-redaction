@@ -63,7 +63,7 @@ export function AppSidebar() {
     <Sidebar collapsible="offcanvas" variant="inset">
       {/* Brand header */}
       <SidebarHeader className="h-[64px] flex-row items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent text-sidebar-foreground shadow-[0_14px_34px_-24px_rgba(15,23,42,0.18)]">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent text-sidebar-foreground shadow-[var(--shadow-sm)]">
           <ShieldCheck className="h-4 w-4" />
         </div>
         <div className="min-w-0">
@@ -89,7 +89,7 @@ export function AppSidebar() {
                       tooltip={item.label}
                       className={cn(
                         'rounded-xl border border-transparent transition-all duration-150',
-                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[0_16px_34px_-24px_rgba(15,23,42,0.22)]',
+                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[var(--shadow-control)]',
                       )}
                     >
                       <NavLink
@@ -136,7 +136,7 @@ export function AppSidebar() {
                       tooltip={item.label}
                       className={cn(
                         'rounded-xl border border-transparent transition-all duration-150',
-                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[0_16px_34px_-24px_rgba(15,23,42,0.22)]',
+                        active && 'border-sidebar-border bg-sidebar-accent font-medium text-sidebar-foreground shadow-[var(--shadow-control)]',
                       )}
                     >
                       <NavLink

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from '@/components/ui/button';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -10,7 +11,7 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center gap-5 py-20 animate-fade-in">
-      <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-border/70 bg-card shadow-[0_20px_44px_-30px_rgba(15,23,42,0.26)]">
+      <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-md)]">
         {icon || (
           <svg className="w-8 h-8 text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -29,13 +30,9 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
         )}
       </div>
       {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="rounded-xl border border-input bg-card px-4 py-2 text-xs font-medium shadow-[0_16px_34px_-26px_rgba(15,23,42,0.22)] transition-all hover:-translate-y-0.5 hover:border-foreground/20"
-        >
+        <Button type="button" onClick={action.onClick} variant="outline" size="sm">
           {action.label}
-        </button>
+        </Button>
       )}
     </div>
   );

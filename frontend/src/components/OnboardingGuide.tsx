@@ -53,7 +53,7 @@ export function OnboardingGuide() {
   return (
     <Dialog open={show} onOpenChange={(nextOpen) => { if (!nextOpen) finish(); }}>
       <DialogContent
-        className="w-full max-w-lg overflow-hidden rounded-[28px] border border-border/80 bg-background p-0 shadow-[0_48px_120px_-56px_rgba(15,23,42,0.6)] [&>button]:hidden"
+        className="w-full max-w-lg overflow-hidden rounded-[28px] p-0 [&>button]:hidden"
         aria-labelledby="onboarding-title"
       >
         <DialogTitle className="sr-only">{current.title}</DialogTitle>

@@ -1,5 +1,8 @@
+import { authFetch } from '@/services/api-client';
+
 /**
  * 原生 fetch 无默认超时，后端不可达时会长时间挂起 → 页面一直转圈。
+ * 自动附带 JWT Bearer token。
  */
 export function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -20,7 +23,7 @@ export function fetchWithTimeout(
     });
   }
 
-  return fetch(input, { ...rest, signal: ac.signal }).finally(() => {
+  return authFetch(input, { ...rest, signal: ac.signal }).finally(() => {
     window.clearTimeout(timer);
   });
 }

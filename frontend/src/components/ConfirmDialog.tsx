@@ -35,7 +35,7 @@ export const ConfirmDialog: React.FC<Props> = ({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onCancel(); }}>
-      <DialogContent className="max-w-md rounded-[24px] border border-border/80 bg-background p-6 shadow-[0_32px_90px_-40px_rgba(15,23,42,0.45)] [&>button]:hidden">
+      <DialogContent className="max-w-md p-6 [&>button]:hidden">
         <DialogHeader className="flex flex-col gap-2 text-left">
           <DialogTitle className="text-base font-semibold tracking-[-0.02em]">{title}</DialogTitle>
           <DialogDescription className="whitespace-pre-line text-sm text-muted-foreground">

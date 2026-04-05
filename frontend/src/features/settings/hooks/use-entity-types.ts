@@ -3,6 +3,7 @@
  * Covers text rules (regex + semantic) and vision pipeline types.
  */
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
@@ -110,7 +111,7 @@ export function useEntityTypes() {
   const createType = useCallback(async (newType: {
     name: string; description: string; regex_pattern: string; use_llm: boolean;
   }) => {
-    const res = await fetch('/api/v1/custom-types', {
+    const res = await authFetch('/api/v1/custom-types', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: newType.name.trim(),
@@ -128,7 +129,7 @@ export function useEntityTypes() {
     name: string; description: string; color: string;
     regex_pattern: string; use_llm: boolean; tag_template: string;
   }) => {
-    const res = await fetch(`/api/v1/custom-types/${id}`, {
+    const res = await authFetch(`/api/v1/custom-types/${id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: update.name.trim(),
@@ -149,7 +150,7 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const deleteType = useCallback(async (id: string) => {
-    const res = await fetch(`/api/v1/custom-types/${id}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/v1/custom-types/${id}`, { method: 'DELETE' });
     if (res.ok) await fetchEntityTypes();
     else {
       const d = await res.json();
@@ -158,7 +159,7 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const resetToDefault = useCallback(async () => {
-    const res = await fetch('/api/v1/custom-types/reset', { method: 'POST' });
+    const res = await authFetch('/api/v1/custom-types/reset', { method: 'POST' });
     if (res.ok) await fetchEntityTypes();
   }, [fetchEntityTypes]);
 
@@ -166,7 +167,7 @@ export function useEntityTypes() {
     mode: 'ocr_has' | 'has_image', name: string, description: string
   ) => {
     const typeId = buildPipelineTypeId(name, mode);
-    const res = await fetch(`/api/v1/vision-pipelines/${mode}/types`, {
+    const res = await authFetch(`/api/v1/vision-pipelines/${mode}/types`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: typeId, name: name.trim(), description: description?.trim() || null,
@@ -184,7 +185,7 @@ export function useEntityTypes() {
   const updatePipelineType = useCallback(async (
     mode: string, typeId: string, update: Partial<PipelineTypeConfig> & { name: string; description?: string }
   ) => {
-    const res = await fetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, {
+    const res = await authFetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: typeId, ...update }),
     });
@@ -197,7 +198,7 @@ export function useEntityTypes() {
   }, [fetchPipelines]);
 
   const deletePipelineType = useCallback(async (mode: string, typeId: string) => {
-    const res = await fetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/v1/vision-pipelines/${mode}/types/${typeId}`, { method: 'DELETE' });
     if (res.ok) await fetchPipelines();
     else {
       const d = await res.json();
@@ -206,7 +207,7 @@ export function useEntityTypes() {
   }, [fetchPipelines]);
 
   const resetPipelines = useCallback(async () => {
-    const res = await fetch('/api/v1/vision-pipelines/reset', { method: 'POST' });
+    const res = await authFetch('/api/v1/vision-pipelines/reset', { method: 'POST' });
     if (res.ok) await fetchPipelines();
   }, [fetchPipelines]);
 
@@ -234,7 +235,7 @@ export function useEntityTypes() {
       const text = await file.text();
       const data = JSON.parse(text);
       const presets = data.presets || data;
-      const res = await fetch('/api/v1/presets/import', {
+      const res = await authFetch('/api/v1/presets/import', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ presets, merge: false }),
       });

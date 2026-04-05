@@ -3,6 +3,7 @@
  * progress tracking, and timeout handling.
  */
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { authFetch } from '@/services/api-client';
 import {
   fetchPresets,
   createPreset,
@@ -203,7 +204,7 @@ export function usePlaygroundRecognition() {
 
   const fetchEntityTypes = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/custom-types?enabled_only=true');
+      const res = await authFetch('/api/v1/custom-types?enabled_only=true');
       if (!res.ok) throw new Error('获取类型失败');
       const data = await safeJson(res);
       const types = data.custom_types || [];
@@ -225,7 +226,7 @@ export function usePlaygroundRecognition() {
 
   const fetchVisionTypes = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/vision-pipelines');
+      const res = await authFetch('/api/v1/vision-pipelines');
       if (!res.ok) throw new Error('获取Pipeline配置失败');
       const data: PipelineConfig[] = await safeJson<PipelineConfig[]>(res);
       const normalizedPipelines = data.map(p =>

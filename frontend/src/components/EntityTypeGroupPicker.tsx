@@ -36,7 +36,7 @@ export const EntityTypeGroupPicker: React.FC<Props> = ({
         return (
           <section
             key={group.id}
-            className="overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.25)]"
+            className="overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
           >
             <div
               className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5"
@@ -71,8 +71,8 @@ export const EntityTypeGroupPicker: React.FC<Props> = ({
                       'min-w-0 rounded-xl border px-3 py-2 text-left text-xs transition-all duration-200',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       isSelected
-                        ? 'border-transparent shadow-[0_18px_36px_-28px_rgba(15,23,42,0.4)]'
-                        : 'border-border/70 bg-background/80 hover:border-border hover:bg-accent/60',
+                        ? 'border-transparent shadow-[var(--shadow-control)]'
+                        : 'border-border/70 bg-[var(--surface-control-muted)] hover:border-border hover:bg-accent',
                     )}
                     style={
                       isSelected

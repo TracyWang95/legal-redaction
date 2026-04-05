@@ -100,7 +100,7 @@ function FallbackShell({
     <div
       role="alert"
       aria-live="assertive"
-      className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl border border-border/70 bg-card px-6 py-12 text-center shadow-[0_24px_60px_-36px_rgba(15,23,42,0.28)]"
+      className="flex min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl border border-border/70 bg-[var(--surface-control)] px-6 py-12 text-center shadow-[var(--shadow-md)]"
     >
       <div className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
         {icon}

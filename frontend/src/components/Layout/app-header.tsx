@@ -33,14 +33,14 @@ export function AppHeader() {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-card px-2 py-1 shadow-[0_18px_38px_-28px_rgba(15,23,42,0.22)]">
+      <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1 shadow-[var(--shadow-control)]">
         <div
           className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
           data-testid="health-indicator"
         >
           <span
             className={cn('h-[6px] w-[6px] rounded-full transition-colors', {
-              'animate-pulse bg-slate-300 dark:bg-slate-600': checking,
+              'animate-pulse bg-muted-foreground/35': checking,
               'bg-emerald-500': !checking && health?.all_online,
               'bg-amber-400': !checking && health && !health.all_online,
               'bg-red-500': !checking && !health,

@@ -5,6 +5,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
+import { authFetch } from '@/services/api-client';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { downloadFile } from '@/services/api';
@@ -192,12 +193,12 @@ export function usePlayground() {
       formData.append('file', file);
       formData.append('upload_source', 'playground');
 
-      const uploadRes = await fetch('/api/v1/files/upload', { method: 'POST', body: formData });
+      const uploadRes = await authFetch('/api/v1/files/upload', { method: 'POST', body: formData });
       if (!uploadRes.ok) throw new Error(t('playground.uploadFailed') || '文件上传失败');
       const uploadData = await safeJson(uploadRes);
 
       setLoadingMessage(t('playground.parsing') || '正在解析文件...');
-      const parseRes = await fetch(`/api/v1/files/${uploadData.file_id}/parse`);
+      const parseRes = await authFetch(`/api/v1/files/${uploadData.file_id}/parse`);
       if (!parseRes.ok) throw new Error(t('playground.parseFailed') || '文件解析失败');
       const parseData = await safeJson(parseRes);
 
@@ -263,7 +264,7 @@ export function usePlayground() {
           showToast(`识别到 ${result.boxes.length} 个敏感区域`, 'success');
         } else if (parsedContent) {
           setLoadingMessage('AI正在识别敏感信息...');
-          const nerRes = await fetch(`/api/v1/files/${fileId}/ner/hybrid`, {
+          const nerRes = await authFetch(`/api/v1/files/${fileId}/ner/hybrid`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ entity_type_ids: latestSelectedTypesRef.current }),
@@ -345,7 +346,7 @@ export function usePlayground() {
         imageHistory.reset();
         showToast(`重新识别完成：${result.boxes.length} 个区域`, 'success');
       } else {
-        const nerRes = await fetch(`/api/v1/files/${fileInfo.file_id}/ner/hybrid`, {
+        const nerRes = await authFetch(`/api/v1/files/${fileInfo.file_id}/ner/hybrid`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ entity_type_ids: recognition.selectedTypes }),
@@ -382,7 +383,7 @@ export function usePlayground() {
       const selectedEntities = entities.filter(e => e.selected);
       const selectedBoxes = boundingBoxes.filter(b => b.selected);
 
-      const res = await fetch('/api/v1/redaction/execute', {
+      const res = await authFetch('/api/v1/redaction/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -403,12 +404,12 @@ export function usePlayground() {
       setRedactedCount(result.redacted_count || 0);
       setStage('result');
 
-      fetch(`/api/v1/redaction/${fileInfo.file_id}/report`)
+      authFetch(`/api/v1/redaction/${fileInfo.file_id}/report`)
         .then(r => r.json())
         .then(data => setRedactionReport(data))
         .catch(() => setRedactionReport(null));
 
-      fetch(`/api/v1/redaction/${fileInfo.file_id}/versions`)
+      authFetch(`/api/v1/redaction/${fileInfo.file_id}/versions`)
         .then(r => r.json())
         .then(data => setVersionHistory(data.versions || []))
         .catch(() => setVersionHistory([]));

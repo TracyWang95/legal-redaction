@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { authFetch } from '@/services/api-client';
 import { t } from '@/i18n';
 import { fileApi, redactionApi } from '@/services/api';
 import { showToast } from '@/components/Toast';
@@ -398,7 +399,7 @@ export function useHistory() {
   const handleCleanup = useCallback(async () => {
     setCleanupConfirmOpen(false);
     try {
-      const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+      const res = await authFetch('/api/v1/safety/cleanup', { method: 'POST' });
       if (!res.ok) throw new Error('清空失败');
       const data = await res.json();
       showToast(`已清空 ${data.files_removed} 个文件、${data.jobs_removed} 条任务`, 'success');

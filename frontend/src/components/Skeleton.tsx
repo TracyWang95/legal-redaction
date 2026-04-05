@@ -22,7 +22,7 @@ export function Skeleton({ className = '', lines = 1 }: SkeletonProps) {
 
 export function SkeletonCard({ className = '' }: { className?: string }) {
   return (
-    <div className={cn('rounded-2xl border border-border/70 bg-card/80 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.16)]', className)}>
+    <div className={cn('rounded-2xl border border-border/70 bg-[var(--surface-control)] p-5 shadow-[var(--shadow-sm)]', className)}>
       <div className="flex flex-col gap-3">
         <UISkeleton className="h-4 w-3/4 rounded-full bg-muted/80" />
         <UISkeleton className="h-3 w-1/2 rounded-full bg-muted/70" />

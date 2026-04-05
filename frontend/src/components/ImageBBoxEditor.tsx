@@ -483,7 +483,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         key={pos}
         role="separator"
         aria-label={handleLabels[pos!] || '调整大小'}
-        className="absolute bg-white border border-slate-400 rounded-sm shadow-sm"
+        className="absolute rounded-sm border border-border bg-[var(--surface-overlay)] shadow-[var(--shadow-sm)]"
         style={{
           width: handleSize,
           height: handleSize,
@@ -511,10 +511,10 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       const stroke = isSelected ? BOX_STROKE_SELECTED : BOX_STROKE;
       const sourceCls =
         box.source === 'ocr_has'
-          ? 'bg-blue-100/95 text-blue-800 border-blue-200/80'
+          ? 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-soft)] text-[var(--selection-regex-text)]'
           : box.source === 'has_image'
-            ? 'bg-violet-100/95 text-violet-800 border-violet-200/80'
-            : 'bg-emerald-100/95 text-emerald-800 border-emerald-200/80';
+            ? 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-soft)] text-[var(--selection-yolo-text)]'
+            : 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-soft)] text-[var(--selection-ner-text)]';
 
       const posStyle: React.CSSProperties = percentCoords
         ? {
@@ -568,8 +568,8 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
           {isSelected && !drawMode && !readOnly && renderResizeHandles(box)}
 
           {!box.selected && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-              <span className="text-white text-[10px] font-medium drop-shadow-sm">已取消</span>
+            <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
+              <span className="text-[10px] font-medium text-foreground">已取消</span>
             </div>
           )}
         </div>
@@ -580,13 +580,13 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
     <div className="flex flex-col h-full min-h-0">
       {/* 工具栏（脱敏结果对比 / 只读模式不展示） */}
       {!readOnly && (
-      <div className="flex flex-wrap items-center gap-1.5 px-2 py-1.5 flex-shrink-0 border-b border-gray-100/80 dark:border-gray-700 bg-white/90 dark:bg-gray-800/90">
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border/70 bg-[var(--surface-overlay)] px-2 py-1.5 flex-shrink-0">
         <button
           onClick={() => setDrawMode(!drawMode)}
           className={`px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1.5 transition-colors ${
             drawMode 
-              ? 'bg-gray-900 text-white' 
-              : 'bg-surface-tertiary text-gray-700 hover:bg-neutral-200'
+              ? 'bg-foreground text-background shadow-[var(--shadow-control)]' 
+              : 'border border-input bg-[var(--surface-control)] text-muted-foreground hover:bg-accent hover:text-foreground'
           }`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -598,7 +598,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
         {selectedBoxId && (
           <button
             onClick={handleDelete}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 flex items-center gap-1.5"
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--error-border)] bg-[var(--error-surface)] px-3 py-1.5 text-xs font-medium text-[var(--error-foreground)] shadow-[var(--shadow-sm)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -611,14 +611,14 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
           <span className="text-xs text-ink-muted">缩放 {Math.round(zoom * 100)}%</span>
           <button
             onClick={() => setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
-            className="px-2 py-1 text-xs rounded border border-line text-ink-muted hover:border-gray-300"
+            className="rounded-lg border border-input bg-[var(--surface-control)] px-2 py-1 text-xs text-muted-foreground shadow-[var(--shadow-sm)] hover:bg-accent hover:text-foreground"
             aria-label="缩小"
           >
             -
           </button>
           <button
             onClick={() => setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
-            className="px-2 py-1 text-xs rounded border border-line text-ink-muted hover:border-gray-300"
+            className="rounded-lg border border-input bg-[var(--surface-control)] px-2 py-1 text-xs text-muted-foreground shadow-[var(--shadow-sm)] hover:bg-accent hover:text-foreground"
             aria-label="放大"
           >
             +
@@ -626,7 +626,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
           <button
             type="button"
             onClick={() => setZoom(1)}
-            className="px-2 py-1 text-xs rounded border border-line text-ink-muted hover:border-gray-300"
+            className="rounded-lg border border-input bg-[var(--surface-control)] px-2 py-1 text-xs text-muted-foreground shadow-[var(--shadow-sm)] hover:bg-accent hover:text-foreground"
             title="恢复为适应窗口大小"
           >
             适应
@@ -642,7 +642,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
       {/* 图片区：按视口适应缩放 + 用户 zoom；插槽浮在视口上 */}
       <div
         ref={viewportRef}
-        className={`relative flex-1 w-full min-h-0 ${readOnly ? 'overflow-hidden' : 'overflow-auto'} flex items-center justify-center bg-[#f0f0f2] dark:bg-gray-900 ${
+        className={`relative flex-1 w-full min-h-0 ${readOnly ? 'overflow-hidden' : 'overflow-auto'} flex items-center justify-center bg-[var(--surface-canvas)] ${
           viewportTopSlot ? 'pt-11' : ''
         } ${viewportBottomSlot ? 'pb-14' : ''}`}
       >
@@ -721,7 +721,7 @@ const ImageBBoxEditor: React.FC<ImageBBoxEditorProps> = ({
 
             {drawingBox && drawingBox.width > 5 && drawingBox.height > 5 && (
               <div
-                className="absolute border border-dashed border-slate-400 bg-slate-400/8 pointer-events-none"
+                className="pointer-events-none absolute border border-dashed border-[var(--selection-regex-border)] bg-[var(--selection-regex-soft)]"
                 style={{
                   left: drawingBox.left,
                   top: drawingBox.top,

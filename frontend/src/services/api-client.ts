@@ -88,13 +88,21 @@ export function del<T = void>(url: string, config?: AxiosRequestConfig): Promise
   return apiClient.delete(url, config) as Promise<T>;
 }
 
-// ─── Authenticated fetch helpers (for blob downloads) ─────────
+// ─── Authenticated fetch helpers ─────────────────────────────
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   const token = getAuthToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
   return headers;
+}
+
+/** Drop-in replacement for `fetch()` that attaches the JWT Bearer token. */
+export function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return fetch(input, {
+    ...init,
+    headers: authHeaders(init?.headers as Record<string, string> | undefined),
+  });
 }
 
 export async function downloadFile(url: string, filename: string): Promise<void> {

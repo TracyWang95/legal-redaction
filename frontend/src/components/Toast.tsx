@@ -30,15 +30,15 @@ const TOAST_ICON: Record<ToastType, typeof CheckCircle2> = {
 };
 
 const TOAST_CLASS: Record<ToastType, string> = {
-  success: 'border-emerald-500/18 bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
-  error: 'border-red-500/18 bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
-  info: 'border-border bg-[rgba(255,255,255,0.96)] text-foreground dark:bg-[rgba(19,23,34,0.96)]',
+  success: 'border-[var(--success-border)] bg-[var(--surface-overlay)] text-foreground',
+  error: 'border-[var(--error-border)] bg-[var(--surface-overlay)] text-foreground',
+  info: 'border-[var(--info-border)] bg-[var(--surface-overlay)] text-foreground',
 };
 
 const TOAST_ICON_CLASS: Record<ToastType, string> = {
-  success: 'text-emerald-600 dark:text-emerald-400',
-  error: 'text-red-600 dark:text-red-400',
-  info: 'text-muted-foreground',
+  success: 'text-[var(--success-foreground)]',
+  error: 'text-[var(--error-foreground)]',
+  info: 'text-[var(--info-foreground)]',
 };
 
 export function showToast(message: string, type: ToastType = 'info') {
@@ -47,7 +47,7 @@ export function showToast(message: string, type: ToastType = 'info') {
   toast(message, {
     duration: 3500,
     className: [
-      'rounded-2xl border px-4 py-3 shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl',
+      'rounded-2xl border px-4 py-3 shadow-[var(--shadow-lg)] backdrop-blur-xl',
       TOAST_CLASS[type],
     ].join(' '),
     descriptionClassName: 'text-sm text-muted-foreground',
@@ -68,10 +68,10 @@ export function ToastContainer() {
       toastOptions={{
         classNames: {
           toast:
-            'group rounded-2xl border border-border bg-[rgba(255,255,255,0.96)] text-foreground shadow-[0_28px_70px_-36px_rgba(15,23,42,0.45)] backdrop-blur-xl dark:bg-[rgba(19,23,34,0.96)]',
+            'group rounded-2xl border border-border bg-[var(--surface-overlay)] text-foreground shadow-[var(--shadow-lg)] backdrop-blur-xl',
           title: 'text-sm font-medium text-foreground',
           closeButton:
-            'border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground',
+            'border-border bg-[var(--surface-control)] text-muted-foreground hover:bg-accent hover:text-foreground',
         },
       }}
     />

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { authFetch } from '@/services/api-client';
 import { useT } from '@/i18n';
 import {
   Dialog,
@@ -78,7 +79,7 @@ export function EntityTypeDialog({
 
     setServerTesting(true);
     try {
-      const res = await fetch('/api/v1/custom-types/regex-test', {
+      const res = await authFetch('/api/v1/custom-types/regex-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pattern: form.regex_pattern, test_text: sampleText }),

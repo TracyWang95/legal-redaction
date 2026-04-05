@@ -2,16 +2,12 @@
  * Hook: NER backend + vision model configuration management.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 
 /* ── Text NER (HaS / llama-server) ── */
-
-const OLLAMA_PLACEHOLDER = {
-  ollama_base_url: 'http://127.0.0.1:11434/v1',
-  ollama_model: 'qwen3:8b',
-};
 
 export function useNerBackend() {
   const [llamacppBaseUrl, setLlamacppBaseUrl] = useState('http://127.0.0.1:8080/v1');
@@ -57,13 +53,12 @@ export function useNerBackend() {
   const payload = useCallback(() => ({
     backend: 'llamacpp' as const,
     llamacpp_base_url: llamacppBaseUrl,
-    ...OLLAMA_PLACEHOLDER,
   }), [llamacppBaseUrl]);
 
   const saveNerBackend = useCallback(async () => {
     try {
       setNerSaving(true); setTestResult(null);
-      const res = await fetch('/api/v1/ner-backend', {
+      const res = await authFetch('/api/v1/ner-backend', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload()),
       });
@@ -82,7 +77,7 @@ export function useNerBackend() {
   const testConnection = useCallback(async () => {
     setTesting(true); setTestResult(null);
     try {
-      const res = await fetch('/api/v1/ner-backend/test', {
+      const res = await authFetch('/api/v1/ner-backend/test', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload()),
       });
@@ -117,7 +112,7 @@ export function useNerBackend() {
 
   const clearNerOverride = useCallback(async () => {
     try {
-      const res = await fetch('/api/v1/ner-backend', { method: 'DELETE' });
+      const res = await authFetch('/api/v1/ner-backend', { method: 'DELETE' });
       if (res.ok) {
         await fetchNerBackend();
         setTestResult({ success: true, message: t('settings.textModel.resetSuccess') });
@@ -200,7 +195,7 @@ export function useVisionModelConfig() {
     };
     const url = editingId ? `/api/v1/model-config/${editingId}` : '/api/v1/model-config';
     const method = editingId ? 'PUT' : 'POST';
-    const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (res.ok) { await fetchModelConfigs(); return true; }
     const data = await res.json();
     showToast(data.detail || t('settings.saveFailed'), 'error');
@@ -208,7 +203,7 @@ export function useVisionModelConfig() {
   }, [fetchModelConfigs]);
 
   const deleteModelConfig = useCallback(async (configId: string) => {
-    const res = await fetch(`/api/v1/model-config/${configId}`, { method: 'DELETE' });
+    const res = await authFetch(`/api/v1/model-config/${configId}`, { method: 'DELETE' });
     if (res.ok) await fetchModelConfigs();
     else {
       const d = await res.json();
@@ -233,7 +228,7 @@ export function useVisionModelConfig() {
   }, []);
 
   const resetModelConfigs = useCallback(async () => {
-    const res = await fetch('/api/v1/model-config/reset', { method: 'POST' });
+    const res = await authFetch('/api/v1/model-config/reset', { method: 'POST' });
     if (res.ok) await fetchModelConfigs();
   }, [fetchModelConfigs]);
 

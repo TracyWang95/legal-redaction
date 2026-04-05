@@ -1,6 +1,7 @@
 /**
  * Playground shared utility functions
  */
+import { authFetch } from '@/services/api-client';
 import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
@@ -96,7 +97,7 @@ export async function runVisionDetection(
 
   let res: Response;
   try {
-    res = await fetch(`/api/v1/redaction/${fileId}/vision?page=1`, {
+    res = await authFetch(`/api/v1/redaction/${fileId}/vision?page=1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

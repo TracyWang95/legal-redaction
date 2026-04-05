@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { authFetch } from '@/services/api-client';
 import { t } from '@/i18n';
 import {
   deleteJob,
@@ -295,7 +296,7 @@ export function useJobs() {
   const onCleanup = useCallback(async () => {
     setCleanupConfirmOpen(false);
     try {
-      const res = await fetch('/api/v1/safety/cleanup', { method: 'POST' });
+      const res = await authFetch('/api/v1/safety/cleanup', { method: 'POST' });
       if (!res.ok) throw new Error(t('safety.cleanup.failed'));
       const data = await res.json();
       showToast(
