@@ -15,7 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
-import type { PipelineConfig, PipelineTypeConfig } from '../hooks/use-entity-types';
+import {
+  getPipelineTone,
+  getToneColor,
+  type PipelineConfig,
+  type PipelineTypeConfig,
+} from '../hooks/use-entity-types';
 
 interface PipelineConfigPanelProps {
   pipelines: PipelineConfig[];
@@ -68,7 +73,7 @@ export function PipelineConfigPanel({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         examples: editing.type.examples || [],
-        color: editing.type.color || '#6B7280',
+        color: getToneColor(getPipelineTone(editing.mode as 'ocr_has' | 'has_image')),
         enabled: editing.type.enabled,
         order: editing.type.order,
       });
@@ -82,7 +87,7 @@ export function PipelineConfigPanel({
   };
 
   const imageModeActive = activeSub === 'has_image';
-  const tone: SelectionTone = imageModeActive ? 'yolo' : 'ner';
+  const tone: SelectionTone = imageModeActive ? 'visual' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
   const displayName = imageModeActive ? imageLabel : ocrLabel;
 

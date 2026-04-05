@@ -146,10 +146,10 @@ function sourceToTone(source: Entity['source']): SelectionTone {
     case 'regex':
       return 'regex';
     case 'llm':
-      return 'ner';
+      return 'semantic';
     case 'manual':
     case 'has':
     default:
-      return 'yolo';
+      return 'visual';
   }
 }

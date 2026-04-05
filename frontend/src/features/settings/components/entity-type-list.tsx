@@ -1,17 +1,7 @@
-import { useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { EntityTypeConfig } from '../hooks/use-entity-types';
 
@@ -33,133 +23,140 @@ export function EntityTypeList({
   variant,
 }: EntityTypeListProps) {
   const t = useT();
-  const [filter] = useState('');
-
-  const filtered = filter
-    ? types.filter(type =>
-        type.name.toLowerCase().includes(filter.toLowerCase()) ||
-        type.id.toLowerCase().includes(filter.toLowerCase()))
-    : types;
-
   const isRegex = variant === 'regex';
-  const tone: SelectionTone = isRegex ? 'regex' : 'ner';
+  const tone: SelectionTone = isRegex ? 'regex' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
 
   return (
     <div
-      className={cn('flex min-h-0 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]', toneClasses.headerSurface)}
+      className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
       data-testid={`entity-type-list-${variant}`}
     >
-      <div className={cn('flex shrink-0 items-center justify-between gap-2 border-b border-border/70 px-4 py-3.5', toneClasses.headerSurface)}>
-        <div className="flex min-w-0 items-center gap-2">
-          <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
-          <span className="truncate text-sm font-semibold tracking-[-0.02em]">
-            {isRegex ? t('settings.regexRules') : t('settings.aiSemantic')}
-          </span>
-          <Badge variant="secondary" className={cn('text-xs', toneClasses.badgeText)}>
-            {types.length}
-          </Badge>
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
+            <span className="truncate text-sm font-semibold tracking-[-0.02em]">
+              {isRegex ? t('settings.regexRules') : t('settings.aiSemantic')}
+            </span>
+            <Badge
+              variant="secondary"
+              className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}
+            >
+              {types.length}
+            </Badge>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onReset}
+              data-testid={`reset-${variant}-types`}
+            >
+              {t('settings.resetTextRules')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => onAdd(variant === 'llm')}
+              data-testid={`add-${variant}-type`}
+            >
+              {t('settings.addNew')}
+            </Button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onReset}
-            data-testid={`reset-${variant}-types`}
-          >
-            {t('settings.resetTextRules')}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => onAdd(variant === 'llm')}
-            data-testid={`add-${variant}-type`}
-          >
-            {t('settings.addNew')}
-          </Button>
-        </div>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        {filtered.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            {t('settings.noTypeConfig')}
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-8" />
-                <TableHead>{t('settings.nameLabel')}</TableHead>
-                <TableHead className="hidden md:table-cell">
-                  {isRegex ? t('settings.regexLabel') : t('settings.descLabel')}
-                </TableHead>
-                <TableHead className="w-20 text-center">
-                  {isRegex ? 'LLM' : t('settings.regex')}
-                </TableHead>
-                <TableHead className="w-24 text-right" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map(type => (
-                <TableRow key={type.id}>
-                  <TableCell>
-                    <span
-                      className="inline-block size-3 rounded-full border"
-                      style={{ backgroundColor: type.color }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{type.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{type.id}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden max-w-[260px] md:table-cell">
-                    {isRegex ? (
-                      <code className="line-clamp-2 break-all text-xs font-mono">
-                        {type.regex_pattern ?? '-'}
-                      </code>
-                    ) : (
-                      <p className="line-clamp-2 text-xs text-muted-foreground">
-                        {type.description ?? '-'}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={!!type.use_llm}
-                      disabled
-                      data-testid={`llm-switch-${type.id}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => onEdit(type)}
-                        data-testid={`edit-type-${type.id}`}
-                      >
-                        <PencilIcon />
-                      </Button>
-                      {type.id.startsWith('custom_') && (
+        <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
+          {types.length === 0 ? (
+            <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
+              <p className="text-sm text-muted-foreground">{t('settings.noTypeConfig')}</p>
+            </div>
+          ) : (
+            <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {types.map(type => (
+                <article
+                  key={type.id}
+                  className="flex min-h-[164px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block truncate text-sm font-semibold leading-tight text-foreground">
+                          {type.name}
+                        </span>
+                        <span
+                          className={cn(
+                            'mt-1 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px]',
+                            toneClasses.cardSelectedCompact,
+                          )}
+                        >
+                          <span className="truncate">{type.id}</span>
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-0.5">
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => onDelete(type.id)}
-                          data-testid={`delete-type-${type.id}`}
+                          className="size-6"
+                          onClick={() => onEdit(type)}
+                          data-testid={`edit-type-${type.id}`}
                         >
-                          <TrashIcon />
+                          <PencilIcon />
                         </Button>
-                      )}
+                        {type.id.startsWith('custom_') && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-6 text-destructive hover:text-destructive"
+                            onClick={() => onDelete(type.id)}
+                            data-testid={`delete-type-${type.id}`}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </TableCell>
-                </TableRow>
+
+                    <div className="flex flex-1 flex-col gap-2.5">
+                      {isRegex ? (
+                        <div className="rounded-2xl border border-border/70 bg-muted/25 px-3 py-2.5">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                            {t('settings.regexLabel')}
+                          </p>
+                          <code className="mt-1 block break-all text-xs leading-5 text-foreground">
+                            {type.regex_pattern ?? '-'}
+                          </code>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-border/70 bg-muted/20 px-3 py-2.5">
+                          <p className="line-clamp-3 text-xs leading-5 text-muted-foreground">
+                            {type.description || t('settings.semanticDescriptionPlaceholder')}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-auto flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+                        <span className={cn('size-1.5 rounded-full', toneClasses.dot)} />
+                        <span>{isRegex ? t('settings.regex') : t('settings.aiSemantic')}</span>
+                        {isRegex && type.use_llm && (
+                          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
+                            {t('settings.aiSemantic')}
+                          </span>
+                        )}
+                        {type.tag_template && (
+                          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
+                            {type.tag_template}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </article>
               ))}
-            </TableBody>
-          </Table>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -167,7 +164,7 @@ export function EntityTypeList({
 
 function PencilIcon() {
   return (
-    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -180,7 +177,7 @@ function PencilIcon() {
 
 function TrashIcon() {
   return (
-    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="size-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path
         strokeLinecap="round"
         strokeLinejoin="round"

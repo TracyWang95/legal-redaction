@@ -1,6 +1,12 @@
 import type { CSSProperties } from 'react';
 
-export type SelectionTone = 'regex' | 'ner' | 'yolo';
+export type SelectionTone = 'regex' | 'semantic' | 'visual';
+
+export const selectionToneHex: Record<SelectionTone, string> = {
+  regex: '#6f86a7',
+  semantic: '#10a37f',
+  visual: '#c77c2c',
+};
 
 type ToneClasses = {
   headerSurface: string;
@@ -32,33 +38,33 @@ const toneClasses: Record<SelectionTone, ToneClasses> = {
     hoverRing: 'hover:ring-[var(--selection-regex-ring)]',
     checkbox: 'accent-[var(--selection-regex-accent)] focus:ring-[var(--selection-regex-ring)]',
   },
-  ner: {
-    headerSurface: 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-soft)]',
-    dot: 'bg-[var(--selection-ner-accent)]',
-    badgeText: 'text-[var(--selection-ner-text)]',
-    cardSelected: 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-surface)] text-[var(--selection-ner-text)] shadow-sm',
-    cardSelectedCompact: 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-surface)] text-[var(--selection-ner-text)]',
-    cardNeutralSelected: 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-surface)] text-[var(--selection-ner-text)] shadow-sm',
-    tileSurface: 'border-[var(--selection-ner-border)] bg-[var(--selection-ner-soft)]',
-    titleText: 'text-[var(--selection-ner-text)]',
-    metaText: 'text-[var(--selection-ner-muted)]',
-    descriptionText: 'text-[var(--selection-ner-muted)]',
-    hoverRing: 'hover:ring-[var(--selection-ner-ring)]',
-    checkbox: 'accent-[var(--selection-ner-accent)] focus:ring-[var(--selection-ner-ring)]',
+  semantic: {
+    headerSurface: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-soft)]',
+    dot: 'bg-[var(--selection-semantic-accent)]',
+    badgeText: 'text-[var(--selection-semantic-text)]',
+    cardSelected: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
+    cardSelectedCompact: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)]',
+    cardNeutralSelected: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
+    tileSurface: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-soft)]',
+    titleText: 'text-[var(--selection-semantic-text)]',
+    metaText: 'text-[var(--selection-semantic-muted)]',
+    descriptionText: 'text-[var(--selection-semantic-muted)]',
+    hoverRing: 'hover:ring-[var(--selection-semantic-ring)]',
+    checkbox: 'accent-[var(--selection-semantic-accent)] focus:ring-[var(--selection-semantic-ring)]',
   },
-  yolo: {
-    headerSurface: 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-soft)]',
-    dot: 'bg-[var(--selection-yolo-accent)]',
-    badgeText: 'text-[var(--selection-yolo-text)]',
-    cardSelected: 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-surface)] text-[var(--selection-yolo-text)] shadow-sm',
-    cardSelectedCompact: 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-surface)] text-[var(--selection-yolo-text)]',
-    cardNeutralSelected: 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-surface)] text-[var(--selection-yolo-text)] shadow-sm',
-    tileSurface: 'border-[var(--selection-yolo-border)] bg-[var(--selection-yolo-soft)]',
-    titleText: 'text-[var(--selection-yolo-text)]',
-    metaText: 'text-[var(--selection-yolo-muted)]',
-    descriptionText: 'text-[var(--selection-yolo-muted)]',
-    hoverRing: 'hover:ring-[var(--selection-yolo-ring)]',
-    checkbox: 'accent-[var(--selection-yolo-accent)] focus:ring-[var(--selection-yolo-ring)]',
+  visual: {
+    headerSurface: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-soft)]',
+    dot: 'bg-[var(--selection-visual-accent)]',
+    badgeText: 'text-[var(--selection-visual-text)]',
+    cardSelected: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
+    cardSelectedCompact: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)]',
+    cardNeutralSelected: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
+    tileSurface: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-soft)]',
+    titleText: 'text-[var(--selection-visual-text)]',
+    metaText: 'text-[var(--selection-visual-muted)]',
+    descriptionText: 'text-[var(--selection-visual-muted)]',
+    hoverRing: 'hover:ring-[var(--selection-visual-ring)]',
+    checkbox: 'accent-[var(--selection-visual-accent)] focus:ring-[var(--selection-visual-ring)]',
   },
 };
 

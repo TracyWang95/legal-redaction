@@ -1,9 +1,9 @@
 import { getSelectionToneClasses } from './selectionPalette';
 
-export type SelectionVariant = 'regex' | 'ner' | 'yolo';
+export type SelectionVariant = 'regex' | 'semantic' | 'visual';
 
 export function textGroupKeyToVariant(key: 'regex' | 'llm' | 'other'): SelectionVariant {
-  return key === 'regex' ? 'regex' : 'ner';
+  return key === 'regex' ? 'regex' : 'semantic';
 }
 
 const cardBase =
@@ -35,12 +35,12 @@ export function selectableCardClassNeutral(selected: boolean): string {
     return `${cardBase} border-border/70 bg-card text-foreground/80 hover:border-border hover:bg-accent/40 hover:text-foreground`;
   }
 
-  return `${cardBase} ${getSelectionToneClasses('ner').cardNeutralSelected}`;
+  return `${cardBase} ${getSelectionToneClasses('semantic').cardNeutralSelected}`;
 }
 
 export function selectableCheckboxNeutral(size: 'sm' | 'md' = 'sm'): string {
   const dim = size === 'md' ? 'h-4 w-4' : 'h-3.5 w-3.5';
-  return `${dim} shrink-0 rounded border-gray-300/70 focus:ring-2 focus:ring-offset-0 focus:outline-none ${getSelectionToneClasses('ner').checkbox}`;
+  return `${dim} shrink-0 rounded border-gray-300/70 focus:ring-2 focus:ring-offset-0 focus:outline-none ${getSelectionToneClasses('semantic').checkbox}`;
 }
 
 export function formCheckboxClass(size: 'sm' | 'md' = 'sm'): string {

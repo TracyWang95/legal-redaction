@@ -126,12 +126,12 @@ export function RedactionList() {
       const data = await res.json();
       setPipelines((data || []).map((pipeline: PipelineConfig) =>
         pipeline.mode === 'has_image'
-          ? { ...pipeline, name: 'HaS Image' }
+          ? { ...pipeline, name: t('settings.pipelineDisplayName.image') }
           : pipeline));
     } catch {
       setPipelines([]);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchEntityTypes();
@@ -509,7 +509,7 @@ export function RedactionList() {
                           ? current.selectedEntityTypeIds.filter(item => item !== id)
                           : [...current.selectedEntityTypeIds, id],
                       }))}
-                      variant="ner"
+                      variant="semantic"
                     />
                   </>
                 )}
@@ -785,7 +785,7 @@ function PipelineCheckboxGrid({
   onToggle: (mode: string, id: string) => void;
 }) {
   const t = useT();
-  const variant: SelectionVariant = pipeline.mode === 'ocr_has' ? 'ner' : 'yolo';
+  const variant: SelectionVariant = pipeline.mode === 'ocr_has' ? 'semantic' : 'visual';
   const toneClasses = getSelectionToneClasses(variant);
   const selectedIds = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
 

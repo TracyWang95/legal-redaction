@@ -7,6 +7,7 @@ import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
+import { selectionToneHex, type SelectionTone } from '@/ui/selectionPalette';
 
 export interface EntityTypeConfig {
   id: string;
@@ -42,6 +43,7 @@ export interface PipelineConfig {
 export type RegexModalCheck =
   | 'empty_pattern'
   | 'invalid_pattern'
+  | 'matches_empty'
   | 'no_sample'
   | 'pass'
   | 'fail';
@@ -49,10 +51,28 @@ export type RegexModalCheck =
 export function getRegexModalCheck(pattern: string, sample: string): RegexModalCheck {
   const p = pattern.trim();
   if (!p) return 'empty_pattern';
-  try { new RegExp(p); } catch { return 'invalid_pattern'; }
+  let regex: RegExp;
+  try {
+    regex = new RegExp(p);
+  } catch {
+    return 'invalid_pattern';
+  }
+  if (regex.test('')) return 'matches_empty';
   const s = sample.trim();
   if (!s) return 'no_sample';
-  return new RegExp(p).test(s) ? 'pass' : 'fail';
+  return regex.test(s) ? 'pass' : 'fail';
+}
+
+export function getEntityTypeTone(useLlm: boolean): SelectionTone {
+  return useLlm ? 'semantic' : 'regex';
+}
+
+export function getPipelineTone(mode: 'ocr_has' | 'has_image'): SelectionTone {
+  return mode === 'has_image' ? 'visual' : 'semantic';
+}
+
+export function getToneColor(tone: SelectionTone): string {
+  return selectionToneHex[tone];
 }
 
 export function buildPipelineTypeId(name: string, mode: 'ocr_has' | 'has_image') {
@@ -116,7 +136,8 @@ export function useEntityTypes() {
       body: JSON.stringify({
         name: newType.name.trim(),
         description: newType.use_llm ? newType.description?.trim() || null : null,
-        examples: [], color: '#6B7280',
+        examples: [],
+        color: getToneColor(getEntityTypeTone(newType.use_llm)),
         regex_pattern: newType.use_llm ? null : newType.regex_pattern || null,
         use_llm: newType.use_llm, tag_template: null,
       }),
@@ -134,7 +155,7 @@ export function useEntityTypes() {
       body: JSON.stringify({
         name: update.name.trim(),
         description: update.use_llm ? update.description?.trim() || null : null,
-        color: update.color,
+        color: getToneColor(getEntityTypeTone(update.use_llm)),
         regex_pattern: update.use_llm ? null : update.regex_pattern || null,
         use_llm: update.use_llm,
         tag_template: update.tag_template || null,
@@ -171,7 +192,10 @@ export function useEntityTypes() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: typeId, name: name.trim(), description: description?.trim() || null,
-        examples: [], color: '#6B7280', enabled: true, order: 100,
+        examples: [],
+        color: getToneColor(getPipelineTone(mode)),
+        enabled: true,
+        order: 100,
       }),
     });
     if (res.ok) await fetchPipelines();
