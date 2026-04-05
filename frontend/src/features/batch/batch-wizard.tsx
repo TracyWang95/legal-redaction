@@ -33,10 +33,10 @@ export function BatchWizard() {
         className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col',
           w.step === 1
-            ? 'page-shell-narrow !max-w-[72rem] overflow-hidden'
+            ? 'page-shell-narrow !max-w-[88rem] 2xl:!max-w-[96rem] overflow-hidden'
             : w.step === 4
               ? 'page-shell overflow-hidden'
-              : 'page-shell-narrow !max-w-[80rem] overflow-y-auto overscroll-contain',
+              : 'page-shell-narrow !max-w-[92rem] 2xl:!max-w-[100rem] overflow-y-auto overscroll-contain',
         )}
       >
         {w.previewMode && (
@@ -45,28 +45,24 @@ export function BatchWizard() {
           </Alert>
         )}
 
-        {}
         {w.step !== 4 && (
           <p className="mb-1 shrink-0 text-xs leading-tight text-muted-foreground">
             {t('batchWizard.stepsOverview')}
           </p>
         )}
 
-        {}
         <BatchStepProgress
           currentStep={w.step}
           canGoStep={w.canGoStep}
           onStepClick={w.goStep}
         />
 
-        {}
         {w.msg && (
           <Alert variant={msgVariant} className="mb-2">
             <AlertDescription>{w.msg.text}</AlertDescription>
           </Alert>
         )}
 
-        {}
         {w.step === 1 && (
           <BatchStep1Config
             cfg={w.cfg}
@@ -85,7 +81,6 @@ export function BatchWizard() {
           />
         )}
 
-        {}
         {w.step === 2 && (
           <BatchStep2Upload
             mode={w.mode}
@@ -99,7 +94,6 @@ export function BatchWizard() {
           />
         )}
 
-        {}
         {w.step === 3 && (
           <BatchStep3Recognize
             rows={w.rows}

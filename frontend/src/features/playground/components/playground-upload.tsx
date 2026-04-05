@@ -38,11 +38,11 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
 
   return (
     <div
-      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-3 lg:grid-cols-[minmax(0,1.12fr)_minmax(22rem,27rem)] lg:gap-6 lg:p-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(23rem,28rem)] xl:px-6 xl:py-6"
+      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-3 lg:grid-cols-[minmax(0,1.14fr)_minmax(23rem,29rem)] lg:gap-6 lg:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(24rem,30rem)] xl:px-6 xl:py-6 2xl:grid-cols-[minmax(0,1.24fr)_minmax(26rem,33rem)] 2xl:px-8"
       data-testid="playground-upload"
     >
       <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-        <div className="flex w-full max-w-[54rem] flex-col items-center pt-1 text-center xl:pt-3">
+        <div className="flex w-full max-w-[60rem] flex-col items-center pt-1 text-center xl:pt-3">
           <div className="mb-5 flex w-full max-w-3xl flex-col items-center gap-2">
             <span className="saas-kicker">{t('playground.upload.kicker')}</span>
             <div className="flex flex-col items-center">
@@ -58,7 +58,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           <div
             {...getRootProps()}
             className={cn(
-              'saas-hero group relative min-h-[420px] w-full cursor-pointer border-2 border-dashed p-12 text-center transition-all duration-300 ease-out lg:min-h-[460px] lg:px-14',
+              'saas-hero group relative min-h-[420px] w-full cursor-pointer border-2 border-dashed p-12 text-center transition-all duration-300 ease-out lg:min-h-[460px] lg:px-14 2xl:min-h-[500px]',
               isDragActive
                 ? 'border-primary bg-primary/[0.04] ring-4 ring-primary/10'
                 : 'border-border hover:border-foreground/15 hover:shadow-lg',
@@ -131,10 +131,10 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <ScrollArea className="min-h-0 flex-1">
-            <TabsContent value="text" className="mt-0 space-y-3 p-3">
+            <TabsContent value="text" className="mt-0 space-y-3 p-3 2xl:p-4">
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 space-y-3 p-3">
+            <TabsContent value="vision" className="mt-0 space-y-3 p-3 2xl:p-4">
               <VisionPipelines rec={rec} />
             </TabsContent>
           </ScrollArea>
@@ -295,7 +295,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid gap-2 p-3 sm:grid-cols-2">
+            <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
               {group.types.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -410,7 +410,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid gap-2 p-3 sm:grid-cols-2">
+            <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
               {pipeline.types.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (

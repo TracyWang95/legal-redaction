@@ -250,7 +250,7 @@ export function useHistory() {
         setPageSize(typeof res?.page_size === 'number' ? res.page_size : ps);
         setSelected(new Set());
         setPreviewMode(false);
-      } catch (e) {
+      } catch {
         const source = src === 'all' ? undefined : src;
         const preview = buildHistoryPreviewResponse(p, ps, source);
         setRows(preview.files);
@@ -359,11 +359,11 @@ export function useHistory() {
       if (previewMode) {
         const previewRows = rows.filter((row) => ids.includes(row.file_id));
         const blob = new Blob(
-          [
+          [[
             `${redacted ? '脱敏结果' : '原始文件'}预览包`,
             '',
             ...previewRows.map((row) => row.original_filename),
-          ].join('\n'),
+          ].join('\n')],
           { type: 'text/plain;charset=utf-8' },
         );
         triggerDownload(blob, filename.replace('.zip', '-preview.txt'));

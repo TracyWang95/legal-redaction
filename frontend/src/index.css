@@ -1024,7 +1024,7 @@ body {
 
 .page-shell {
   width: 100%;
-  max-width: min(100%, 1920px);
+  max-width: min(100%, 2048px);
   margin-inline: auto;
   min-height: 0;
   flex: 1 1 auto;
@@ -1035,7 +1035,7 @@ body {
 
 .page-shell-narrow {
   width: 100%;
-  max-width: 86rem;
+  max-width: 96rem;
   margin-inline: auto;
   min-height: 0;
   flex: 1 1 auto;
@@ -1110,6 +1110,16 @@ body {
 
   .page-shell-narrow {
     padding: 1.25rem 1.75rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .page-shell {
+    padding: 1.5rem 2rem;
+  }
+
+  .page-shell-narrow {
+    padding: 1.5rem 2rem;
   }
 }
 

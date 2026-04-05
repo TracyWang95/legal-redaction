@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { t } from '@/i18n';
+import { t, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { EmptyState } from '@/components/EmptyState';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,7 +17,7 @@ function executionLabel(config: Record<string, unknown>): string {
 function formatUpdatedAt(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t('jobs.updatedAtUnknown');
-  const locale = (typeof window !== 'undefined' && localStorage.getItem('locale')) || 'en';
+  const locale = useI18n.getState().locale;
   return date.toLocaleString(locale === 'en' ? 'en-US' : 'zh-CN');
 }
 
@@ -49,7 +49,6 @@ export function JobsTable({
 
   return (
     <div className="jobs-surface flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
-      {}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
         <div className="page-section-heading">
           <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
@@ -64,7 +63,6 @@ export function JobsTable({
         </div>
       </div>
 
-      {}
       {rows.length > 0 && (
         <div className="jobs-table-head shrink-0 border-b border-border/70 bg-muted/30 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span className="jobs-tree-cell" />
@@ -81,7 +79,6 @@ export function JobsTable({
         </div>
       )}
 
-      {}
       <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col">
         {refreshing && rows.length > 0 && (
           <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
@@ -176,7 +173,6 @@ function JobRow({
         data-testid={`job-row-${job.id}`}
       >
         <div className="jobs-row-main px-3 sm:px-4 py-2.5">
-          {/* Expand toggle */}
           <div className="jobs-tree-cell jobs-expand-cell">
             {itemCount > 0 ? (
               <button type="button"
@@ -195,7 +191,6 @@ function JobRow({
             )}
           </div>
 
-          {/* Task info */}
           <div className="jobs-task-cell min-w-0">
             <div className="flex flex-nowrap items-center gap-2 min-w-0">
               <JobTypeBadge jobType={job.job_type} />
@@ -203,11 +198,12 @@ function JobRow({
                 {job.title || t('jobs.unnamedTask')}
               </p>
             </div>
-            <p className="text-caption text-muted-foreground mt-0.5">ID {job.id.slice(0, 8)}... <span className="hidden sm:inline">{'\u00b7'} {t('jobs.itemCount').replace('{n}', String(itemCount))}</span></p>
+            <p className="text-caption text-muted-foreground mt-0.5">
+              {t('jobs.itemCount').replace('{n}', String(itemCount))}
+            </p>
             <p className="text-caption text-muted-foreground mt-0.5 md:hidden">{t('jobs.updatedAtLabel').replace('{time}', formatUpdatedAt(job.updated_at))}</p>
           </div>
 
-          {/* Execution */}
           <div className="jobs-exec-cell flex items-center gap-2">
             <span className="text-xs text-muted-foreground md:hidden">{t('jobs.execMethod')}</span>
             <span className="inline-flex px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-2xs whitespace-nowrap">
@@ -215,7 +211,6 @@ function JobRow({
             </span>
           </div>
 
-          {/* Progress */}
           <div className="jobs-progress-cell min-w-0">
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
@@ -239,18 +234,15 @@ function JobRow({
             </div>
           </div>
 
-          {/* Status */}
           <div className="jobs-status-cell flex items-center gap-2">
             <span className="text-xs text-muted-foreground md:hidden">{t('jobs.currentStatus')}</span>
             <JobStatusBadge status={job.status} />
           </div>
 
-          {/* Updated at */}
           <div className="jobs-updated-cell hidden md:block text-caption text-muted-foreground tabular-nums whitespace-nowrap">
             {formatUpdatedAt(job.updated_at)}
           </div>
 
-          {/* Actions */}
           <div className="jobs-actions-cell" onClick={stopEvent}>
             {showPrimaryAction ? (
               <Link to={primary.to} onClick={stopEvent}
@@ -291,7 +283,6 @@ function JobRow({
           </div>
         </div>
 
-        {/* Expanded detail rows */}
         {expanded && (
           <ExpandedDetail detail={detail} detailLoading={detailLoading} stopEvent={stopEvent} />
         )}

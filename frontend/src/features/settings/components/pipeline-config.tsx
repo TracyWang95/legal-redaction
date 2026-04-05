@@ -148,20 +148,17 @@ export function PipelineConfigPanel({
               </p>
             </div>
           ) : (
-            <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {activePipeline.types.map(type => (
                 <article
                   key={type.id}
-                  className="flex min-h-[164px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                  className="flex min-h-[148px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <span className="block truncate text-sm font-semibold leading-tight text-foreground">
                           {type.name}
-                        </span>
-                        <span className={cn('mt-1 inline-flex max-w-full items-center rounded-full border px-2 py-0.5 text-[10px]', toneClasses.cardSelectedCompact)}>
-                          <span className="truncate">{type.id}</span>
                         </span>
                       </div>
                       <div className="flex shrink-0 items-center gap-0.5">

@@ -21,7 +21,7 @@ export function BatchHub() {
 
   return (
     <div className="saas-page flex h-full min-h-0 overflow-y-auto bg-background">
-      <div className="page-shell-narrow !max-w-[72rem]">
+      <div className="page-shell-narrow !max-w-[88rem] 2xl:!max-w-[96rem]">
         <div className="page-stack gap-5 sm:gap-6">
           <section className="saas-hero relative overflow-hidden px-6 py-7 sm:px-8">
             <div className="flex flex-col gap-4">

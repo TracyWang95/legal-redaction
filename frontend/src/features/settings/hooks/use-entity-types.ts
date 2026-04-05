@@ -83,21 +83,22 @@ export function useEntityTypes() {
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [pipelinesLoading, setPipelinesLoading] = useState(true);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [entityPreviewMode, setEntityPreviewMode] = useState(false);
+  const [pipelinePreviewMode, setPipelinePreviewMode] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 3500 });
+      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 1200 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setEntityTypes(data.custom_types || []);
-      setPreviewMode(false);
+      setEntityPreviewMode(false);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', err);
       setEntityTypes(buildPreviewEntityTypes(t) as EntityTypeConfig[]);
-      setPreviewMode(true);
+      setEntityPreviewMode(true);
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ export function useEntityTypes() {
   const fetchPipelines = useCallback(async () => {
     try {
       setPipelinesLoading(true);
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 3500 });
+      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 1200 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       const normalized = (data || []).map((p: PipelineConfig) =>
@@ -119,11 +120,11 @@ export function useEntityTypes() {
           : p
       );
       setPipelines(normalized);
-      setPreviewMode(false);
+      setPipelinePreviewMode(false);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch pipelines failed', err);
       setPipelines(buildPreviewPipelines(t) as PipelineConfig[]);
-      setPreviewMode(true);
+      setPipelinePreviewMode(true);
     } finally {
       setPipelinesLoading(false);
     }
@@ -136,6 +137,7 @@ export function useEntityTypes() {
 
   const regexTypes = useMemo(() => entityTypes.filter(t => t.regex_pattern), [entityTypes]);
   const llmTypes = useMemo(() => entityTypes.filter(t => t.use_llm), [entityTypes]);
+  const previewMode = entityPreviewMode || pipelinePreviewMode;
 
   const createType = useCallback(async (newType: {
     name: string; description: string; regex_pattern: string; use_llm: boolean;

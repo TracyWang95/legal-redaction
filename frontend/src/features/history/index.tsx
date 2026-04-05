@@ -18,7 +18,7 @@ export function History() {
 
   return (
     <div className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background" data-testid="history-page">
-      <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 flex-col px-3 py-4 sm:px-5 sm:py-5">
+      <div className="mx-auto flex w-full max-w-[min(100%,2048px)] flex-1 min-h-0 flex-col px-3 py-4 sm:px-5 sm:py-5 2xl:px-8">
         <HistoryFilters
           sourceTab={s.sourceTab}
           onSourceTabChange={s.changeSourceTab}
@@ -66,15 +66,20 @@ export function History() {
         </Card>
 
         {(s.total > 0 || s.totalPages > 1) && (
-          <div className="mt-3 flex items-center justify-between rounded-2xl border border-border/70 bg-muted/25 px-4 py-3 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
+          <div className="sticky bottom-0 z-10 mt-3 bg-background/95 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+            <div className="surface-muted flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2">
               <span>
                 {s.total === 0 ? 0 : (s.page - 1) * s.pageSize + 1} - {Math.min(s.page * s.pageSize, s.total)} / {s.total}
               </span>
               <span className="text-border">|</span>
+              <span>
+                {s.page} / {s.totalPages}
+              </span>
+              <span className="text-border">|</span>
               <span>{t('history.perPage')}</span>
               <Select value={String(s.pageSize)} onValueChange={(value) => s.changePageSize(Number(value))}>
-                <SelectTrigger className="h-9 min-w-[92px] rounded-xl text-xs" data-testid="history-footer-page-size">
+                <SelectTrigger className="h-8 min-w-[92px] rounded-xl text-xs" data-testid="history-footer-page-size">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -86,13 +91,14 @@ export function History() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)}>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)} className="h-8 rounded-xl">
                 {t('history.prevPage')}
               </Button>
-              <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.page + 1)}>
+              <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.page + 1)} className="h-8 rounded-xl">
                 {t('history.nextPage')}
               </Button>
+            </div>
             </div>
           </div>
         )}

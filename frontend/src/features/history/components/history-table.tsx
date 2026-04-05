@@ -35,8 +35,8 @@ export function HistoryTable({
 }: HistoryTableProps) {
   const t = useT();
   const getFileTypeLabel = (value: string) => {
-    if (value === 'word') return t('file.word');
-    if (value === 'pdf') return t('file.pdf');
+    if (value === 'word' || value === 'doc' || value === 'docx') return t('file.word');
+    if (value === 'pdf' || value === 'pdf_scanned') return t('file.pdf');
     if (value === 'image') return t('file.image');
     return value;
   };
@@ -59,16 +59,16 @@ export function HistoryTable({
     <div className="overflow-x-auto" data-testid="history-table">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="w-10 p-3">
+          <tr className="border-b border-border/70 bg-muted/30 text-left text-xs font-medium text-muted-foreground">
+            <th className="w-10 px-4 py-3">
               <Checkbox checked={allSelected} onCheckedChange={(value) => onSelectAll(!!value)} data-testid="history-select-all" />
             </th>
-            <th className="p-3">{t('history.col.filename')}</th>
-            <th className="hidden p-3 sm:table-cell">{t('history.fileType')}</th>
-            <th className="hidden p-3 md:table-cell">{t('history.col.entities')}</th>
-            <th className="hidden p-3 md:table-cell">{t('history.col.status')}</th>
-            <th className="hidden p-3 lg:table-cell">{t('history.col.time')}</th>
-            <th className="p-3 text-right">{t('history.col.actions')}</th>
+            <th className="px-4 py-3">{t('history.col.filename')}</th>
+            <th className="hidden px-4 py-3 sm:table-cell">{t('history.fileType')}</th>
+            <th className="hidden px-4 py-3 md:table-cell">{t('history.col.entities')}</th>
+            <th className="hidden px-4 py-3 md:table-cell">{t('history.col.status')}</th>
+            <th className="hidden px-4 py-3 lg:table-cell">{t('history.col.time')}</th>
+            <th className="px-4 py-3 text-right">{t('history.col.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -78,30 +78,30 @@ export function HistoryTable({
             return (
               <tr
                 key={row.file_id}
-                className="border-b transition-colors hover:bg-muted/50"
+                className="border-b border-border/70 transition-colors hover:bg-muted/40"
                 data-testid={`history-row-${row.file_id}`}
               >
-                <td className="p-3">
+                <td className="px-4 py-3">
                   <Checkbox checked={selected.has(row.file_id)} onCheckedChange={() => onToggle(row.file_id)} />
                 </td>
-                <td className="max-w-[240px] p-3 font-medium">
+                <td className="max-w-[240px] px-4 py-3 font-medium">
                   <div className="truncate">{row.original_filename}</div>
                 </td>
-                <td className="hidden p-3 sm:table-cell">
-                  <Badge variant="secondary" className="text-[10px]">
+                <td className="hidden px-4 py-3 sm:table-cell">
+                  <Badge variant="secondary" className="rounded-full text-[10px]">
                     {getFileTypeLabel(row.file_type)}
                   </Badge>
                 </td>
-                <td className="hidden p-3 tabular-nums md:table-cell">{row.entity_count}</td>
-                <td className="hidden p-3 md:table-cell">
+                <td className="hidden px-4 py-3 tabular-nums md:table-cell">{row.entity_count}</td>
+                <td className="hidden px-4 py-3 md:table-cell">
                   <Badge className={cn(BADGE_BASE, REDACTION_STATE_CLASS[state])}>
                     {getRedactionStateLabel(state)}
                   </Badge>
                 </td>
-                <td className="hidden p-3 text-xs text-muted-foreground lg:table-cell">
+                <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
                   {row.created_at ? new Date(row.created_at).toLocaleString() : '-'}
                 </td>
-                <td className="p-3">
+                <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
                     {row.has_output && (
                       <Button

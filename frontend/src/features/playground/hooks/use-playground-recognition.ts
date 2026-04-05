@@ -220,7 +220,7 @@ export function usePlaygroundRecognition() {
 
   const fetchEntityTypes = useCallback(async () => {
     try {
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=true', { timeoutMs: 3500 });
+      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=true', { timeoutMs: 1200 });
       if (!res.ok) throw new Error('fetch failed');
 
       const data = await safeJson(res);
@@ -239,7 +239,7 @@ export function usePlaygroundRecognition() {
 
   const fetchVisionTypes = useCallback(async () => {
     try {
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 3500 });
+      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 1200 });
       if (!res.ok) throw new Error('fetch failed');
 
       const data = await safeJson<PipelineConfig[]>(res);

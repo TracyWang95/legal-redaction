@@ -16,7 +16,7 @@ export function Jobs() {
 
   return (
     <div className="jobs-root saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background" data-testid="jobs-page">
-      <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 min-w-0 flex-col items-stretch px-3 py-4 sm:px-5 sm:py-5">
+      <div className="mx-auto flex w-full max-w-[min(100%,2048px)] flex-1 min-h-0 min-w-0 flex-col items-stretch px-3 py-4 sm:px-5 sm:py-5 2xl:px-8">
         <JobsFilters
           tab={s.tab}
           onTabChange={s.changeTab}
@@ -60,19 +60,21 @@ export function Jobs() {
               onDelete={s.requestDelete}
               onRequeueFailed={s.onRequeueFailed}
             />
-            <JobsPagination
-              page={s.page}
-              pageSize={s.pageSize}
-              totalPages={s.totalPages}
-              total={s.total}
-              rangeStart={s.rangeStart}
-              rangeEnd={s.rangeEnd}
-              jumpPage={s.jumpPage}
-              tableBusy={s.tableBusy}
-              onGoPage={s.goPage}
-              onChangePageSize={s.changePageSize}
-              onJumpPageChange={s.setJumpPage}
-            />
+            <div className="sticky bottom-0 z-10 bg-background/95 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+              <JobsPagination
+                page={s.page}
+                pageSize={s.pageSize}
+                totalPages={s.totalPages}
+                total={s.total}
+                rangeStart={s.rangeStart}
+                rangeEnd={s.rangeEnd}
+                jumpPage={s.jumpPage}
+                tableBusy={s.tableBusy}
+                onGoPage={s.goPage}
+                onChangePageSize={s.changePageSize}
+                onJumpPageChange={s.setJumpPage}
+              />
+            </div>
           </>
         )}
       </div>
