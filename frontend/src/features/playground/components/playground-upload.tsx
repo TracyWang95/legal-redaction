@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PaginationRail } from '@/components/PaginationRail';
 import {
   Select,
@@ -95,13 +94,13 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
       </div>
 
       <Card
-        className="page-surface w-full shrink-0 overflow-hidden border-border/70 bg-card lg:max-h-full lg:self-start"
+        className="page-surface w-full shrink-0 overflow-hidden border-border/70 bg-card lg:h-full lg:max-h-full lg:self-stretch"
         data-testid="playground-type-panel"
       >
         <Tabs
           value={rec.typeTab}
           onValueChange={(value) => rec.setTypeTab(value as 'text' | 'vision')}
-          className="flex min-h-0 flex-col"
+          className="flex h-full min-h-0 flex-col"
         >
           <div className="space-y-2 border-b border-border/70 px-3.5 py-3">
             <div className="flex items-center justify-between gap-3">
@@ -144,8 +143,8 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             )}
           </div>
 
-          <ScrollArea className="page-surface-body lg:max-h-[calc(100vh-18rem)] xl:max-h-[calc(100vh-18.25rem)] 2xl:max-h-[calc(100vh-18.5rem)]">
-            <TabsContent value="text" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-0 2xl:p-2.5 2xl:pb-0">
+          <div className="page-surface-body flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <TabsContent value="text" className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
@@ -156,7 +155,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-0 2xl:p-2.5 2xl:pb-0">
+            <TabsContent value="vision" className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
@@ -169,7 +168,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <VisionPipelines rec={rec} />
             </TabsContent>
-          </ScrollArea>
+          </div>
 
           <div className="page-surface-footer !bg-transparent !backdrop-blur-none" style={{ padding: '0.125rem 1rem 0.25rem' }}>
             <p className="text-center text-xs leading-none text-muted-foreground" data-testid="playground-type-summary">
@@ -314,6 +313,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const totalPages = Math.max(1, Math.ceil(group.types.length / pageSize));
         const page = groupPages[group.key] ?? 1;
         const visibleTypes = group.types.slice((page - 1) * pageSize, page * pageSize);
+        const isFullPage = visibleTypes.length === pageSize;
 
         return (
           <section
@@ -343,7 +343,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid flex-1 content-start grid-cols-3 gap-1.5 p-2">
+            <div className={cn('grid min-h-0 flex-1 grid-cols-3 gap-1.5 p-2', isFullPage ? 'grid-rows-3 auto-rows-fr' : 'content-start')}>
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -352,6 +352,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     key={`${group.key}-${type.id}`}
                     className={cn(
                       'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
+                      isFullPage && 'h-full min-h-[3.2rem]',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -446,6 +447,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
         const page = pipelinePages[pipeline.mode] ?? 1;
         const visibleTypes = pipeline.types.slice((page - 1) * pageSize, page * pageSize);
+        const isFullPage = visibleTypes.length === pageSize;
 
         return (
           <section
@@ -491,7 +493,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid flex-1 content-start grid-cols-3 gap-1.5 p-2">
+            <div className={cn('grid min-h-0 flex-1 grid-cols-3 gap-1.5 p-2', isFullPage ? 'grid-rows-3 auto-rows-fr' : 'content-start')}>
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
@@ -499,6 +501,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     key={type.id}
                     className={cn(
                       'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
+                      isFullPage && 'h-full min-h-[3.2rem]',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
