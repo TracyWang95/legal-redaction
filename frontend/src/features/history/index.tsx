@@ -114,7 +114,7 @@ export function History() {
                   </div>
                 </div>
               )}
-              {(s.compareData.original_content || s.compareData.redacted_content) && (
+              {!s.compareBlobUrls && (s.compareData.original_content || s.compareData.redacted_content) && (
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <h4 className="mb-2 font-medium">
