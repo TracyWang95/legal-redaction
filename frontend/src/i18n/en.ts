@@ -613,6 +613,8 @@
   'batchWizard.step4.generating': 'Generating...',
   'batchWizard.step4.selected': 'selected',
   'batchWizard.step4.loading': 'Loading...',
+  'batchWizard.step4.rerunRecognition': 'Re-run Recognition',
+  'batchWizard.step4.rerunningRecognition': 'Re-running…',
   'batchWizard.step5.title': '5. Export',
   'batchWizard.step5.desc': 'Select files and download as ZIP. Redacted ZIP only includes files confirmed in step 4.',
   'batchWizard.step5.backReview': 'Back to Review',

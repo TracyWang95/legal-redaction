@@ -19,6 +19,7 @@ import { useDropzone } from 'react-dropzone';
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 
 import { fileApi, authenticatedBlobUrl } from '@/services/api';
+import { authFetch } from '@/services/api-client';
 import { FileType, ReplacementMode } from '@/types';
 import {
   batchGetFileRaw,
@@ -1036,6 +1037,89 @@ export function useBatchWizard() {
     void loadReviewData(reviewFile.file_id, isImg);
   }, [step, reviewFile?.file_id, reviewFile?.isImageMode, loadReviewData]);
 
+  // ── Re-run recognition for current review item ──
+  const [rerunRecognitionLoading, setRerunRecognitionLoading] = useState(false);
+
+  const rerunCurrentItemRecognition = useCallback(async () => {
+    if (!reviewFile) return;
+    const isImage = reviewFile.isImageMode === true;
+    setRerunRecognitionLoading(true);
+    try {
+      if (isImage) {
+        // Vision detection: call the same endpoint as playground
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 400_000);
+        let res: Response;
+        try {
+          res = await authFetch(`/api/v1/redaction/${reviewFile.file_id}/vision?page=1`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              selected_ocr_has_types: cfg.ocrHasTypes,
+              selected_has_image_types: cfg.hasImageTypes,
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(timer);
+        }
+        if (!res.ok) throw new Error('Vision detection failed');
+        const data = await res.json();
+        const boxes: EditorBox[] = ((data.bounding_boxes || []) as Record<string, unknown>[]).map((b, idx) => ({
+          id: String(b.id ?? `bbox_${idx}`),
+          x: Number(b.x),
+          y: Number(b.y),
+          width: Number(b.width),
+          height: Number(b.height),
+          type: String(b.type ?? 'CUSTOM'),
+          text: b.text ? String(b.text) : undefined,
+          selected: true,
+          confidence: typeof b.confidence === 'number' ? b.confidence : undefined,
+          source: (b.source as EditorBox['source']) || undefined,
+        }));
+        setReviewBoxes(boxes);
+        setReviewImageUndoStack([]);
+        setReviewImageRedoStack([]);
+      } else {
+        // Text NER: call the hybrid endpoint
+        const nerRes = await authFetch(`/api/v1/files/${reviewFile.file_id}/ner/hybrid`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entity_type_ids: cfg.selectedEntityTypeIds }),
+        });
+        if (!nerRes.ok) throw new Error('NER recognition failed');
+        const nerData = await nerRes.json();
+        const entities: ReviewEntity[] = ((nerData.entities || []) as Record<string, unknown>[]).map(
+          (e, idx) => normalizeReviewEntity({
+            id: String(e.id || `ent_${idx}`),
+            text: String(e.text ?? ''),
+            type: String(e.type ?? 'CUSTOM'),
+            start: Number(e.start ?? 0),
+            end: Number(e.end ?? 0),
+            selected: true,
+            source: (e.source as ReviewEntity['source']) || 'llm',
+            page: Number(e.page ?? 1),
+            confidence: typeof e.confidence === 'number' ? e.confidence : 1,
+            coref_id: e.coref_id as string | undefined,
+            replacement: e.replacement as string | undefined,
+          }),
+        );
+        setReviewEntities(entities);
+        setReviewTextUndoStack([]);
+        setReviewTextRedoStack([]);
+        // Refresh preview map
+        const map = await fetchBatchPreviewMap(entities, cfg.replacementMode);
+        setPreviewEntityMap(map);
+      }
+      // Mark draft as dirty so autosave picks it up
+      reviewDraftDirtyRef.current = true;
+    } catch (e) {
+      setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
+    } finally {
+      setRerunRecognitionLoading(false);
+    }
+  }, [reviewFile, cfg.selectedEntityTypeIds, cfg.ocrHasTypes, cfg.hasImageTypes, cfg.replacementMode]);
+
   // ── Autosave ──
   useEffect(() => {
     if (isPreviewMode) return;
@@ -1557,6 +1641,8 @@ export function useBatchWizard() {
     reviewDraftSaving,
     reviewDraftError,
     reviewFileReadOnly,
+    rerunCurrentItemRecognition,
+    rerunRecognitionLoading,
     reviewedOutputCount,
     pendingReviewCount,
     allReviewConfirmed,

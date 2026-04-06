@@ -613,6 +613,8 @@
   'batchWizard.step4.generating': '生成中…',
   'batchWizard.step4.selected': '已选',
   'batchWizard.step4.loading': '加载中…',
+  'batchWizard.step4.rerunRecognition': '重新识别',
+  'batchWizard.step4.rerunningRecognition': '重新识别中…',
   'batchWizard.step5.title': '⑤ 导出',
   'batchWizard.step5.desc': '勾选文件后打包下载；匿名化 ZIP 仅包含已在第 4 步「审阅确认」中完成匿名化的文件。',
   'batchWizard.step5.backReview': '返回审阅',

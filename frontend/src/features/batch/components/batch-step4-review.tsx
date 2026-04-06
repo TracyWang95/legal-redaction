@@ -71,6 +71,9 @@ interface BatchStep4ReviewProps {
 
   confirmCurrentReview: () => Promise<void>;
   advanceToExportStep: () => Promise<void>;
+
+  onRerunRecognition?: () => Promise<void>;
+  rerunRecognitionLoading?: boolean;
 }
 
 export function BatchStep4Review(props: BatchStep4ReviewProps) {
@@ -81,6 +84,7 @@ export function BatchStep4Review(props: BatchStep4ReviewProps) {
     reviewDraftSaving, reviewDraftError,
     reviewedOutputCount, rows, allReviewConfirmed,
     confirmCurrentReview, advanceToExportStep,
+    onRerunRecognition, rerunRecognitionLoading,
   } = props;
 
   if (!doneRows.length) {
@@ -169,6 +173,24 @@ export function BatchStep4Review(props: BatchStep4ReviewProps) {
             {t('playground.redo')}
           </Button>
         </div>
+
+        {/* Re-run recognition */}
+        {onRerunRecognition && (
+          <div className="flex items-center border-l pl-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs"
+              disabled={reviewFileReadOnly || reviewLoading || rerunRecognitionLoading}
+              onClick={() => void onRerunRecognition()}
+              data-testid="rerun-recognition"
+            >
+              {rerunRecognitionLoading
+                ? t('batchWizard.step4.rerunningRecognition')
+                : t('batchWizard.step4.rerunRecognition')}
+            </Button>
+          </div>
+        )}
 
         {/* Draft status */}
         {reviewDraftSaving && (

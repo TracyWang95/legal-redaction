@@ -150,6 +150,8 @@ export function BatchWizard() {
             allReviewConfirmed={w.allReviewConfirmed}
             confirmCurrentReview={w.confirmCurrentReview}
             advanceToExportStep={w.advanceToExportStep}
+            onRerunRecognition={w.rerunCurrentItemRecognition}
+            rerunRecognitionLoading={w.rerunRecognitionLoading}
           />
         )}
 
