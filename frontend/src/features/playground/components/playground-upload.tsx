@@ -306,7 +306,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }
 
   return (
-    <div className="grid h-full min-h-0 flex-1 auto-rows-fr gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {rec.playgroundTextGroups.map((group) => {
         const ids = group.types.map((type) => type.id);
         const allOn = ids.length > 0 && ids.every((id) => rec.selectedTypes.includes(id));
@@ -318,7 +318,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={group.key}
-            className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -436,7 +436,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }
 
   return (
-    <div className="grid h-full min-h-0 flex-1 auto-rows-fr gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {rec.pipelines.map((pipeline) => {
         const isHasImage = pipeline.mode === 'has_image';
         const selectedSet = isHasImage ? rec.selectedHasImageTypes : rec.selectedOcrHasTypes;
@@ -450,7 +450,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={pipeline.mode}
-            className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
