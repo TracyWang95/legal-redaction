@@ -348,15 +348,18 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
       }
       const risk = getEntityRiskConfig(entity.type);
       nodes.push(
-        <span
+        <mark
           key={entity.id}
           data-review-entity-id={entity.id}
-          className="cursor-pointer transition-all inline-flex items-center gap-0.5 rounded px-0.5 -mx-0.5 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400/20"
+          className="relative inline cursor-pointer rounded-sm px-0.5 py-[1px] transition-all hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400/20 hover:shadow-sm"
           style={{ backgroundColor: risk.bgColor, color: risk.textColor, opacity: entity.selected ? 1 : 0.45 }}
           title={`${getEntityTypeName(entity.type)}`}
         >
           {reviewTextContent.slice(entity.start, entity.end)}
-        </span>,
+          <span className="pointer-events-none absolute -top-3.5 left-0 whitespace-nowrap rounded bg-foreground/80 px-1 py-0.5 text-[9px] font-medium leading-none text-background opacity-0 transition-opacity [mark:hover>&]:opacity-100">
+            {getEntityTypeName(entity.type)}
+          </span>
+        </mark>,
       );
       lastEnd = entity.end;
     });
