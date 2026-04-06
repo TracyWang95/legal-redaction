@@ -13,28 +13,8 @@ import { PlaygroundResult } from './components/playground-result';
 import { PlaygroundLoading } from './components/playground-loading';
 import { usePlayground } from './hooks/use-playground';
 import { clampPopoverInCanvas, previewEntityHoverRingClass, previewEntityMarkStyle } from './utils';
+import { getSelectionOffsets } from '@/utils/domSelection';
 import type { Entity } from './types';
-
-function getSelectionOffsets(range: Range, root: HTMLElement): { start: number; end: number } | null {
-  let start = -1;
-  let end = -1;
-  let offset = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    const textLength = node.textContent?.length || 0;
-    if (node === range.startContainer) start = offset + range.startOffset;
-    if (node === range.endContainer) {
-      end = offset + range.endOffset;
-      break;
-    }
-    offset += textLength;
-  }
-
-  if (start === -1 || end === -1 || end <= start) return null;
-  return { start, end };
-}
 
 export const Playground: FC = () => {
   const t = useT();

@@ -3,36 +3,15 @@ import { authFetch } from '@/services/api-client';
 import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
+// Re-export from shared module so existing `import { clampPopoverInCanvas } from './utils'` still works.
+export { clampPopoverInCanvas } from '@/utils/domSelection';
+
 export async function safeJson<T = any>(res: Response): Promise<T> {
   try {
     return await res.json();
   } catch {
     throw new Error('服务端返回了非 JSON 响应');
   }
-}
-
-export function clampPopoverInCanvas(
-  anchorRect: DOMRect,
-  canvasRect: DOMRect,
-  popoverWidth: number,
-  popoverHeight: number
-): { left: number; top: number } {
-  const margin = 8;
-  const maxW = Math.max(120, Math.min(popoverWidth, canvasRect.width - 2 * margin));
-  const maxH = Math.max(80, Math.min(popoverHeight, canvasRect.height - 2 * margin));
-  const cx = anchorRect.left + anchorRect.width / 2;
-  let left = cx - maxW / 2;
-  left = Math.max(canvasRect.left + margin, Math.min(left, canvasRect.right - margin - maxW));
-
-  let top = anchorRect.top - margin - maxH;
-  if (top < canvasRect.top + margin) {
-    top = anchorRect.bottom + margin;
-  }
-  if (top + maxH > canvasRect.bottom - margin) {
-    top = Math.max(canvasRect.top + margin, canvasRect.bottom - margin - maxH);
-  }
-
-  return { left, top };
 }
 
 export function previewEntityMarkStyle(entity: Entity): React.CSSProperties {
