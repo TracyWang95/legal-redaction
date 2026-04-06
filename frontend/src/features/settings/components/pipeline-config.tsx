@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PaginationRail } from '@/components/PaginationRail';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -49,6 +50,7 @@ export function PipelineConfigPanel({
   const [dialogMode, setDialogMode] = useState<'ocr_has' | 'has_image' | null>(null);
   const [editing, setEditing] = useState<{ mode: string; type: PipelineTypeConfig } | null>(null);
   const [form, setForm] = useState({ name: '', description: '' });
+  const [page, setPage] = useState(1);
 
   const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
@@ -94,6 +96,22 @@ export function PipelineConfigPanel({
   const toneClasses = getSelectionToneClasses(tone);
   const displayName = imageModeActive ? imageLabel : ocrLabel;
   const activeCount = activePipeline?.types.length ?? 0;
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(activeCount / pageSize));
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeSub]);
+
+  useEffect(() => {
+    setPage(current => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const visibleTypes = useMemo(() => {
+    if (!activePipeline) return [];
+    const start = (page - 1) * pageSize;
+    return activePipeline.types.slice(start, start + pageSize);
+  }, [activePipeline, page, pageSize]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -134,7 +152,7 @@ export function PipelineConfigPanel({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-1 overflow-y-auto p-3 pb-6">
           {loading ? (
             <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
               <p className="text-sm text-muted-foreground">
@@ -149,7 +167,7 @@ export function PipelineConfigPanel({
             </div>
           ) : (
             <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {activePipeline.types.map(type => (
+              {visibleTypes.map(type => (
                 <article
                   key={type.id}
                   className="flex min-h-[148px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
@@ -201,6 +219,18 @@ export function PipelineConfigPanel({
             </div>
           )}
         </div>
+
+        {activeCount > 0 && (
+          <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3">
+            <PaginationRail
+              page={page}
+              pageSize={pageSize}
+              totalItems={activeCount}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
       </div>
 
       <Dialog

@@ -1,10 +1,10 @@
-
-import { type FC } from 'react';
+import { type FC, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PaginationRail } from '@/components/PaginationRail';
 import {
   Select,
   SelectContent,
@@ -145,7 +145,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <ScrollArea className="min-h-0 flex-1">
-            <TabsContent value="text" className="mt-0 space-y-3 p-3 2xl:p-4">
+            <TabsContent value="text" className="mt-0 space-y-3 p-3 pb-5 2xl:p-4 2xl:pb-6">
               <div className="rounded-[20px] border border-border/70 bg-muted/20 px-3.5 py-3">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
@@ -156,7 +156,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 space-y-3 p-3 2xl:p-4">
+            <TabsContent value="vision" className="mt-0 space-y-3 p-3 pb-5 2xl:p-4 2xl:pb-6">
               <div className="rounded-[20px] border border-border/70 bg-muted/20 px-3.5 py-3">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
@@ -171,7 +171,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             </TabsContent>
           </ScrollArea>
 
-          <div className="shrink-0 border-t border-border/70 px-4 py-2">
+          <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3">
             <p className="text-center text-xs text-muted-foreground" data-testid="playground-type-summary">
               {rec.typeTab === 'vision'
                 ? `${t('playground.ocrShort')} ${rec.selectedOcrHasTypes.length} / ${t('playground.imageShort')} ${rec.selectedHasImageTypes.length}`
@@ -269,6 +269,19 @@ const PresetRow: FC<{
 
 const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
+  const [groupPages, setGroupPages] = useState<Record<string, number>>({});
+  const pageSize = 8;
+
+  useEffect(() => {
+    setGroupPages((current) => {
+      const next = { ...current };
+      rec.playgroundTextGroups.forEach((group) => {
+        const totalPages = Math.max(1, Math.ceil(group.types.length / pageSize));
+        next[group.key] = Math.min(next[group.key] ?? 1, totalPages);
+      });
+      return next;
+    });
+  }, [pageSize, rec.playgroundTextGroups]);
 
   if (rec.textConfigState === 'loading') {
     return <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>;
@@ -298,6 +311,9 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const ids = group.types.map((type) => type.id);
         const allOn = ids.length > 0 && ids.every((id) => rec.selectedTypes.includes(id));
         const toneClasses = getSelectionToneClasses(group.tone);
+        const totalPages = Math.max(1, Math.ceil(group.types.length / pageSize));
+        const page = groupPages[group.key] ?? 1;
+        const visibleTypes = group.types.slice((page - 1) * pageSize, page * pageSize);
 
         return (
           <section
@@ -328,7 +344,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               </Button>
             </div>
             <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
-              {group.types.map((type) => {
+              {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
                 return (
@@ -357,6 +373,22 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 );
               })}
             </div>
+            {group.types.length > 0 && (
+              <div className="border-t border-border/70 px-3 py-3">
+                <PaginationRail
+                  page={page}
+                  pageSize={pageSize}
+                  totalItems={group.types.length}
+                  totalPages={totalPages}
+                  onPageChange={(nextPage) => {
+                    setGroupPages((current) => ({
+                      ...current,
+                      [group.key]: nextPage,
+                    }));
+                  }}
+                />
+              </div>
+            )}
           </section>
         );
       })}
@@ -366,6 +398,19 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
 const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
+  const [pipelinePages, setPipelinePages] = useState<Record<string, number>>({});
+  const pageSize = 8;
+
+  useEffect(() => {
+    setPipelinePages((current) => {
+      const next = { ...current };
+      rec.pipelines.forEach((pipeline) => {
+        const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
+        next[pipeline.mode] = Math.min(next[pipeline.mode] ?? 1, totalPages);
+      });
+      return next;
+    });
+  }, [pageSize, rec.pipelines]);
 
   if (rec.visionConfigState === 'loading') {
     return <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>;
@@ -397,6 +442,9 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const allSelected = pipeline.types.length > 0 && pipeline.types.every((type) => selectedSet.includes(type.id));
         const tone: SelectionTone = isHasImage ? 'visual' : 'semantic';
         const toneClasses = getSelectionToneClasses(tone);
+        const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
+        const page = pipelinePages[pipeline.mode] ?? 1;
+        const visibleTypes = pipeline.types.slice((page - 1) * pageSize, page * pageSize);
 
         return (
           <section
@@ -443,7 +491,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               </Button>
             </div>
             <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
-              {pipeline.types.map((type) => {
+              {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
                   <label
@@ -466,6 +514,22 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 );
               })}
             </div>
+            {pipeline.types.length > 0 && (
+              <div className="border-t border-border/70 px-3 py-3">
+                <PaginationRail
+                  page={page}
+                  pageSize={pageSize}
+                  totalItems={pipeline.types.length}
+                  totalPages={totalPages}
+                  onPageChange={(nextPage) => {
+                    setPipelinePages((current) => ({
+                      ...current,
+                      [pipeline.mode]: nextPage,
+                    }));
+                  }}
+                />
+              </div>
+            )}
           </section>
         );
       })}

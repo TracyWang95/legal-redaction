@@ -60,8 +60,11 @@ export function BatchStep1Config({
   const visionPresetName =
     visionPresets.find((preset) => preset.id === cfg.presetVisionId)?.name ??
     t('batchWizard.step1.defaultPreset');
-  const selectedTextLabels = textTypes
-    .filter((type) => cfg.selectedEntityTypeIds.includes(type.id))
+  const selectedRegexLabels = textTypes
+    .filter((type) => cfg.selectedEntityTypeIds.includes(type.id) && Boolean(type.regex_pattern))
+    .map((type) => type.name);
+  const selectedSemanticLabels = textTypes
+    .filter((type) => cfg.selectedEntityTypeIds.includes(type.id) && !type.regex_pattern)
     .map((type) => type.name);
   const ocrTypes = pipelines
     .filter((pipeline) => pipeline.mode === 'ocr_has')
@@ -210,8 +213,13 @@ export function BatchStep1Config({
             presetLabel={t('batchWizard.step1.activePreset')}
             groups={[
               {
-                title: t('batchWizard.step1.textEntities'),
-                items: selectedTextLabels,
+                title: t('settings.regex'),
+                items: selectedRegexLabels,
+                emptyLabel: t('batchWizard.step1.noTextSelection'),
+              },
+              {
+                title: t('settings.semantic'),
+                items: selectedSemanticLabels,
                 emptyLabel: t('batchWizard.step1.noTextSelection'),
               },
             ]}
@@ -305,7 +313,7 @@ function SelectionPreviewCard({
 
   return (
     <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-      <CardContent className="flex h-full flex-col gap-4 p-4">
+      <CardContent className="flex h-full flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">{title}</p>
@@ -321,7 +329,7 @@ function SelectionPreviewCard({
 
         <div className="grid gap-3 xl:grid-cols-2">
           {groups.map((group) => (
-            <div key={group.title} className="surface-subtle flex min-h-[10rem] flex-col gap-3 px-3 py-3">
+            <div key={group.title} className="surface-subtle flex min-h-[9.25rem] flex-col gap-2.5 px-3 py-3">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {group.title}
@@ -329,12 +337,12 @@ function SelectionPreviewCard({
                 <span className="text-[11px] text-muted-foreground">{group.items.length}</span>
               </div>
               {group.items.length > 0 ? (
-                <div className="max-h-44 overflow-y-auto pr-1">
-                  <div className="flex flex-wrap gap-2">
+                <div className="max-h-28 overflow-y-auto pr-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {group.items.map((item) => (
                       <span
                         key={`${group.title}-${item}`}
-                        className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs text-foreground"
+                        className="rounded-full border border-border/70 bg-background px-2 py-1 text-[11px] leading-4 text-foreground"
                       >
                         {item}
                       </span>
@@ -342,7 +350,7 @@ function SelectionPreviewCard({
                   </div>
                 </div>
               ) : (
-                <div className="flex min-h-[5.5rem] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/80 px-4 text-center text-xs text-muted-foreground">
+                <div className="flex min-h-[4.75rem] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/80 px-4 text-center text-xs text-muted-foreground">
                   {group.emptyLabel}
                 </div>
               )}

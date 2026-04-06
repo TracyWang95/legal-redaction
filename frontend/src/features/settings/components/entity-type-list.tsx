@@ -1,7 +1,9 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PaginationRail } from '@/components/PaginationRail';
 import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { EntityTypeConfig } from '../hooks/use-entity-types';
 
@@ -26,6 +28,22 @@ export function EntityTypeList({
   const isRegex = variant === 'regex';
   const tone: SelectionTone = isRegex ? 'regex' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
+  const pageSize = 10;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(types.length / pageSize));
+
+  useEffect(() => {
+    setPage(1);
+  }, [variant]);
+
+  useEffect(() => {
+    setPage(current => Math.min(current, totalPages));
+  }, [totalPages]);
+
+  const visibleTypes = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return types.slice(start, start + pageSize);
+  }, [page, pageSize, types]);
 
   return (
     <div
@@ -67,14 +85,14 @@ export function EntityTypeList({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="flex min-h-0 flex-1 overflow-y-auto p-3 pb-6">
           {types.length === 0 ? (
             <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
               <p className="text-sm text-muted-foreground">{t('settings.noTypeConfig')}</p>
             </div>
           ) : (
             <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-              {types.map(type => (
+              {visibleTypes.map(type => (
                 <article
                   key={type.id}
                   className="flex min-h-[148px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
@@ -149,6 +167,18 @@ export function EntityTypeList({
             </div>
           )}
         </div>
+
+        {types.length > 0 && (
+          <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3">
+            <PaginationRail
+              page={page}
+              pageSize={pageSize}
+              totalItems={types.length}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

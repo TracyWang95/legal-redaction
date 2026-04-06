@@ -52,159 +52,89 @@ const previewImageRedactedSvg = encodeURIComponent(`
   </svg>
 `);
 
-const previewRowsBase: BatchRow[] = [
-  {
-    file_id: 'preview-file-contract',
-    original_filename: '合同审阅-样例-A.docx',
-    file_size: 184320,
-    file_type: FileType.DOCX,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 4,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-contract-2',
-    original_filename: '补充协议-样例-E.docx',
-    file_size: 246784,
-    file_type: FileType.DOCX,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 5,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-contract-3',
-    original_filename: '财务函件-样例-F.docx',
-    file_size: 203648,
-    file_type: FileType.DOCX,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 4,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-case',
-    original_filename: '案件材料-样例-B.pdf',
-    file_size: 912384,
-    file_type: FileType.PDF,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 3,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-case-2',
-    original_filename: '证据目录-样例-G.pdf',
-    file_size: 864256,
-    file_type: FileType.PDF,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 6,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-case-3',
-    original_filename: '出庭笔录-样例-H.pdf',
-    file_size: 1024512,
-    file_type: FileType.PDF,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 5,
-    analyzeStatus: 'pending',
-    isImageMode: false,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-scan',
-    original_filename: '扫描签章-样例-C.pdf',
-    file_size: 1264032,
-    file_type: FileType.PDF_SCANNED,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 3,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-scan-2',
-    original_filename: '盖章申请-样例-I.pdf',
-    file_size: 1116928,
-    file_type: FileType.PDF_SCANNED,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 4,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-scan-3',
-    original_filename: '档案扫描-样例-J.pdf',
-    file_size: 1380352,
-    file_type: FileType.PDF_SCANNED,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 6,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-photo',
-    original_filename: '现场照片-样例-D.png',
-    file_size: 742112,
-    file_type: FileType.IMAGE,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 2,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-photo-2',
-    original_filename: '证件照片-样例-K.png',
-    file_size: 682144,
-    file_type: FileType.IMAGE,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 3,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-  {
-    file_id: 'preview-file-photo-3',
-    original_filename: '门牌影像-样例-L.png',
-    file_size: 755904,
-    file_type: FileType.IMAGE,
-    created_at: previewNow,
-    has_output: false,
-    entity_count: 3,
-    analyzeStatus: 'pending',
-    isImageMode: true,
-    reviewConfirmed: false,
-  },
-];
+const previewFileDefs = [
+  { id: 'preview-file-contract', name: '合同审阅-样例-A.docx', size: 184320, type: FileType.DOCX, entityCount: 4, image: false },
+  { id: 'preview-file-contract-2', name: '补充协议-样例-E.docx', size: 246784, type: FileType.DOCX, entityCount: 5, image: false },
+  { id: 'preview-file-contract-3', name: '财务函件-样例-F.docx', size: 203648, type: FileType.DOCX, entityCount: 4, image: false },
+  { id: 'preview-file-case', name: '案件材料-样例-B.pdf', size: 912384, type: FileType.PDF, entityCount: 3, image: false },
+  { id: 'preview-file-case-2', name: '证据目录-样例-G.pdf', size: 864256, type: FileType.PDF, entityCount: 6, image: false },
+  { id: 'preview-file-case-3', name: '出庭笔录-样例-H.pdf', size: 1024512, type: FileType.PDF, entityCount: 5, image: false },
+  { id: 'preview-file-scan', name: '扫描签章-样例-C.pdf', size: 1264032, type: FileType.PDF_SCANNED, entityCount: 3, image: true },
+  { id: 'preview-file-scan-2', name: '盖章申请-样例-I.pdf', size: 1116928, type: FileType.PDF_SCANNED, entityCount: 4, image: true },
+  { id: 'preview-file-scan-3', name: '档案扫描-样例-J.pdf', size: 1380352, type: FileType.PDF_SCANNED, entityCount: 6, image: true },
+  { id: 'preview-file-photo', name: '现场照片-样例-D.png', size: 742112, type: FileType.IMAGE, entityCount: 2, image: true },
+  { id: 'preview-file-photo-2', name: '证件照片-样例-K.png', size: 682144, type: FileType.IMAGE, entityCount: 3, image: true },
+  { id: 'preview-file-photo-3', name: '门牌影像-样例-L.png', size: 755904, type: FileType.IMAGE, entityCount: 3, image: true },
+] as const;
 
-export const previewTextTypes: TextEntityType[] = [
-  { id: 'PERSON', name: '当事人姓名', color: '#0f766e', use_llm: true, order: 1 },
-  { id: 'ID_CARD', name: '身份证号', color: '#2563eb', regex_pattern: '\\b\\d{17}[\\dXx]\\b', order: 2 },
-  { id: 'BANK_CARD', name: '银行卡号', color: '#b45309', regex_pattern: '\\b\\d{12,19}\\b', order: 3 },
-  { id: 'CASE_NUMBER', name: '案件编号', color: '#7c3aed', use_llm: true, order: 4 },
-];
+const previewRowsBase: BatchRow[] = previewFileDefs.map((file) => ({
+  file_id: file.id,
+  original_filename: file.name,
+  file_size: file.size,
+  file_type: file.type,
+  created_at: previewNow,
+  has_output: false,
+  entity_count: file.entityCount,
+  analyzeStatus: 'pending',
+  isImageMode: file.image,
+  reviewConfirmed: false,
+}));
+
+const regexPreviewTemplates = [
+  { id: 'ID_CARD', name: '身份证号', pattern: '\\b\\d{17}[\\dXx]\\b' },
+  { id: 'BANK_CARD', name: '银行卡号', pattern: '\\b\\d{12,19}\\b' },
+  { id: 'PHONE', name: '手机号码', pattern: '\\b1[3-9]\\d{9}\\b' },
+  { id: 'EMAIL', name: '电子邮箱', pattern: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}' },
+  { id: 'CASE_CODE', name: '案件编号', pattern: '[（(]?20\\d{2}[）)]?[\\u4e00-\\u9fa5A-Za-z]{1,8}\\d{2,6}号' },
+  { id: 'PASSPORT', name: '护照号码', pattern: '[A-Z0-9]{8,17}' },
+  { id: 'PLATE', name: '车牌号码', pattern: '[\\u4e00-\\u9fa5][A-Z][A-Z0-9]{5,6}' },
+  { id: 'CREDIT_CODE', name: '统一社会信用代码', pattern: '[0-9A-Z]{18}' },
+  { id: 'SOCIAL_SECURITY', name: '社保编号', pattern: '\\b\\d{10,18}\\b' },
+  { id: 'POST_CODE', name: '邮政编码', pattern: '\\b\\d{6}\\b' },
+] as const;
+
+const semanticPreviewTemplates = [
+  '当事人姓名',
+  '企业名称',
+  '项目名称',
+  '详细地址',
+  '合同金额',
+  '法院名称',
+  '部门名称',
+  '受益人姓名',
+  '项目地点',
+  '开户银行',
+] as const;
+
+export const previewTextTypes: TextEntityType[] = Array.from({ length: 120 }, (_, index) => {
+  if (index < 60) {
+    const template = regexPreviewTemplates[index % regexPreviewTemplates.length];
+    const cycle = Math.floor(index / regexPreviewTemplates.length);
+    const suffix = cycle === 0 ? '' : ` ${String(cycle + 1).padStart(2, '0')}`;
+    return {
+      id: cycle === 0 ? template.id : `${template.id}_${cycle + 1}`,
+      name: `${template.name}${suffix}`,
+      color: '#0f766e',
+      regex_pattern: template.pattern,
+      order: index + 1,
+    };
+  }
+
+  const semanticIndex = index - 60;
+  const template = semanticPreviewTemplates[semanticIndex % semanticPreviewTemplates.length];
+  const cycle = Math.floor(semanticIndex / semanticPreviewTemplates.length);
+  const suffix = cycle === 0 ? '' : ` ${String(cycle + 1).padStart(2, '0')}`;
+  return {
+    id: cycle === 0 ? `SEM_${semanticIndex + 1}` : `SEM_${semanticIndex + 1}_${cycle + 1}`,
+    name: `${template}${suffix}`,
+    color: '#2563eb',
+    use_llm: true,
+    order: index + 1,
+  };
+});
+
+const previewOcrNames = ['公章文字', '手写姓名', '边注文字', '回单抬头'] as const;
+const previewImageNames = ['签名区域', '印章区域', '人脸区域', '车牌区域'] as const;
 
 export const previewPipelines: PipelineCfg[] = [
   {
@@ -212,30 +142,43 @@ export const previewPipelines: PipelineCfg[] = [
     name: 'OCR + HaS',
     description: '文字检测通道',
     enabled: true,
-    types: [
-      { id: 'seal_text', name: '公章文字', color: '#0f766e', enabled: true, order: 1 },
-      { id: 'handwritten_name', name: '手写姓名', color: '#0ea5e9', enabled: true, order: 2 },
-    ],
+    types: Array.from({ length: 12 }, (_, index) => ({
+      id: `ocr_type_${index + 1}`,
+      name:
+        previewOcrNames[index % previewOcrNames.length] +
+        (index >= previewOcrNames.length ? ` ${String(Math.floor(index / previewOcrNames.length) + 1).padStart(2, '0')}` : ''),
+      color: '#0f766e',
+      enabled: true,
+      order: index + 1,
+    })),
   },
   {
     mode: 'has_image',
     name: 'HaS Image',
-    description: '视觉特征通道',
+    description: '图像特征通道',
     enabled: true,
-    types: [
-      { id: 'signature', name: '签名区域', color: '#7c3aed', enabled: true, order: 1 },
-      { id: 'stamp', name: '印章区域', color: '#b45309', enabled: true, order: 2 },
-      { id: 'face', name: '人脸区域', color: '#dc2626', enabled: true, order: 3 },
-    ],
+    types: Array.from({ length: 12 }, (_, index) => ({
+      id: `image_type_${index + 1}`,
+      name:
+        previewImageNames[index % previewImageNames.length] +
+        (index >= previewImageNames.length ? ` ${String(Math.floor(index / previewImageNames.length) + 1).padStart(2, '0')}` : ''),
+      color: '#b45309',
+      enabled: true,
+      order: index + 1,
+    })),
   },
 ];
+
+const allPreviewTextIds = previewTextTypes.map((type) => type.id);
+const allPreviewOcrIds = previewPipelines.find((pipeline) => pipeline.mode === 'ocr_has')?.types.map((type) => type.id) ?? [];
+const allPreviewImageIds = previewPipelines.find((pipeline) => pipeline.mode === 'has_image')?.types.map((type) => type.id) ?? [];
 
 export const previewPresets: RecognitionPreset[] = [
   {
     id: 'preview-text-preset',
     name: '合同文本预设',
     kind: 'text',
-    selectedEntityTypeIds: ['PERSON', 'ID_CARD', 'CASE_NUMBER'],
+    selectedEntityTypeIds: allPreviewTextIds,
     ocrHasTypes: [],
     hasImageTypes: [],
     replacementMode: 'structured',
@@ -247,8 +190,8 @@ export const previewPresets: RecognitionPreset[] = [
     name: '扫描图像预设',
     kind: 'vision',
     selectedEntityTypeIds: [],
-    ocrHasTypes: ['seal_text', 'handwritten_name'],
-    hasImageTypes: ['signature', 'stamp'],
+    ocrHasTypes: allPreviewOcrIds,
+    hasImageTypes: allPreviewImageIds,
     replacementMode: 'structured',
     created_at: previewNow,
     updated_at: previewNow,
@@ -256,9 +199,9 @@ export const previewPresets: RecognitionPreset[] = [
 ];
 
 export const previewBatchConfig: BatchWizardPersistedConfig = {
-  selectedEntityTypeIds: ['PERSON', 'ID_CARD', 'CASE_NUMBER'],
-  ocrHasTypes: ['seal_text', 'handwritten_name'],
-  hasImageTypes: ['signature', 'stamp'],
+  selectedEntityTypeIds: allPreviewTextIds,
+  ocrHasTypes: allPreviewOcrIds,
+  hasImageTypes: allPreviewImageIds,
   replacementMode: 'structured',
   imageRedactionMethod: 'mosaic',
   imageRedactionStrength: 25,
@@ -273,7 +216,7 @@ const previewTextEntities: ReviewEntity[] = [
   {
     id: 'preview-entity-person',
     text: '张宁',
-    type: 'PERSON',
+    type: 'SEM_1',
     start: 7,
     end: 9,
     selected: true,
@@ -294,10 +237,10 @@ const previewTextEntities: ReviewEntity[] = [
   },
   {
     id: 'preview-entity-case',
-    text: '沪民终字第2026-083号',
-    type: 'CASE_NUMBER',
+    text: '（2026）民终083号',
+    type: 'CASE_CODE',
     start: 47,
-    end: 62,
+    end: 60,
     selected: true,
     page: 1,
     confidence: 0.95,
@@ -320,7 +263,7 @@ const previewCaseEntities: ReviewEntity[] = [
   {
     id: 'preview-entity-person-2',
     text: '王敏',
-    type: 'PERSON',
+    type: 'SEM_1',
     start: 58,
     end: 60,
     selected: true,
@@ -337,7 +280,7 @@ const previewImageBoxes: EditorBox[] = [
     y: 0.46,
     width: 0.2,
     height: 0.095,
-    type: 'signature',
+    type: 'image_type_1',
     text: '签名',
     selected: true,
     source: 'has_image',
@@ -349,7 +292,7 @@ const previewImageBoxes: EditorBox[] = [
     y: 0.48,
     width: 0.16,
     height: 0.08,
-    type: 'stamp',
+    type: 'image_type_2',
     text: '公章',
     selected: true,
     source: 'has_image',
@@ -361,7 +304,7 @@ const previewImageBoxes: EditorBox[] = [
     y: 0.6,
     width: 0.11,
     height: 0.07,
-    type: 'face',
+    type: 'image_type_3',
     text: '头像',
     selected: false,
     source: 'has_image',
@@ -417,7 +360,7 @@ export function getPreviewReviewPayload(fileId: string): {
 } {
   if (fileId === 'preview-file-contract') {
     return {
-      content: '合同主体张宁，身份证号为310101199201013422，关联案件编号沪民终字第2026-083号，需要在导出前统一处理。',
+      content: '合同主体张宁，身份证号为310101199201013422，关联案件编号为（2026）民终083号，需在导出前统一处理。',
       entities: previewTextEntities,
       boxes: [],
       imageSrc: '',

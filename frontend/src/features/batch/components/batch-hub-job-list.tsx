@@ -46,7 +46,7 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
             description={t('emptyState.noActiveJobsDesc')}
           />
         ) : (
-          <ul className="divide-y" data-testid="recent-jobs-list">
+          <ul className="divide-y pb-4" data-testid="recent-jobs-list">
             {jobs.map((job) => (
               <JobRow
                 key={job.id}

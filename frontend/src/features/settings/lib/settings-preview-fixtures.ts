@@ -209,99 +209,115 @@ export function buildPreviewEntityTypes(t: Translate): PreviewEntityType[] {
 }
 
 export function buildPreviewPipelines(t: Translate): PreviewPipeline[] {
+  const ocrBaseTypes: PreviewPipelineType[] = [
+    {
+      id: 'seal_text',
+      name: t('settings.preview.sealText'),
+      color: '#2563eb',
+      enabled: true,
+      order: 1,
+    },
+    {
+      id: 'handwritten_name',
+      name: t('settings.preview.handwrittenName'),
+      color: '#2563eb',
+      enabled: true,
+      order: 2,
+    },
+    {
+      id: 'margin_note',
+      name: t('settings.preview.marginNote'),
+      color: '#2563eb',
+      enabled: true,
+      order: 3,
+    },
+    {
+      id: 'receipt_text',
+      name: t('settings.preview.receiptText'),
+      color: '#2563eb',
+      enabled: true,
+      order: 4,
+    },
+    {
+      id: 'tabular_text',
+      name: t('settings.preview.tabularText'),
+      color: '#2563eb',
+      enabled: true,
+      order: 5,
+    },
+  ];
+  const imageBaseTypes: PreviewPipelineType[] = [
+    {
+      id: 'signature_region',
+      name: t('settings.preview.signatureRegion'),
+      color: '#dc2626',
+      enabled: true,
+      order: 1,
+    },
+    {
+      id: 'portrait_face',
+      name: t('settings.preview.portraitFace'),
+      color: '#dc2626',
+      enabled: true,
+      order: 2,
+    },
+    {
+      id: 'stamp_region',
+      name: t('settings.preview.stampRegion'),
+      color: '#dc2626',
+      enabled: true,
+      order: 3,
+    },
+    {
+      id: 'watermark_region',
+      name: t('settings.preview.watermarkRegion'),
+      color: '#dc2626',
+      enabled: true,
+      order: 4,
+    },
+    {
+      id: 'id_portrait',
+      name: t('settings.preview.idPortrait'),
+      color: '#dc2626',
+      enabled: true,
+      order: 5,
+    },
+    {
+      id: 'qr_region',
+      name: t('settings.preview.qrRegion'),
+      color: '#dc2626',
+      enabled: true,
+      order: 6,
+    },
+  ];
+  const buildRepeatedTypes = (baseTypes: PreviewPipelineType[], total: number) =>
+    Array.from({ length: total }, (_, index) => {
+      const template = baseTypes[index % baseTypes.length];
+      const cycle = Math.floor(index / baseTypes.length);
+      const suffix = cycle === 0 ? '' : ` ${String(cycle + 1).padStart(2, '0')}`;
+
+      return {
+        ...template,
+        id: cycle === 0 ? template.id : `${template.id}_${cycle + 1}`,
+        name: `${template.name}${suffix}`,
+        order: index + 1,
+      };
+    });
+
   return [
     {
       mode: 'ocr_has',
       name: t('settings.pipelineDisplayName.ocr'),
       description: t('settings.pipelineDescription.ocr'),
       enabled: true,
-      types: [
-        {
-          id: 'seal_text',
-          name: t('settings.preview.sealText'),
-          color: '#2563eb',
-          enabled: true,
-          order: 1,
-        },
-        {
-          id: 'handwritten_name',
-          name: t('settings.preview.handwrittenName'),
-          color: '#2563eb',
-          enabled: true,
-          order: 2,
-        },
-        {
-          id: 'margin_note',
-          name: t('settings.preview.marginNote'),
-          color: '#2563eb',
-          enabled: true,
-          order: 3,
-        },
-        {
-          id: 'receipt_text',
-          name: t('settings.preview.receiptText'),
-          color: '#2563eb',
-          enabled: true,
-          order: 4,
-        },
-        {
-          id: 'tabular_text',
-          name: t('settings.preview.tabularText'),
-          color: '#2563eb',
-          enabled: true,
-          order: 5,
-        },
-      ],
+      types: buildRepeatedTypes(ocrBaseTypes, 24),
     },
     {
       mode: 'has_image',
       name: t('settings.pipelineDisplayName.image'),
       description: t('settings.pipelineDescription.image'),
       enabled: true,
-      types: [
-        {
-          id: 'signature_region',
-          name: t('settings.preview.signatureRegion'),
-          color: '#dc2626',
-          enabled: true,
-          order: 1,
-        },
-        {
-          id: 'portrait_face',
-          name: t('settings.preview.portraitFace'),
-          color: '#dc2626',
-          enabled: true,
-          order: 2,
-        },
-        {
-          id: 'stamp_region',
-          name: t('settings.preview.stampRegion'),
-          color: '#dc2626',
-          enabled: true,
-          order: 3,
-        },
-        {
-          id: 'watermark_region',
-          name: t('settings.preview.watermarkRegion'),
-          color: '#dc2626',
-          enabled: true,
-          order: 4,
-        },
-        {
-          id: 'id_portrait',
-          name: t('settings.preview.idPortrait'),
-          color: '#dc2626',
-          enabled: true,
-          order: 5,
-        },
-        {
-          id: 'qr_region',
-          name: t('settings.preview.qrRegion'),
-          color: '#dc2626',
-          enabled: true,
-          order: 6,
-        },
-      ],
+      types: buildRepeatedTypes(imageBaseTypes, 24),
     },
   ];
 }

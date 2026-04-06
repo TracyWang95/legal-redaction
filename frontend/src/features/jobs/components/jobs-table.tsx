@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { t, useI18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,7 @@ type JobsTableProps = {
   onToggleExpand: (job: JobSummary) => void;
   onDelete: (job: JobSummary) => void;
   onRequeueFailed: (job: JobSummary) => void;
+  footer?: ReactNode;
 };
 
 export function JobsTable({
@@ -44,11 +46,12 @@ export function JobsTable({
   expandedJobIds, jobDetails, detailLoadingIds,
   deletingJobId, requeueingJobId, tableBusy: _tableBusy,
   onToggleExpand, onDelete, onRequeueFailed,
+  footer,
 }: JobsTableProps) {
   const stopEvent = (event: React.MouseEvent) => { event.stopPropagation(); };
 
   return (
-    <div className="jobs-surface flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
+    <div className="jobs-surface flex min-h-0 w-full max-h-[min(54rem,calc(100vh-23rem))] flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
         <div className="page-section-heading">
           <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
@@ -79,7 +82,7 @@ export function JobsTable({
         </div>
       )}
 
-      <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
         {refreshing && rows.length > 0 && (
           <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10 backdrop-blur-[1px]">
             <div className="w-7 h-7 border-2 border-border border-t-primary rounded-full animate-spin" />
@@ -87,7 +90,7 @@ export function JobsTable({
         )}
 
         {loading && rows.length === 0 ? (
-          <div className="px-4 py-6 space-y-3">
+          <div className="space-y-3 px-4 py-6 pb-10">
             {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
           </div>
         ) : rows.length === 0 ? (
@@ -97,7 +100,7 @@ export function JobsTable({
             action={{ label: t('jobs.gotoBatch'), onClick: () => { window.location.href = '/batch'; } }}
           />
         ) : (
-          <ul className="flex w-full flex-col divide-y divide-border/70">
+          <ul className="flex w-full flex-col divide-y divide-border/70 pb-6">
             {rows.map((job, index) => (
               <JobRow
                 key={job.id}
@@ -117,6 +120,12 @@ export function JobsTable({
           </ul>
         )}
       </div>
+
+      {footer && (
+        <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -172,7 +181,7 @@ function JobRow({
         onClick={expandable ? () => void onToggleExpand(job) : undefined}
         data-testid={`job-row-${job.id}`}
       >
-        <div className="jobs-row-main px-3 sm:px-4 py-2.5">
+        <div className="jobs-row-main px-3 sm:px-4 py-3">
           <div className="jobs-tree-cell jobs-expand-cell">
             {itemCount > 0 ? (
               <button type="button"
@@ -312,7 +321,7 @@ function ExpandedDetail({
             const isLast = itemIndex === detail.items.length - 1;
             return (
               <div key={item.id}
-                className={cn('jobs-row-main jobs-child-row px-3 sm:px-4 py-1.5', !isLast && 'border-b border-border/50')}>
+                className={cn('jobs-row-main jobs-child-row px-3 sm:px-4 py-2', !isLast && 'border-b border-border/50')}>
                 <span className="text-muted-foreground/30 text-xs text-center select-none" aria-hidden>
                   {isLast ? '\u2514' : '\u251c'}
                 </span>

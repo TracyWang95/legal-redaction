@@ -18,7 +18,7 @@ export function History() {
 
   return (
     <div className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background" data-testid="history-page">
-      <div className="mx-auto flex w-full max-w-[min(100%,2048px)] flex-1 min-h-0 flex-col px-3 py-4 sm:px-5 sm:py-5 2xl:px-8">
+      <div className="mx-auto flex w-full max-w-[min(100%,2048px)] flex-1 min-h-0 flex-col px-3 py-4 pb-5 sm:px-5 sm:py-5 sm:pb-6 2xl:px-8 2xl:pb-8">
         <HistoryFilters
           sourceTab={s.sourceTab}
           onSourceTabChange={s.changeSourceTab}
@@ -46,8 +46,8 @@ export function History() {
           </Alert>
         )}
 
-        <Card className="flex-1 min-h-0 overflow-hidden">
-          <CardContent className="p-0">
+        <Card className="flex min-h-0 max-h-[min(54rem,calc(100vh-23rem))] flex-1 flex-col overflow-hidden">
+          <CardContent className="flex min-h-0 flex-1 flex-col p-0">
             <HistoryTable
               rows={s.filteredRows}
               loading={s.initialLoading}
@@ -62,46 +62,55 @@ export function History() {
               onDelete={(row) => s.remove(row.file_id)}
               onCompare={(row) => s.openCompareModal(row)}
             />
+            {(s.total > 0 || s.totalPages > 1) && (
+              <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/90">
+                <div className="surface-muted flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/70 px-4 py-3 text-sm text-muted-foreground shadow-[var(--shadow-sm)]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>
+                      {s.total === 0 ? 0 : (s.page - 1) * s.pageSize + 1} - {Math.min(s.page * s.pageSize, s.total)} / {s.total}
+                    </span>
+                    <span className="text-border">|</span>
+                    <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+                      {s.page} / {s.totalPages}
+                    </span>
+                    <span className="text-border">|</span>
+                    <span>{t('history.perPage')}</span>
+                    <Select value={String(s.pageSize)} onValueChange={(value) => s.changePageSize(Number(value))}>
+                      <SelectTrigger className="h-8 min-w-[92px] rounded-xl text-xs" data-testid="history-footer-page-size">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAGE_SIZE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={String(option)}>
+                            {option} {t('history.itemsUnit')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(1)} className="h-8 rounded-xl px-2.5">
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                      </svg>
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)} className="h-8 rounded-xl">
+                      {t('history.prevPage')}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.page + 1)} className="h-8 rounded-xl">
+                      {t('history.nextPage')}
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.totalPages)} className="h-8 rounded-xl px-2.5">
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {(s.total > 0 || s.totalPages > 1) && (
-          <div className="sticky bottom-0 z-10 mt-3 bg-background/95 pb-1 pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/85">
-            <div className="surface-muted flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted-foreground">
-            <div className="flex flex-wrap items-center gap-2">
-              <span>
-                {s.total === 0 ? 0 : (s.page - 1) * s.pageSize + 1} - {Math.min(s.page * s.pageSize, s.total)} / {s.total}
-              </span>
-              <span className="text-border">|</span>
-              <span>
-                {s.page} / {s.totalPages}
-              </span>
-              <span className="text-border">|</span>
-              <span>{t('history.perPage')}</span>
-              <Select value={String(s.pageSize)} onValueChange={(value) => s.changePageSize(Number(value))}>
-                <SelectTrigger className="h-8 min-w-[92px] rounded-xl text-xs" data-testid="history-footer-page-size">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAGE_SIZE_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={String(option)}>
-                      {option} {t('history.itemsUnit')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={s.page <= 1} onClick={() => s.goPage(s.page - 1)} className="h-8 rounded-xl">
-                {t('history.prevPage')}
-              </Button>
-              <Button variant="outline" size="sm" disabled={s.page >= s.totalPages} onClick={() => s.goPage(s.page + 1)} className="h-8 rounded-xl">
-                {t('history.nextPage')}
-              </Button>
-            </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <Dialog open={s.compareOpen} onOpenChange={(open) => { if (!open) s.closeCompareModal(); }}>

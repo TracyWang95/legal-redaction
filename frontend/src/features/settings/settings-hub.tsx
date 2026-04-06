@@ -74,7 +74,7 @@ export function SettingsHub() {
 
   return (
     <div className="saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="page-shell">
+      <div className="page-shell pb-5 sm:pb-6 2xl:pb-8">
         <Tabs defaultValue="text" className="page-stack overflow-hidden gap-3">
           {previewMode && (
             <Alert>

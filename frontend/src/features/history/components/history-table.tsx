@@ -43,7 +43,7 @@ export function HistoryTable({
 
   if (loading) {
     return (
-      <div className="space-y-2 p-4">
+      <div className="space-y-2 p-4 pb-10">
         {Array.from({ length: 5 }).map((_, index) => (
           <Skeleton key={index} className="h-12 w-full" />
         ))}
@@ -56,8 +56,9 @@ export function HistoryTable({
   }
 
   return (
-    <div className="overflow-x-auto" data-testid="history-table">
-      <table className="w-full text-sm">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden" data-testid="history-table">
+      <div className="min-h-0 flex-1 overflow-auto pb-6">
+      <table className="w-full min-w-[980px] text-sm">
         <thead>
           <tr className="border-b border-border/70 bg-muted/30 text-left text-xs font-medium text-muted-foreground">
             <th className="w-10 px-4 py-3">
@@ -81,27 +82,27 @@ export function HistoryTable({
                 className="border-b border-border/70 transition-colors hover:bg-muted/40"
                 data-testid={`history-row-${row.file_id}`}
               >
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <Checkbox checked={selected.has(row.file_id)} onCheckedChange={() => onToggle(row.file_id)} />
                 </td>
-                <td className="max-w-[240px] px-4 py-3 font-medium">
+                <td className="max-w-[260px] px-4 py-3.5 font-medium">
                   <div className="truncate">{row.original_filename}</div>
                 </td>
-                <td className="hidden px-4 py-3 sm:table-cell">
+                <td className="hidden px-4 py-3.5 sm:table-cell">
                   <Badge variant="secondary" className="rounded-full text-[10px]">
                     {getFileTypeLabel(row.file_type)}
                   </Badge>
                 </td>
-                <td className="hidden px-4 py-3 tabular-nums md:table-cell">{row.entity_count}</td>
-                <td className="hidden px-4 py-3 md:table-cell">
+                <td className="hidden px-4 py-3.5 tabular-nums md:table-cell">{row.entity_count}</td>
+                <td className="hidden px-4 py-3.5 md:table-cell">
                   <Badge className={cn(BADGE_BASE, REDACTION_STATE_CLASS[state])}>
                     {getRedactionStateLabel(state)}
                   </Badge>
                 </td>
-                <td className="hidden px-4 py-3 text-xs text-muted-foreground lg:table-cell">
+                <td className="hidden px-4 py-3.5 text-xs text-muted-foreground lg:table-cell">
                   {row.created_at ? new Date(row.created_at).toLocaleString() : '-'}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-3.5">
                   <div className="flex items-center justify-end gap-1">
                     {row.has_output && (
                       <Button
@@ -140,6 +141,7 @@ export function HistoryTable({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

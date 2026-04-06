@@ -42,13 +42,17 @@ export function JobsPagination({
   if (total <= 0) return null;
 
   return (
-    <div className="surface-muted flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <div className="surface-muted flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/70 px-4 py-3 shadow-[var(--shadow-sm)]">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>
           {t('jobs.showRange')
             .replace('{start}', String(rangeStart))
             .replace('{end}', String(rangeEnd))
             .replace('{total}', String(total))}
+        </span>
+        <span className="text-border">|</span>
+        <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+          {page} / {totalPages}
         </span>
         <span className="text-border">|</span>
         <span>{t('jobs.perPage')}</span>
