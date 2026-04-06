@@ -15,7 +15,7 @@
   'nav.visionModel': '视觉服务配置',
 
   
-  'playground.title': '智能脱敏工作台',
+  'playground.title': 'DataInfra-RedactionEverything 工作台',
   'playground.upload.hint': '拖拽或点击上传文件',
   'playground.upload.formats': '支持 Word、PDF、图片文件',
   'playground.recognize': '开始识别',
@@ -96,9 +96,9 @@
   'job.statusDesc.failed': '任务异常，需要处理或重试。',
   'job.statusDesc.cancelled': '任务已停止。',
   'job.statusDesc.unknown': '状态已更新，请刷新查看最新进度。',
-  'redactionState.redacted': '已脱敏',
+  'redactionState.redacted': '已处理',
   'redactionState.awaiting_review': '待审核',
-  'redactionState.unredacted': '未脱敏',
+  'redactionState.unredacted': '未处理',
 
   
   'settings.title': '系统设置',
@@ -107,9 +107,9 @@
   'settings.presets.import': '导入预设',
 
   
-  'report.title': '脱敏质量报告',
+  'report.title': '处理质量报告',
   'report.totalEntities': '识别实体总数',
-  'report.redactedEntities': '已脱敏数',
+  'report.redactedEntities': '已处理数',
   'report.coverage': '覆盖率',
   'report.typeDistribution': '类型分布',
   'report.confidenceDistribution': '置信度分布',
@@ -141,14 +141,14 @@
   'onboarding.prev': '上一步',
   'onboarding.next': '下一步',
   'onboarding.start': '开始使用',
-  'onboarding.step1.title': '欢迎来到脱敏工作台',
+  'onboarding.step1.title': '欢迎来到 DataInfra-RedactionEverything',
   'onboarding.step1.desc': '上传、检查、导出都在同一个清晰界面里完成，整个流程保持在你的本地环境内。',
   'onboarding.step2.title': '先把文件放进来',
   'onboarding.step2.desc': '支持 Word、PDF 和图片文件，入口尽量简单，打开就能开始。',
   'onboarding.step3.title': '先让系统跑第一遍识别',
   'onboarding.step3.desc': '系统会先帮你找出姓名、证件号、电话、地址等敏感内容，减少你手动逐条检查的负担。',
   'onboarding.step4.title': '确认后再输出',
-  'onboarding.step4.desc': '你可以调整识别结果、保留或删除标记，再选择合适的脱敏方式，确保交付前是可控的。',
+  'onboarding.step4.desc': '你可以调整识别结果、保留或删除标记，再选择合适的处理方式，确保交付前是可控的。',
   'onboarding.step5.title': '文件一多就切到批量',
   'onboarding.step5.desc': '当单文件变成多文件时，直接进入批量任务，用同一套标准把整批工作稳定做完。',
 
@@ -161,8 +161,8 @@
 'page.batchImage.sub': '图片与扫描件识别',
   'page.batchSmart.title': '智能批量',
   'page.batchSmart.sub': '混合文件自动识别',
-  'page.redactionList.title': '脱敏清单配置',
-  'page.redactionList.sub': '命名预设与选用，同步 Playground / 批量向导',
+  'page.redactionList.title': '配置清单',
+  'page.redactionList.sub': '管理命名预设与默认范围，同步工作台和批量流程',
   'page.recognitionSettings.title': '识别项配置',
   'page.recognitionSettings.sub': '敏感信息类型、正则与语义规则',
   'page.jobDetail.title': '任务详情',
