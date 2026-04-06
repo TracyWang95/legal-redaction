@@ -51,18 +51,20 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
     >
       <div className="flex min-h-0 min-w-0 flex-1 items-stretch justify-center">
         <div className="flex h-full w-full max-w-[56rem] flex-col items-center pt-0.5 text-center lg:pt-1">
-          <div className="mb-3 flex w-full max-w-3xl flex-col items-center gap-1.5">
-            <span className="saas-kicker">{t('playground.upload.kicker')}</span>
-            <div className="flex flex-col items-center">
-              <h2 className="text-[1.85rem] font-semibold tracking-[-0.045em] text-foreground lg:text-[1.95rem]">
-                {t('playground.upload.title')}
-              </h2>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                {t('playground.upload.desc')}
-              </p>
-              <p className="mt-2 max-w-2xl text-center text-[11px] leading-4 text-muted-foreground/60">
-                {t('playground.upload.standards')}
-              </p>
+          <div className="mb-5 flex w-full max-w-3xl flex-col items-center">
+            <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-primary/70">
+              {t('playground.upload.kicker')}
+            </p>
+            <h2 className="bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-center text-[2rem] font-bold leading-[1.15] tracking-[-0.04em] text-transparent lg:text-[2.25rem]">
+              {t('playground.upload.title')}
+            </h2>
+            <p className="mt-3 max-w-xl text-center text-[15px] leading-relaxed text-muted-foreground">
+              {t('playground.upload.desc')}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-[10px] tracking-wide text-muted-foreground/45">
+              {t('playground.upload.standards').split(' · ').map((s, i, a) => (
+                <span key={s}>{s}{i < a.length - 1 && <span className="ml-1.5 text-border">·</span>}</span>
+              ))}
             </div>
           </div>
 
