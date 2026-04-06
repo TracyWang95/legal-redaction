@@ -76,9 +76,15 @@ Under the hood, a **dual-pipeline architecture** — OCR + NER for text entities
 
 ### Docker Compose (recommended)
 
+> **Prerequisites:** [Docker Engine](https://docs.docker.com/engine/install/) 24+ with Compose V2.<br/>
+> GPU services additionally require the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+
 ```bash
 git clone https://github.com/TracyWang95/DataInfra-RedactionEverything.git
 cd DataInfra-RedactionEverything
+
+# (Optional) Customize environment variables
+cp .env.example .env
 
 # CPU-only (no GPU services)
 docker compose up -d
@@ -88,6 +94,8 @@ docker compose --profile gpu up -d
 ```
 
 Then open **http://localhost:3000**.
+
+> **Note:** The first build pulls base images and installs dependencies — this may take a while. GPU service model files must be placed in `backend/models/` beforehand.
 
 ### Manual Setup
 
@@ -225,7 +233,6 @@ curl http://127.0.0.1:8000/health/services
 | **Backend** | FastAPI | 0.115+ |
 | | Python | 3.10+ |
 | | SQLite | (via job queue) |
-| | Celery + Redis | 5.4+ |
 | **AI / ML** | PaddleOCR-VL-1.5 | 2.7+ |
 | | HaS Text (Qwen3-0.6B Q4) | via llama.cpp |
 | | YOLO11 (Ultralytics) | 8.3+ |
@@ -253,31 +260,55 @@ Interactive docs available at:
 
 ## Deployment
 
-### Docker Compose
+### Docker Compose Details
 
-```yaml
-# docker-compose.yml ships with 5 services:
-# backend, frontend, ocr, ner, vision
-# GPU services use the "gpu" profile
+The provided `docker-compose.yml` includes 5 services:
 
-docker compose --profile gpu up -d
-```
+| Service | Image / Build | Default Port | Profile |
+|---|---|---|---|
+| **backend** | `./backend/Dockerfile` | 8000 | _(always starts)_ |
+| **frontend** | `./frontend/Dockerfile` | 3000 → 80 | _(always starts)_ |
+| **ocr** | `./backend/Dockerfile.ocr` | 8082 | `gpu` |
+| **ner** | `ghcr.io/ggerganov/llama.cpp:server` | 8080 | `gpu` |
+| **vision** | `./backend/Dockerfile.vision` | 8081 | `gpu` |
+
+**Data Persistence (Docker Volumes):**
+
+| Volume | Container Path | Purpose |
+|---|---|---|
+| `backend-data` | `/app/data` | SQLite database, config, JWT secret |
+| `backend-uploads` | `/app/uploads` | User-uploaded files |
+| `backend-outputs` | `/app/outputs` | Redacted output files |
+
+**Networking:** All services communicate over the `redaction-net` bridge network, addressing each other by service name (e.g., `http://ocr:8082`).
+
+**Logging:** JSON log rotation — max 20 MB per file, 5 files retained (backend) / 3 files (GPU services).
 
 ### Environment Variables
+
+All configurable options are documented in **`.env.example`** — copy it and customize:
+
+```bash
+cp .env.example .env
+```
 
 | Variable | Default | Description |
 |---|---|---|
 | `DEBUG` | `false` | Enable debug logging |
-| `AUTH_ENABLED` | `false` | Enable JWT authentication |
-| `OCR_BASE_URL` | `http://localhost:8082` | PaddleOCR service URL |
-| `HAS_LLAMACPP_BASE_URL` | `http://localhost:8080/v1` | HaS NER service URL |
-| `HAS_IMAGE_BASE_URL` | `http://localhost:8081` | HaS Image service URL |
-| `HAS_IMAGE_WEIGHTS` | auto-detect | Path to YOLO11 weights file |
-| `HAS_MODELS_DIR` | auto-detect | Root directory for model files |
-| `JOB_DB_PATH` | `data/jobs.sqlite3` | SQLite database path for job queue |
-| `HAS_NER_DISPLAY_NAME` | `HaS-Text-0209-Q4` | Display name shown in sidebar |
+| `AUTH_ENABLED` | `false` | Enable JWT authentication (set password on first visit to /setup) |
+| `JWT_SECRET_KEY` | _(auto-generated)_ | JWT signing key; leave empty for auto-persistence |
+| `BACKEND_PORT` | `8000` | Backend exposed port |
+| `FRONTEND_PORT` | `3000` | Frontend exposed port |
+| `OCR_BASE_URL` | `http://ocr:8082` | PaddleOCR service URL |
+| `HAS_LLAMACPP_BASE_URL` | `http://ner:8080/v1` | HaS NER service URL |
+| `HAS_IMAGE_BASE_URL` | `http://vision:8081` | HaS Image service URL |
+| `MAX_FILE_SIZE` | `52428800` (50 MB) | Max upload file size in bytes |
+| `OCR_TIMEOUT` | `360` | PaddleOCR VL inference timeout (seconds) |
+| `HAS_TIMEOUT` | `120` | HaS Text NER timeout (seconds) |
+| `FILE_ENCRYPTION_ENABLED` | `false` | AES-256-GCM at-rest encryption |
+| `DEFAULT_REPLACEMENT_MODE` | `smart` | Redaction mode: smart / mask / custom |
 
-### GPU Setup
+### GPU Setup (Manual Deployment)
 
 For optimal OCR performance, install the GPU build of PaddlePaddle **before** installing backend dependencies:
 
