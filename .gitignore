@@ -74,6 +74,8 @@ frontend/.vite/
 .playwright-cli/
 frontend/.playwright-cli/
 backend/.playwright-cli/
+frontend/frontend-preview.log
+*.log
 
 # Temp data & fixtures
 tmp/
