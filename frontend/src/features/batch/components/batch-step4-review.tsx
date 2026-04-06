@@ -335,13 +335,17 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
   const {
     reviewEntities, reviewTextContent, reviewTextContentRef, reviewTextScrollRef,
     selectedReviewEntityCount, displayPreviewMap, textPreviewSegments,
-    applyReviewEntities, toggleReviewEntitySelected, textTypes,
+    applyReviewEntities, textTypes,
     reviewFileReadOnly,
   } = props;
 
   const cardRef = useRef<HTMLDivElement | null>(null);
 
-  // ── Grouped entity list (Issue 4) ──
+  // ── Clicked entity popover (remove annotation) ──
+  const [clickedEntity, setClickedEntity] = useState<ReviewEntity | null>(null);
+  const [entityPopupPos, setEntityPopupPos] = useState<{ left: number; top: number } | null>(null);
+
+  // ── Grouped entity list ──
   const entityGroups = useMemo(() => {
     const map = new Map<string, { type: string; text: string; ids: string[]; selected: number; total: number }>();
     reviewEntities.forEach(e => {
@@ -396,6 +400,29 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
     setSelectionPos(null);
     selectionRangeRef.current = null;
   }, []);
+
+  const handleEntityClick = useCallback((entity: ReviewEntity) => {
+    if (reviewFileReadOnly) return;
+    clearTextSelection();
+    setClickedEntity(entity);
+    const el = reviewTextContentRef.current?.querySelector(`[data-review-entity-id="${CSS.escape(entity.id)}"]`) as HTMLElement | null;
+    const card = cardRef.current;
+    if (el && card) {
+      const elRect = el.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      setEntityPopupPos({
+        left: Math.min(Math.max(elRect.left - cardRect.left, 4), cardRect.width - 224),
+        top: elRect.bottom - cardRect.top + 4,
+      });
+    }
+  }, [reviewFileReadOnly, clearTextSelection, reviewTextContentRef]);
+
+  const removeClickedEntity = useCallback(() => {
+    if (!clickedEntity) return;
+    applyReviewEntities(prev => prev.filter(e => e.id !== clickedEntity.id));
+    setClickedEntity(null);
+    setEntityPopupPos(null);
+  }, [clickedEntity, applyReviewEntities]);
 
   const handleTextSelect = useCallback(() => {
     if (reviewFileReadOnly) return;
@@ -528,7 +555,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
           className="inline cursor-pointer rounded-sm px-0.5 py-[1px] transition-all hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400/20 hover:shadow-sm"
           style={{ backgroundColor: risk.bgColor, color: risk.textColor, opacity: entity.selected ? 1 : 0.45 }}
           title={`${getEntityTypeName(entity.type)}`}
-          onClick={() => toggleReviewEntitySelected(entity.id)}
+          onClick={() => handleEntityClick(entity)}
         >
           {reviewTextContent.slice(entity.start, entity.end)}
         </mark>,
@@ -647,6 +674,40 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
             </div>
           </div>
         )}
+
+        {/* Clicked entity popover — remove annotation */}
+        {clickedEntity && entityPopupPos && (() => {
+          const risk = getEntityRiskConfig(clickedEntity.type);
+          return (
+            <div
+              className="absolute z-50 w-[220px] animate-in fade-in zoom-in-95 rounded-xl border border-border bg-popover p-3 shadow-lg"
+              style={{ left: entityPopupPos.left, top: entityPopupPos.top }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{ backgroundColor: risk.bgColor, color: risk.textColor }}
+                  >
+                    {getEntityTypeName(clickedEntity.type)}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">{clickedEntity.text}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setClickedEntity(null); setEntityPopupPos(null); }}
+                  className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z" fill="currentColor"/></svg>
+                </button>
+              </div>
+              <Button size="sm" variant="ghost" onClick={removeClickedEntity} className="h-7 w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
+                {t('playground.removeAnnotation')}
+              </Button>
+            </div>
+          );
+        })()}
       </Card>
 
       {/* Redacted preview */}
