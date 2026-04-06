@@ -1,9 +1,10 @@
 
 import type React from 'react';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 
 import { Checkbox } from '@/components/ui/checkbox';
@@ -110,7 +111,6 @@ export function BatchStep4Review(props: BatchStep4ReviewProps) {
       className="flex-1 flex flex-col min-h-0 overflow-hidden"
       data-testid="batch-step4-review"
     >
-      {}
       {reviewFileReadOnly && (
         <div className={`shrink-0 border-b px-4 py-2 text-sm ${tonePanelClass.success}`}>
           {t('batchWizard.step4.readOnlyHint')}
@@ -339,6 +339,32 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
     reviewFileReadOnly,
   } = props;
 
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // ── Grouped entity list (Issue 4) ──
+  const entityGroups = useMemo(() => {
+    const map = new Map<string, { type: string; text: string; ids: string[]; selected: number; total: number }>();
+    reviewEntities.forEach(e => {
+      const key = `${e.type}::${e.text}`;
+      const g = map.get(key) || { type: e.type, text: e.text, ids: [], selected: 0, total: 0 };
+      g.ids.push(e.id);
+      g.total++;
+      if (e.selected !== false) g.selected++;
+      map.set(key, g);
+    });
+    return Array.from(map.values());
+  }, [reviewEntities]);
+
+  // ── Scroll to entity in text panel (Issue 3) ──
+  const scrollToEntity = useCallback((entityId: string) => {
+    const el = reviewTextContentRef.current?.querySelector(`[data-review-entity-id="${CSS.escape(entityId)}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-primary');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 1500);
+    }
+  }, [reviewTextContentRef]);
+
   // ── Text selection annotation state ──
   const [selectedText, setSelectedText] = useState<{ text: string; start: number; end: number } | null>(null);
   const [selectionPos, setSelectionPos] = useState<{ left: number; top: number } | null>(null);
@@ -401,7 +427,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
     setSelectedText({ text, start, end });
   }, [clearTextSelection, reviewFileReadOnly, reviewTextContent, reviewTextContentRef, selectedText, selectedTypeId, selectionPos, textTypes]);
 
-  // Position the popover after selectedText changes
+  // Position the popover after selectedText changes (absolute within Card)
   useLayoutEffect(() => {
     if (!selectedText) {
       selectionRangeRef.current = null;
@@ -409,8 +435,8 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
       return;
     }
 
-    const root = reviewTextContentRef.current;
-    if (!root) return;
+    const card = cardRef.current;
+    if (!card) return;
 
     const update = () => {
       const range = selectionRangeRef.current;
@@ -428,7 +454,11 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
       }
 
       if (rect.width === 0 && rect.height === 0) return;
-      setSelectionPos(clampPopoverInCanvas(rect, root.getBoundingClientRect(), 240, 240));
+
+      const cardRect = card.getBoundingClientRect();
+      // Clamp within the Card bounds (viewport coords), then convert to Card-relative
+      const clamped = clampPopoverInCanvas(rect, cardRect, 240, 240);
+      setSelectionPos({ left: clamped.left - cardRect.left, top: clamped.top - cardRect.top });
     };
 
     update();
@@ -440,7 +470,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
       window.removeEventListener('resize', update);
       scrollEl?.removeEventListener('scroll', update);
     };
-  }, [selectedText, reviewTextContentRef, reviewTextScrollRef]);
+  }, [selectedText, reviewTextScrollRef]);
 
   const addManualAnnotation = useCallback(() => {
     if (!selectedText || !selectedTypeId) return;
@@ -478,6 +508,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
           className="inline cursor-pointer rounded-sm px-0.5 py-[1px] transition-all hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400/20 hover:shadow-sm"
           style={{ backgroundColor: risk.bgColor, color: risk.textColor, opacity: entity.selected ? 1 : 0.45 }}
           title={`${getEntityTypeName(entity.type)}`}
+          onClick={() => toggleReviewEntitySelected(entity.id)}
         >
           {reviewTextContent.slice(entity.start, entity.end)}
         </mark>,
@@ -499,7 +530,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
   return (
     <div className="flex-1 min-h-0 grid gap-3 p-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_320px]">
       {/* Original text */}
-      <Card className="min-h-0 flex flex-col overflow-hidden">
+      <Card ref={cardRef} className="relative min-h-0 flex flex-col overflow-hidden">
         <div className="shrink-0 px-4 py-2 border-b flex items-center justify-between">
           <span className="text-xs font-semibold">{t('batchWizard.step4.originalText')}</span>
           <span className="text-xs text-muted-foreground tabular-nums">
@@ -519,7 +550,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
         {/* Text selection annotation popover */}
         {selectedText && selectionPos && (
           <div
-            className="fixed z-50 w-[220px] animate-in fade-in zoom-in-95 rounded-xl border border-border bg-popover shadow-lg"
+            className="absolute z-50 w-[220px] animate-in fade-in zoom-in-95 rounded-xl border border-border bg-popover shadow-lg"
             style={{ left: selectionPos.left, top: selectionPos.top }}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseUp={(e) => e.stopPropagation()}
@@ -640,41 +671,46 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
           </div>
         </div>
         <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-          {reviewEntities.map(e => {
-            const repl = displayPreviewMap[e.text] ?? (
-              typeof e.start === 'number' && typeof e.end === 'number' && e.end <= reviewTextContent.length
-                ? displayPreviewMap[reviewTextContent.slice(e.start, e.end)]
-                : undefined
-            );
-            const risk = getEntityRiskConfig(e.type);
+          {entityGroups.map(g => {
+            const risk = getEntityRiskConfig(g.type);
+            const allSelected = g.selected === g.total;
+            const noneSelected = g.selected === 0;
             return (
               <div
-                key={e.id}
-                className="rounded-xl border shadow-sm px-3 py-2"
+                key={`${g.type}::${g.text}`}
+                className="rounded-xl border shadow-sm px-3 py-2 cursor-pointer transition-colors hover:bg-accent/30"
                 style={{
-                  backgroundColor: e.selected === false ? undefined : risk.bgColor,
+                  backgroundColor: noneSelected ? undefined : risk.bgColor,
                   borderLeft: `3px solid ${risk.color}`,
                 }}
+                onClick={() => scrollToEntity(g.ids[0])}
               >
                 <div className="flex items-start gap-2">
                   <Checkbox
-                    checked={e.selected !== false}
-                    onCheckedChange={() => toggleReviewEntitySelected(e.id)}
+                    checked={allSelected ? true : noneSelected ? false : 'indeterminate'}
+                    onCheckedChange={() => {
+                      const newSelected = !allSelected;
+                      applyReviewEntities(prev =>
+                        prev.map(e => g.ids.includes(e.id) ? { ...e, selected: newSelected } : e),
+                      );
+                    }}
                     className="mt-0.5"
-                    data-testid={`entity-toggle-${e.id}`}
+                    data-testid={`entity-group-toggle-${g.type}-${g.text}`}
                   />
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-medium" style={{ color: risk.textColor }}>
-                      {textTypes.find(tt => tt.id === e.type)?.name ?? getEntityTypeName(e.type)}
-                    </span>
-                    <span className="block text-xs break-all mt-0.5" style={{ color: risk.textColor }}>
-                      {e.text}
-                    </span>
-                    {repl != null && (
-                      <span className="block text-xs mt-0.5 truncate opacity-90" style={{ color: risk.textColor }}>
-                        {repl}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium" style={{ color: risk.textColor }}>
+                        {textTypes.find(tt => tt.id === g.type)?.name ?? getEntityTypeName(g.type)}
                       </span>
-                    )}
+                      {g.total > 1 && (
+                        <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px] leading-4">
+                          &times;{g.total}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="block text-xs break-all mt-0.5" style={{ color: risk.textColor }}>
+                      {g.text}
+                    </span>
                   </div>
                 </div>
               </div>
