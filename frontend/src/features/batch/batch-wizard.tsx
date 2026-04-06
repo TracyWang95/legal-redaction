@@ -40,7 +40,7 @@ export function BatchWizard() {
         )}
       >
         {w.previewMode && (
-          <Alert className="mb-3">
+          <Alert className="mb-3" data-testid="batch-preview-alert">
             <AlertDescription>{t('batchWizard.previewBanner')}</AlertDescription>
           </Alert>
         )}

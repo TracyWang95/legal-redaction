@@ -13,7 +13,6 @@ import {
 } from '@/services/jobsApi';
 import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
-import { buildJobsPreviewDetail, buildJobsPreviewPage, isJobsPreviewJob } from '../lib/jobs-preview-fixtures';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 const DELETABLE_STATUSES = new Set(['draft', 'awaiting_review', 'completed', 'failed', 'cancelled']);
@@ -108,7 +107,6 @@ export function useJobs() {
   const [jobDetails, setJobDetails] = useState<Record<string, JobDetail>>({});
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<string>>(() => new Set());
   const [requeueingJobId, setRequeuingJobId] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -145,18 +143,16 @@ export function useJobs() {
         setTotal(prev => (prev === result.total ? prev : result.total));
         setPage(prev => (prev === result.page ? prev : result.page));
         setPageSize(prev => (prev === result.page_size ? prev : result.page_size));
-        setPreviewMode(false);
         return result;
-      } catch {
-        const preview = buildJobsPreviewPage({ page: targetPage, pageSize: targetPageSize, jobType: tab === 'all' ? undefined : tab });
-        setRows(preview.jobs);
-        setTotal(preview.total);
-        setPage(preview.page);
-        setPageSize(preview.page_size);
-        setPreviewMode(true);
-        setNotice(t('jobs.previewBanner'));
-        if (!hasRows) setErr(null);
-        return preview;
+      } catch (error) {
+        setErr(localizeErrorMessage(error, 'jobs.loadFailed'));
+        if (!hasRows) {
+          setRows([]);
+          setTotal(0);
+          setPage(targetPage);
+          setPageSize(targetPageSize);
+        }
+        return null;
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -168,11 +164,6 @@ export function useJobs() {
   const fetchJobDetails = useCallback(async (jobIds: string[]) => {
     const ids = [...new Set(jobIds)].filter(Boolean);
     if (ids.length === 0) return;
-    if (previewMode) {
-      const patch = Object.fromEntries(ids.map((id) => [id, buildJobsPreviewDetail(id)]));
-      setJobDetails(prev => ({ ...prev, ...patch }));
-      return;
-    }
     setDetailLoadingIds(prev => {
       const next = new Set(prev);
       ids.forEach(id => next.add(id));
@@ -209,19 +200,18 @@ export function useJobs() {
       ids.forEach(id => next.delete(id));
       return next;
     });
-  }, [previewMode]);
+  }, []);
 
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (previewMode) return;
     const hasActiveJobs = rows.some(j => !['completed', 'failed', 'cancelled', 'draft'].includes(j.status));
     if (!hasActiveJobs) return;
     const tick = () => { if (document.visibilityState === 'visible') void load(); };
     const timer = setInterval(tick, 10_000);
     document.addEventListener('visibilitychange', tick);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
-  }, [previewMode, rows, load]);
+  }, [rows, load]);
 
   const refreshList = useCallback(async () => {
     const result = await load({ targetPage: page });
@@ -286,14 +276,6 @@ export function useJobs() {
       setNotice(null);
       setErr(null);
       try {
-        if (previewMode && isJobsPreviewJob(job.id)) {
-          setExpandedJobIds(prev => { const next = new Set(prev); next.delete(job.id); return next; });
-          setJobDetails(prev => { const next = { ...prev }; delete next[job.id]; return next; });
-          setRows(prev => prev.filter((item) => item.id !== job.id));
-          setTotal(prev => Math.max(0, prev - 1));
-          setNotice(t('jobs.deletedNotice').replace('{title}', title));
-          return;
-        }
         await deleteJob(job.id);
         setExpandedJobIds(prev => { const next = new Set(prev); next.delete(job.id); return next; });
         setJobDetails(prev => { const next = { ...prev }; delete next[job.id]; return next; });
@@ -307,7 +289,7 @@ export function useJobs() {
         setDeletingJobId(null);
       }
     },
-    [deleteCandidate, deletingJobId, page, previewMode, refreshList, rows.length],
+    [deleteCandidate, deletingJobId, page, refreshList, rows.length],
   );
 
   const onRequeueFailed = useCallback(
@@ -317,21 +299,6 @@ export function useJobs() {
       setNotice(null);
       setErr(null);
       try {
-        if (previewMode && isJobsPreviewJob(job.id)) {
-          setRows(prev =>
-            prev.map((item) =>
-              item.id === job.id
-                ? {
-                    ...item,
-                    status: 'queued',
-                    progress: { ...item.progress, failed: 0, queued: Math.max(1, item.progress.queued) },
-                  }
-                : item,
-            ),
-          );
-          setNotice(t('jobs.requeuedNotice').replace('{n}', String(job.progress.failed)));
-          return;
-        }
         await requeueFailed(job.id);
         setNotice(t('jobs.requeuedNotice').replace('{n}', String(job.progress.failed)));
         await refreshList();
@@ -341,18 +308,12 @@ export function useJobs() {
         setRequeuingJobId(null);
       }
     },
-    [previewMode, requeueingJobId, refreshList],
+    [requeueingJobId, refreshList],
   );
 
   const onCleanup = useCallback(async () => {
     setCleanupConfirmOpen(false);
     try {
-      if (previewMode) {
-        setRows(prev => prev.filter((job) => !['completed', 'failed', 'cancelled'].includes(job.status)));
-        setTotal(prev => Math.max(0, prev - rows.filter((job) => ['completed', 'failed', 'cancelled'].includes(job.status)).length));
-        setNotice(t('jobs.cleanupTitle'));
-        return;
-      }
       const res = await authFetch('/api/v1/safety/cleanup', { method: 'POST' });
       if (!res.ok) throw new Error(t('safety.cleanup.failed'));
       const data = await res.json();
@@ -366,7 +327,7 @@ export function useJobs() {
     } catch {
       showToast(t('safety.cleanup.failed'), 'error');
     }
-  }, [previewMode, refreshList, rows]);
+  }, [refreshList]);
 
   const visibleRows = useMemo(() => rows, [rows]);
   const tableBusy = loading || refreshing || deletingJobId !== null;
@@ -392,7 +353,7 @@ export function useJobs() {
   return {
 
     tab, rows: visibleRows, total, page, pageSize, jumpPage, loading, refreshing,
-    cleanupConfirmOpen, err, notice, deletingJobId, deleteCandidate, expandedJobIds, jobDetails, previewMode,
+    cleanupConfirmOpen, err, notice, deletingJobId, deleteCandidate, expandedJobIds, jobDetails,
     detailLoadingIds, requeueingJobId, totalPages, tableBusy, rangeStart, rangeEnd, pageMetrics,
 
     changeTab, refreshList, goPage, changePageSize, setJumpPage,

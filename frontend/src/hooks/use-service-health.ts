@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 interface ServiceInfo {
   name: string;
@@ -19,48 +19,110 @@ export interface ServicesHealth {
 }
 
 const HEALTH_TIMEOUT_MS = 55_000;
+const HEALTH_POLL_INTERVAL_MS = 15_000;
 
-export function useServiceHealth() {
-  const [health, setHealth] = useState<ServicesHealth | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [roundTripMs, setRoundTripMs] = useState<number | null>(null);
+type HealthStoreSnapshot = {
+  health: ServicesHealth | null;
+  checking: boolean;
+  roundTripMs: number | null;
+};
 
-  const fetchHealth = useCallback(async (showChecking = false) => {
-    if (showChecking) setChecking(true);
+type HealthListener = () => void;
+
+const initialSnapshot: HealthStoreSnapshot = {
+  health: null,
+  checking: true,
+  roundTripMs: null,
+};
+
+let snapshot: HealthStoreSnapshot = initialSnapshot;
+const listeners = new Set<HealthListener>();
+let activeFetch: Promise<void> | null = null;
+let started = false;
+
+function emitHealthChange() {
+  listeners.forEach((listener) => listener());
+}
+
+function updateSnapshot(next: Partial<HealthStoreSnapshot>) {
+  snapshot = { ...snapshot, ...next };
+  emitHealthChange();
+}
+
+async function runHealthCheck(showChecking: boolean) {
+  if (activeFetch) {
+    if (showChecking && !snapshot.checking) updateSnapshot({ checking: true });
+    return activeFetch;
+  }
+
+  if (showChecking && !snapshot.checking) {
+    updateSnapshot({ checking: true });
+  }
+
+  activeFetch = (async () => {
     const ac = new AbortController();
     const timer = window.setTimeout(() => ac.abort(), HEALTH_TIMEOUT_MS);
     const t0 = performance.now();
     try {
       const res = await fetch('/health/services', { signal: ac.signal });
-      if (res.ok) {
-        const data = await res.json();
-        setHealth(data);
-        setRoundTripMs(Math.round(performance.now() - t0));
-      } else {
-        setHealth(null);
-        setRoundTripMs(null);
+      if (!res.ok) {
+        updateSnapshot({ health: null, roundTripMs: null });
+        return;
       }
+      const data = (await res.json()) as ServicesHealth;
+      updateSnapshot({
+        health: data,
+        roundTripMs: Math.round(performance.now() - t0),
+      });
     } catch {
-      setHealth(null);
-      setRoundTripMs(null);
+      updateSnapshot({ health: null, roundTripMs: null });
     } finally {
       window.clearTimeout(timer);
-      setChecking(false);
+      activeFetch = null;
+      updateSnapshot({ checking: false });
     }
+  })();
+
+  return activeFetch;
+}
+
+function ensureHealthPolling() {
+  if (started || typeof window === 'undefined') return;
+  started = true;
+
+  void runHealthCheck(false);
+
+  const tick = () => {
+    if (document.visibilityState === 'visible') {
+      void runHealthCheck(false);
+    }
+  };
+
+  window.setInterval(tick, HEALTH_POLL_INTERVAL_MS);
+  document.addEventListener('visibilitychange', tick);
+}
+
+function subscribe(listener: HealthListener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function useServiceHealth() {
+  useEffect(() => {
+    ensureHealthPolling();
   }, []);
 
-  useEffect(() => {
-    fetchHealth(false);
-    const tick = () => {
-      if (document.visibilityState === 'visible') fetchHealth(false);
-    };
-    const timer = setInterval(tick, 15_000);
-    document.addEventListener('visibilitychange', tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', tick);
-    };
-  }, [fetchHealth]);
+  const state = useSyncExternalStore(subscribe, () => snapshot, () => initialSnapshot);
+  const refresh = useCallback(() => {
+    void runHealthCheck(true);
+  }, []);
 
-  return { health, checking, roundTripMs, refresh: () => fetchHealth(true) };
+  return {
+    health: state.health,
+    checking: state.checking,
+    roundTripMs: state.roundTripMs,
+    refresh,
+  };
 }

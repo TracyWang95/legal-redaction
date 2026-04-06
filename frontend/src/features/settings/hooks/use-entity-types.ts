@@ -5,7 +5,10 @@ import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { selectionToneHex, type SelectionTone } from '@/ui/selectionPalette';
-import { buildPreviewEntityTypes, buildPreviewPipelines } from '../lib/settings-preview-fixtures';
+import {
+  fetchRecognitionEntityTypes,
+  fetchRecognitionPipelines,
+} from '@/services/recognition-config';
 
 export interface EntityTypeConfig {
   id: string;
@@ -83,22 +86,18 @@ export function useEntityTypes() {
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [pipelinesLoading, setPipelinesLoading] = useState(true);
-  const [entityPreviewMode, setEntityPreviewMode] = useState(false);
-  const [pipelinePreviewMode, setPipelinePreviewMode] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 1200 });
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      setEntityTypes(data.custom_types || []);
-      setEntityPreviewMode(false);
+      setLoadError(null);
+      setEntityTypes(await fetchRecognitionEntityTypes(false, 1_200) as EntityTypeConfig[]);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', err);
-      setEntityTypes(buildPreviewEntityTypes(t) as EntityTypeConfig[]);
-      setEntityPreviewMode(true);
+      setEntityTypes([]);
+      setLoadError(t('settings.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -107,10 +106,8 @@ export function useEntityTypes() {
   const fetchPipelines = useCallback(async () => {
     try {
       setPipelinesLoading(true);
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 1200 });
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      const normalized = (data || []).map((p: PipelineConfig) =>
+      setLoadError(null);
+      const normalized = (await fetchRecognitionPipelines(1_200) as PipelineConfig[]).map((p: PipelineConfig) =>
         p.mode === 'has_image'
           ? {
               ...p,
@@ -120,11 +117,10 @@ export function useEntityTypes() {
           : p
       );
       setPipelines(normalized);
-      setPipelinePreviewMode(false);
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch pipelines failed', err);
-      setPipelines(buildPreviewPipelines(t) as PipelineConfig[]);
-      setPipelinePreviewMode(true);
+      setPipelines([]);
+      setLoadError((current) => current ?? t('settings.loadFailed'));
     } finally {
       setPipelinesLoading(false);
     }
@@ -137,7 +133,6 @@ export function useEntityTypes() {
 
   const regexTypes = useMemo(() => entityTypes.filter(t => t.regex_pattern), [entityTypes]);
   const llmTypes = useMemo(() => entityTypes.filter(t => t.use_llm), [entityTypes]);
-  const previewMode = entityPreviewMode || pipelinePreviewMode;
 
   const createType = useCallback(async (newType: {
     name: string; description: string; regex_pattern: string; use_llm: boolean;
@@ -284,7 +279,7 @@ export function useEntityTypes() {
   }, []);
 
   return {
-    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, previewMode, importFileRef,
+    entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, loadError, importFileRef,
     createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets, fetchEntityTypes, fetchPipelines,

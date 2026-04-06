@@ -3,7 +3,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { PaginationRail } from '@/components/PaginationRail';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -137,7 +146,10 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             </div>
             <PresetSelectors rec={rec} disabledText={rec.textConfigState !== 'ready'} disabledVision={rec.visionConfigState !== 'ready'} />
             {backendUnavailable && (
-              <div className="rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-2 text-xs text-[var(--warning-foreground)]">
+              <div
+                className="rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-2 text-xs text-[var(--warning-foreground)]"
+                data-testid="playground-offline-hint"
+              >
                 {t('playground.upload.offlineHint')}
               </div>
             )}
@@ -179,6 +191,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
         </Tabs>
       </Card>
+      <PresetSaveDialog rec={rec} />
     </div>
   );
 };
@@ -197,7 +210,7 @@ const PresetSelectors: FC<{
         presets={rec.textPresetsPg}
         activeId={rec.playgroundPresetTextId}
         onSelect={rec.selectPlaygroundTextPresetById}
-        onSave={rec.saveTextPresetFromPlayground}
+        onSave={rec.openTextPresetDialog}
         saveLabel={t('playground.saveAsTextPreset')}
         disabled={disabledText}
       />
@@ -206,7 +219,7 @@ const PresetSelectors: FC<{
         presets={rec.visionPresetsPg}
         activeId={rec.playgroundPresetVisionId}
         onSelect={rec.selectPlaygroundVisionPresetById}
-        onSave={rec.saveVisionPresetFromPlayground}
+        onSave={rec.openVisionPresetDialog}
         saveLabel={t('playground.saveAsVisionPreset')}
         disabled={disabledVision}
       />
@@ -318,7 +331,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={group.key}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -343,7 +356,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid min-h-0 flex-1 grid-cols-3 gap-1.5 p-2', isFullPage ? 'grid-rows-3 auto-rows-fr' : 'content-start')}>
+            <div className={cn('grid grid-cols-3 content-start gap-1.5 p-2', isFullPage && 'auto-rows-[minmax(0,auto)]')}>
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -352,7 +365,6 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     key={`${group.key}-${type.id}`}
                     className={cn(
                       'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
-                      isFullPage && 'h-full min-h-[3.2rem]',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -452,7 +464,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={pipeline.mode}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -493,7 +505,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid min-h-0 flex-1 grid-cols-3 gap-1.5 p-2', isFullPage ? 'grid-rows-3 auto-rows-fr' : 'content-start')}>
+            <div className={cn('grid grid-cols-3 content-start gap-1.5 p-2', isFullPage && 'auto-rows-[minmax(0,auto)]')}>
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
@@ -501,7 +513,6 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     key={type.id}
                     className={cn(
                       'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
-                      isFullPage && 'h-full min-h-[3.2rem]',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -544,7 +555,10 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
 function ConfigEmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-5 py-8 text-center">
+    <div
+      className="rounded-[22px] border border-dashed border-border/70 bg-muted/20 px-5 py-8 text-center"
+      data-testid="playground-config-empty"
+    >
       <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">{title}</p>
       <p className="mt-2 text-xs leading-6 text-muted-foreground">{description}</p>
     </div>
@@ -554,3 +568,41 @@ function ConfigEmptyState({ title, description }: { title: string; description: 
 function resolveTextTypeName(typeId: string, fallbackName?: string) {
   return fallbackName?.trim() || getEntityTypeName(typeId);
 }
+
+const PresetSaveDialog: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
+  const t = useT();
+  const open = rec.presetDialogKind !== null;
+  const isText = rec.presetDialogKind === 'text';
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) rec.closePresetDialog(); }}>
+      <DialogContent className="sm:max-w-[28rem]">
+        <DialogHeader>
+          <DialogTitle>
+            {isText ? t('playground.saveAsTextPreset') : t('playground.saveAsVisionPreset')}
+          </DialogTitle>
+          <DialogDescription>
+            {isText ? t('preset.saveText.prompt') : t('preset.saveVision.prompt')}
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          value={rec.presetDialogName}
+          onChange={(event) => rec.setPresetDialogName(event.target.value)}
+          placeholder={t('settings.redaction.namePlaceholder')}
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={rec.closePresetDialog} disabled={rec.presetSaving}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            onClick={() => void (isText ? rec.saveTextPresetFromPlayground() : rec.saveVisionPresetFromPlayground())}
+            disabled={rec.presetSaving}
+          >
+            {rec.presetSaving ? t('settings.redaction.processing') : t('settings.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};

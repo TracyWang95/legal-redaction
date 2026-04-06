@@ -8,6 +8,10 @@ import {
   type RecognitionPreset,
 } from '@/services/presetsApi';
 import {
+  fetchRecognitionEntityTypes,
+  fetchRecognitionPipelines,
+} from '@/services/recognition-config';
+import {
   buildDefaultPipelineTypeIds,
   buildDefaultTextTypeIds,
 } from '@/services/defaultRedactionPreset';
@@ -20,8 +24,6 @@ import {
 import { t } from '@/i18n';
 import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
-import { safeJson } from '../utils';
 import {
   buildPlaygroundTextGroups,
   type ConfigLoadState,
@@ -29,11 +31,6 @@ import {
   normalizeVisionPipelines,
   sortEntityTypes,
 } from '../lib/recognition-config';
-import {
-  buildPreviewEntityTypes,
-  buildPreviewPipelines,
-  buildPreviewPresets,
-} from '@/features/settings/lib/settings-preview-fixtures';
 import type {
   EntityTypeConfig,
   VisionTypeConfig,
@@ -56,6 +53,9 @@ export function usePlaygroundRecognition() {
   const [playgroundPresets, setPlaygroundPresets] = useState<RecognitionPreset[]>([]);
   const [playgroundPresetTextId, setPlaygroundPresetTextId] = useState<string | null>(null);
   const [playgroundPresetVisionId, setPlaygroundPresetVisionId] = useState<string | null>(null);
+  const [presetDialogKind, setPresetDialogKind] = useState<'text' | 'vision' | null>(null);
+  const [presetDialogName, setPresetDialogName] = useState('');
+  const [presetSaving, setPresetSaving] = useState(false);
 
   const textPresetsPg = useMemo(() => playgroundPresets.filter(presetAppliesText), [playgroundPresets]);
   const visionPresetsPg = useMemo(() => playgroundPresets.filter(presetAppliesVision), [playgroundPresets]);
@@ -169,16 +169,36 @@ export function usePlaygroundRecognition() {
   useEffect(() => {
     void fetchPresets()
       .then(setPlaygroundPresets)
-      .catch(() => setPlaygroundPresets(buildPreviewPresets(t)));
+      .catch(() => setPlaygroundPresets([]));
+  }, []);
+
+  const closePresetDialog = useCallback(() => {
+    if (presetSaving) return;
+    setPresetDialogKind(null);
+    setPresetDialogName('');
+  }, [presetSaving]);
+
+  const openTextPresetDialog = useCallback(() => {
+    setPresetDialogKind('text');
+    setPresetDialogName('');
+  }, []);
+
+  const openVisionPresetDialog = useCallback(() => {
+    setPresetDialogKind('vision');
+    setPresetDialogName('');
   }, []);
 
   const saveTextPresetFromPlayground = useCallback(async () => {
-    const name = window.prompt(t('preset.saveText.prompt'));
-    if (!name?.trim()) return;
+    const name = presetDialogName.trim();
+    if (!name) {
+      showToast(t('settings.redaction.nameRequired'), 'error');
+      return;
+    }
 
+    setPresetSaving(true);
     try {
       const created = await createPreset({
-        name: name.trim(),
+        name,
         kind: 'text',
         selectedEntityTypeIds: selectedTypes,
         ocrHasTypes: [],
@@ -189,19 +209,26 @@ export function usePlaygroundRecognition() {
       setPlaygroundPresets(nextPresets);
       setPlaygroundPresetTextId(created.id);
       setActivePresetTextId(created.id);
+      closePresetDialog();
       showToast(t('preset.saveText.success'), 'success');
     } catch (error) {
       showToast(localizeErrorMessage(error, 'preset.save.failed'), 'error');
+    } finally {
+      setPresetSaving(false);
     }
-  }, [selectedTypes]);
+  }, [closePresetDialog, presetDialogName, selectedTypes]);
 
   const saveVisionPresetFromPlayground = useCallback(async () => {
-    const name = window.prompt(t('preset.saveVision.prompt'));
-    if (!name?.trim()) return;
+    const name = presetDialogName.trim();
+    if (!name) {
+      showToast(t('settings.redaction.nameRequired'), 'error');
+      return;
+    }
 
+    setPresetSaving(true);
     try {
       const created = await createPreset({
-        name: name.trim(),
+        name,
         kind: 'vision',
         selectedEntityTypeIds: [],
         ocrHasTypes: selectedOcrHasTypes,
@@ -212,38 +239,34 @@ export function usePlaygroundRecognition() {
       setPlaygroundPresets(nextPresets);
       setPlaygroundPresetVisionId(created.id);
       setActivePresetVisionId(created.id);
+      closePresetDialog();
       showToast(t('preset.saveVision.success'), 'success');
     } catch (error) {
       showToast(localizeErrorMessage(error, 'preset.save.failed'), 'error');
+    } finally {
+      setPresetSaving(false);
     }
-  }, [selectedOcrHasTypes, selectedHasImageTypes]);
+  }, [closePresetDialog, presetDialogName, selectedHasImageTypes, selectedOcrHasTypes]);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=true', { timeoutMs: 1200 });
-      if (!res.ok) throw new Error('fetch failed');
-
-      const data = await safeJson(res);
-      const types = Array.isArray(data.custom_types) ? sortEntityTypes(data.custom_types) : [];
+      const types = sortEntityTypes(await fetchRecognitionEntityTypes(true, 1_200));
       setEntityTypes(types);
       setTextConfigState(types.length > 0 ? 'ready' : 'empty');
       setSelectedTypes(buildDefaultTextTypeIds(types));
     } catch (error) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', error);
-      const previewTypes = sortEntityTypes(buildPreviewEntityTypes(t) as EntityTypeConfig[]);
-      setEntityTypes(previewTypes);
-      setSelectedTypes(buildDefaultTextTypeIds(previewTypes));
-      setTextConfigState('ready');
+      setEntityTypes([]);
+      setSelectedTypes([]);
+      setTextConfigState('unavailable');
     }
   }, []);
 
   const fetchVisionTypes = useCallback(async () => {
     try {
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 1200 });
-      if (!res.ok) throw new Error('fetch failed');
-
-      const data = await safeJson<PipelineConfig[]>(res);
-      const normalizedPipelines = normalizeVisionPipelines(Array.isArray(data) ? data : []);
+      const normalizedPipelines = normalizeVisionPipelines(
+        await fetchRecognitionPipelines(1_200) as PipelineConfig[],
+      );
       const nextVisionTypes = flattenVisionTypes(normalizedPipelines);
 
       setPipelines(normalizedPipelines);
@@ -290,13 +313,11 @@ export function usePlaygroundRecognition() {
       }
     } catch (error) {
       if (import.meta.env.DEV) console.error('fetch vision pipelines failed', error);
-      const previewPipelines = normalizeVisionPipelines(buildPreviewPipelines(t) as PipelineConfig[]);
-      const previewVisionTypes = flattenVisionTypes(previewPipelines);
-      setPipelines(previewPipelines);
-      setVisionTypes(previewVisionTypes);
-      setVisionConfigState('ready');
-      updateOcrHasTypes(buildDefaultPipelineTypeIds(previewPipelines, 'ocr_has'));
-      updateHasImageTypes(buildDefaultPipelineTypeIds(previewPipelines, 'has_image'));
+      setPipelines([]);
+      setVisionTypes([]);
+      setVisionConfigState('unavailable');
+      updateOcrHasTypes([]);
+      updateHasImageTypes([]);
     }
   }, [updateOcrHasTypes, updateHasImageTypes]);
 
@@ -415,6 +436,13 @@ export function usePlaygroundRecognition() {
     selectPlaygroundVisionPresetById,
     saveTextPresetFromPlayground,
     saveVisionPresetFromPlayground,
+    presetDialogKind,
+    presetDialogName,
+    setPresetDialogName,
+    presetSaving,
+    closePresetDialog,
+    openTextPresetDialog,
+    openVisionPresetDialog,
     clearPlaygroundTextPresetTracking,
     clearPlaygroundVisionPresetTracking,
     sortedEntityTypes,

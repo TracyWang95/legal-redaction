@@ -56,8 +56,9 @@ export function JobDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (err || !data) return;
     const terminal = ['completed', 'failed', 'cancelled'];
-    if (data && terminal.includes(data.status)) return;
+    if (terminal.includes(data.status)) return;
 
     const tick = () => {
       if (document.visibilityState === 'visible') {
@@ -71,7 +72,7 @@ export function JobDetailPage() {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', tick);
     };
-  }, [load, data?.status]);
+  }, [data, err, load]);
 
   const onSubmit = async () => {
     if (!jobId) return;
@@ -179,7 +180,6 @@ export function JobDetailPage() {
     <div className="flex-1 min-h-0 flex flex-col bg-background overflow-y-auto" data-testid="job-detail-page">
       <div className="px-3 py-3 sm:px-5 sm:py-4 max-w-5xl mx-auto w-full space-y-4">
 
-        {}
         <nav className="flex items-center gap-2 text-sm">
           <Link to="/jobs" className="text-primary hover:underline">
             {t('jobDetail.jobCenter')}
@@ -188,14 +188,12 @@ export function JobDetailPage() {
           <span className="font-medium truncate">{j.title || t('jobDetail.unnamedTask')}</span>
         </nav>
 
-        {}
         {actionMsg && (
           <Alert>
             <AlertDescription>{actionMsg}</AlertDescription>
           </Alert>
         )}
 
-        {}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -204,7 +202,6 @@ export function JobDetailPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{t('jobDetail.type')}{t('jobDetail.batchTask')}</span>
               <span>{t('jobDetail.progressTotal').replace('{n}', String(j.progress.total_items))}</span>
@@ -215,7 +212,6 @@ export function JobDetailPage() {
               )}
             </div>
 
-            {}
             <div className="flex flex-wrap gap-2">
               {j.status === 'draft' && (
                 <Button size="sm" onClick={onSubmit}>
@@ -262,7 +258,6 @@ export function JobDetailPage() {
           </CardContent>
         </Card>
 
-        {}
         <Card>
           <CardHeader className="pb-2">
             <h3 className="text-sm font-semibold">{t('jobDetail.fileDetail')}</h3>
@@ -315,7 +310,6 @@ export function JobDetailPage() {
         </Card>
       </div>
 
-      {}
       <ConfirmDialog
         open={deleteConfirmOpen}
         title={t('jobDetail.deleteTask')}

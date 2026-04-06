@@ -37,7 +37,6 @@ import {
   setActivePresetVisionId,
 } from '@/services/activePresetBridge';
 import {
-  fetchPresets,
   presetAppliesText,
   presetAppliesVision,
   type RecognitionPreset,
@@ -46,7 +45,11 @@ import {
   buildDefaultPipelineTypeIds,
   buildDefaultTextTypeIds,
 } from '@/services/defaultRedactionPreset';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
+import {
+  fetchRecognitionEntityTypes,
+  fetchRecognitionPipelines,
+  fetchRecognitionPresets,
+} from '@/services/recognition-config';
 import {
   buildFallbackPreviewEntityMap,
   buildTextSegments,
@@ -501,19 +504,12 @@ export function useBatchWizard() {
     }
     (async () => {
       try {
-        const [ctRes, pipeRes, presetRes] = await Promise.all([
-          fetchWithTimeout('/api/v1/custom-types?enabled_only=true', { timeoutMs: 25000 }),
-          fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 25000 }),
-          fetchPresets().catch(() => [] as RecognitionPreset[]),
+        const [types, pipes, presetRes] = await Promise.all([
+          fetchRecognitionEntityTypes(true, 25_000),
+          fetchRecognitionPipelines(25_000) as Promise<PipelineCfg[]>,
+          fetchRecognitionPresets().catch(() => [] as RecognitionPreset[]),
         ]);
-          if (!ctRes.ok || !pipeRes.ok) throw new Error(t('batchWizard.loadJobFailed'));
-        const ctData = await ctRes.json();
-        const pipes: PipelineCfg[] = await pipeRes.json();
         if (cancelled) return;
-        const types: TextEntityType[] = (ctData.custom_types || []).map((tt: TextEntityType) => ({
-          id: tt.id, name: tt.name, color: tt.color,
-          regex_pattern: tt.regex_pattern, use_llm: tt.use_llm, order: tt.order,
-        }));
         setTextTypes(types);
         setPipelines(pipes);
         setPresets(Array.isArray(presetRes) ? presetRes : []);

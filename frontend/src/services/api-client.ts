@@ -83,6 +83,10 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers;
 }
 
+export function buildAuthHeaders(extra?: Record<string, string>): Record<string, string> {
+  return authHeaders(extra);
+}
+
 /** Drop-in replacement for `fetch()` that attaches the JWT Bearer token. */
 export function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return fetch(input, {
@@ -114,11 +118,8 @@ export async function downloadFile(url: string, filename: string): Promise<void>
 export async function authenticatedBlobUrl(url: string, mime?: string): Promise<string> {
   const token = getAuthToken();
   if (!token) return url;
-  const res = await fetch(url, { headers: authHeaders() });
-  if (!res.ok) throw new ApiError(`Failed to load file: ${res.status}`, res.status);
-  const buf = await res.arrayBuffer();
-  const blob = mime ? new Blob([buf], { type: mime }) : new Blob([buf]);
-  return URL.createObjectURL(blob);
+  const blob = await fetchBlob(url, { headers: authHeaders() });
+  return URL.createObjectURL(mime ? new Blob([blob], { type: mime }) : blob);
 }
 
 export async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> {
@@ -136,4 +137,10 @@ export async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> 
     throw new ApiError(msg, res.status);
   }
   return res.blob();
+}
+
+export function revokeObjectUrl(url: string | null | undefined): void {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+  }
 }

@@ -14,7 +14,7 @@ export function SettingsHub() {
   const t = useT();
   const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
   const {
-    entityTypes: _entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, previewMode,
+    entityTypes: _entityTypes, pipelines, loading, pipelinesLoading, regexTypes, llmTypes, loadError,
     importFileRef, createType, updateType, deleteType, resetToDefault,
     createPipelineType, updatePipelineType, deletePipelineType, resetPipelines,
     handleExportPresets, handleImportPresets,
@@ -76,9 +76,9 @@ export function SettingsHub() {
     <div className="saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="page-shell">
         <Tabs defaultValue="text" className="page-stack overflow-hidden gap-3">
-          {previewMode && (
-            <Alert>
-              <AlertDescription>{t('settings.redaction.previewBanner')}</AlertDescription>
+          {loadError && (
+            <Alert variant="destructive" data-testid="settings-load-error">
+              <AlertDescription>{loadError}</AlertDescription>
             </Alert>
           )}
 

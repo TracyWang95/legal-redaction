@@ -2,12 +2,16 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
-import { authFetch } from '@/services/api-client';
+import {
+  authFetch,
+  authenticatedBlobUrl,
+  downloadFile,
+  revokeObjectUrl,
+} from '@/services/api-client';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
-import { downloadFile } from '@/services/api';
 import { localizeErrorMessage } from '@/utils/localizeError';
-import { safeJson, authBlobUrl, runVisionDetection } from '../utils';
+import { safeJson, runVisionDetection } from '../utils';
 import { usePlaygroundRecognition } from './use-playground-recognition';
 import type { FileInfo, Entity, BoundingBox, Stage } from '../types';
 import type { VersionHistoryEntry } from '@/types';
@@ -39,6 +43,8 @@ export function usePlayground() {
   const abortRef = useRef<AbortController | null>(null);
   const popoutChannelRef = useRef<BroadcastChannel | null>(null);
   const popoutTimerRef = useRef<number | null>(null);
+  const imageObjectUrlRef = useRef<string | null>(null);
+  const redactedImageObjectUrlRef = useRef<string | null>(null);
 
   const isImageMode = !!fileInfo && (fileInfo.file_type === 'image' || !!fileInfo.is_scanned);
   const visibleBoxes = boundingBoxes;
@@ -57,27 +63,69 @@ export function usePlayground() {
       abortRef.current?.abort();
       if (popoutTimerRef.current !== null) clearInterval(popoutTimerRef.current);
       popoutChannelRef.current?.close();
+      revokeObjectUrl(imageObjectUrlRef.current);
+      revokeObjectUrl(redactedImageObjectUrlRef.current);
     };
   }, []);
 
   const imageUrlRaw = fileInfo ? `/api/v1/files/${fileInfo.file_id}/download` : '';
   useEffect(() => {
     let cancelled = false;
-    if (!imageUrlRaw) { setImageUrl(''); return; }
-    authBlobUrl(imageUrlRaw)
-      .then(u => { if (!cancelled) setImageUrl(u); })
-      .catch(() => { if (!cancelled) setImageUrl(imageUrlRaw); });
-    return () => { cancelled = true; };
+    if (!imageUrlRaw) {
+      revokeObjectUrl(imageObjectUrlRef.current);
+      imageObjectUrlRef.current = null;
+      setImageUrl('');
+      return;
+    }
+    authenticatedBlobUrl(imageUrlRaw)
+      .then((url) => {
+        if (cancelled) {
+          revokeObjectUrl(url);
+          return;
+        }
+        revokeObjectUrl(imageObjectUrlRef.current);
+        imageObjectUrlRef.current = url;
+        setImageUrl(url);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        revokeObjectUrl(imageObjectUrlRef.current);
+        imageObjectUrlRef.current = null;
+        setImageUrl(imageUrlRaw);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [imageUrlRaw]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!fileInfo) { setRedactedImageUrl(''); return; }
+    if (!fileInfo) {
+      revokeObjectUrl(redactedImageObjectUrlRef.current);
+      redactedImageObjectUrlRef.current = null;
+      setRedactedImageUrl('');
+      return;
+    }
     const raw = `/api/v1/files/${fileInfo.file_id}/download?redacted=true`;
-    authBlobUrl(raw)
-      .then(u => { if (!cancelled) setRedactedImageUrl(u); })
-      .catch(() => { if (!cancelled) setRedactedImageUrl(raw); });
-    return () => { cancelled = true; };
+    authenticatedBlobUrl(raw)
+      .then((url) => {
+        if (cancelled) {
+          revokeObjectUrl(url);
+          return;
+        }
+        revokeObjectUrl(redactedImageObjectUrlRef.current);
+        redactedImageObjectUrlRef.current = url;
+        setRedactedImageUrl(url);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        revokeObjectUrl(redactedImageObjectUrlRef.current);
+        redactedImageObjectUrlRef.current = null;
+        setRedactedImageUrl(raw);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [fileInfo]);
 
   // --- Loading elapsed timer ---

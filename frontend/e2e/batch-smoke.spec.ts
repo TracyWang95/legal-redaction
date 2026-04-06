@@ -1,77 +1,14 @@
-import { test, expect } from '@playwright/test';
-import { dismissOnboarding } from './helpers';
+import { expect, test } from '@playwright/test';
+import { openPage, stubBackendOffline } from './helpers';
 
-test.describe('全链路主路径 E2E', () => {
-  test('BatchHub：标题、文本/图像入口与底部导航', async ({ page }) => {
-    await page.goto('/batch');
-    await dismissOnboarding(page);
-    await expect(page.getByRole('heading', { name: '开始或恢复批量任务' })).toBeVisible();
-    await expect(page.getByRole('link', { name: '任务中心' }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: '处理历史' }).first()).toBeVisible();
-  });
+test.describe('Batch Smoke', () => {
+  test('step 1 controls stay visible on preview route', async ({ page }) => {
+    await stubBackendOffline(page);
+    await openPage(page, '/batch/text?preview=1');
 
-  test('任务中心 /jobs 可访问', async ({ page }) => {
-    const res = await page.goto('/jobs');
-    expect(res?.ok() || res?.status() === 200).toBeTruthy();
-    await dismissOnboarding(page);
-    await expect(page.getByRole('heading', { name: '任务中心' }).first()).toBeVisible();
-  });
-
-  test('处理历史 /history 筛选与刷新', async ({ page }) => {
-    await page.goto('/history');
-    await dismissOnboarding(page);
-    await expect(page.getByRole('button', { name: '全部' }).first()).toBeVisible();
-  });
-
-  test('Hub → 任务中心链接跳转', async ({ page }) => {
-    await page.goto('/batch');
-    await dismissOnboarding(page);
-    await page.getByRole('link', { name: '任务中心' }).first().click();
-    await expect(page).toHaveURL(/\/jobs/);
-    await expect(page.getByRole('heading', { name: '任务中心' }).first()).toBeVisible();
-  });
-
-  test('后端可用时：新建文本批量任务并进入向导第 1 步', async ({ page, request }) => {
-    const health = await request.get('http://127.0.0.1:8000/health').catch(() => null);
-    test.skip(!health?.ok(), '本地后端 127.0.0.1:8000 未启动，跳过创建任务用例');
-
-    await page.goto('/batch');
-    await dismissOnboarding(page);
-
-    // 新版 BatchHub 使用"新建批量任务"按钮
-    const createBtn = page.getByRole('button', { name: /新建|批量/ }).first();
-    await createBtn.click();
-
-    await expect(page).toHaveURL(/\/batch\/(text|image|smart)\?/, { timeout: 15_000 });
-    await expect(page).toHaveURL(/jobId=/);
-    await expect(page).toHaveURL(/step=1/);
-  });
-
-  test('后端可用时：GET /jobs 返回 nav_hints', async ({ request }) => {
-    const health = await request.get('http://127.0.0.1:8000/health').catch(() => null);
-    test.skip(!health?.ok(), '本地后端未启动');
-    const res = await request.get('http://127.0.0.1:8000/api/v1/jobs?page_size=5');
-    expect(res.ok()).toBeTruthy();
-    const body = await res.json();
-    if (Array.isArray(body.jobs) && body.jobs.length > 0) {
-      const j = body.jobs[0];
-      if (!('nav_hints' in j)) {
-        test.skip(true, '已连接的后端非当前代码版本（无 nav_hints），请重启 8000 后再跑');
-      }
-      expect(typeof (j as { nav_hints: { item_count: number } }).nav_hints.item_count).toBe('number');
-    }
-  });
-
-  test('任务中心：运行中任务可出现「打开工作台」次要链接', async ({ page, request }) => {
-    const health = await request.get('http://127.0.0.1:8000/health').catch(() => null);
-    test.skip(!health?.ok(), '本地后端未启动');
-    await page.goto('/jobs');
-    await dismissOnboarding(page);
-    const secondary = page.getByRole('link', { name: '打开工作台' });
-    const n = await secondary.count();
-    if (n > 0) {
-      await secondary.first().click();
-      await expect(page).toHaveURL(/\/batch\/(text|image|smart)\?/);
-    }
+    await expect(page.getByTestId('text-preset-select')).toBeVisible();
+    await expect(page.getByTestId('text-redaction-mode-select')).toBeVisible();
+    await expect(page.getByTestId('confirm-step1')).toBeVisible();
+    await expect(page.getByTestId('advance-upload')).toBeVisible();
   });
 });

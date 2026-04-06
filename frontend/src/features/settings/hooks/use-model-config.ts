@@ -4,6 +4,11 @@ import { authFetch } from '@/services/api-client';
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
+import { useServiceHealth } from '@/hooks/use-service-health';
+
+function normalizeServiceLive(status: 'online' | 'offline' | 'checking' | undefined) {
+  return status === 'online' || status === 'offline' ? status : undefined;
+}
 
 export function useNerBackend() {
   const [llamacppBaseUrl, setLlamacppBaseUrl] = useState('http://127.0.0.1:8080/v1');
@@ -12,6 +17,7 @@ export function useNerBackend() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [nerLive, setNerLive] = useState<'online' | 'offline' | undefined>(undefined);
+  const { health } = useServiceHealth();
 
   const fetchNerBackend = useCallback(async () => {
     try {
@@ -30,21 +36,9 @@ export function useNerBackend() {
   useEffect(() => { void fetchNerBackend(); }, [fetchNerBackend]);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch('/health/services');
-        if (!res.ok || cancelled) return;
-        const d = await res.json();
-        const st = d.services?.has_ner?.status;
-        if (st === 'online' || st === 'offline') setNerLive(st);
-        else setNerLive(undefined);
-      } catch { if (!cancelled) setNerLive(undefined); }
-    };
-    void load();
-    const t = setInterval(load, 15000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, []);
+    const status = health?.services?.has_ner?.status;
+    setNerLive(normalizeServiceLive(status));
+  }, [health]);
 
   const payload = useCallback(() => ({
     backend: 'llamacpp' as const,
@@ -152,6 +146,7 @@ export function useVisionModelConfig() {
   const [builtinLive, setBuiltinLive] = useState<BuiltinServiceLive | null>(null);
   const [testingModelId, setTestingModelId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const { health } = useServiceHealth();
 
   const fetchModelConfigs = useCallback(async () => {
     try {
@@ -168,19 +163,11 @@ export function useVisionModelConfig() {
   useEffect(() => { fetchModelConfigs(); }, [fetchModelConfigs]);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const res = await fetch('/health/services');
-        if (!res.ok || cancelled) return;
-        const d = await res.json();
-        setBuiltinLive({ paddle: d.services?.paddle_ocr?.status, has_image: d.services?.has_image?.status });
-      } catch { if (!cancelled) setBuiltinLive({ paddle: undefined, has_image: undefined }); }
-    };
-    load();
-    const t = setInterval(load, 15000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, []);
+    setBuiltinLive({
+      paddle: normalizeServiceLive(health?.services?.paddle_ocr?.status),
+      has_image: normalizeServiceLive(health?.services?.has_image?.status),
+    });
+  }, [health]);
 
   const saveModelConfig = useCallback(async (form: Partial<ModelConfig>, editingId: string | null) => {
     if (!form.name || !form.model_name) return false;

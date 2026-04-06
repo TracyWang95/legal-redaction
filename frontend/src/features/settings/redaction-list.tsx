@@ -26,12 +26,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import {
   createPreset,
   deletePreset,
-  fetchPresets,
   updatePreset,
   type PresetKind,
   type PresetPayload,
@@ -53,12 +51,12 @@ import {
 } from '@/ui/selectionClasses';
 import { getSelectionToneClasses } from '@/ui/selectionPalette';
 import { localizeErrorMessage } from '@/utils/localizeError';
-import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
 import {
-  buildPreviewEntityTypes,
-  buildPreviewPipelines,
-  buildPreviewPresets,
-} from './lib/settings-preview-fixtures';
+  fetchRecognitionEntityTypes,
+  fetchRecognitionPipelines,
+  fetchRecognitionPresets,
+} from '@/services/recognition-config';
+import type { EntityTypeConfig, PipelineConfig } from './hooks/use-entity-types';
 
 const DEFAULT_PRESET_OPTION = '__default__';
 const presetMetaPillClass =
@@ -82,17 +80,11 @@ function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
 
 export function RedactionList() {
   const t = useT();
-  const previewEntityTypes = useMemo(() => buildPreviewEntityTypes(t) as EntityTypeConfig[], [t]);
-  const previewPipelines = useMemo(() => buildPreviewPipelines(t) as PipelineConfig[], [t]);
-  const previewPresetsSeed = useMemo(() => buildPreviewPresets(t), [t]);
   const [entityTypes, setEntityTypes] = useState<EntityTypeConfig[]>([]);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [presets, setPresets] = useState<RecognitionPreset[]>([]);
-  const [previewPresets, setPreviewPresets] = useState<RecognitionPreset[]>([]);
-  const [entityTypesUnavailable, setEntityTypesUnavailable] = useState(false);
-  const [pipelinesUnavailable, setPipelinesUnavailable] = useState(false);
-  const [presetsUnavailable, setPresetsUnavailable] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [presetForm, setPresetForm] = useState<PresetPayload>({
@@ -122,43 +114,36 @@ export function RedactionList() {
 
   const reloadPresets = useCallback(async () => {
     try {
-      setPresets(await fetchPresets());
-      setPresetsUnavailable(false);
+      setPresets(await fetchRecognitionPresets());
     } catch {
-      setPresetsUnavailable(true);
-      setPresets((current) => (current.length ? current : []));
+      setPresets([]);
+      setLoadError((current) => current ?? t('settings.loadFailed'));
     }
-  }, []);
+  }, [t]);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout('/api/v1/custom-types?enabled_only=false', { timeoutMs: 3500 });
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      setEntityTypes(data.custom_types || []);
-      setEntityTypesUnavailable(false);
+      setLoadError(null);
+      setEntityTypes(await fetchRecognitionEntityTypes(false, 3_500) as EntityTypeConfig[]);
     } catch {
-      setEntityTypesUnavailable(true);
-      setEntityTypes((current) => (current.length ? current : []));
+      setEntityTypes([]);
+      setLoadError(t('settings.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchPipelines = useCallback(async () => {
     try {
-      const res = await fetchWithTimeout('/api/v1/vision-pipelines', { timeoutMs: 3500 });
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      setPipelines((data || []).map((pipeline: PipelineConfig) =>
+      setLoadError(null);
+      setPipelines((await fetchRecognitionPipelines(3_500) as PipelineConfig[]).map((pipeline: PipelineConfig) =>
         pipeline.mode === 'has_image'
           ? { ...pipeline, name: t('settings.pipelineDisplayName.image') }
           : pipeline));
-      setPipelinesUnavailable(false);
     } catch {
-      setPipelinesUnavailable(true);
-      setPipelines((current) => (current.length ? current : []));
+      setPipelines([]);
+      setLoadError((current) => current ?? t('settings.loadFailed'));
     }
   }, [t]);
 
@@ -168,17 +153,9 @@ export function RedactionList() {
     void reloadPresets();
   }, [fetchEntityTypes, fetchPipelines, reloadPresets]);
 
-  useEffect(() => {
-    setPreviewPresets(previewPresetsSeed);
-  }, [previewPresetsSeed]);
-
-  const usePreviewEntityTypes = entityTypesUnavailable && entityTypes.length === 0;
-  const usePreviewPipelines = pipelinesUnavailable && pipelines.length === 0;
-  const usePreviewPresets = presetsUnavailable && presets.length === 0;
-  const previewMode = usePreviewEntityTypes || usePreviewPipelines || usePreviewPresets;
-  const effectiveEntityTypes = usePreviewEntityTypes ? previewEntityTypes : entityTypes;
-  const effectivePipelines = usePreviewPipelines ? previewPipelines : pipelines;
-  const effectivePresets = usePreviewPresets ? previewPresets : presets;
+  const effectiveEntityTypes = entityTypes;
+  const effectivePipelines = pipelines;
+  const effectivePresets = presets;
 
   useEffect(() => {
     const syncActivePreset = () => {
@@ -225,20 +202,14 @@ export function RedactionList() {
   }), [effectivePipelines, t]);
 
   const summaryTextLabel = useMemo(() => {
-    if (previewMode && !bridgeText) {
-      return textPresets[0]?.name ?? t('settings.redaction.defaultShort');
-    }
     if (!bridgeText) return t('settings.redaction.defaultShort');
     return textPresets.find(preset => preset.id === bridgeText)?.name ?? t('settings.redaction.defaultShort');
-  }, [bridgeText, previewMode, textPresets, t]);
+  }, [bridgeText, textPresets, t]);
 
   const summaryVisionLabel = useMemo(() => {
-    if (previewMode && !bridgeVision) {
-      return visionPresets[0]?.name ?? t('settings.redaction.defaultShort');
-    }
     if (!bridgeVision) return t('settings.redaction.defaultShort');
     return visionPresets.find(preset => preset.id === bridgeVision)?.name ?? t('settings.redaction.defaultShort');
-  }, [bridgeVision, previewMode, t, visionPresets]);
+  }, [bridgeVision, t, visionPresets]);
 
   useEffect(() => {
     if (bridgeText && !textPresets.some(preset => preset.id === bridgeText)) {
@@ -326,39 +297,6 @@ export function RedactionList() {
 
     setSaving(true);
     try {
-      if (previewMode) {
-        if (editingPresetId) {
-          setPreviewPresets((current) => current.map((preset) => (
-            preset.id === editingPresetId
-              ? {
-                ...preset,
-                ...normalized,
-                updated_at: new Date().toISOString(),
-              }
-              : preset
-          )));
-        } else {
-          const createdId = `preview-${Date.now()}`;
-          const created: RecognitionPreset = {
-            id: createdId,
-            ...normalized,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          setPreviewPresets((current) => [...current, created]);
-          if (normalized.kind === 'text' || normalized.kind === 'full') {
-            setActivePresetTextId(created.id);
-            setBridgeText(created.id);
-          }
-          if (normalized.kind === 'vision' || normalized.kind === 'full') {
-            setActivePresetVisionId(created.id);
-            setBridgeVision(created.id);
-          }
-        }
-        setModalOpen(false);
-        return;
-      }
-
       if (editingPresetId) {
         await updatePreset(editingPresetId, normalized);
       } else {
@@ -382,20 +320,6 @@ export function RedactionList() {
   };
 
   const removePreset = async (id: string) => {
-    if (previewMode) {
-      setPreviewPresets((current) => current.filter((preset) => preset.id !== id));
-      setExpanded(current => (current === `text:${id}` || current === `vision:${id}` ? null : current));
-      if (bridgeText === id) {
-        setBridgeText('');
-        setActivePresetTextId(null);
-      }
-      if (bridgeVision === id) {
-        setBridgeVision('');
-        setActivePresetVisionId(null);
-      }
-      return;
-    }
-
     try {
       await deletePreset(id);
       setExpanded(current => (current === `text:${id}` || current === `vision:${id}` ? null : current));
@@ -413,7 +337,7 @@ export function RedactionList() {
     }
   };
 
-  if (loading && !previewMode) {
+  if (loading) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
@@ -442,9 +366,9 @@ export function RedactionList() {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
-        {previewMode && (
-          <Alert>
-            <AlertDescription>{t('settings.redaction.previewBanner')}</AlertDescription>
+        {loadError && (
+          <Alert variant="destructive">
+            <AlertDescription>{loadError}</AlertDescription>
           </Alert>
         )}
 
