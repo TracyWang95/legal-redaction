@@ -651,7 +651,7 @@ function SelectionPreviewSummaryCard({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {group!.items.length > 0
-                    ? `${group!.items.slice(0, 3).join(' · ')}${group!.items.length > 3 ? t('batchWizard.step1.summaryEtc') : ''}`
+                    ? `${group!.items.slice(0, 3).join(' · ')}${t('batchWizard.step1.summaryEtc')}`
                     : group!.emptyLabel}
                 </p>
               </div>
