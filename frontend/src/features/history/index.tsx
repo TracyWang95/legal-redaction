@@ -93,20 +93,48 @@ export function History() {
           ) : s.compareErr ? (
             <p className="text-sm text-destructive">{s.compareErr}</p>
           ) : s.compareData ? (
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <h4 className="mb-2 font-medium">{t('history.beforeRedaction')}</h4>
-                <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
-                  {s.compareData.original_content}
-                </pre>
-              </div>
-              <div>
-                <h4 className="mb-2 font-medium">{t('history.afterRedaction')}</h4>
-                <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
-                  {s.compareData.redacted_content}
-                </pre>
-              </div>
-            </div>
+            <>
+              {s.compareBlobUrls && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="mb-2 font-medium">{t('history.beforeRedaction')}</h4>
+                    <img
+                      src={s.compareBlobUrls.original}
+                      alt={t('history.beforeRedaction')}
+                      className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="mb-2 font-medium">{t('history.afterRedaction')}</h4>
+                    <img
+                      src={s.compareBlobUrls.redacted}
+                      alt={t('history.afterRedaction')}
+                      className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+              {(s.compareData.original_content || s.compareData.redacted_content) && (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <h4 className="mb-2 font-medium">
+                      {s.compareBlobUrls ? t('history.originalText') : t('history.beforeRedaction')}
+                    </h4>
+                    <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
+                      {s.compareData.original_content}
+                    </pre>
+                  </div>
+                  <div>
+                    <h4 className="mb-2 font-medium">
+                      {s.compareBlobUrls ? t('history.redactedText') : t('history.afterRedaction')}
+                    </h4>
+                    <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
+                      {s.compareData.redacted_content}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </>
           ) : null}
         </DialogContent>
       </Dialog>
