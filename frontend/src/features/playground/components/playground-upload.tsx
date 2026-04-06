@@ -38,18 +38,18 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
 
   return (
     <div
-      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-3 lg:grid-cols-[minmax(0,1.14fr)_minmax(23rem,29rem)] lg:gap-6 lg:p-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(24rem,30rem)] xl:px-6 xl:py-6 2xl:grid-cols-[minmax(0,1.24fr)_minmax(26rem,33rem)] 2xl:px-8"
+      className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-3 overflow-hidden p-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,26rem)] lg:gap-4 lg:p-4 xl:grid-cols-[minmax(0,1.16fr)_minmax(23rem,28rem)] xl:px-5 xl:py-5 2xl:grid-cols-[minmax(0,1.22fr)_minmax(24rem,30rem)] 2xl:px-6 2xl:py-6"
       data-testid="playground-upload"
     >
-      <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-        <div className="flex w-full max-w-[60rem] flex-col items-center pt-1 text-center xl:pt-3">
-          <div className="mb-5 flex w-full max-w-3xl flex-col items-center gap-2">
+      <div className="flex min-h-0 min-w-0 flex-1 items-start justify-center">
+        <div className="flex w-full max-w-[58rem] flex-col items-center pt-1 text-center lg:pt-2">
+          <div className="mb-4 flex w-full max-w-3xl flex-col items-center gap-1.5">
             <span className="saas-kicker">{t('playground.upload.kicker')}</span>
             <div className="flex flex-col items-center">
-              <h2 className="text-[2rem] font-semibold tracking-[-0.045em] text-foreground">
+              <h2 className="text-[1.85rem] font-semibold tracking-[-0.045em] text-foreground lg:text-[1.95rem]">
                 {t('playground.upload.title')}
               </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
                 {t('playground.upload.desc')}
               </p>
             </div>
@@ -58,7 +58,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           <div
             {...getRootProps()}
             className={cn(
-              'saas-hero group relative min-h-[420px] w-full cursor-pointer border-2 border-dashed p-12 text-center transition-all duration-300 ease-out lg:min-h-[460px] lg:px-14 2xl:min-h-[500px]',
+              'saas-hero group relative min-h-[340px] w-full cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-300 ease-out lg:min-h-[372px] lg:px-12 2xl:min-h-[400px]',
               isDragActive
                 ? 'border-primary bg-primary/[0.04] ring-4 ring-primary/10'
                 : 'border-border hover:border-foreground/15 hover:shadow-lg',
@@ -95,7 +95,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
       </div>
 
       <Card
-        className="flex w-full shrink-0 overflow-hidden border-border/70 bg-card lg:self-stretch"
+        className="flex w-full shrink-0 overflow-hidden border-border/70 bg-card lg:max-h-[calc(100dvh-10rem)] lg:self-stretch xl:max-h-[calc(100dvh-9.5rem)]"
         data-testid="playground-type-panel"
       >
         <Tabs
@@ -103,7 +103,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           onValueChange={(value) => rec.setTypeTab(value as 'text' | 'vision')}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <div className="space-y-3 border-b border-border/70 px-4 py-4">
+          <div className="space-y-2.5 border-b border-border/70 px-4 py-3.5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold tracking-tight text-foreground">
@@ -145,8 +145,8 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <ScrollArea className="min-h-0 flex-1">
-            <TabsContent value="text" className="mt-0 space-y-3 p-3 pb-5 2xl:p-4 2xl:pb-6">
-              <div className="rounded-[20px] border border-border/70 bg-muted/20 px-3.5 py-3">
+            <TabsContent value="text" className="mt-0 space-y-2.5 p-2.5 pb-3 2xl:p-3 2xl:pb-4">
+              <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2.5">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
                 </p>
@@ -156,8 +156,8 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 space-y-3 p-3 pb-5 2xl:p-4 2xl:pb-6">
-              <div className="rounded-[20px] border border-border/70 bg-muted/20 px-3.5 py-3">
+            <TabsContent value="vision" className="mt-0 space-y-2.5 p-2.5 pb-3 2xl:p-3 2xl:pb-4">
+              <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2.5">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
                 </p>
@@ -321,7 +321,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
             className="overflow-hidden rounded-[22px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
-            <div className={cn('flex items-center justify-between gap-3 border-b px-3.5 py-3', toneClasses.headerSurface)}>
+            <div className={cn('flex items-center justify-between gap-2.5 border-b px-3 py-2.5', toneClasses.headerSurface)}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className={cn('size-2 rounded-full', toneClasses.dot)} />
                 <span className={cn('truncate text-xs font-semibold tracking-[0.02em]', toneClasses.titleText)}>
@@ -329,7 +329,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 </span>
                 <Badge
                   variant="secondary"
-                  className={cn('rounded-full border bg-background/85 text-[10px] shadow-none', toneClasses.badgeText)}
+                  className={cn('rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none', toneClasses.badgeText)}
                 >
                   {group.types.length}
                 </Badge>
@@ -337,13 +337,13 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-full px-2.5 text-[11px]"
+                className="h-6.5 rounded-full px-2 text-[10px]"
                 onClick={() => rec.setPlaygroundTextTypeGroupSelection(ids, !allOn)}
               >
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5 p-2.5">
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -351,7 +351,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   <label
                     key={`${group.key}-${type.id}`}
                     className={cn(
-                      'flex min-w-0 cursor-pointer items-start gap-2 rounded-2xl border px-3 py-2.5 text-xs leading-5 transition-colors',
+                      'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-2 text-[11px] leading-4 transition-colors',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -366,20 +366,21 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                           checked ? previous.filter((id) => id !== type.id) : [...previous, type.id],
                         );
                       }}
-                      className="mt-0.5 h-4 w-4"
+                      className="h-3.5 w-3.5"
                     />
-                    <span className="min-w-0 break-words font-medium">{typeName}</span>
+                    <span className="min-w-0 truncate font-medium">{typeName}</span>
                   </label>
                 );
               })}
             </div>
             {group.types.length > 0 && (
-              <div className="border-t border-border/70 px-3 py-3">
+              <div className="border-t border-border/70 px-2.5 py-2.5">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
                   totalItems={group.types.length}
                   totalPages={totalPages}
+                  compact
                   onPageChange={(nextPage) => {
                     setGroupPages((current) => ({
                       ...current,
@@ -452,7 +453,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
             className="overflow-hidden rounded-[22px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
-            <div className={cn('flex items-center justify-between gap-3 border-b px-3.5 py-3', toneClasses.headerSurface)}>
+            <div className={cn('flex items-center justify-between gap-2.5 border-b px-3 py-2.5', toneClasses.headerSurface)}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className={cn('size-2 rounded-full', toneClasses.dot)} />
                 <span className={cn('truncate text-xs font-semibold tracking-[0.02em]', toneClasses.titleText)}>
@@ -460,7 +461,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 </span>
                 <Badge
                   variant="secondary"
-                  className={cn('rounded-full border bg-background/85 text-[10px] shadow-none', toneClasses.badgeText)}
+                  className={cn('rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none', toneClasses.badgeText)}
                 >
                   {pipeline.types.length}
                 </Badge>
@@ -468,7 +469,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-full px-2.5 text-[11px]"
+                className="h-6.5 rounded-full px-2 text-[10px]"
                 onClick={() => {
                   rec.clearPlaygroundVisionPresetTracking();
                   const ids = pipeline.types.map((type) => type.id);
@@ -490,14 +491,14 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid gap-2 p-3 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid grid-cols-3 gap-1.5 p-2.5">
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
                   <label
                     key={type.id}
                     className={cn(
-                      'flex min-w-0 cursor-pointer items-start gap-2 rounded-2xl border px-3 py-2.5 text-xs leading-5 transition-colors',
+                      'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-2 text-[11px] leading-4 transition-colors',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -507,20 +508,21 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     <Checkbox
                       checked={checked}
                       onCheckedChange={() => rec.toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'has_image')}
-                      className="mt-0.5 h-4 w-4"
+                      className="h-3.5 w-3.5"
                     />
-                    <span className="min-w-0 break-words font-medium">{type.name}</span>
+                    <span className="min-w-0 truncate font-medium">{type.name}</span>
                   </label>
                 );
               })}
             </div>
             {pipeline.types.length > 0 && (
-              <div className="border-t border-border/70 px-3 py-3">
+              <div className="border-t border-border/70 px-2.5 py-2.5">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
                   totalItems={pipeline.types.length}
                   totalPages={totalPages}
+                  compact
                   onPageChange={(nextPage) => {
                     setPipelinePages((current) => ({
                       ...current,

@@ -33,10 +33,10 @@ export function BatchWizard() {
         className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col',
           w.step === 1
-            ? 'page-shell-narrow !max-w-[88rem] 2xl:!max-w-[96rem] overflow-hidden'
+            ? 'page-shell-narrow !max-w-[108rem] 2xl:!max-w-[118rem] overflow-hidden'
             : w.step === 4
               ? 'page-shell overflow-hidden'
-              : 'page-shell-narrow !max-w-[92rem] 2xl:!max-w-[100rem] overflow-y-auto overscroll-contain',
+              : 'page-shell-narrow !max-w-[112rem] 2xl:!max-w-[122rem] overflow-y-auto overscroll-contain',
         )}
       >
         {w.previewMode && (

@@ -36,8 +36,8 @@ export function JobsFilters({
   const t = useT();
 
   return (
-    <section className="saas-panel mb-4 flex shrink-0 flex-col gap-4 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <section className="saas-panel mb-3 flex shrink-0 flex-col gap-3.5 p-3.5 sm:p-4">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between">
         <div className="page-section-heading">
           <span className="saas-kicker inline-flex items-center gap-2">
             <Sparkles className="h-3.5 w-3.5" />
@@ -88,7 +88,7 @@ export function JobsFilters({
         </div>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-2 md:grid-cols-3 2xl:grid-cols-6">
         <MetricPill label={t('jobs.metric.visible')} value={visibleCount} />
         <MetricPill label={t('jobs.metric.draft')} value={metrics.draft} />
         <MetricPill label={t('jobs.metric.running')} value={metrics.processing} />

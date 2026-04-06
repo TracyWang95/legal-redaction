@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { formatAggregateJobStatus } from '@/utils/jobStatusLabels';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
+import { cn } from '@/lib/utils';
 import type { JobSummary } from '@/services/jobsApi';
 
 interface BatchHubJobListProps {
@@ -19,7 +20,13 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
   const t = useT();
 
   return (
-    <Card data-testid="recent-jobs-card">
+    <Card
+      className={cn(
+        'flex min-h-[12rem] flex-col overflow-hidden',
+        jobs.length > 0 ? 'flex-1' : 'flex-none',
+      )}
+      data-testid="recent-jobs-card"
+    >
       <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
         <div>
           <CardTitle className="text-sm font-semibold">
@@ -34,19 +41,21 @@ export function BatchHubJobList({ jobs, loading, onContinue }: BatchHubJobListPr
         </Button>
       </CardHeader>
 
-      <CardContent className="p-0">
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
         {loading ? (
-          <div className="flex flex-col gap-3 px-4 py-6">
+          <div className="flex flex-1 flex-col gap-3 px-4 py-6">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
           </div>
         ) : jobs.length === 0 ? (
-          <EmptyState
-            title={t('emptyState.noActiveJobs')}
-            description={t('emptyState.noActiveJobsDesc')}
-          />
+          <div className="flex min-h-0 items-center justify-center px-4 py-6">
+            <EmptyState
+              title={t('emptyState.noActiveJobs')}
+              description={t('emptyState.noActiveJobsDesc')}
+            />
+          </div>
         ) : (
-          <ul className="divide-y pb-4" data-testid="recent-jobs-list">
+          <ul className="flex min-h-0 flex-1 flex-col divide-y pb-3" data-testid="recent-jobs-list">
             {jobs.map((job) => (
               <JobRow
                 key={job.id}

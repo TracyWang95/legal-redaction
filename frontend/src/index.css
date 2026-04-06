@@ -1022,6 +1022,10 @@ body {
   background: var(--primary);
 }
 
+.saas-page {
+  min-height: calc(100dvh - 4rem);
+}
+
 .page-shell {
   width: 100%;
   max-width: min(100%, 2048px);
@@ -1030,18 +1034,18 @@ body {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1rem;
+  padding: 0.875rem 1rem 1.375rem;
 }
 
 .page-shell-narrow {
   width: 100%;
-  max-width: 96rem;
+  max-width: 112rem;
   margin-inline: auto;
   min-height: 0;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1.125rem 1.375rem;
 }
 
 .page-stack {
@@ -1049,7 +1053,7 @@ body {
   min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 1.125rem;
+  gap: 1rem;
 }
 
 .page-section-heading {
@@ -1105,21 +1109,21 @@ body {
 
 @media (min-width: 640px) {
   .page-shell {
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem 1.5rem;
   }
 
   .page-shell-narrow {
-    padding: 1.25rem 1.75rem;
+    padding: 1rem 1.375rem 1.5rem;
   }
 }
 
 @media (min-width: 1536px) {
   .page-shell {
-    padding: 1.5rem 2rem;
+    padding: 1.125rem 1.5rem 1.75rem;
   }
 
   .page-shell-narrow {
-    padding: 1.5rem 2rem;
+    padding: 1.125rem 1.625rem 1.75rem;
   }
 }
 

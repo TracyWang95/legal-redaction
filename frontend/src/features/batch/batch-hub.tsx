@@ -21,9 +21,9 @@ export function BatchHub() {
 
   return (
     <div className="saas-page flex h-full min-h-0 overflow-y-auto bg-background">
-      <div className="page-shell-narrow !max-w-[88rem] 2xl:!max-w-[96rem]">
-        <div className="page-stack gap-5 sm:gap-6">
-          <section className="saas-hero relative overflow-hidden px-6 py-7 sm:px-8">
+      <div className="page-shell-narrow !max-w-[104rem] 2xl:!max-w-[114rem]">
+        <div className="page-stack gap-4 sm:gap-5">
+          <section className="saas-hero relative overflow-hidden px-5 py-6 sm:px-6 sm:py-6.5">
             <div className="flex flex-col gap-4">
               <span className="saas-kicker">{t('batchHub.kicker')}</span>
               <div className="page-section-heading gap-2">
@@ -77,7 +77,7 @@ export function BatchHub() {
                 </div>
               </CardHeader>
 
-              <CardContent className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.95fr)]">
+              <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(17rem,0.95fr)]">
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
@@ -135,7 +135,7 @@ export function BatchHub() {
             onContinue={continueJob}
           />
 
-          <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 pt-1 text-xs text-muted-foreground">
             <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
               <Link to="/jobs">{t('batchHub.jobCenter')}</Link>
             </Button>

@@ -51,7 +51,7 @@ export function JobsTable({
   const stopEvent = (event: React.MouseEvent) => { event.stopPropagation(); };
 
   return (
-    <div className="jobs-surface flex min-h-0 w-full max-h-[min(54rem,calc(100vh-23rem))] flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
+    <div className="jobs-surface flex min-h-0 w-full max-h-[min(50rem,calc(100dvh-28rem))] flex-1 flex-col overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
         <div className="page-section-heading">
           <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
@@ -100,7 +100,7 @@ export function JobsTable({
             action={{ label: t('jobs.gotoBatch'), onClick: () => { window.location.href = '/batch'; } }}
           />
         ) : (
-          <ul className="flex w-full flex-col divide-y divide-border/70 pb-6">
+          <ul className="flex w-full flex-col divide-y divide-border/70 pb-4">
             {rows.map((job, index) => (
               <JobRow
                 key={job.id}
@@ -122,7 +122,7 @@ export function JobsTable({
       </div>
 
       {footer && (
-        <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3">
+        <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-2.5">
           {footer}
         </div>
       )}

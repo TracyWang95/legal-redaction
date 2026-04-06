@@ -357,8 +357,8 @@ export function RedactionList() {
   if (loading && !previewMode) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-        <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 flex-col gap-3 overflow-hidden px-3 py-2 sm:px-4 sm:py-3">
-          <Card>
+        <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
+          <Card className="overflow-hidden">
             <CardHeader className="pb-3">
               <Skeleton className="h-5 w-40" />
               <Skeleton className="h-4 w-80 max-w-full" />
@@ -382,14 +382,14 @@ export function RedactionList() {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="mx-auto flex w-full max-w-[min(100%,1920px)] flex-1 min-h-0 flex-col gap-3 overflow-hidden px-3 py-2 sm:px-4 sm:py-3">
+      <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
         {previewMode && (
           <Alert>
             <AlertDescription>{t('settings.redaction.previewBanner')}</AlertDescription>
           </Alert>
         )}
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -409,7 +409,7 @@ export function RedactionList() {
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs">
               <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('settings.redaction.currentSelection')}

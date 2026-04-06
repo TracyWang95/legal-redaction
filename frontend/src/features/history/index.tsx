@@ -18,7 +18,7 @@ export function History() {
 
   return (
     <div className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background" data-testid="history-page">
-      <div className="mx-auto flex w-full max-w-[min(100%,2048px)] flex-1 min-h-0 flex-col px-3 py-4 pb-5 sm:px-5 sm:py-5 sm:pb-6 2xl:px-8 2xl:pb-8">
+      <div className="page-shell !max-w-[min(100%,2048px)] !px-3 !py-4 !pb-5 sm:!px-5 sm:!py-5 sm:!pb-6 2xl:!px-8 2xl:!pb-8">
         <HistoryFilters
           sourceTab={s.sourceTab}
           onSourceTabChange={s.changeSourceTab}
@@ -46,7 +46,7 @@ export function History() {
           </Alert>
         )}
 
-        <Card className="flex min-h-0 max-h-[min(54rem,calc(100vh-23rem))] flex-1 flex-col overflow-hidden">
+        <Card className="flex min-h-0 max-h-[min(50rem,calc(100dvh-27rem))] flex-1 flex-col overflow-hidden">
           <CardContent className="flex min-h-0 flex-1 flex-col p-0">
             <HistoryTable
               rows={s.filteredRows}
@@ -63,7 +63,7 @@ export function History() {
               onCompare={(row) => s.openCompareModal(row)}
             />
             {(s.total > 0 || s.totalPages > 1) && (
-              <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/90">
+              <div className="shrink-0 border-t border-border/70 bg-background/96 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/90">
                 <div className="surface-muted flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-border/70 px-4 py-3 text-sm text-muted-foreground shadow-[var(--shadow-sm)]">
                   <div className="flex flex-wrap items-center gap-2">
                     <span>
