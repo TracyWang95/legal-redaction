@@ -95,13 +95,13 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
       </div>
 
       <Card
-        className="page-surface h-full max-h-full w-full shrink-0 overflow-hidden border-border/70 bg-card lg:self-stretch"
+        className="page-surface w-full shrink-0 overflow-hidden border-border/70 bg-card lg:max-h-full lg:self-start"
         data-testid="playground-type-panel"
       >
         <Tabs
           value={rec.typeTab}
           onValueChange={(value) => rec.setTypeTab(value as 'text' | 'vision')}
-          className="flex min-h-0 flex-1 flex-col"
+          className="flex min-h-0 flex-col"
         >
           <div className="space-y-2 border-b border-border/70 px-3.5 py-3">
             <div className="flex items-center justify-between gap-3">
@@ -144,7 +144,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             )}
           </div>
 
-          <ScrollArea className="page-surface-body">
+          <ScrollArea className="page-surface-body lg:max-h-[calc(100vh-18rem)] xl:max-h-[calc(100vh-18.25rem)] 2xl:max-h-[calc(100vh-18.5rem)]">
             <TabsContent value="text" className="mt-0 space-y-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
