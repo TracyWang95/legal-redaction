@@ -61,6 +61,15 @@ import {
 } from './lib/settings-preview-fixtures';
 
 const DEFAULT_PRESET_OPTION = '__default__';
+const presetMetaPillClass =
+  'inline-flex h-7 items-center rounded-full border border-border/70 bg-muted/45 px-2.5 text-[11px] font-medium leading-none text-muted-foreground';
+const presetActionButtonClass =
+  'h-7 rounded-full border-border/80 bg-background px-3 text-[11px] font-medium leading-none';
+const presetDangerButtonClass =
+  'h-7 rounded-full border-destructive/25 bg-background px-3 text-[11px] font-medium leading-none text-destructive hover:bg-destructive/8';
+const presetPreviewChipClass =
+  'inline-flex min-h-7 w-full items-center rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium leading-none';
+const presetPreviewChipGridClass = 'grid grid-cols-2 gap-1.5 md:grid-cols-3';
 
 function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
   return [...presets].sort((left, right) => {
@@ -710,16 +719,16 @@ function PresetColumn({
       <ul className="max-h-[min(55vh,520px)] divide-y divide-border overflow-y-auto rounded-md border text-xs">
         <li className="bg-muted/30">
           <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-1.5">
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{defaultPreset.name}</span>
-              <Badge variant="secondary" className="ml-2 text-[0.65rem]">
+              <Badge variant="secondary" className={presetMetaPillClass}>
                 {t('settings.redaction.systemDefault')}
               </Badge>
             </div>
             <Button
               size="sm"
               variant="outline"
-              className="h-6 text-xs"
+              className={presetActionButtonClass}
               onClick={() => setExpanded(current => current === defaultKey ? null : defaultKey)}
             >
               {expanded === defaultKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
@@ -740,18 +749,18 @@ function PresetColumn({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 text-xs"
+                    className={presetActionButtonClass}
                     onClick={() => setExpanded(current => current === rowKey ? null : rowKey)}
                   >
                     {expanded === rowKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
                   </Button>
-                  <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => onEdit(preset)}>
+                  <Button size="sm" variant="outline" className={presetActionButtonClass} onClick={() => onEdit(preset)}>
                     {t('settings.redaction.edit')}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 border-destructive/25 text-xs text-destructive hover:bg-destructive/8"
+                    className={presetDangerButtonClass}
                     onClick={() => void onDelete(preset.id)}
                   >
                     {t('settings.redaction.delete')}
@@ -781,7 +790,6 @@ function PresetPreview({
   const t = useT();
   const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
-  const chipClass = 'inline-flex items-center rounded-lg border bg-background px-2 py-0.5 text-[10px] font-medium';
 
   return (
     <div className="space-y-2 border-t px-2 pb-3 pt-2">
@@ -790,11 +798,15 @@ function PresetPreview({
           <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
             {t('settings.redaction.regexGroup')} ({preset.selectedEntityTypeIds.filter(id => entityTypes.find(type => type.id === id)?.regex_pattern).length})
           </p>
-          <div className="flex flex-wrap gap-1">
+          <div className={presetPreviewChipGridClass}>
             {preset.selectedEntityTypeIds
               .filter(id => entityTypes.find(type => type.id === id)?.regex_pattern)
               .map(id => (
-                <span key={id} className={chipClass}>
+                <span
+                  key={id}
+                  className={cn(presetPreviewChipClass, 'truncate')}
+                  title={entityTypes.find(type => type.id === id)?.name ?? id}
+                >
                   {entityTypes.find(type => type.id === id)?.name ?? id}
                 </span>
               ))}
@@ -809,9 +821,13 @@ function PresetPreview({
               <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
                 {t('settings.redaction.ocrGroup')} ({preset.ocrHasTypes.length})
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className={presetPreviewChipGridClass}>
                 {preset.ocrHasTypes.map(id => (
-                  <span key={id} className={chipClass}>
+                  <span
+                    key={id}
+                    className={cn(presetPreviewChipClass, 'truncate')}
+                    title={ocrPipeline?.types.find(type => type.id === id)?.name ?? id}
+                  >
                     {ocrPipeline?.types.find(type => type.id === id)?.name ?? id}
                   </span>
                 ))}
@@ -823,9 +839,13 @@ function PresetPreview({
               <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
                 {t('settings.redaction.imageGroup')} ({preset.hasImageTypes.length})
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className={presetPreviewChipGridClass}>
                 {preset.hasImageTypes.map(id => (
-                  <span key={id} className={chipClass}>
+                  <span
+                    key={id}
+                    className={cn(presetPreviewChipClass, 'truncate')}
+                    title={imagePipeline?.types.find(type => type.id === id)?.name ?? id}
+                  >
                     {imagePipeline?.types.find(type => type.id === id)?.name ?? id}
                   </span>
                 ))}
