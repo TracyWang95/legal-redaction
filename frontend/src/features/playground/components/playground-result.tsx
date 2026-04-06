@@ -1,12 +1,12 @@
 
-import { type CSSProperties, type Dispatch, type FC, type ReactNode, type SetStateAction, useRef, useState } from 'react';
+import { type CSSProperties, type Dispatch, type FC, type ReactNode, type SetStateAction, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
-import { getEntityRiskConfig } from '@/config/entityTypes';
+import { getEntityRiskConfig, getEntityTypeName } from '@/config/entityTypes';
 import type { VersionHistoryEntry } from '@/types';
 import type { BoundingBox, Entity, FileInfo, VisionTypeConfig } from '../types';
 
@@ -237,6 +237,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           visibleBoxes={visibleBoxes}
           visionTypes={visionTypes}
           getVisionTypeConfig={getVisionTypeConfig}
+          entities={entities}
           entityMap={entityMap}
           origToTypeId={origToTypeId}
           scrollToMatch={scrollToMatch}
@@ -250,6 +251,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           renderOriginal={renderOriginal}
           renderRedacted={renderRedacted}
           content={content}
+          entities={entities}
           entityMap={entityMap}
           origToTypeId={origToTypeId}
           scrollToMatch={scrollToMatch}
@@ -300,6 +302,7 @@ const RedactionReportSection: FC<{ report: Record<string, unknown>; open: boolea
 const MappingColumn: FC<{
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
+  entities: Entity[];
   scrollToMatch: (orig: string) => void;
   content?: string;
   versionHistory: VersionHistoryEntry[];
@@ -310,6 +313,7 @@ const MappingColumn: FC<{
 }> = ({
   entityMap,
   origToTypeId,
+  entities,
   scrollToMatch,
   content,
   versionHistory,
@@ -320,11 +324,43 @@ const MappingColumn: FC<{
 }) => {
   const t = useT();
 
+  // Per-type count summary: count selected entities whose text is in entityMap
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entity of entities) {
+      if (!entity.selected || entityMap[entity.text] === undefined) continue;
+      const typeId = String(entity.type);
+      counts.set(typeId, (counts.get(typeId) ?? 0) + 1);
+    }
+    return Array.from(counts.entries()).map(([typeId, count]) => ({
+      typeId,
+      name: getEntityTypeName(typeId),
+      count,
+      config: getEntityRiskConfig(typeId),
+    }));
+  }, [entities, entityMap]);
+
   return (
     <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'mapping' ? '' : 'hidden', 'md:flex', className)}>
-      <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.mappingRecords')}</span>
-        <span className="text-[11px] tabular-nums text-muted-foreground">{Object.keys(entityMap).length}</span>
+      <div className="flex flex-col gap-1.5 border-b border-border/60 bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold">{t('playground.mappingRecords')}</span>
+          <span className="text-[11px] tabular-nums text-muted-foreground">{Object.keys(entityMap).length}</span>
+        </div>
+        {typeCounts.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {typeCounts.map(({ typeId, name, count, config }) => (
+              <span
+                key={typeId}
+                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                style={{ backgroundColor: config.bgColor, color: config.textColor }}
+              >
+                {name}
+                <span className="tabular-nums">&times;{count}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       <ScrollArea className="flex-1">
         {Object.entries(entityMap).map(([original, replacement], index) => {
@@ -343,7 +379,7 @@ const MappingColumn: FC<{
                 <span className="flex-1 truncate text-[11px] font-medium" style={{ color: config.textColor }}>
                   {original}
                 </span>
-                {count > 1 && (
+                {count > 0 && (
                   <span className="rounded px-1 text-[10px] tabular-nums" style={{ backgroundColor: `${config.color}22`, color: config.textColor }}>
                     {count}x
                   </span>
@@ -409,6 +445,7 @@ const TextResultView: FC<{
   renderOriginal: () => ReactNode[];
   renderRedacted: () => ReactNode[];
   content: string;
+  entities: Entity[];
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
   scrollToMatch: (orig: string) => void;
@@ -420,6 +457,7 @@ const TextResultView: FC<{
   renderOriginal,
   renderRedacted,
   content,
+  entities,
   entityMap,
   origToTypeId,
   scrollToMatch,
@@ -453,6 +491,7 @@ const TextResultView: FC<{
     <MappingColumn
       entityMap={entityMap}
       origToTypeId={origToTypeId}
+      entities={entities}
       scrollToMatch={scrollToMatch}
       content={content}
       className="w-full md:w-64 md:flex-shrink-0"
@@ -472,6 +511,7 @@ const ImageResultView: FC<{
   visibleBoxes: BoundingBox[];
   visionTypes: VisionTypeConfig[];
   getVisionTypeConfig: (typeId: string) => { name: string; color: string };
+  entities: Entity[];
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
   scrollToMatch: (orig: string) => void;
@@ -486,6 +526,7 @@ const ImageResultView: FC<{
   visibleBoxes,
   visionTypes,
   getVisionTypeConfig,
+  entities,
   entityMap,
   origToTypeId,
   scrollToMatch,
@@ -539,6 +580,7 @@ const ImageResultView: FC<{
     <MappingColumn
       entityMap={entityMap}
       origToTypeId={origToTypeId}
+      entities={entities}
       scrollToMatch={scrollToMatch}
       className="w-full md:w-52 md:flex-shrink-0"
       mobileTab={mobileTab}

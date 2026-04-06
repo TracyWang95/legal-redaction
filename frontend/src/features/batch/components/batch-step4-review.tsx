@@ -39,6 +39,7 @@ interface BatchStep4ReviewProps {
   displayPreviewMap: Record<string, string>;
   textPreviewSegments: TextSegment[];
   applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
+  /** @deprecated — group-level toggle is used instead; kept for interface compat */
   toggleReviewEntitySelected: (id: string) => void;
 
   reviewBoxes: EditorBox[];
@@ -387,7 +388,7 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
         prevScroll.scrollTop = ratio * (prevScroll.scrollHeight - prevScroll.clientHeight);
       }
     }
-  }, [reviewTextContentRef]);
+  }, [reviewTextContentRef, reviewTextScrollRef]);
 
   // ── Text selection annotation state ──
   const [selectedText, setSelectedText] = useState<{ text: string; start: number; end: number } | null>(null);
@@ -588,6 +589,9 @@ function TextReviewContent(props: BatchStep4ReviewProps) {
           ref={reviewTextScrollRef}
           className="flex-1 overflow-auto p-4"
           onScroll={() => {
+            // Dismiss entity popover on scroll to avoid stale positioning
+            if (clickedEntity) { setClickedEntity(null); setEntityPopupPos(null); }
+
             const orig = reviewTextScrollRef.current;
             const prev = previewScrollRef.current;
             if (orig && prev && orig.scrollHeight > orig.clientHeight) {
