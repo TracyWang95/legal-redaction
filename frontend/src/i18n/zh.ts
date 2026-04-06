@@ -547,6 +547,8 @@
   'batchWizard.step1.currentImageColor': '颜色：',
   'batchWizard.step1.textSummary': '文本配置预览',
   'batchWizard.step1.imageSummary': '图像配置预览',
+  'batchWizard.step1.viewSelection': '查看详情',
+  'batchWizard.step1.selectedTotal': '已选 {n} 项',
   'batchWizard.step1.activePreset': '当前预设',
   'batchWizard.step1.textEntities': '文本实体',
   'batchWizard.step1.ocrTypes': 'OCR 文本',

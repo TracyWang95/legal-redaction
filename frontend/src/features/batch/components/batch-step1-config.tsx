@@ -1,10 +1,19 @@
 
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 import { useT } from '@/i18n';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -54,6 +63,7 @@ export function BatchStep1Config({
   advanceToUploadStep,
 }: BatchStep1ConfigProps) {
   const t = useT();
+  const [previewDialog, setPreviewDialog] = useState<'text' | 'image' | null>(null);
   const textRedactionMode = cfg.replacementMode ?? 'structured';
   const imageRedactionMethod = cfg.imageRedactionMethod ?? 'mosaic';
   const imageRedactionStrength = cfg.imageRedactionStrength ?? 25;
@@ -110,6 +120,48 @@ export function BatchStep1Config({
           `${t('batchWizard.step1.currentImageMethod')}${imageMethodLabel}`,
           `${t('batchWizard.step1.currentImageStrength')}${imageRedactionStrength}%`,
         ];
+  const textPreviewGroups = [
+    {
+      title: t('settings.regex'),
+      items: selectedRegexLabels,
+      emptyLabel: t('batchWizard.step1.noTextSelection'),
+    },
+    {
+      title: t('settings.semantic'),
+      items: selectedSemanticLabels,
+      emptyLabel: t('batchWizard.step1.noTextSelection'),
+    },
+  ];
+  const imagePreviewGroups = [
+    {
+      title: t('batchWizard.step1.ocrTypes'),
+      items: selectedOcrLabels,
+      emptyLabel: t('batchWizard.step1.noVisionSelection'),
+    },
+    {
+      title: t('batchWizard.step1.imageTypes'),
+      items: selectedImageLabels,
+      emptyLabel: t('batchWizard.step1.noVisionSelection'),
+    },
+  ];
+  const previewDialogConfig =
+    previewDialog === 'text'
+      ? {
+          title: t('batchWizard.step1.textSummary'),
+          presetName: textPresetName,
+          presetLabel: t('batchWizard.step1.activePreset'),
+          groups: textPreviewGroups,
+          summaryPills: [`${t('batchWizard.step1.currentTextMethod')}${textModeLabel}`],
+        }
+      : previewDialog === 'image'
+        ? {
+            title: t('batchWizard.step1.imageSummary'),
+            presetName: visionPresetName,
+            presetLabel: t('batchWizard.step1.activePreset'),
+            groups: imagePreviewGroups,
+            summaryPills: imageDetailPills,
+          }
+        : null;
 
   if (!configLoaded) {
     return (
@@ -361,41 +413,23 @@ export function BatchStep1Config({
         </div>
 
         <div className="grid gap-3 xl:grid-cols-2">
-          <SelectionPreviewCard
+          <SelectionPreviewSummaryCard
             title={t('batchWizard.step1.textSummary')}
             presetName={textPresetName}
             presetLabel={t('batchWizard.step1.activePreset')}
-            groups={[
-              {
-                title: t('settings.regex'),
-                items: selectedRegexLabels,
-                emptyLabel: t('batchWizard.step1.noTextSelection'),
-              },
-              {
-                title: t('settings.semantic'),
-                items: selectedSemanticLabels,
-                emptyLabel: t('batchWizard.step1.noTextSelection'),
-              },
-            ]}
+            groups={textPreviewGroups}
             summaryPills={[`${t('batchWizard.step1.currentTextMethod')}${textModeLabel}`]}
+            onViewDetails={() => setPreviewDialog('text')}
+            viewLabel={t('batchWizard.step1.viewSelection')}
           />
-          <SelectionPreviewCard
+          <SelectionPreviewSummaryCard
             title={t('batchWizard.step1.imageSummary')}
             presetName={visionPresetName}
             presetLabel={t('batchWizard.step1.activePreset')}
-            groups={[
-              {
-                title: t('batchWizard.step1.ocrTypes'),
-                items: selectedOcrLabels,
-                emptyLabel: t('batchWizard.step1.noVisionSelection'),
-              },
-              {
-                title: t('batchWizard.step1.imageTypes'),
-                items: selectedImageLabels,
-                emptyLabel: t('batchWizard.step1.noVisionSelection'),
-              },
-            ]}
+            groups={imagePreviewGroups}
             summaryPills={imageDetailPills}
+            onViewDetails={() => setPreviewDialog('image')}
+            viewLabel={t('batchWizard.step1.viewSelection')}
           />
         </div>
       </CardContent>
@@ -452,28 +486,99 @@ export function BatchStep1Config({
           </Link>
         </p>
       </div>
+
+      <Dialog open={previewDialog !== null} onOpenChange={(open) => !open && setPreviewDialog(null)}>
+        {previewDialogConfig ? (
+          <DialogContent className="max-w-5xl gap-0 overflow-hidden border-border/70 bg-[var(--surface-overlay)] p-0">
+            <DialogHeader className="border-b border-border/70 px-6 pb-4 pt-6">
+              <DialogTitle>{previewDialogConfig.title}</DialogTitle>
+              <DialogDescription className="text-sm leading-relaxed">
+                {previewDialogConfig.presetLabel}
+                <span className="ml-1 font-medium text-foreground">{previewDialogConfig.presetName}</span>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex max-h-[72vh] flex-col gap-5 overflow-y-auto px-6 py-5">
+              {previewDialogConfig.summaryPills.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {previewDialogConfig.summaryPills.map((pill) => (
+                    <span
+                      key={pill}
+                      className="rounded-full border border-border/70 bg-background px-3 py-1.5 text-xs font-medium text-foreground"
+                    >
+                      {pill}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                {previewDialogConfig.groups.map((group) => (
+                  <div
+                    key={group.title}
+                    className="surface-subtle flex min-h-[16rem] flex-col gap-3 px-4 py-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-foreground">{group.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t('batchWizard.step1.selectedTotal').replace('{n}', String(group.items.length))}
+                        </p>
+                      </div>
+                    </div>
+
+                    {group.items.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        {group.items.map((item) => (
+                          <span
+                            key={`${group.title}-${item}`}
+                            className="flex h-9 items-center rounded-2xl border border-border/70 bg-background px-3 text-xs font-medium text-foreground"
+                            title={item}
+                          >
+                            <span className="truncate">{item}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/80 px-4 text-center text-sm text-muted-foreground">
+                        {group.emptyLabel}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        ) : null}
+      </Dialog>
     </Card>
   );
 }
 
-function SelectionPreviewCard({
+function SelectionPreviewSummaryCard({
   title,
   presetLabel,
   presetName,
   groups,
   summaryPills = [],
+  onViewDetails,
+  viewLabel,
 }: {
   title: string;
   presetLabel: string;
   presetName: string;
   groups: Array<{ title: string; items: string[]; emptyLabel: string }>;
   summaryPills?: string[];
+  onViewDetails: () => void;
+  viewLabel: string;
 }) {
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const firstGroup = groups[0];
+  const secondGroup = groups[1];
 
   return (
     <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-      <CardContent className="flex h-full flex-col gap-3 p-4">
+      <CardContent className="flex h-full flex-col gap-4 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">{title}</p>
@@ -494,38 +599,37 @@ function SelectionPreviewCard({
               </div>
             )}
           </div>
-          <span className="rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            {total}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              {total}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-full px-3"
+              onClick={onViewDetails}
+            >
+              <Eye data-icon="inline-start" />
+              {viewLabel}
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-2">
-          {groups.map((group) => (
-            <div key={group.title} className="surface-subtle flex min-h-[9.25rem] flex-col gap-2.5 px-3 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {group.title}
-                </span>
-                <span className="text-[11px] text-muted-foreground">{group.items.length}</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[firstGroup, secondGroup].filter(Boolean).map((group) => (
+            <div key={group!.title} className="surface-subtle flex items-center justify-between gap-3 px-3 py-3">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {group!.title}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {group!.items.length > 0 ? group!.items.slice(0, 3).join(' · ') : group!.emptyLabel}
+                </p>
               </div>
-              {group.items.length > 0 ? (
-                <div className="max-h-28 overflow-y-auto pr-1">
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.items.map((item) => (
-                      <span
-                        key={`${group.title}-${item}`}
-                        className="rounded-full border border-border/70 bg-background px-2 py-1 text-[11px] leading-4 text-foreground"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex min-h-[4.75rem] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-background/80 px-4 text-center text-xs text-muted-foreground">
-                  {group.emptyLabel}
-                </div>
-              )}
+              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+                {group!.items.length}
+              </span>
             </div>
           ))}
         </div>

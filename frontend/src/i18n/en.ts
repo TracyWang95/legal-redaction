@@ -547,6 +547,8 @@
   'batchWizard.step1.currentImageColor': 'Color: ',
   'batchWizard.step1.textSummary': 'Text config preview',
   'batchWizard.step1.imageSummary': 'Image config preview',
+  'batchWizard.step1.viewSelection': 'View details',
+  'batchWizard.step1.selectedTotal': '{n} selected',
   'batchWizard.step1.activePreset': 'Active preset',
   'batchWizard.step1.textEntities': 'Text entities',
   'batchWizard.step1.ocrTypes': 'OCR text',
