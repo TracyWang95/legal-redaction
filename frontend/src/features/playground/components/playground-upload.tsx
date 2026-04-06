@@ -145,7 +145,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <ScrollArea className="page-surface-body lg:max-h-[calc(100vh-18rem)] xl:max-h-[calc(100vh-18.25rem)] 2xl:max-h-[calc(100vh-18.5rem)]">
-            <TabsContent value="text" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
+            <TabsContent value="text" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-0 2xl:p-2.5 2xl:pb-0">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
@@ -156,7 +156,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
+            <TabsContent value="vision" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-0 2xl:p-2.5 2xl:pb-0">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
@@ -171,8 +171,8 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             </TabsContent>
           </ScrollArea>
 
-          <div className="page-surface-footer">
-            <p className="text-center text-xs text-muted-foreground" data-testid="playground-type-summary">
+          <div className="page-surface-footer !bg-transparent !backdrop-blur-none" style={{ padding: '0.125rem 1rem 0.25rem' }}>
+            <p className="text-center text-xs leading-none text-muted-foreground" data-testid="playground-type-summary">
               {rec.typeTab === 'vision'
                 ? `${t('playground.ocrShort')} ${rec.selectedOcrHasTypes.length} / ${t('playground.imageShort')} ${rec.selectedHasImageTypes.length}`
                 : `${rec.selectedTypes.length} / ${rec.entityTypes.length} ${t('playground.selected')}`}
