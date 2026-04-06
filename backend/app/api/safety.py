@@ -41,7 +41,7 @@ async def storage_info():
 
 @router.post("/cleanup")
 async def cleanup_all_data():
-    """一键清理所有上传文件、脱敏产物和任务记录。"""
+    """一键清理所有上传文件、匿名化产物和任务记录。"""
     from app.services.file_management_service import get_file_store, get_file_store_lock
     from app.services.job_store import get_job_store
 

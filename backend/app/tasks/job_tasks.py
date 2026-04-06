@@ -1,8 +1,8 @@
 """
-Celery 任务：批量任务 Worker 的识别与脱敏处理单元。
+Celery 任务：批量任务 Worker 的识别与匿名化处理单元。
 
 每个 task 对应一个 JobItem 的一个阶段：
-  - process_item      : QUEUED → PARSING → NER/VISION → AWAITING_REVIEW（或直接脱敏）
+  - process_item      : QUEUED → PARSING → NER/VISION → AWAITING_REVIEW（或直接匿名化）
   - process_redaction : REVIEW_APPROVED → REDACTING → COMPLETED
 """
 import asyncio
@@ -41,7 +41,7 @@ def _get_store_job_item(job_id: str, item_id: str):
 )
 def process_item(self, job_id: str, item_id: str, file_id: str) -> None:  # type: ignore[override]
     """
-    识别流水线：QUEUED → PARSING → NER/VISION → AWAITING_REVIEW（或 skip_review 时直接脱敏完成）。
+    识别流水线：QUEUED → PARSING → NER/VISION → AWAITING_REVIEW（或 skip_review 时直接匿名化完成）。
     """
     from app.services.job_runner import DefaultJobRunnerPorts, _run_recognition
     from app.services.job_store import JobItemStatus
@@ -83,7 +83,7 @@ def process_item(self, job_id: str, item_id: str, file_id: str) -> None:  # type
 )
 def process_redaction(self, job_id: str, item_id: str, file_id: str) -> None:  # type: ignore[override]
     """
-    脱敏流水线：REVIEW_APPROVED → REDACTING → COMPLETED。
+    匿名化流水线：REVIEW_APPROVED → REDACTING → COMPLETED。
     """
     from app.services.job_runner import DefaultJobRunnerPorts, _run_redaction
     from app.services.job_store import JobItemStatus

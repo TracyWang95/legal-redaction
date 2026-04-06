@@ -155,7 +155,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             )}
           </div>
 
-          <div className="page-surface-body flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="page-surface-body flex min-h-0 flex-1 flex-col overflow-hidden">
             <TabsContent value="text" className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
@@ -282,7 +282,7 @@ const PresetRow: FC<{
 const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
-  const pageSize = 9;
+  const pageSize = 15;
 
   useEffect(() => {
     setGroupPages((current) => {
@@ -331,7 +331,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={group.key}
-            className="flex flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -356,7 +356,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid grid-cols-3 content-start gap-1.5 p-2', isFullPage && 'auto-rows-[minmax(0,auto)]')}>
+            <div className={cn('grid flex-1 grid-cols-3 content-stretch gap-1.5 p-2', isFullPage && 'auto-rows-fr')}>
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -364,7 +364,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   <label
                     key={`${group.key}-${type.id}`}
                     className={cn(
-                      'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
+                      'flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
@@ -413,7 +413,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
   const [pipelinePages, setPipelinePages] = useState<Record<string, number>>({});
-  const pageSize = 9;
+  const pageSize = 15;
 
   useEffect(() => {
     setPipelinePages((current) => {
@@ -464,7 +464,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={pipeline.mode}
-            className="flex flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -505,14 +505,14 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid grid-cols-3 content-start gap-1.5 p-2', isFullPage && 'auto-rows-[minmax(0,auto)]')}>
+            <div className={cn('grid flex-1 grid-cols-3 content-stretch gap-1.5 p-2', isFullPage && 'auto-rows-fr')}>
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
                   <label
                     key={type.id}
                     className={cn(
-                      'flex min-w-0 cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
+                      'flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
                       checked
                         ? toneClasses.cardSelectedCompact
                         : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',

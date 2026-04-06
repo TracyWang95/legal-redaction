@@ -1,11 +1,11 @@
 """
-HaS (Hide And Seek) 本地脱敏模型服务
+HaS (Hide And Seek) 本地匿名化模型服务
 基于 xuanwulab/HaS_Text_0209_0.6B_Q4（GGUF：HaS_Text_0209_0.6B_Q4_K_M.gguf）
 通过 llama.cpp OpenAI 兼容接口调用
 
 功能：
 1. NER 敏感实体识别
-2. 结构化语义标签脱敏
+2. 结构化语义标签匿名化
 3. 指代消解（同一实体用相同ID）
 4. 支持信息还原
 """
@@ -135,14 +135,14 @@ class HaSService:
         entity_types: List[EntityTypeConfig]
     ) -> tuple[str, Dict[str, List[str]]]:
         """
-        使用 HaS 进行结构化语义标签脱敏
+        使用 HaS 进行结构化语义标签匿名化
         
         Args:
             content: 原始文本
-            entity_types: 要脱敏的实体类型
+            entity_types: 要匿名化的实体类型
             
         Returns:
-            (脱敏后文本, 映射表)
+            (匿名化后文本, 映射表)
         """
         chinese_types = self._convert_entity_types_to_chinese(entity_types)
         
@@ -253,7 +253,7 @@ class HaSService:
         使用 HaS 进行标签还原
         
         Args:
-            masked_text: 脱敏后的文本
+            masked_text: 匿名化后的文本
             mapping: 标签映射表
             
         Returns:

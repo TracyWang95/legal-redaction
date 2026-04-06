@@ -1,5 +1,5 @@
 """
-法律文件脱敏平台 - FastAPI 应用入口
+匿名化数据基础设施 - FastAPI 应用入口
 """
 from __future__ import annotations
 
@@ -209,7 +209,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="智能数据脱敏平台，支持 Word/PDF/图片等多格式文档的敏感信息自动识别与脱敏处理，基于 GB/T 37964-2019 国家标准",
+    description="匿名化数据基础设施，支持 Word/PDF/图片等多格式文档的敏感信息自动识别与匿名化处理，基于 GB/T 37964-2019 国家标准",
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     lifespan=lifespan,
@@ -272,7 +272,7 @@ os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
 # 注册路由
 app.include_router(auth_api.router, prefix=settings.API_PREFIX)
 app.include_router(files.router, prefix=settings.API_PREFIX, tags=["文件管理"], dependencies=[Depends(require_auth)])
-app.include_router(redaction.router, prefix=settings.API_PREFIX, tags=["脱敏处理"], dependencies=[Depends(require_auth)])
+app.include_router(redaction.router, prefix=settings.API_PREFIX, tags=["匿名化处理"], dependencies=[Depends(require_auth)])
 app.include_router(entity_types.router, prefix=settings.API_PREFIX, tags=["文本识别类型管理"], dependencies=[Depends(require_auth)])
 app.include_router(vision_pipeline.router, prefix=settings.API_PREFIX, tags=["图像识别Pipeline管理"], dependencies=[Depends(require_auth)])
 app.include_router(model_config.router, prefix=settings.API_PREFIX, tags=["推理模型配置"], dependencies=[Depends(require_auth)])

@@ -528,7 +528,7 @@ def approve_review(store: JobStore, job_id: str, item_id: str, reviewer: str = "
     assert ir
     store.touch_job_updated(job_id)
     refresh_job_status(store, job_id)
-    # 触发脱敏任务
+    # 触发匿名化任务
     enqueue_task("redaction", job_id, item_id, ir["file_id"])
     return item_to_out(ir)
 

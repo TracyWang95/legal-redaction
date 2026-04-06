@@ -337,7 +337,7 @@ async def download_file(file_id: str, redacted: bool = False):
     下载文件
 
     - redacted=False: 下载原始文件
-    - redacted=True: 下载脱敏后的文件
+    - redacted=True: 下载匿名化后的文件
     """
     snapshot = await _fms.get_file_snapshot(file_id)
     if not snapshot:
@@ -345,7 +345,7 @@ async def download_file(file_id: str, redacted: bool = False):
 
     if redacted:
         if "output_path" not in snapshot:
-            raise HTTPException(status_code=400, detail="文件尚未脱敏")
+            raise HTTPException(status_code=400, detail="文件尚未匿名化")
         file_path = snapshot["output_path"]
         filename = f"redacted_{snapshot['original_filename']}"
     else:

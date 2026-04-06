@@ -28,7 +28,7 @@ export function EntityTypeList({
   const isRegex = variant === 'regex';
   const tone: SelectionTone = isRegex ? 'regex' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
-  const pageSize = 10;
+  const pageSize = 9;
   const [page, setPage] = useState(1);
   const totalPages = Math.max(1, Math.ceil(types.length / pageSize));
 
@@ -91,11 +91,11 @@ export function EntityTypeList({
               <p className="text-sm text-muted-foreground">{t('settings.noTypeConfig')}</p>
             </div>
           ) : (
-            <div className="grid w-full auto-rows-max content-start grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+            <div className="grid w-full grid-cols-3 grid-rows-[repeat(3,1fr)] gap-3">
               {visibleTypes.map(type => (
                 <article
                   key={type.id}
-                  className="flex min-h-[148px] self-start rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                  className="flex h-[148px] overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">
@@ -128,38 +128,19 @@ export function EntityTypeList({
                       </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col gap-2.5">
+                    <div className="min-h-0 flex-1 rounded-2xl border border-border/70 bg-muted/25 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                        {isRegex ? t('settings.regex') : t('settings.cardDescriptionLabel')}
+                      </p>
                       {isRegex ? (
-                        <div className="rounded-2xl border border-border/70 bg-muted/25 px-3 py-2.5">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                            {t('settings.regexLabel')}
-                          </p>
-                          <code className="mt-1 block break-all text-xs leading-5 text-foreground">
-                            {type.regex_pattern ?? '-'}
-                          </code>
-                        </div>
+                        <code className="mt-1 block line-clamp-2 text-xs leading-5 text-foreground">
+                          {type.regex_pattern ?? '-'}
+                        </code>
                       ) : (
-                        <div className="rounded-2xl border border-border/70 bg-muted/20 px-3 py-2.5">
-                          <p className="line-clamp-3 text-xs leading-5 text-muted-foreground">
-                            {type.description || t('settings.semanticDescriptionPlaceholder')}
-                          </p>
-                        </div>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-foreground">
+                          {type.description || t('settings.semanticDescriptionPlaceholder')}
+                        </p>
                       )}
-
-                      <div className="mt-auto flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-                        <span className={cn('size-1.5 rounded-full', toneClasses.dot)} />
-                        <span>{isRegex ? t('settings.regex') : t('settings.aiSemantic')}</span>
-                        {isRegex && type.use_llm && (
-                          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
-                            {t('settings.aiSemantic')}
-                          </span>
-                        )}
-                        {type.tag_template && (
-                          <span className="rounded-full border border-border/70 bg-muted/20 px-2 py-0.5">
-                            {type.tag_template}
-                          </span>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </article>

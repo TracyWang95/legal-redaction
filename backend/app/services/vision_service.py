@@ -410,7 +410,7 @@ class VisionService:
             return await self._redact_pdf(
                 file_path, bounding_boxes, output_path, image_method, strength, fill_color
             )
-        raise ValueError(f"不支持的文件类型进行脱敏: {file_type}")
+        raise ValueError(f"不支持的文件类型进行匿名化: {file_type}")
 
     async def _redact_image(
         self,

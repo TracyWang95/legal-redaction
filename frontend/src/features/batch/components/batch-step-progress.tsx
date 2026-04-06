@@ -1,19 +1,18 @@
 
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
-import { Button } from '@/components/ui/button';
 import { type Step } from '../types';
 
 interface BatchStepProgressProps {
   currentStep: Step;
   canGoStep: (s: Step) => boolean;
-  onStepClick: (s: Step) => void;
+  /** @deprecated Step indicators are now display-only; navigation is via prev/next buttons only. */
+  onStepClick?: (s: Step) => void;
 }
 
 export function BatchStepProgress({
   currentStep,
   canGoStep,
-  onStepClick,
 }: BatchStepProgressProps) {
   const t = useT();
   const stepOrder: Step[] = [1, 2, 3, 4, 5];
@@ -30,31 +29,30 @@ export function BatchStepProgress({
     <nav
       className={cn(
         'flex flex-wrap items-center gap-1.5 shrink-0',
-        currentStep === 4 ? 'mb-1' : 'mb-1.5',
+        currentStep === 4 ? 'mb-0.5' : 'mb-1',
       )}
       aria-label={t('batchWizard.stepsOverview')}
       data-testid="batch-step-progress"
     >
       {stepOrder.map((stepNumber, i) => {
-        const reachable = canGoStep(stepNumber);
+        const isCompleted = canGoStep(stepNumber) && stepNumber < currentStep;
         const isCurrent = currentStep === stepNumber;
+        const isUpcoming = !isCurrent && !isCompleted;
         return (
           <div key={stepNumber} className="flex items-center gap-1.5">
-            <Button
-              variant={isCurrent ? 'default' : reachable ? 'outline' : 'ghost'}
-              size="sm"
-              disabled={!reachable && !isCurrent}
-              onClick={() => reachable && onStepClick(stepNumber)}
+            <span
               className={cn(
-                'text-xs font-medium transition-all duration-200',
-                isCurrent && 'shadow-sm',
-                !reachable && !isCurrent && 'opacity-40 cursor-not-allowed',
+                'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium select-none',
+                'transition-colors duration-200',
+                isCurrent && 'bg-primary text-primary-foreground shadow-sm',
+                isCompleted && 'border border-border/70 bg-background text-foreground',
+                isUpcoming && 'bg-muted/40 text-muted-foreground opacity-40',
               )}
               data-testid={`batch-step-${stepNumber}`}
             >
               <span className="tabular-nums mr-1">{stepNumber}</span>
               {labels[stepNumber]}
-            </Button>
+            </span>
             {i < stepOrder.length - 1 && (
               <span className="text-muted-foreground hidden sm:inline" aria-hidden>
                 &rarr;

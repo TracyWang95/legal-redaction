@@ -27,10 +27,10 @@ celery_app.conf.update(
     # 每个 worker 每次只预取 1 个任务，防止批量拉走后崩溃丢失多个任务
     worker_prefetch_multiplier=1,
     # ——— 单 GPU 串行 ———
-    # 单张 4090 显卡，同一时刻只能跑一个识别/脱敏任务，避免 GPU OOM
+    # 单张 4090 显卡，同一时刻只能跑一个识别/匿名化任务，避免 GPU OOM
     worker_concurrency=1,
     # ——— 超时设置 ———
-    # 识别/脱敏单个文件最多 30 分钟，超时后标记失败（soft 先发 SIGTERM，hard 再发 SIGKILL）
+    # 识别/匿名化单个文件最多 30 分钟，超时后标记失败（soft 先发 SIGTERM，hard 再发 SIGKILL）
     task_soft_time_limit=1800,
     task_time_limit=1860,
     # ——— 结果过期 ———

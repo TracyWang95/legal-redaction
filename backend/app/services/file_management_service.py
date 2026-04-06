@@ -149,7 +149,7 @@ def recognition_count_from_stored_fields(info: dict) -> int:
 def entity_count(info: dict) -> int:
     """
     处理历史「识别项」数量：
-    - 已生成脱敏文件时优先使用 redacted_count（执行接口落库）；
+    - 已生成匿名化文件时优先使用 redacted_count（执行接口落库）；
     - 否则根据 entities / bounding_boxes / entity_map 推断。
     """
     if bool(info.get("output_path")) and isinstance(info.get("redacted_count"), int):
@@ -444,7 +444,7 @@ def build_batch_zip(request: BatchDownloadRequest) -> tuple[bytes, str]:
     if missing:
         raise ValueError(missing)  # caller turns into HTTPException with {"missing": ...}
     if not pairs:
-        raise ValueError("没有可下载的文件（不存在或未脱敏）")
+        raise ValueError("没有可下载的文件（不存在或未匿名化）")
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -494,7 +494,7 @@ async def delete_file(file_id: str) -> Optional[dict[str, Any]]:
     if fp and os.path.exists(fp) and safe_path_in_dir(fp, settings.UPLOAD_DIR):
         os.remove(fp)
 
-    # 删除脱敏后的文件
+    # 删除匿名化后的文件
     op = snapshot.get("output_path", "")
     if op and os.path.exists(op) and safe_path_in_dir(op, settings.OUTPUT_DIR):
         os.remove(op)

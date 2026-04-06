@@ -98,7 +98,7 @@ class Settings(BaseSettings):
     """应用配置"""
 
     # 应用基础配置
-    APP_NAME: str = "DataShield 智能数据脱敏平台"
+    APP_NAME: str = "DataShield 匿名化数据基础设施"
     APP_VERSION: str = "0.1.0"
     DEBUG: bool = False
 
@@ -164,7 +164,7 @@ class Settings(BaseSettings):
     WORKER_LOOP_INTERVAL_SEC: float = 2.0
     ORPHAN_CLEANUP_AGE_SEC: int = 3600
 
-    # 脱敏配置
+    # 匿名化配置
     DEFAULT_REPLACEMENT_MODE: Literal["smart", "mask", "custom"] = "smart"
 
     # 文件加密（默认关闭；启用后上传文件 AES-256-GCM 加密落盘）

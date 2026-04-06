@@ -1,5 +1,5 @@
 """
-Hybrid Vision Service - 图像脱敏核心服务
+Hybrid Vision Service - 图像匿名化核心服务
 PaddleOCR-VL（独立微服务@8082）+ HaS 本地模型（敏感信息识别）混合模式
 完全离线运行，不依赖云端 API
 
@@ -85,7 +85,7 @@ class OCRTextBlock:
 
 class HybridVisionService:
     """
-    混合视觉脱敏服务（完全离线）
+    混合视觉匿名化服务（完全离线）
     1. PaddleOCR-VL：文字检测+识别（获取精确位置）
     2. HaS 本地模型：敏感信息类型识别（理解语义）
     3. 融合两者结果
@@ -304,7 +304,7 @@ class HybridVisionService:
         regions: List[SensitiveRegion],
         redaction_color: Tuple[int, int, int] = (0, 0, 0),
     ) -> bytes:
-        """应用脱敏（用纯色块覆盖敏感区域）"""
+        """应用匿名化（用纯色块覆盖敏感区域）"""
         from app.services.vision.image_pipeline import apply_redaction as _apply_redaction
 
         image, _, _ = self._prepare_image(image_bytes)

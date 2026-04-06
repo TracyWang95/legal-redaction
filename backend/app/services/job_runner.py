@@ -26,7 +26,7 @@ ACTIVE_ITEM_STATUSES = frozenset(
 
 
 class JobRunnerPorts:
-    """识别 / 脱敏步骤（测试替换为 Mock）。"""
+    """识别 / 匿名化步骤（测试替换为 Mock）。"""
 
     async def parse_file(self, file_id: str) -> None:
         raise NotImplementedError
@@ -188,7 +188,7 @@ async def _run_redaction(
     try:
         store.update_item_status(item_id, JobItemStatus.REDACTING)
         await ports.execute_redaction(file_id, cfg)
-        # 验证脱敏产物：output_path 必须存在才标记完成
+        # 验证匿名化产物：output_path 必须存在才标记完成
         from app.services.file_operations import get_file_info as _get_fi
         _fi = _get_fi(file_id) or {}
         if not _fi.get("output_path"):
@@ -241,7 +241,7 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
         fi = get_file_info(file_id)
         if not fi:
             raise RuntimeError(f"文件不存在: {file_id}")
-        # 前端已执行脱敏时跳过，避免重复写文件；仍由 _run_redaction 将 item 标为完成
+        # 前端已执行匿名化时跳过，避免重复写文件；仍由 _run_redaction 将 item 标为完成
         if fi.get("output_path"):
             return
 

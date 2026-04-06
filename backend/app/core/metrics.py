@@ -1,5 +1,5 @@
 """
-Prometheus 监控指标 — 识别/脱敏延迟、错误率、队列深度。
+Prometheus 监控指标 — 识别/匿名化延迟、错误率、队列深度。
 
 /metrics 端点由 main.py 挂载。
 """
@@ -56,7 +56,7 @@ VISION_DURATION = Histogram(
 )
 
 # ──────────────────────────────────────────────
-# 脱敏执行
+# 匿名化执行
 # ──────────────────────────────────────────────
 REDACTION_DURATION = Histogram(
     "redaction_execute_seconds",

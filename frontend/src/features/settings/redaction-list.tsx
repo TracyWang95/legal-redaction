@@ -715,25 +715,54 @@ function PresetPreview({
   const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
 
+  const selectedRegexTypes = useMemo(
+    () => preset.selectedEntityTypeIds.filter(id => entityTypes.find(type => type.id === id)?.regex_pattern),
+    [preset.selectedEntityTypeIds, entityTypes],
+  );
+  const selectedSemanticTypes = useMemo(
+    () => preset.selectedEntityTypeIds.filter(id => {
+      const et = entityTypes.find(type => type.id === id);
+      return et && et.use_llm && !et.regex_pattern;
+    }),
+    [preset.selectedEntityTypeIds, entityTypes],
+  );
+
   return (
     <div className="space-y-2 border-t px-2 pb-3 pt-2">
-      {presetAppliesText(preset) && (
+      {presetAppliesText(preset) && selectedRegexTypes.length > 0 && (
         <div>
           <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
-            {t('settings.redaction.regexGroup')} ({preset.selectedEntityTypeIds.filter(id => entityTypes.find(type => type.id === id)?.regex_pattern).length})
+            {t('settings.redaction.regexGroup')} ({selectedRegexTypes.length})
           </p>
           <div className={presetPreviewChipGridClass}>
-            {preset.selectedEntityTypeIds
-              .filter(id => entityTypes.find(type => type.id === id)?.regex_pattern)
-              .map(id => (
-                <span
-                  key={id}
-                  className={cn(presetPreviewChipClass, 'truncate')}
-                  title={entityTypes.find(type => type.id === id)?.name ?? id}
-                >
-                  {entityTypes.find(type => type.id === id)?.name ?? id}
-                </span>
-              ))}
+            {selectedRegexTypes.map(id => (
+              <span
+                key={id}
+                className={cn(presetPreviewChipClass, 'truncate')}
+                title={entityTypes.find(type => type.id === id)?.name ?? id}
+              >
+                {entityTypes.find(type => type.id === id)?.name ?? id}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {presetAppliesText(preset) && selectedSemanticTypes.length > 0 && (
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+            {t('settings.redaction.semanticGroup')} ({selectedSemanticTypes.length})
+          </p>
+          <div className={presetPreviewChipGridClass}>
+            {selectedSemanticTypes.map(id => (
+              <span
+                key={id}
+                className={cn(presetPreviewChipClass, 'truncate')}
+                title={entityTypes.find(type => type.id === id)?.name ?? id}
+              >
+                {entityTypes.find(type => type.id === id)?.name ?? id}
+              </span>
+            ))}
           </div>
         </div>
       )}

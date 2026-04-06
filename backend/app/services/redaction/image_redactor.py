@@ -1,6 +1,6 @@
 """
-图片脱敏模块
-处理图片/扫描件的区域脱敏（马赛克 / 高斯模糊 / 纯色填充）
+图片匿名化模块
+处理图片/扫描件的区域匿名化（马赛克 / 高斯模糊 / 纯色填充）
 委托给 VisionService.apply_redaction 执行实际图像处理
 """
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class ImageRedactorMixin:
     """
-    图片脱敏方法集合
+    图片匿名化方法集合
     设计为 mixin，由 Redactor 类继承使用
     要求宿主类具有 self.vision_service 属性（VisionService 实例）
     """
@@ -26,7 +26,7 @@ class ImageRedactorMixin:
         config: RedactionConfig,
     ) -> int:
         """
-        图片/扫描件脱敏：HaS Image 风格块级脱敏
+        图片/扫描件匿名化：HaS Image 风格块级匿名化
         马赛克 / 高斯模糊 / 纯色填充，与文本 replacement_mode 无关
 
         Args:
@@ -34,10 +34,10 @@ class ImageRedactorMixin:
             file_type: 文件类型（PDF_SCANNED 或 IMAGE）
             selected_boxes: 选中的边界框列表
             output_path: 输出文件路径
-            config: 脱敏配置
+            config: 匿名化配置
 
         Returns:
-            脱敏区域数量
+            匿名化区域数量
         """
         method = getattr(config, "image_redaction_method", None) or "fill"
         strength = int(getattr(config, "image_redaction_strength", None) or 25)

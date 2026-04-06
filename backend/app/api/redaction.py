@@ -1,6 +1,6 @@
 """
-脱敏处理 API 路由
-处理文档脱敏、对比等操作
+匿名化处理 API 路由
+处理文档匿名化、对比等操作
 
 Thin routing layer — business logic lives in
 app.services.redaction_orchestrator.
@@ -43,9 +43,9 @@ async def execute_redaction(
     x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
 ):
     """
-    执行文档脱敏
+    执行文档匿名化
 
-    根据提供的实体列表和配置，对文档进行脱敏处理:
+    根据提供的实体列表和配置，对文档进行匿名化处理:
     - 文本类文档: 替换敏感文本
     - 图片类文档: 添加黑色遮罩
     """
@@ -92,22 +92,22 @@ async def preview_image_redaction(
 @router.get("/redaction/{file_id}/compare", response_model=CompareData)
 async def get_comparison(file_id: str):
     """
-    获取脱敏前后对比数据
+    获取匿名化前后对比数据
 
-    返回原始内容和脱敏后内容，用于前端展示对比视图
+    返回原始内容和匿名化后内容，用于前端展示对比视图
     """
     try:
         return await _orch.get_comparison(file_id)
     except ValueError as exc:
         detail = str(exc)
-        if "尚未脱敏" in detail:
+        if "尚未匿名化" in detail:
             raise HTTPException(status_code=400, detail=detail)
         raise HTTPException(status_code=404, detail=detail)
 
 
 @router.get("/redaction/{file_id}/versions", response_model=RedactionVersionsResponse)
 async def get_redaction_versions(file_id: str):
-    """获取文件的脱敏版本历史"""
+    """获取文件的匿名化版本历史"""
     try:
         return _orch.get_versions(file_id)
     except ValueError as exc:
@@ -151,7 +151,7 @@ async def get_replacement_modes():
 
 @router.get("/redaction/{file_id}/report", response_model=RedactionReport)
 async def get_redaction_report(file_id: str):
-    """获取脱敏质量报告"""
+    """获取匿名化质量报告"""
     try:
         return _orch.get_report(file_id)
     except ValueError as exc:

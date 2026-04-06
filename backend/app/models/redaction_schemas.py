@@ -25,7 +25,7 @@ __all__ = [
 
 
 class RedactionConfig(BaseModel):
-    """脱敏配置"""
+    """匿名化配置"""
     replacement_mode: ReplacementMode = Field(default=ReplacementMode.SMART)
     entity_types: list[str] = Field(
         default=["PERSON", "PHONE", "ID_CARD"]
@@ -34,7 +34,7 @@ class RedactionConfig(BaseModel):
         default_factory=list, description="启用的自定义实体类型ID列表"
     )
     custom_replacements: dict[str, str] = Field(default_factory=dict)
-    # 图片 / 扫描件块级脱敏（与 HaS Image 文档一致：mosaic / blur / fill），与文本 replacement_mode 独立
+    # 图片 / 扫描件块级匿名化（与 HaS Image 文档一致：mosaic / blur / fill），与文本 replacement_mode 独立
     image_redaction_method: Optional[Literal["mosaic", "blur", "fill"]] = Field(
         default=None,
         description="图片类：马赛克、高斯模糊、纯色填充；未传时图片仍按 fill 处理",
@@ -52,10 +52,10 @@ class RedactionConfig(BaseModel):
 
 
 class RedactionRequest(BaseModel):
-    """脱敏请求"""
+    """匿名化请求"""
     file_id: str = Field(..., description="文件ID")
-    entities: list[Entity] = Field(default_factory=list, description="要脱敏的实体列表")
-    bounding_boxes: list[BoundingBox] = Field(default_factory=list, description="要脱敏的图片区域")
+    entities: list[Entity] = Field(default_factory=list, description="要匿名化的实体列表")
+    bounding_boxes: list[BoundingBox] = Field(default_factory=list, description="要匿名化的图片区域")
     config: RedactionConfig = Field(default_factory=RedactionConfig)
 
 
@@ -93,7 +93,7 @@ class NERRequest(BaseModel):
 
 
 class RedactionResult(BaseModel):
-    """脱敏结果"""
+    """匿名化结果"""
     file_id: str
     output_file_id: str
     redacted_count: int
@@ -117,7 +117,7 @@ class VisionDetectRequest(BaseModel):
 
 
 class RedactionReport(BaseModel):
-    """脱敏质量报告"""
+    """匿名化质量报告"""
     file_id: str
     filename: str
     total_entities: int
@@ -131,13 +131,13 @@ class RedactionReport(BaseModel):
         default_factory=dict,
         description="来源分布：llm, regex, manual, has"
     )
-    coverage_rate: float = Field(default=0.0, description="脱敏覆盖率（已脱敏/总识别）")
+    coverage_rate: float = Field(default=0.0, description="匿名化覆盖率（已匿名化/总识别）")
     redaction_mode: str = ""
     created_at: str = ""
 
 
 class RedactionVersionsResponse(BaseModel):
-    """脱敏版本历史响应"""
+    """匿名化版本历史响应"""
     file_id: str
     versions: list[dict] = Field(default_factory=list)
     total: int = 0

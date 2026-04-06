@@ -212,7 +212,7 @@ class SimpleTaskQueue:
             # 3) 完成识别
             skip_review = bool(job.get("skip_item_review"))
             if skip_review:
-                # skip_item_review=true: 直接入队脱敏，不等人工审阅
+                # skip_item_review=true: 直接入队匿名化，不等人工审阅
                 store.update_item_status(task.item_id, JobItemStatus.AWAITING_REVIEW)
                 logger.info("[queue] item=%s → skip review, enqueue redaction", task.item_id[:8])
                 self._queue.put_nowait(TaskItem(
@@ -236,7 +236,7 @@ class SimpleTaskQueue:
             self._refresh_job_status(store, task.job_id)
 
     # ------------------------------------------------------------------
-    # 脱敏流水线
+    # 匿名化流水线
     # ------------------------------------------------------------------
 
     async def _run_redaction(self, task: TaskItem) -> None:
@@ -263,7 +263,7 @@ class SimpleTaskQueue:
             if not fi:
                 raise RuntimeError(f"file not found: {task.file_id}")
             if fi.get("output_path"):
-                # 已脱敏
+                # 已匿名化
                 store.update_item_status(task.item_id, JobItemStatus.COMPLETED)
                 return
 

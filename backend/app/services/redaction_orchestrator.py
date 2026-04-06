@@ -1,8 +1,8 @@
 """
-脱敏编排服务层 — 从 api/redaction.py 提取。
+匿名化编排服务层 — 从 api/redaction.py 提取。
 
 在路由处理器与底层 Redactor/VisionService 之间的编排层：
-- 脱敏执行与 file_store 更新
+- 匿名化执行与 file_store 更新
 - entity_map 管理与版本追踪
 - 报告生成（实体/bbox 统计）
 - 视觉检测编排
@@ -175,7 +175,7 @@ async def get_comparison(file_id: str) -> CompareData:
     file_info = file_store[file_id]
 
     if "output_path" not in file_info:
-        raise ValueError("文件尚未脱敏")
+        raise ValueError("文件尚未匿名化")
 
     redactor = Redactor()
     compare_data = await redactor.get_comparison(file_info)

@@ -57,7 +57,7 @@ class FileListItem(BaseModel):
     )
     item_status: Optional[str] = Field(
         default=None,
-        description="关联 job_item 的 pipeline 状态（awaiting_review / completed 等），用于三态脱敏显示",
+        description="关联 job_item 的 pipeline 状态（awaiting_review / completed 等），用于三态匿名化显示",
     )
     item_id: Optional[str] = Field(
         default=None,
@@ -99,4 +99,4 @@ class NERResult(BaseModel):
 class BatchDownloadRequest(BaseModel):
     """批量打包下载"""
     file_ids: List[str] = Field(..., min_length=1, description="要打包的文件 ID 列表")
-    redacted: bool = Field(default=False, description="为 True 时打包脱敏后的文件（需已脱敏）")
+    redacted: bool = Field(default=False, description="为 True 时打包匿名化后的文件（需已匿名化）")

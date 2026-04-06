@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import { useT } from '@/i18n';
+import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,24 +128,11 @@ export function BatchStep1Config({
           `${t('batchWizard.step1.currentImageMethod')}${imageMethodLabel}`,
           `${t('batchWizard.step1.currentImageStrength')}${imageRedactionStrength}%`,
         ];
-  const textModeNotes =
-    textRedactionMode === 'smart'
-      ? [
-          t('batchWizard.step1.textModeSmartLine1'),
-          t('batchWizard.step1.textModeSmartLine2'),
-          t('batchWizard.step1.textModeSmartLine3'),
-        ]
-      : textRedactionMode === 'mask'
-        ? [
-            t('batchWizard.step1.textModeMaskLine1'),
-            t('batchWizard.step1.textModeMaskLine2'),
-            t('batchWizard.step1.textModeMaskLine3'),
-          ]
-        : [
-            t('batchWizard.step1.textModeStructuredLine1'),
-            t('batchWizard.step1.textModeStructuredLine2'),
-            t('batchWizard.step1.textModeStructuredLine3'),
-          ];
+  const textModeBullets = [
+    { key: 'structured', label: t('batchWizard.step1.textModeBulletStructured') },
+    { key: 'smart', label: t('batchWizard.step1.textModeBulletSmart') },
+    { key: 'mask', label: t('batchWizard.step1.textModeBulletMask') },
+  ];
   const textPreviewGroups = [
     {
       title: t('settings.regex'),
@@ -202,27 +190,27 @@ export function BatchStep1Config({
 
   return (
     <Card
-      className="page-surface rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
+      className="page-surface flex-1 rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
       data-testid="batch-step1-config"
     >
-      <CardHeader className="flex flex-col gap-1.5 border-b border-border/70 pb-4">
+      <CardHeader className="flex flex-col gap-0.5 border-b border-border/70 pb-2 pt-3">
         <CardTitle className="text-base tracking-[-0.03em]">{t('batchWizard.step1.title')}</CardTitle>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-sm text-muted-foreground leading-snug">
           {t('batchWizard.step1.desc')}
         </p>
       </CardHeader>
 
-      <CardContent className="page-surface-body flex flex-col gap-4 pt-5">
-        <div className="grid gap-3 xl:grid-cols-2">
+      <CardContent className="page-surface-body flex-1 flex flex-col gap-2 pt-2">
+        <div className="grid flex-1 gap-2 xl:grid-cols-2">
           <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-            <CardContent className="flex h-full flex-col gap-3 p-4">
+            <CardContent className="flex h-full flex-col gap-1.5 p-2.5">
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                 <span className="text-sm font-semibold">
                   {t('batchWizard.step1.textPreset')}
                 </span>
               </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-snug">
                 {t('batchWizard.step1.textPresetDesc')}
               </p>
               <Select
@@ -242,21 +230,15 @@ export function BatchStep1Config({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="surface-subtle flex flex-col gap-2 px-3 py-3">
+              <div className="surface-subtle flex flex-1 flex-col gap-1 px-2.5 py-1.5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     {t('batchWizard.step1.textRedactionMode')}
                   </p>
-                  <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+                  <span className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
                     {textModeLabel}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('batchWizard.step1.textModeHint')}
-                </p>
-                <p className="mb-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {t('batchWizard.step1.textRedactionMode')}
-                </p>
                 <Select
                   value={textRedactionMode}
                   onValueChange={(value: 'structured' | 'smart' | 'mask') =>
@@ -272,26 +254,35 @@ export function BatchStep1Config({
                     <SelectItem value="mask">{t('mode.mask')}</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="space-y-1 pt-1">
-                  {textModeNotes.map((line) => (
-                    <p key={line} className="text-[11px] leading-5 text-muted-foreground">
-                      {line}
-                    </p>
+                <ul className="mt-3.5 space-y-1">
+                  {textModeBullets.map((bullet) => (
+                    <li
+                      key={bullet.key}
+                      className={cn(
+                        'flex items-start gap-1.5 text-[11px] leading-4',
+                        bullet.key === textRedactionMode
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      <span className="mt-1.5 inline-block size-1 shrink-0 rounded-full bg-current" />
+                      {bullet.label}
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             </CardContent>
           </Card>
 
           <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-            <CardContent className="flex h-full flex-col gap-3 p-4">
+            <CardContent className="flex h-full flex-col gap-1.5 p-2.5">
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--selection-yolo-accent)]" />
                 <span className="text-sm font-semibold">
                   {t('batchWizard.step1.imagePreset')}
                 </span>
               </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-snug">
                 {t('batchWizard.step1.imagePresetDesc')}
               </p>
               <Select
@@ -311,20 +302,17 @@ export function BatchStep1Config({
                   ))}
                 </SelectContent>
               </Select>
-              <div className="surface-subtle flex flex-col gap-3 px-3 py-3">
+              <div className="surface-subtle flex flex-1 flex-col gap-1 px-2.5 py-1.5">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     {t('batchWizard.step1.imageRedactionMode')}
                   </p>
-                  <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+                  <span className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
                     {imageMethodLabel}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] leading-4 text-muted-foreground">
                   {imageMethodHint}
-                </p>
-                <p className="mb-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  {t('batchWizard.step1.imageRedactionMode')}
                 </p>
                 <Select
                   value={imageRedactionMethod}
@@ -343,40 +331,40 @@ export function BatchStep1Config({
                 </Select>
 
                 {imageRedactionMethod === 'fill' ? (
-                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_7.5rem]">
-                    <div className="space-y-1">
+                  <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_6rem]">
+                    <div className="space-y-0.5">
                       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                         {t('batchWizard.step1.imageFillColorLabel')}
                       </p>
-                      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2">
+                      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background px-2.5 py-1.5">
                         <input
                           type="color"
                           value={imageFillColor}
                           onChange={(event) => setCfg((current) => ({ ...current, imageFillColor: event.target.value }))}
-                          className="h-7 w-7 rounded-md border-0 bg-transparent p-0"
+                          className="h-6 w-6 rounded-md border-0 bg-transparent p-0"
                           data-testid="image-redaction-color"
                         />
                         <span className="text-xs font-medium text-foreground">{imageFillColor.toUpperCase()}</span>
                       </div>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                         {t('batchWizard.step1.previewSwatch')}
                       </p>
                       <div
-                        className="h-[3rem] rounded-2xl border border-border/70"
+                        className="h-[2rem] rounded-2xl border border-border/70"
                         style={{ backgroundColor: imageFillColor }}
                         aria-hidden
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                         {t('batchWizard.step1.imageStrengthLabel')}
                       </p>
-                      <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+                      <span className="rounded-full border border-border/70 bg-background px-2.5 py-0.5 text-[11px] font-medium text-foreground">
                         {imageRedactionStrength}%
                       </span>
                     </div>
@@ -399,7 +387,7 @@ export function BatchStep1Config({
           </Card>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid flex-1 gap-2 xl:grid-cols-2">
           <SelectionPreviewSummaryCard
             title={t('batchWizard.step1.textSummary')}
             presetName={textPresetName}
@@ -422,8 +410,8 @@ export function BatchStep1Config({
       </CardContent>
 
       <div className="page-surface-footer">
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
-          <div className="surface-subtle flex items-center justify-between gap-3 px-4 py-3">
+        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
+          <div className="surface-subtle flex items-center justify-between gap-3 px-3 py-1.5">
             <span className="text-sm text-muted-foreground">
               {t('batchWizard.step1.priority')}
             </span>
@@ -442,7 +430,7 @@ export function BatchStep1Config({
             </Select>
           </div>
 
-          <div className="surface-subtle flex flex-col gap-3 px-4 py-3">
+          <div className="surface-subtle flex flex-col gap-1.5 px-3 py-1.5">
             <label className="flex cursor-pointer items-start gap-2 text-sm">
               <Checkbox
                 checked={confirmStep1}
@@ -463,7 +451,7 @@ export function BatchStep1Config({
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           <Link to="/jobs" className="text-primary hover:underline font-medium">
             {t('batchHub.jobCenter')}
           </Link>
@@ -566,20 +554,20 @@ function SelectionPreviewSummaryCard({
 
   return (
     <Card className="rounded-[20px] border-border/70 bg-card/90 shadow-[var(--shadow-sm)]">
-      <CardContent className="flex h-full flex-col gap-4 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
+      <CardContent className="flex h-full flex-col gap-1.5 p-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-0.5">
             <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">{title}</p>
             <p className="text-xs text-muted-foreground">
               {presetLabel}
               <span className="ml-1 font-medium text-foreground">{presetName}</span>
             </p>
             {summaryPills.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
+              <div className="flex flex-wrap gap-1 pt-0.5">
                 {summaryPills.map((pill) => (
                   <span
                     key={pill}
-                    className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground"
+                    className="rounded-full border border-border/70 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground"
                   >
                     {pill}
                   </span>
@@ -587,15 +575,15 @@ function SelectionPreviewSummaryCard({
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-full border border-border/70 bg-muted/35 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
               {total}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 rounded-full px-3"
+              className="h-7 rounded-full px-2.5"
               onClick={onViewDetails}
             >
               <Eye data-icon="inline-start" />
@@ -604,20 +592,20 @@ function SelectionPreviewSummaryCard({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid flex-1 gap-2 sm:grid-cols-2">
           {[firstGroup, secondGroup].filter(Boolean).map((group) => (
-            <div key={group!.title} className="surface-subtle flex items-center justify-between gap-3 px-3 py-3">
-              <div className="space-y-1">
+            <div key={group!.title} className="surface-subtle flex items-center justify-between gap-2 px-2.5 py-2">
+              <div className="space-y-0.5">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {group!.title}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] leading-4 text-muted-foreground">
                   {group!.items.length > 0
                     ? `${group!.items.slice(0, 3).join(' · ')}${t('batchWizard.step1.summaryEtc')}`
                     : group!.emptyLabel}
                 </p>
               </div>
-              <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">
+              <span className="rounded-full border border-border/70 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground">
                 {group!.items.length}
               </span>
             </div>

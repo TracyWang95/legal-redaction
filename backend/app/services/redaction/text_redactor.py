@@ -1,5 +1,5 @@
 """
-文本脱敏模块
+文本匿名化模块
 处理 DOCX、PDF、TXT 文档的文本替换逻辑
 """
 import json
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class TextRedactorMixin:
     """
-    文本脱敏方法集合
+    文本匿名化方法集合
     设计为 mixin，由 Redactor 类继承使用
     """
 
@@ -33,7 +33,7 @@ class TextRedactorMixin:
         entities: list[Entity],
         context: RedactionContext,
     ) -> int:
-        """Word 文档脱敏"""
+        """Word 文档匿名化"""
         doc = Document(input_path)
         redacted_count = 0
 
@@ -319,7 +319,7 @@ class TextRedactorMixin:
         entities: list[Entity],
         context: RedactionContext,
     ) -> int:
-        """纯文本文件脱敏（.txt, .md, .html, .rtf）— 单次正则替换，O(n) 遍历"""
+        """纯文本文件匿名化（.txt, .md, .html, .rtf）— 单次正则替换，O(n) 遍历"""
         import re as _re
 
         # 读取原文（兼容多种编码）
@@ -372,7 +372,7 @@ class TextRedactorMixin:
         entities: list[Entity],
         context: RedactionContext,
     ) -> int:
-        """PDF 文档脱敏（文本型）"""
+        """PDF 文档匿名化（文本型）"""
         doc = fitz.open(input_path)
         redacted_count = 0
 

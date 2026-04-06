@@ -542,7 +542,7 @@ class JobStore:
             conn.commit()
 
     def find_item_status_by_file_id(self, file_id: str) -> Optional[str]:
-        """查找文件关联的最新 job_item 状态，用于三态脱敏显示。"""
+        """查找文件关联的最新 job_item 状态，用于三态匿名化显示。"""
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT status FROM job_items WHERE file_id = ? ORDER BY updated_at DESC LIMIT 1",

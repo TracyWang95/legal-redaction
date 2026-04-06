@@ -46,7 +46,7 @@ export function BatchWizard() {
         )}
 
         {w.step !== 4 && (
-          <p className="mb-1 shrink-0 text-xs leading-tight text-muted-foreground">
+          <p className="mb-0.5 shrink-0 text-xs leading-tight text-muted-foreground">
             {t('batchWizard.stepsOverview')}
           </p>
         )}
@@ -54,7 +54,6 @@ export function BatchWizard() {
         <BatchStepProgress
           currentStep={w.step}
           canGoStep={w.canGoStep}
-          onStepClick={w.goStep}
         />
 
         {w.msg && (

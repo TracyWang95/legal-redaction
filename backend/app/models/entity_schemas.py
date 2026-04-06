@@ -68,7 +68,7 @@ class Entity(BaseModel):
     )
     coref_id: Optional[str] = Field(None, description="指代消解ID")
     replacement: Optional[str] = Field(None, description="替换文本")
-    selected: bool = Field(default=True, description="是否选中进行脱敏")
+    selected: bool = Field(default=True, description="是否选中进行匿名化")
     custom_type_id: Optional[str] = Field(None, description="自定义类型ID（如果是自定义类型）")
 
 
@@ -82,13 +82,13 @@ class BoundingBox(BaseModel):
     page: int = Field(default=1, description="所在页码")
     type: str = Field(..., description="实体类型")
     text: Optional[str] = Field(None, description="识别到的文本")
-    selected: bool = Field(default=True, description="是否选中进行脱敏")
+    selected: bool = Field(default=True, description="是否选中进行匿名化")
     source: Optional[Literal["ocr_has", "has_image", "manual"]] = Field(
         default=None, description="来源: ocr_has=OCR+HaS, has_image=HaS Image YOLO, manual=手动"
     )
 
 
-# ============ 实体类型 / 脱敏端点响应 ============
+# ============ 实体类型 / 匿名化端点响应 ============
 
 class EntityTypeItem(BaseModel):
     """单个实体类型展示项"""

@@ -1,5 +1,5 @@
 """
-脱敏执行服务包
+匿名化执行服务包
 Re-export public API for backward compatibility.
 
 Usage:

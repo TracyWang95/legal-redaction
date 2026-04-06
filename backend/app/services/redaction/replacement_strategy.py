@@ -1,6 +1,6 @@
 """
 替换策略模块
-管理不同的脱敏替换模式：SMART / MASK / CUSTOM / STRUCTURED
+管理不同的匿名化替换模式：SMART / MASK / CUSTOM / STRUCTURED
 维护实体映射关系，确保同一实体在文档中的一致性
 """
 import logging
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class RedactionContext:
     """
-    脱敏上下文
+    匿名化上下文
     维护实体映射关系，确保同一实体在文档中的一致性
     """
 
