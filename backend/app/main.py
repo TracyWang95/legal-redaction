@@ -134,7 +134,7 @@ async def lifespan(app: FastAPI):
     if _requeued:
         logger.info("Requeued %d failed items after repairing missing-file path records", _requeued)
 
-    # 3. 启动进程内任务队列（替代 Celery）
+    # 3. 启动进程内任务队列
     from app.services.task_queue import get_task_queue, TaskItem
     _task_queue = get_task_queue()
     _task_queue.start()

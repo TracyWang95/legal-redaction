@@ -216,7 +216,7 @@ def job_to_summary(row: dict[str, Any], store: JobStore) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def enqueue_task(task_type: str, job_id: str, item_id: str, file_id: str) -> None:
-    """投递任务到进程内队列（替代 Celery）。"""
+    """投递任务到进程内队列。"""
     try:
         from app.services.task_queue import get_task_queue, TaskItem
         queue = get_task_queue()
