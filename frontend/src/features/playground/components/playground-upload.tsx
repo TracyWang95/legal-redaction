@@ -41,7 +41,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
   const t = useT();
   const { health } = useServiceHealth();
   const { dropzone, recognition: rec } = ctx;
-  const { getRootProps, getInputProps, isDragActive } = dropzone;
+  const { getRootProps, getInputProps, isDragActive, open } = dropzone;
   const backendUnavailable = !health;
 
   return (
@@ -64,7 +64,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <div
-            {...getRootProps()}
+            {...getRootProps({ onClick: (e) => { e.stopPropagation(); open(); } })}
             className={cn(
               'saas-hero group relative min-h-[18rem] flex-1 w-full cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-300 ease-out lg:px-12',
               isDragActive
@@ -91,12 +91,16 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               <p className="mb-5 text-sm text-muted-foreground">
                 {t('playground.supportedFormats')}
               </p>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-4 py-2 text-xs font-medium text-foreground">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); open(); }}
+                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-4 py-2 text-xs font-medium text-foreground hover:bg-accent/40 transition-colors"
+              >
                 <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
                 {t('playground.clickToUpload')}
-              </div>
+              </button>
             </div>
           </div>
         </div>
