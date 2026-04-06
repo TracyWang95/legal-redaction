@@ -550,6 +550,7 @@
   'batchWizard.step1.textModeMaskLine1': 'Cover the original text directly while keeping a rough sense of length.',
   'batchWizard.step1.textModeMaskLine2': 'Best when you want to hide detail but still preserve layout rhythm.',
   'batchWizard.step1.textModeMaskLine3': 'Choose this when fast concealment and a uniform look matter most.',
+  'batchWizard.step1.summaryEtc': ' etc.',
   'batchWizard.step1.currentTextMethod': 'Text method: ',
   'batchWizard.step1.currentImageMethod': 'Image method: ',
   'batchWizard.step1.currentImageStrength': 'Strength: ',

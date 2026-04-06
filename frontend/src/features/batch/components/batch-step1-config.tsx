@@ -597,6 +597,7 @@ function SelectionPreviewSummaryCard({
   onViewDetails: () => void;
   viewLabel: string;
 }) {
+  const t = useT();
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   const firstGroup = groups[0];
   const secondGroup = groups[1];
@@ -649,7 +650,9 @@ function SelectionPreviewSummaryCard({
                   {group!.title}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {group!.items.length > 0 ? group!.items.slice(0, 3).join(' · ') : group!.emptyLabel}
+                  {group!.items.length > 0
+                    ? `${group!.items.slice(0, 3).join(' · ')}${group!.items.length > 3 ? t('batchWizard.step1.summaryEtc') : ''}`
+                    : group!.emptyLabel}
                 </p>
               </div>
               <span className="rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] font-medium text-foreground">

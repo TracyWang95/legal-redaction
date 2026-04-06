@@ -550,6 +550,7 @@
   'batchWizard.step1.textModeMaskLine1': '直接盖住原内容，能保留大致长度和位置感。',
   'batchWizard.step1.textModeMaskLine2': '适合不想暴露原文细节，但还想保留版面节奏的场景。',
   'batchWizard.step1.textModeMaskLine3': '如果你更看重快速遮挡和统一观感，可以用这一种。',
+  'batchWizard.step1.summaryEtc': '等',
   'batchWizard.step1.currentTextMethod': '文本方式：',
   'batchWizard.step1.currentImageMethod': '图像方式：',
   'batchWizard.step1.currentImageStrength': '强度：',
