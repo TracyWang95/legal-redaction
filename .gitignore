@@ -1,3 +1,7 @@
+# Claude Code / AI assistant
+.claude/
+CLAUDE.md
+
 # Python
 __pycache__/
 *.pyc
