@@ -3,9 +3,9 @@ import { type FC, type MouseEvent as ReactMouseEvent, type ReactNode, useCallbac
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/Toast';
 import { useT } from '@/i18n';
-import { getEntityGroup, getEntityGroupLabel, getEntityTypeName } from '@/config/entityTypes';
+import { getEntityRiskConfig, getEntityTypeName } from '@/config/entityTypes';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
-import { EntityTypeGroupPicker } from '@/components/EntityTypeGroupPicker';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlaygroundUpload } from './components/playground-upload';
 import { PlaygroundToolbar } from './components/playground-toolbar';
 import { PlaygroundEntityPanel } from './components/playground-entity-panel';
@@ -190,7 +190,7 @@ export const Playground: FC = () => {
       }
 
       if (rect.width === 0 && rect.height === 0) return;
-      setSelectionPos(clampPopoverInCanvas(rect, root.getBoundingClientRect(), 400, 400));
+      setSelectionPos(clampPopoverInCanvas(rect, root.getBoundingClientRect(), 280, 200));
     };
 
     update();
@@ -222,7 +222,7 @@ export const Playground: FC = () => {
       }
 
       if (!element) return;
-      setEntityPopupPos(clampPopoverInCanvas(element.getBoundingClientRect(), root.getBoundingClientRect(), 260, 220));
+      setEntityPopupPos(clampPopoverInCanvas(element.getBoundingClientRect(), root.getBoundingClientRect(), 240, 120));
     };
 
     update();
@@ -402,81 +402,95 @@ export const Playground: FC = () => {
 
               {!isImageMode && selectedText && selectionPos && (
                 <div
-                  className="fixed z-50 min-w-[320px] max-w-[420px] animate-scale-in rounded-[24px] border border-border/70 bg-[var(--surface-overlay)] p-4 shadow-[var(--shadow-floating)]"
+                  className="fixed z-50 w-[280px] animate-scale-in rounded-xl border border-border bg-popover p-3 shadow-lg"
                   style={{ left: selectionPos.left, top: selectionPos.top }}
                   onMouseDown={(event) => event.stopPropagation()}
                   onMouseUp={(event) => event.stopPropagation()}
                 >
-                  <div className="mb-3">
-                    <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t('playground.selectedText')}
-                    </div>
-                    <div className="break-all rounded-2xl border border-border/70 bg-muted/35 px-3 py-3 text-sm text-foreground">
-                      {selectedText.text}
-                    </div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                      &ldquo;{selectedText.text}&rdquo;
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearTextSelection}
+                      className="ml-2 shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z" fill="currentColor"/></svg>
+                    </button>
                   </div>
 
-                  <div className="mb-3">
-                    <div className="mb-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      {t('playground.selectType')}
+                  <ScrollArea className="mb-2 max-h-[120px]">
+                    <div className="grid grid-cols-2 gap-1">
+                      {entityTypes.map((et) => {
+                        const risk = getEntityRiskConfig(et.id);
+                        const active = selectedTypeId === et.id;
+                        return (
+                          <button
+                            key={et.id}
+                            type="button"
+                            onClick={() => setSelectedTypeId(et.id)}
+                            className={`truncate rounded-md px-2 py-1 text-left text-xs transition-colors ${active ? 'font-medium ring-1 ring-inset' : 'hover:bg-accent'}`}
+                            style={active ? { backgroundColor: risk.bgColor, color: risk.textColor, '--tw-ring-color': risk.color } as React.CSSProperties : undefined}
+                          >
+                            {getEntityTypeName(et.id)}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <EntityTypeGroupPicker
-                      entityTypes={entityTypes}
-                      selectedTypeId={selectedTypeId}
-                      onSelectType={setSelectedTypeId}
-                    />
-                  </div>
+                  </ScrollArea>
 
-                  <div className="flex gap-2 border-t border-border/60 pt-3">
+                  <div className="flex items-center gap-1.5">
                     <Button
+                      size="sm"
                       onClick={() => addManualEntity(selectedTypeId)}
                       disabled={!selectedTypeId}
-                      className="flex-1"
+                      className="h-7 flex-1 text-xs"
                     >
                       {selectedOverlapIds.length > 0 ? t('playground.updateAnnotation') : t('playground.addAnnotation')}
                     </Button>
                     {selectedOverlapIds.length > 0 && (
-                      <Button variant="outline" onClick={removeSelectedEntities} className="border-destructive/30 text-destructive hover:bg-destructive/10">
+                      <Button size="sm" variant="ghost" onClick={removeSelectedEntities} className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
                         {t('playground.remove')}
                       </Button>
                     )}
-                    <Button variant="ghost" onClick={clearTextSelection}>
-                      {t('common.cancel')}
-                    </Button>
                   </div>
                 </div>
               )}
 
-              {!isImageMode && clickedEntity && entityPopupPos && (
-                <div
-                  className="fixed z-50 min-w-[220px] animate-scale-in rounded-[22px] border border-border/70 bg-[var(--surface-overlay)] p-4 shadow-[var(--shadow-floating)]"
-                  style={{ left: entityPopupPos.left, top: entityPopupPos.top }}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onMouseUp={(event) => event.stopPropagation()}
-                >
-                  <div className="mb-3">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded-full border border-border/70 bg-muted/35 px-2.5 py-1 text-[11px] text-muted-foreground">
-                        {getEntityGroupLabel(getEntityGroup(clickedEntity.type)?.id ?? 'other')}
-                        {' / '}
-                        {getEntityTypeName(clickedEntity.type)}
-                      </span>
+              {!isImageMode && clickedEntity && entityPopupPos && (() => {
+                const risk = getEntityRiskConfig(clickedEntity.type);
+                return (
+                  <div
+                    className="fixed z-50 w-[240px] animate-scale-in rounded-xl border border-border bg-popover p-3 shadow-lg"
+                    style={{ left: entityPopupPos.left, top: entityPopupPos.top }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onMouseUp={(event) => event.stopPropagation()}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ backgroundColor: risk.bgColor, color: risk.textColor }}
+                        >
+                          {getEntityTypeName(clickedEntity.type)}
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">{clickedEntity.text}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setClickedEntity(null); setEntityPopupPos(null); }}
+                        className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z" fill="currentColor"/></svg>
+                      </button>
                     </div>
-                    <div className="break-all rounded-2xl border border-border/70 bg-muted/35 px-3 py-3 text-sm text-foreground">
-                      {clickedEntity.text}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10" onClick={confirmRemoveEntity}>
+                    <Button size="sm" variant="ghost" onClick={confirmRemoveEntity} className="h-7 w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
                       {t('playground.removeAnnotation')}
                     </Button>
-                    <Button variant="ghost" onClick={() => { setClickedEntity(null); setEntityPopupPos(null); }}>
-                      {t('common.cancel')}
-                    </Button>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           </div>
 
