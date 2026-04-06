@@ -78,7 +78,7 @@ export function BatchStep2Upload({
           )}
           data-testid="drop-zone"
         >
-          <input {...getInputProps()} className="sr-only" />
+          <input {...getInputProps()} />
           <p className="text-base font-medium">{t('batchWizard.step2.dropHint')}</p>
           <p className="text-xs text-muted-foreground mt-2">{dropHint}</p>
         </Card>

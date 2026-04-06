@@ -73,7 +73,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
             )}
             data-testid="playground-dropzone"
           >
-            <input {...getInputProps()} className="sr-only" />
+            <input {...getInputProps()} />
             <div className="flex h-full flex-col items-center justify-center">
               <div
                 className={cn(
