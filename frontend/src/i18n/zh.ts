@@ -982,6 +982,7 @@ const zhOverrides: Record<string, string> = {
   'playground.selectType': '选择类型',
   'playground.updateAnnotation': '更新标注',
   'playground.addAnnotation': '添加标注',
+  'playground.customType': '自定义',
   'playground.remove': '移除',
   'playground.removeAnnotation': '移除标注',
   'common.online': '在线',

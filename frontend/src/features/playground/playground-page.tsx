@@ -2,10 +2,10 @@
 import { type FC, type MouseEvent as ReactMouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { showToast } from '@/components/Toast';
+import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 import { getEntityRiskConfig, getEntityTypeName } from '@/config/entityTypes';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlaygroundUpload } from './components/playground-upload';
 import { PlaygroundToolbar } from './components/playground-toolbar';
 import { PlaygroundEntityPanel } from './components/playground-entity-panel';
@@ -190,7 +190,7 @@ export const Playground: FC = () => {
       }
 
       if (rect.width === 0 && rect.height === 0) return;
-      setSelectionPos(clampPopoverInCanvas(rect, root.getBoundingClientRect(), 280, 200));
+      setSelectionPos(clampPopoverInCanvas(rect, root.getBoundingClientRect(), 320, 280));
     };
 
     update();
@@ -402,12 +402,12 @@ export const Playground: FC = () => {
 
               {!isImageMode && selectedText && selectionPos && (
                 <div
-                  className="fixed z-50 w-[280px] animate-scale-in rounded-xl border border-border bg-popover p-3 shadow-lg"
+                  className="fixed z-50 w-[320px] animate-scale-in rounded-xl border border-border bg-popover shadow-lg"
                   style={{ left: selectionPos.left, top: selectionPos.top }}
                   onMouseDown={(event) => event.stopPropagation()}
                   onMouseUp={(event) => event.stopPropagation()}
                 >
-                  <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
                     <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                       &ldquo;{selectedText.text}&rdquo;
                     </p>
@@ -420,8 +420,8 @@ export const Playground: FC = () => {
                     </button>
                   </div>
 
-                  <ScrollArea className="mb-2 max-h-[120px]">
-                    <div className="grid grid-cols-2 gap-1">
+                  <div className="max-h-[240px] overflow-y-auto overscroll-contain px-2 py-2">
+                    <div className="grid grid-cols-3 gap-1">
                       {entityTypes.map((et) => {
                         const risk = getEntityRiskConfig(et.id);
                         const active = selectedTypeId === et.id;
@@ -430,17 +430,30 @@ export const Playground: FC = () => {
                             key={et.id}
                             type="button"
                             onClick={() => setSelectedTypeId(et.id)}
-                            className={`truncate rounded-md px-2 py-1 text-left text-xs transition-colors ${active ? 'font-medium ring-1 ring-inset' : 'hover:bg-accent'}`}
+                            className={cn(
+                              'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
+                              active ? 'font-medium shadow-sm ring-1 ring-inset' : 'hover:bg-accent',
+                            )}
                             style={active ? { backgroundColor: risk.bgColor, color: risk.textColor, '--tw-ring-color': risk.color } as React.CSSProperties : undefined}
                           >
                             {getEntityTypeName(et.id)}
                           </button>
                         );
                       })}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTypeId('CUSTOM')}
+                        className={cn(
+                          'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
+                          selectedTypeId === 'CUSTOM' ? 'bg-muted font-medium shadow-sm ring-1 ring-inset ring-border' : 'hover:bg-accent',
+                        )}
+                      >
+                        {t('playground.customType')}
+                      </button>
                     </div>
-                  </ScrollArea>
+                  </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-2">
                     <Button
                       size="sm"
                       onClick={() => addManualEntity(selectedTypeId)}

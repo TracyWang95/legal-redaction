@@ -955,6 +955,7 @@ const enOverrides: Record<string, string> = {
   'playground.selectType': 'Choose type',
   'playground.updateAnnotation': 'Update annotation',
   'playground.addAnnotation': 'Add annotation',
+  'playground.customType': 'Custom',
   'playground.remove': 'Remove',
   'playground.removeAnnotation': 'Remove annotation',
   'common.online': 'Online',
