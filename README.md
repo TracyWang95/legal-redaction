@@ -47,7 +47,7 @@ Organizations handle sensitive documents every day — contracts, medical forms,
 | :zap: | **Batch Processing** | 5-step wizard: configure, upload, queue, review, export (ZIP) |
 | :shield: | **100% On-premise** | All inference runs locally — zero cloud dependencies |
 | :dart: | **Standards-compliant** | GDPR, China PIPL, GB/T 37964-2019 |
-| :globe_with_meridians: | **i18n & Dark Mode** | Chinese / English bilingual UI with dark theme |
+| :globe_with_meridians: | **Bilingual UI** | Chinese / English — switch in one click |
 | :gear: | **REST API** | 85+ endpoints, SSE real-time progress, Swagger / ReDoc docs |
 | :test_tube: | **Tested** | 76 Playwright E2E tests covering the full pipeline |
 
@@ -357,7 +357,7 @@ See **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)** for details.
 
 ## Security
 
-Please see **[SECURITY.md](./SECURITY.md)** for our security policy and responsible disclosure process. Key principle: this platform is designed for **air-gapped / on-premise deployment** — no data is transmitted externally.
+Please see **[SECURITY.md](./SECURITY.md)** for our security policy and responsible disclosure process. Key principle: this platform is designed for **on-premise deployment** — no data is transmitted externally.
 
 ---
 
