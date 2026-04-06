@@ -145,7 +145,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <ScrollArea className="page-surface-body lg:max-h-[calc(100vh-18rem)] xl:max-h-[calc(100vh-18.25rem)] 2xl:max-h-[calc(100vh-18.5rem)]">
-            <TabsContent value="text" className="mt-0 space-y-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
+            <TabsContent value="text" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
@@ -156,7 +156,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 space-y-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
+            <TabsContent value="vision" className="mt-0 flex h-full min-h-0 flex-col gap-2 p-2 pb-2.5 2xl:p-2.5 2xl:pb-3">
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
@@ -306,7 +306,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }
 
   return (
-    <>
+    <div className="grid h-full min-h-0 flex-1 auto-rows-fr gap-2">
       {rec.playgroundTextGroups.map((group) => {
         const ids = group.types.map((type) => type.id);
         const allOn = ids.length > 0 && ids.every((id) => rec.selectedTypes.includes(id));
@@ -318,7 +318,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={group.key}
-            className="overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -343,7 +343,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid grid-cols-3 gap-1.5 p-2">
+            <div className="grid flex-1 content-start grid-cols-3 gap-1.5 p-2">
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -374,7 +374,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               })}
             </div>
             {group.types.length > 0 && (
-              <div className="border-t border-border/70 px-2 py-2">
+              <div className="mt-auto border-t border-border/70 px-2 py-2">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
@@ -393,7 +393,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
           </section>
         );
       })}
-    </>
+    </div>
   );
 };
 
@@ -436,7 +436,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }
 
   return (
-    <>
+    <div className="grid h-full min-h-0 flex-1 auto-rows-fr gap-2">
       {rec.pipelines.map((pipeline) => {
         const isHasImage = pipeline.mode === 'has_image';
         const selectedSet = isHasImage ? rec.selectedHasImageTypes : rec.selectedOcrHasTypes;
@@ -450,7 +450,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={pipeline.mode}
-            className="overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
             <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
@@ -491,7 +491,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid grid-cols-3 gap-1.5 p-2">
+            <div className="grid flex-1 content-start grid-cols-3 gap-1.5 p-2">
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (
@@ -516,7 +516,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               })}
             </div>
             {pipeline.types.length > 0 && (
-              <div className="border-t border-border/70 px-2 py-2">
+              <div className="mt-auto border-t border-border/70 px-2 py-2">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
@@ -535,7 +535,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
           </section>
         );
       })}
-    </>
+    </div>
   );
 };
 
