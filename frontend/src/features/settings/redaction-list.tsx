@@ -512,7 +512,7 @@ export function RedactionList() {
 
       {modalOpen && (
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden sm:max-w-[56rem]">
+          <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-[64rem] flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>
                 {editingPresetId
@@ -522,7 +522,7 @@ export function RedactionList() {
               <DialogDescription>{t('settings.redaction.dialogDesc')}</DialogDescription>
             </DialogHeader>
 
-            <div className="min-h-0 flex-1 overflow-y-auto pr-4">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <div className="space-y-5 py-2">
                 <div className="space-y-1.5">
                   <Label>{t('settings.redaction.nameLabel')} *</Label>
@@ -836,14 +836,14 @@ function TypeCheckboxGrid({
       <p className="mb-2 border-l-[3px] border-muted-foreground/30 pl-2 text-sm font-semibold">
         {title} <span className="text-xs text-muted-foreground">({types.length})</span>
       </p>
-      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {types.map(type => {
           const checked = selectedIds.includes(type.id);
           return (
             <label
               key={type.id}
               className={cn(
-                'flex cursor-pointer items-center gap-2 px-2.5 py-2 text-xs transition-colors',
+                'flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors',
                 selectableCardClass(checked, variant),
               )}
             >
@@ -851,9 +851,9 @@ function TypeCheckboxGrid({
                 type="checkbox"
                 checked={checked}
                 onChange={() => onToggle(type.id)}
-                className={selectableCheckboxClass(variant, 'md')}
+                className={cn('shrink-0', selectableCheckboxClass(variant, 'md'))}
               />
-              <span className="truncate">{type.name}</span>
+              <span className="min-w-0 break-words">{type.name}</span>
             </label>
           );
         })}
@@ -888,14 +888,14 @@ function PipelineCheckboxGrid({
       >
         {pipeline.mode === 'ocr_has' ? t('settings.redaction.ocrGroup') : t('settings.redaction.imageGroup')}
       </p>
-      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
         {pipeline.types.filter(type => type.enabled).map(type => {
           const active = selectedIds.includes(type.id);
           return (
             <label
               key={type.id}
               className={cn(
-                'flex cursor-pointer items-center gap-2 px-2.5 py-2 text-xs transition-colors',
+                'flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors',
                 selectableCardClass(active, variant),
               )}
             >
@@ -903,9 +903,9 @@ function PipelineCheckboxGrid({
                 type="checkbox"
                 checked={active}
                 onChange={() => onToggle(pipeline.mode, type.id)}
-                className={selectableCheckboxClass(variant, 'md')}
+                className={cn('shrink-0', selectableCheckboxClass(variant, 'md'))}
               />
-              <span className="truncate">{type.name}</span>
+              <span className="min-w-0 break-words">{type.name}</span>
             </label>
           );
         })}
