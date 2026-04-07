@@ -46,10 +46,12 @@ import {
 } from '@/services/activePresetBridge';
 import {
   selectableCardClass,
+  selectableCardClassNeutral,
   selectableCheckboxClass,
+  selectableCheckboxNeutral,
   type SelectionVariant,
 } from '@/ui/selectionClasses';
-import { getSelectionToneClasses } from '@/ui/selectionPalette';
+
 import { localizeErrorMessage } from '@/utils/localizeError';
 import {
   fetchRecognitionEntityTypes,
@@ -874,19 +876,13 @@ function PipelineCheckboxGrid({
   onToggle: (mode: string, id: string) => void;
 }) {
   const t = useT();
-  const variant: SelectionVariant = pipeline.mode === 'ocr_has' ? 'semantic' : 'visual';
-  const toneClasses = getSelectionToneClasses(variant);
   const selectedIds = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
 
   return (
     <div>
-      <p
-        className={cn(
-          'mb-2 border-l-[3px] pl-2 text-sm font-semibold',
-          toneClasses.dot,
-        )}
-      >
+      <p className="mb-2 border-l-[3px] border-muted-foreground/30 pl-2 text-sm font-semibold">
         {pipeline.mode === 'ocr_has' ? t('settings.redaction.ocrGroup') : t('settings.redaction.imageGroup')}
+        {' '}<span className="text-xs text-muted-foreground">({pipeline.types.filter(t => t.enabled).length})</span>
       </p>
       <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 md:grid-cols-4">
         {pipeline.types.filter(type => type.enabled).map(type => {
@@ -896,14 +892,14 @@ function PipelineCheckboxGrid({
               key={type.id}
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors',
-                selectableCardClass(active, variant),
+                selectableCardClassNeutral(active),
               )}
             >
               <input
                 type="checkbox"
                 checked={active}
                 onChange={() => onToggle(pipeline.mode, type.id)}
-                className={cn('shrink-0', selectableCheckboxClass(variant, 'md'))}
+                className={cn('shrink-0', selectableCheckboxNeutral('md'))}
               />
               <span className="min-w-0 break-words">{type.name}</span>
             </label>
