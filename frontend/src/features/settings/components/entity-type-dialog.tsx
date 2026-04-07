@@ -32,6 +32,7 @@ interface EntityTypeDialogProps {
   initial?: Partial<EntityTypeForm>;
   onSave: (form: EntityTypeForm) => void;
   mode: 'create' | 'edit';
+  saving?: boolean;
 }
 
 const buildDefaultForm = (initial?: Partial<EntityTypeForm>): EntityTypeForm => {
@@ -51,6 +52,7 @@ export function EntityTypeDialog({
   initial,
   onSave,
   mode,
+  saving = false,
 }: EntityTypeDialogProps) {
   const t = useT();
   const [form, setForm] = useState<EntityTypeForm>(buildDefaultForm(initial));
@@ -270,11 +272,11 @@ export function EntityTypeDialog({
             {t('settings.cancel')}
           </Button>
           <Button
-            disabled={!canSubmit}
+            disabled={!canSubmit || saving}
             onClick={() => onSave(form)}
             data-testid="entity-type-save"
           >
-            {mode === 'create' ? t('settings.create') : t('settings.save')}
+            {saving ? t('settings.saving') : mode === 'create' ? t('settings.create') : t('settings.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

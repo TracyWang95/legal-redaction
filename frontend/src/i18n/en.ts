@@ -421,6 +421,7 @@
   'settings.fetchFailed': 'Fetch failed',
   'settings.confirmResetPipelines': 'Reset all pipeline configurations to default?',
   'settings.createFailed': 'Create failed',
+  'settings.createSuccess': 'Created successfully',
   'settings.saveFailed': 'Save failed',
   'settings.confirmDeleteType': 'Delete this type?',
   'settings.deleteTypeFailed': 'Delete failed',
@@ -471,6 +472,7 @@
   'settings.pipelineTypeDescImg': 'HaS Image · Same color as batch wizard "Visual Features" (purple)',
   'settings.saveHint': 'After saving, items are displayed with the panel color scheme (green / purple), consistent with the batch wizard.',
   'settings.save': 'Save',
+  'settings.saving': 'Saving...',
   'settings.updateFailed': 'Update failed',
 
   

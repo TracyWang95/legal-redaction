@@ -135,7 +135,7 @@ export function useEntityTypes() {
   const llmTypes = useMemo(() => entityTypes.filter(t => t.use_llm), [entityTypes]);
 
   const createType = useCallback(async (newType: {
-    name: string; description: string; regex_pattern: string; use_llm: boolean;
+    name: string; description: string; regex_pattern: string; use_llm: boolean; tag_template?: string;
   }) => {
     const res = await authFetch('/api/v1/custom-types', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -145,12 +145,14 @@ export function useEntityTypes() {
         examples: [],
         color: getToneColor(getEntityTypeTone(newType.use_llm)),
         regex_pattern: newType.use_llm ? null : newType.regex_pattern || null,
-        use_llm: newType.use_llm, tag_template: null,
+        use_llm: newType.use_llm,
+        tag_template: newType.tag_template || null,
       }),
     });
     if (res.ok) {
       await fetchEntityTypes();
       window.dispatchEvent(new CustomEvent('entity-types-changed'));
+      showToast(t('settings.createSuccess'), 'success');
     } else {
       const data = await res.json().catch(() => ({}));
       showToast((data as { detail?: string }).detail || t('settings.createFailed'), 'error');

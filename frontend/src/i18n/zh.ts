@@ -421,6 +421,7 @@
   'settings.fetchFailed': '获取失败',
   'settings.confirmResetPipelines': '确定要重置所有Pipeline配置为默认吗？',
   'settings.createFailed': '创建失败',
+  'settings.createSuccess': '创建成功',
   'settings.saveFailed': '保存失败',
   'settings.confirmDeleteType': '确定要删除此类型吗？',
   'settings.deleteTypeFailed': '删除失败',
@@ -471,6 +472,7 @@
   'settings.pipelineTypeDescImg': 'HaS Image · 与批量向导「图像特征」同色（紫）',
   'settings.saveHint': '保存后列表按上方面板配色展示（绿 / 紫），与批量向导一致。',
   'settings.save': '保存',
+  'settings.saving': '保存中...',
   'settings.updateFailed': '更新失败',
 
   

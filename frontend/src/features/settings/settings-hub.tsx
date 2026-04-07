@@ -43,25 +43,33 @@ export function SettingsHub() {
     setDialogOpen(true);
   };
 
+  const [saving, setSaving] = useState(false);
+
   const handleSave = async (form: {
     name: string; description: string;
     regex_pattern: string; use_llm: boolean; tag_template: string;
   }) => {
-    if (editingType) {
-      const ok = await updateType(editingType.id, form);
-      if (ok) {
-        setDialogOpen(false);
-        setEditingType(null);
+    setSaving(true);
+    try {
+      if (editingType) {
+        const ok = await updateType(editingType.id, form);
+        if (ok) {
+          setDialogOpen(false);
+          setEditingType(null);
+        }
+        return;
       }
-      return;
+      const ok = await createType({
+        name: form.name,
+        description: form.description,
+        regex_pattern: form.regex_pattern,
+        use_llm: form.use_llm,
+        tag_template: form.tag_template,
+      });
+      if (ok) setDialogOpen(false);
+    } finally {
+      setSaving(false);
     }
-    const ok = await createType({
-      name: form.name,
-      description: form.description,
-      regex_pattern: form.regex_pattern,
-      use_llm: form.use_llm,
-    });
-    if (ok) setDialogOpen(false);
   };
 
   if (loading) {
@@ -197,6 +205,7 @@ export function SettingsHub() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         mode={editingType ? 'edit' : 'create'}
+        saving={saving}
         initial={editingType ? {
           name: editingType.name,
           description: editingType.description ?? '',
