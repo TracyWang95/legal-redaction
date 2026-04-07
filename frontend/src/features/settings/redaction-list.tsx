@@ -46,9 +46,7 @@ import {
 } from '@/services/activePresetBridge';
 import {
   selectableCardClass,
-  selectableCardClassNeutral,
   selectableCheckboxClass,
-  selectableCheckboxNeutral,
   type SelectionVariant,
 } from '@/ui/selectionClasses';
 
@@ -876,6 +874,7 @@ function PipelineCheckboxGrid({
   onToggle: (mode: string, id: string) => void;
 }) {
   const t = useT();
+  const variant: SelectionVariant = pipeline.mode === 'has_image' ? 'visual' : 'semantic';
   const selectedIds = pipeline.mode === 'ocr_has' ? selectedOcr : selectedImg;
 
   return (
@@ -892,14 +891,14 @@ function PipelineCheckboxGrid({
               key={type.id}
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs transition-colors',
-                selectableCardClassNeutral(active),
+                selectableCardClass(active, variant),
               )}
             >
               <input
                 type="checkbox"
                 checked={active}
                 onChange={() => onToggle(pipeline.mode, type.id)}
-                className={cn('shrink-0', selectableCheckboxNeutral('md'))}
+                className={cn('shrink-0', selectableCheckboxClass(variant, 'md'))}
               />
               <span className="min-w-0 break-words">{type.name}</span>
             </label>
