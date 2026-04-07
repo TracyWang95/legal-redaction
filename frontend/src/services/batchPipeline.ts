@@ -1,9 +1,9 @@
 
 import type { ParseResult, NERResult, VisionResult, RedactionResult, RedactionRequest } from '../types';
-import { get, post } from './api-client';
+import { get, post, BATCH_TIMEOUT } from './api-client';
 
 export async function batchParse(fileId: string, signal?: AbortSignal): Promise<ParseResult> {
-  return get<ParseResult>(`/files/${fileId}/parse`, { signal, timeout: 120_000 });
+  return get<ParseResult>(`/files/${fileId}/parse`, { signal, timeout: BATCH_TIMEOUT });
 }
 
 export async function batchHybridNer(
@@ -11,7 +11,7 @@ export async function batchHybridNer(
   body: { entity_type_ids: string[] },
   signal?: AbortSignal
 ): Promise<NERResult> {
-  return post<NERResult>(`/files/${fileId}/ner/hybrid`, body, { signal, timeout: 120_000 });
+  return post<NERResult>(`/files/${fileId}/ner/hybrid`, body, { signal, timeout: BATCH_TIMEOUT });
 }
 
 export async function batchVision(
@@ -25,7 +25,7 @@ export async function batchVision(
     selected_ocr_has_types: selectedOcrHasTypes,
     selected_has_image_types: selectedHasImageTypes,
   };
-  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, { signal, timeout: 120_000 });
+  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, { signal, timeout: BATCH_TIMEOUT });
 }
 
 export async function batchGetFileRaw(fileId: string): Promise<Record<string, unknown>> {
@@ -33,7 +33,7 @@ export async function batchGetFileRaw(fileId: string): Promise<Record<string, un
 }
 
 export async function batchExecute(request: RedactionRequest): Promise<RedactionResult> {
-  return post<RedactionResult>('/redaction/execute', request, { timeout: 120_000 });
+  return post<RedactionResult>('/redaction/execute', request, { timeout: BATCH_TIMEOUT });
 }
 
 /** 与后端 execute 一致的 entity_map 预览（不落盘） */

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from fastapi import APIRouter
 
@@ -15,20 +16,43 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/safety", tags=["数据安全"])
 
+# Simple time-based cache for directory size calculations
+_dir_size_cache: dict[str, tuple[float, int]] = {}  # path -> (timestamp, size_bytes)
+_DIR_SIZE_CACHE_TTL = 60  # seconds
+
+
+def _get_dir_size_cached(directory: str) -> int:
+    now = time.monotonic()
+    cached = _dir_size_cache.get(directory)
+    if cached and (now - cached[0]) < _DIR_SIZE_CACHE_TTL:
+        return cached[1]
+    if not os.path.isdir(directory):
+        _dir_size_cache[directory] = (now, 0)
+        return 0
+    total = 0
+    try:
+        for f in os.listdir(directory):
+            fp = os.path.join(directory, f)
+            if os.path.isfile(fp):
+                try:
+                    total += os.path.getsize(fp)
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    _dir_size_cache[directory] = (now, total)
+    return total
+
+
+def invalidate_dir_size_cache() -> None:
+    _dir_size_cache.clear()
+
 
 @router.get("/storage-info")
 async def storage_info():
     """返回数据存储路径信息，便于用户了解文件存放位置。"""
-    upload_size = sum(
-        os.path.getsize(os.path.join(settings.UPLOAD_DIR, f))
-        for f in os.listdir(settings.UPLOAD_DIR)
-        if os.path.isfile(os.path.join(settings.UPLOAD_DIR, f))
-    ) if os.path.isdir(settings.UPLOAD_DIR) else 0
-    output_size = sum(
-        os.path.getsize(os.path.join(settings.OUTPUT_DIR, f))
-        for f in os.listdir(settings.OUTPUT_DIR)
-        if os.path.isfile(os.path.join(settings.OUTPUT_DIR, f))
-    ) if os.path.isdir(settings.OUTPUT_DIR) else 0
+    upload_size = _get_dir_size_cached(settings.UPLOAD_DIR)
+    output_size = _get_dir_size_cached(settings.OUTPUT_DIR)
     return {
         "upload_dir": os.path.realpath(settings.UPLOAD_DIR),
         "output_dir": os.path.realpath(settings.OUTPUT_DIR),
@@ -70,6 +94,7 @@ async def cleanup_all_data():
             store.delete_job(j["id"])
         except Exception:
             pass
+    invalidate_dir_size_cache()
     logger.info("Cleanup: %d files, %d jobs", files_count, jobs_count)
     return {
         "files_removed": files_count,

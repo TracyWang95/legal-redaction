@@ -12,9 +12,22 @@ from app.core.auth import (
     set_password,
 )
 from app.core.config import settings
-from app.models.schemas import PasswordRequest, TokenResponse, AuthStatusResponse
+from app.core.rate_limit import RateLimiter
+from app.models.schemas import PasswordRequest, ChangePasswordRequest, TokenResponse, AuthStatusResponse
 
 router = APIRouter(tags=["auth"])
+
+# Stricter rate limit for auth-sensitive endpoints (5 req/min per IP)
+_auth_limiter = RateLimiter(max_requests=5, window_seconds=60)
+
+
+async def _check_auth_rate_limit(request: Request) -> None:
+    client_ip = request.client.host if request.client else "unknown"
+    if not _auth_limiter.check(f"auth:{client_ip}"):
+        raise HTTPException(
+            status_code=429,
+            detail="认证请求过于频繁，请稍后重试",
+        )
 
 
 @router.get("/auth/status", response_model=AuthStatusResponse)
@@ -25,7 +38,7 @@ async def auth_status():
     )
 
 
-@router.post("/auth/setup", response_model=TokenResponse)
+@router.post("/auth/setup", response_model=TokenResponse, dependencies=[Depends(_check_auth_rate_limit)])
 async def setup_password(req: PasswordRequest):
     if is_password_set():
         raise HTTPException(status_code=400, detail="密码已设置，请使用登录接口")
@@ -39,7 +52,7 @@ async def setup_password(req: PasswordRequest):
     )
 
 
-@router.post("/auth/login", response_model=TokenResponse)
+@router.post("/auth/login", response_model=TokenResponse, dependencies=[Depends(_check_auth_rate_limit)])
 async def login(req: PasswordRequest):
     if not is_password_set():
         raise HTTPException(status_code=400, detail="请先设置密码")
@@ -52,12 +65,14 @@ async def login(req: PasswordRequest):
     )
 
 
-@router.post("/auth/change-password")
-async def change_password(req: PasswordRequest, _: str = Depends(require_auth)):
-    """Change password (requires current auth - enforced by middleware)."""
-    if len(req.password) < 6:
+@router.post("/auth/change-password", dependencies=[Depends(_check_auth_rate_limit)])
+async def change_password(req: ChangePasswordRequest, _: str = Depends(require_auth)):
+    """Change password (requires current auth + old password verification)."""
+    if not check_password(req.old_password):
+        raise HTTPException(status_code=401, detail="旧密码错误")
+    if len(req.new_password) < 6:
         raise HTTPException(status_code=400, detail="密码长度至少 6 位")
-    set_password(req.password)
+    set_password(req.new_password)
     return {"message": "密码修改成功"}
 
 

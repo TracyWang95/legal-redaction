@@ -131,6 +131,7 @@ CREATE TABLE IF NOT EXISTS job_items (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_job_items_job ON job_items(job_id);
 CREATE INDEX IF NOT EXISTS idx_job_items_status ON job_items(status);
 """

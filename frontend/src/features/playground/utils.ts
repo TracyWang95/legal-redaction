@@ -1,5 +1,5 @@
 
-import { authFetch } from '@/services/api-client';
+import { authFetch, VISION_TIMEOUT } from '@/services/api-client';
 import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import type { Entity, BoundingBox } from './types';
 
@@ -54,7 +54,7 @@ export async function authBlobUrl(url: string, mime?: string): Promise<string> {
 }
 
 /** Vision detection timeout */
-export const VISION_FETCH_TIMEOUT_MS = 400_000;
+export const VISION_FETCH_TIMEOUT_MS = VISION_TIMEOUT;
 
 export async function runVisionDetection(
   fileId: string,

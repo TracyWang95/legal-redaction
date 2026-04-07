@@ -16,6 +16,7 @@ __all__ = [
     "ToggleResponse",
     "MessageResponse",
     "PasswordRequest",
+    "ChangePasswordRequest",
     "TokenResponse",
     "AuthStatusResponse",
 ]
@@ -142,6 +143,11 @@ class MessageResponse(BaseModel):
 
 class PasswordRequest(BaseModel):
     password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 
 class TokenResponse(BaseModel):

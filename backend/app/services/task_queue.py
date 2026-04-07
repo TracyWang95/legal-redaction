@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import traceback
 from dataclasses import dataclass, field
@@ -115,11 +116,26 @@ class SimpleTaskQueue:
                     await self._run_redaction(task)
                 else:
                     logger.warning("unknown task_type: %s", task.task_type)
+            except (OSError, RuntimeError, ValueError, KeyError,
+                    json.JSONDecodeError, asyncio.TimeoutError) as exc:
+                logger.error(
+                    "task failed: job=%s item=%s: %s: %s",
+                    task.job_id[:8], task.item_id[:8],
+                    type(exc).__name__, exc,
+                )
+                try:
+                    from app.services.job_store import JobItemStatus
+                    store = self._get_store()
+                    store.update_item_status(
+                        task.item_id, JobItemStatus.FAILED,
+                        error_message=f"worker: {type(exc).__name__}: {str(exc)[:200]}",
+                    )
+                except Exception:
+                    pass
             except Exception:
                 logger.exception(
-                    "task failed: job=%s item=%s", task.job_id[:8], task.item_id[:8]
+                    "task failed (unexpected): job=%s item=%s", task.job_id[:8], task.item_id[:8]
                 )
-                # 确保失败的 item 也被标记，不会被跳过
                 try:
                     from app.services.job_store import JobItemStatus
                     store = self._get_store()
@@ -153,7 +169,6 @@ class SimpleTaskQueue:
             hybrid_ner,
             vision_detect,
         )
-        import json
 
         store = self._get_store()
         job = store.get_job(task.job_id)
@@ -224,9 +239,23 @@ class SimpleTaskQueue:
                 store.update_item_status(task.item_id, JobItemStatus.AWAITING_REVIEW)
                 logger.info("[queue] item=%s → awaiting_review ✓", task.item_id[:8])
 
+        except (FileNotFoundError, OSError) as e:
+            err_msg = str(e)[:500]
+            logger.error("[queue] item=%s recognition I/O error: %s", task.item_id[:8], err_msg)
+            try:
+                store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
+            except (KeyError, ValueError):
+                logger.warning("failed to mark item %s as FAILED (item not found or invalid transition)", task.item_id[:8])
+        except (RuntimeError, ValueError, KeyError, json.JSONDecodeError) as e:
+            err_msg = str(e)[:500]
+            logger.error("[queue] item=%s recognition failed: %s: %s", task.item_id[:8], type(e).__name__, err_msg)
+            try:
+                store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
+            except (KeyError, ValueError):
+                logger.warning("failed to mark item %s as FAILED (item not found or invalid transition)", task.item_id[:8])
         except Exception as e:
             err_msg = str(e)[:500]
-            logger.exception("[queue] item=%s recognition failed: %s", task.item_id[:8], err_msg)
+            logger.exception("[queue] item=%s recognition failed (unexpected): %s", task.item_id[:8], err_msg)
             try:
                 store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
             except Exception:
@@ -243,7 +272,6 @@ class SimpleTaskQueue:
         from app.services.job_store import JobItemStatus, JobStore
         from app.services.file_operations import get_file_info, execute_redaction_request
         from app.models.schemas import RedactionConfig, ReplacementMode
-        import json
 
         store = self._get_store()
         job = store.get_job(task.job_id)
@@ -309,9 +337,23 @@ class SimpleTaskQueue:
             store.update_item_status(task.item_id, JobItemStatus.COMPLETED)
             logger.info("[queue] item=%s → redaction completed ✓", task.item_id[:8])
 
+        except (FileNotFoundError, OSError) as e:
+            err_msg = str(e)[:500]
+            logger.error("[queue] item=%s redaction I/O error: %s", task.item_id[:8], err_msg)
+            try:
+                store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
+            except (KeyError, ValueError):
+                pass
+        except (RuntimeError, ValueError, KeyError) as e:
+            err_msg = str(e)[:500]
+            logger.error("[queue] item=%s redaction failed: %s: %s", task.item_id[:8], type(e).__name__, err_msg)
+            try:
+                store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
+            except (KeyError, ValueError):
+                pass
         except Exception as e:
             err_msg = str(e)[:500]
-            logger.exception("[queue] item=%s redaction failed: %s", task.item_id[:8], err_msg)
+            logger.exception("[queue] item=%s redaction failed (unexpected): %s", task.item_id[:8], err_msg)
             try:
                 store.update_item_status(task.item_id, JobItemStatus.FAILED, error_message=err_msg)
             except Exception:
@@ -329,10 +371,11 @@ class SimpleTaskQueue:
         return get_job_store()
 
     def _try_update_job_status(self, store, job_id: str, status) -> None:
+        from app.services.job_store import InvalidStatusTransition
         try:
             store.update_job_status(job_id, status)
-        except Exception:
-            pass  # 状态已前进，忽略
+        except (InvalidStatusTransition, KeyError, ValueError):
+            pass  # 状态已前进或 job 不存在，忽略
 
     def _refresh_job_status(self, store, job_id: str) -> None:
         """根据所有 item 状态聚合 job 级状态。"""

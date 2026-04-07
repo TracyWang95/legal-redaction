@@ -1,6 +1,11 @@
 
 import axios, { type AxiosRequestConfig } from 'axios';
 
+// ─── Timeout constants ───────────────────────────────────────
+export const API_TIMEOUT = 60_000;
+export const VISION_TIMEOUT = 400_000;
+export const BATCH_TIMEOUT = 120_000;
+
 const AUTH_TOKEN_KEY = 'auth_token';
 
 export function getAuthToken(): string | null {
@@ -17,7 +22,7 @@ export function clearAuthToken(): void {
 
 export const apiClient = axios.create({
   baseURL: '/api/v1',
-  timeout: 60_000,
+  timeout: API_TIMEOUT,
 });
 
 apiClient.interceptors.request.use((config) => {

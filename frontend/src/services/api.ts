@@ -1,11 +1,12 @@
-import axios from 'axios';
 import {
+  apiClient as api,
   buildAuthHeaders,
   clearAuthToken,
   downloadFile,
   authenticatedBlobUrl,
   getAuthToken,
   setAuthToken,
+  VISION_TIMEOUT,
 } from './api-client';
 import type {
   CompareData,
@@ -20,37 +21,6 @@ import type {
   ReplacementModeConfig,
   VisionResult,
 } from '../types';
-
-const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 60_000,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = getAuthToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    const message =
-      error.response?.data?.message ||
-      error.response?.data?.detail ||
-      error.message ||
-      'Request failed';
-    if (import.meta.env.DEV) {
-      console.error('API Error:', message);
-    }
-    return Promise.reject(new Error(message));
-  },
-);
 
 export { clearAuthToken, downloadFile, authenticatedBlobUrl, getAuthToken, setAuthToken };
 
@@ -128,7 +98,7 @@ export const redactionApi = {
     api.get(`/redaction/${fileId}/compare`),
 
   detectSensitiveRegions: async (fileId: string, page = 1): Promise<VisionResult> =>
-    api.post(`/redaction/${fileId}/vision?page=${page}`, undefined, { timeout: 400_000 }),
+    api.post(`/redaction/${fileId}/vision?page=${page}`, undefined, { timeout: VISION_TIMEOUT }),
 
   getEntityTypes: async (): Promise<{ entity_types: EntityTypeConfigSimple[] }> =>
     api.get('/redaction/entity-types'),
