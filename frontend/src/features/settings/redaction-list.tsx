@@ -153,6 +153,13 @@ export function RedactionList() {
     void reloadPresets();
   }, [fetchEntityTypes, fetchPipelines, reloadPresets]);
 
+  // Refresh when entity types are changed in the settings entity-type editor
+  useEffect(() => {
+    const handler = () => { void fetchEntityTypes(); };
+    window.addEventListener('entity-types-changed', handler);
+    return () => window.removeEventListener('entity-types-changed', handler);
+  }, [fetchEntityTypes]);
+
   const effectiveEntityTypes = entityTypes;
   const effectivePipelines = pipelines;
   const effectivePresets = presets;

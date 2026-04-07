@@ -335,7 +335,6 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const totalPages = Math.max(1, Math.ceil(group.types.length / pageSize));
         const page = groupPages[group.key] ?? 1;
         const visibleTypes = group.types.slice((page - 1) * pageSize, page * pageSize);
-        const isFullPage = visibleTypes.length === pageSize;
 
         return (
           <section
@@ -365,7 +364,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid flex-1 grid-cols-3 content-stretch gap-1.5 p-2', isFullPage && 'auto-rows-fr')}>
+            <div className="grid flex-1 grid-cols-3 grid-rows-5 content-start gap-1.5 p-2">
               {visibleTypes.map((type) => {
                 const checked = rec.selectedTypes.includes(type.id);
                 const typeName = resolveTextTypeName(type.id, type.name);
@@ -468,7 +467,6 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
         const page = pipelinePages[pipeline.mode] ?? 1;
         const visibleTypes = pipeline.types.slice((page - 1) * pageSize, page * pageSize);
-        const isFullPage = visibleTypes.length === pageSize;
 
         return (
           <section
@@ -514,7 +512,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                 {allSelected ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className={cn('grid flex-1 grid-cols-3 content-stretch gap-1.5 p-2', isFullPage && 'auto-rows-fr')}>
+            <div className="grid flex-1 grid-cols-3 grid-rows-5 content-start gap-1.5 p-2">
               {visibleTypes.map((type) => {
                 const checked = selectedSet.includes(type.id);
                 return (

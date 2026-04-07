@@ -333,7 +333,11 @@ export function usePlaygroundRecognition() {
     };
 
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('entity-types-changed', fetchEntityTypes);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('entity-types-changed', fetchEntityTypes);
+    };
   }, [fetchEntityTypes, fetchVisionTypes]);
 
   const bridgeInitRef = useRef(false);

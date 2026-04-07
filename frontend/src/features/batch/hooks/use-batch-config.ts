@@ -162,6 +162,18 @@ export function useBatchConfig(
     return () => { cancelled = true; };
   }, [activeJobId, isPreviewMode, mode]);
 
+  // Refresh text types when entity types are changed in Settings
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const types = await fetchRecognitionEntityTypes(true, 10_000);
+        setTextTypes(types);
+      } catch { /* ignore — will pick up on next full load */ }
+    };
+    window.addEventListener('entity-types-changed', handler);
+    return () => window.removeEventListener('entity-types-changed', handler);
+  }, []);
+
   // Derived values
   const textPresets = useMemo(() => presets.filter(presetAppliesText), [presets]);
   const visionPresets = useMemo(() => presets.filter(presetAppliesVision), [presets]);

@@ -148,7 +148,13 @@ export function useEntityTypes() {
         use_llm: newType.use_llm, tag_template: null,
       }),
     });
-    if (res.ok) await fetchEntityTypes();
+    if (res.ok) {
+      await fetchEntityTypes();
+      window.dispatchEvent(new CustomEvent('entity-types-changed'));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast((data as { detail?: string }).detail || t('settings.createFailed'), 'error');
+    }
     return res.ok;
   }, [fetchEntityTypes]);
 
@@ -169,6 +175,7 @@ export function useEntityTypes() {
     });
     if (res.ok) {
       await fetchEntityTypes();
+      window.dispatchEvent(new CustomEvent('entity-types-changed'));
       return true;
     }
     const data = await res.json().catch(() => ({}));
@@ -178,8 +185,10 @@ export function useEntityTypes() {
 
   const deleteType = useCallback(async (id: string) => {
     const res = await authFetch(`/api/v1/custom-types/${id}`, { method: 'DELETE' });
-    if (res.ok) await fetchEntityTypes();
-    else {
+    if (res.ok) {
+      await fetchEntityTypes();
+      window.dispatchEvent(new CustomEvent('entity-types-changed'));
+    } else {
       const d = await res.json();
       showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
     }
@@ -187,7 +196,10 @@ export function useEntityTypes() {
 
   const resetToDefault = useCallback(async () => {
     const res = await authFetch('/api/v1/custom-types/reset', { method: 'POST' });
-    if (res.ok) await fetchEntityTypes();
+    if (res.ok) {
+      await fetchEntityTypes();
+      window.dispatchEvent(new CustomEvent('entity-types-changed'));
+    }
   }, [fetchEntityTypes]);
 
   const createPipelineType = useCallback(async (
