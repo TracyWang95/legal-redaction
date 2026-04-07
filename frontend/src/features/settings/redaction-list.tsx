@@ -836,7 +836,7 @@ function TypeCheckboxGrid({
       <p className="mb-2 border-l-[3px] border-muted-foreground/30 pl-2 text-sm font-semibold">
         {title} <span className="text-xs text-muted-foreground">({types.length})</span>
       </p>
-      <div className="grid max-h-[min(40vh,360px)] grid-cols-2 gap-2 overflow-y-auto rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
         {types.map(type => {
           const checked = selectedIds.includes(type.id);
           return (
@@ -888,7 +888,7 @@ function PipelineCheckboxGrid({
       >
         {pipeline.mode === 'ocr_has' ? t('settings.redaction.ocrGroup') : t('settings.redaction.imageGroup')}
       </p>
-      <div className="grid max-h-[min(48vh,420px)] grid-cols-2 gap-2 overflow-y-auto rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-muted/20 p-3 sm:grid-cols-3 lg:grid-cols-4">
         {pipeline.types.filter(type => type.enabled).map(type => {
           const active = selectedIds.includes(type.id);
           return (
