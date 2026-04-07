@@ -84,6 +84,13 @@ class OCRService:
         if not image_bytes:
             return []
 
+        if settings.OCR_REQUIRE_GPU and not self.is_available():
+            raise OCRServiceError(
+                "OCR 服务离线且已启用 OCR_REQUIRE_GPU，拒绝 CPU 回退。"
+                "请启动 GPU 服务: docker compose --profile gpu up -d",
+                transient=False,
+            )
+
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
         try:

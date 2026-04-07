@@ -1,4 +1,5 @@
 """Simple in-memory rate limiter with bounded memory (no external dependencies)."""
+import threading
 import time
 from collections import OrderedDict
 
@@ -16,28 +17,30 @@ class RateLimiter:
     def __init__(self, max_requests: int = 120, window_seconds: int = 60):
         self.max_requests = max_requests
         self.window = window_seconds
+        self._lock = threading.Lock()
         # OrderedDict 用作 LRU：最近访问的 key move_to_end
         self._hits: OrderedDict[str, list[float]] = OrderedDict()
 
     def check(self, key: str) -> bool:
         now = time.monotonic()
 
-        # 清理过期条目 + LRU 淘汰
-        if len(self._hits) >= _MAX_TRACKED_IPS and key not in self._hits:
-            # 淘汰最旧的 IP 条目
-            self._hits.popitem(last=False)
+        with self._lock:
+            # 清理过期条目 + LRU 淘汰
+            if len(self._hits) >= _MAX_TRACKED_IPS and key not in self._hits:
+                # 淘汰最旧的 IP 条目
+                self._hits.popitem(last=False)
 
-        hits = self._hits.get(key, [])
-        # Remove expired entries
-        hits = [t for t in hits if now - t < self.window]
-        if len(hits) >= self.max_requests:
+            hits = self._hits.get(key, [])
+            # Remove expired entries
+            hits = [t for t in hits if now - t < self.window]
+            if len(hits) >= self.max_requests:
+                self._hits[key] = hits
+                return False
+            hits.append(now)
             self._hits[key] = hits
-            return False
-        hits.append(now)
-        self._hits[key] = hits
-        # 标记为最近使用
-        self._hits.move_to_end(key)
-        return True
+            # 标记为最近使用
+            self._hits.move_to_end(key)
+            return True
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

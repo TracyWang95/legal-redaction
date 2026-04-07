@@ -86,8 +86,12 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
 
   const reviewLoadSeqRef = useRef(0);
   const batchScrollCountersRef = useRef<Record<string, number>>({});
+  const rerunAbortRef = useRef<AbortController | null>(null);
   const [rerunRecognitionLoading, setRerunRecognitionLoading] = useState(false);
   const [reviewImagePreviewLoading, setReviewImagePreviewLoading] = useState(false);
+
+  // Abort in-flight re-recognition on unmount
+  useEffect(() => () => { rerunAbortRef.current?.abort(); }, []);
 
   // ── Reset scroll counters ──
   useEffect(() => { batchScrollCountersRef.current = {}; }, [reviewFile?.file_id]);
@@ -219,10 +223,15 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   const rerunCurrentItemRecognition = useCallback(async () => {
     if (!reviewFile) return;
     const isImage = reviewFile.isImageMode === true;
+
+    // Abort any in-flight re-recognition before starting a new one
+    rerunAbortRef.current?.abort();
+    const controller = new AbortController();
+    rerunAbortRef.current = controller;
+
     setRerunRecognitionLoading(true);
     try {
       if (isImage) {
-        const controller = new AbortController();
         const timer = window.setTimeout(() => controller.abort(), 400_000);
         let res: Response;
         try {
@@ -238,8 +247,10 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         } finally {
           window.clearTimeout(timer);
         }
+        if (controller.signal.aborted) return;
         if (!res.ok) throw new Error('Vision detection failed');
         const data = await res.json();
+        if (controller.signal.aborted) return;
         const boxes: EditorBox[] = ((data.bounding_boxes || []) as Record<string, unknown>[]).map((b, idx) => ({
           id: String(b.id ?? `bbox_${idx}`),
           x: Number(b.x),
@@ -260,9 +271,12 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ entity_type_ids: cfg.selectedEntityTypeIds }),
+          signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         if (!nerRes.ok) throw new Error('NER recognition failed');
         const nerData = await nerRes.json();
+        if (controller.signal.aborted) return;
         const entities: ReviewEntity[] = ((nerData.entities || []) as Record<string, unknown>[]).map(
           (e, idx) => normalizeReviewEntity({
             id: String(e.id || `ent_${idx}`),
@@ -282,13 +296,17 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         setReviewTextUndoStack([]);
         setReviewTextRedoStack([]);
         const map = await fetchBatchPreviewMap(entities, cfg.replacementMode);
+        if (controller.signal.aborted) return;
         setPreviewEntityMap(map);
       }
       reviewDraftDirtyRef.current = true;
     } catch (e) {
+      if (controller.signal.aborted) return;
       setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
     } finally {
-      setRerunRecognitionLoading(false);
+      if (!controller.signal.aborted) {
+        setRerunRecognitionLoading(false);
+      }
     }
   }, [reviewFile, cfg.selectedEntityTypeIds, cfg.ocrHasTypes, cfg.hasImageTypes, cfg.replacementMode]);
 

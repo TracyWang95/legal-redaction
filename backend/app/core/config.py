@@ -141,6 +141,8 @@ class Settings(BaseSettings):
     OCR_TIMEOUT: float = 360.0
     # 主后端探测 OCR /health 的超时（秒）；首启加载模型较慢，过短会误显示「离线」
     OCR_HEALTH_PROBE_TIMEOUT: float = 45.0
+    # True: OCR 服务离线时直接报错而非尝试 CPU 回退（防止超慢推理阻塞队列）
+    OCR_REQUIRE_GPU: bool = False
 
     # 文本 NER：HaS Text 0209 Q4_K_M（llama-server，默认 8080/v1，OpenAI 兼容）
     HAS_LLAMACPP_BASE_URL: str = "http://127.0.0.1:8080/v1"
