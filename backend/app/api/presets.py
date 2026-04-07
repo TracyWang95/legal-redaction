@@ -33,7 +33,7 @@ async def import_presets(request: PresetImportRequest):
 @router.get("/presets", response_model=PresetsListResponse)
 async def list_presets(
     page: int = Query(1, ge=1, description="页码，从 1 开始"),
-    page_size: int = Query(50, ge=1, le=100, description="每页条数"),
+    page_size: int = Query(0, ge=0, le=10000, description="每页条数，0=全量返回"),
 ):
     return preset_service.list_presets(page, page_size)
 

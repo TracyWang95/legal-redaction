@@ -57,10 +57,12 @@ def _to_out(p: dict[str, Any]) -> PresetOut:
 
 # ── 业务方法 ──────────────────────────────────────────────
 
-def list_presets(page: int = 1, page_size: int = 50) -> PresetsListResponse:
+def list_presets(page: int = 1, page_size: int = 0) -> PresetsListResponse:
     presets = _load_store()
     all_out = [_to_out(p) for p in presets]
     total = len(all_out)
+    if page_size <= 0:
+        return PresetsListResponse(presets=all_out, total=total, page=1, page_size=total)
     start = (page - 1) * page_size
     page_items = all_out[start : start + page_size]
     return PresetsListResponse(
