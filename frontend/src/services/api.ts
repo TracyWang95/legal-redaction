@@ -1,6 +1,6 @@
 import {
   apiClient as api,
-  buildAuthHeaders,
+  authFetch,
   clearAuthToken,
   downloadFile,
   authenticatedBlobUrl,
@@ -61,9 +61,9 @@ export const fileApi = {
     }),
 
   batchDownloadZip: async (fileIds: string[], redacted: boolean): Promise<Blob> => {
-    const res = await fetch('/api/v1/files/batch/download', {
+    const res = await authFetch('/api/v1/files/batch/download', {
       method: 'POST',
-      headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({ file_ids: fileIds, redacted }),
     });

@@ -70,6 +70,7 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
 
           <div
             {...getRootProps({ onClick: (e) => { e.stopPropagation(); open(); } })}
+            aria-label={t('playground.dropHere')}
             className={cn(
               'saas-hero group relative min-h-[18rem] flex-1 w-full cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-300 ease-out lg:px-12',
               isDragActive
@@ -295,6 +296,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
   // Reset pagination when groups change or preset is applied
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page indices when group data changes
     setGroupPages((current) => {
       const next = { ...current };
       rec.playgroundTextGroups.forEach((group) => {
@@ -307,6 +309,7 @@ const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
   // Jump to page 1 when preset selection changes so user sees the updated checkboxes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting pagination on preset change
     setGroupPages({});
   }, [rec.playgroundPresetTextId]);
 
@@ -430,6 +433,7 @@ const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const pageSize = 15;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page indices when pipeline data changes
     setPipelinePages((current) => {
       const next = { ...current };
       rec.pipelines.forEach((pipeline) => {

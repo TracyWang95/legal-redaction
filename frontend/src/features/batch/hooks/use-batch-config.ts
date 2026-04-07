@@ -160,7 +160,7 @@ export function useBatchConfig(
       }
     })();
     return () => { cancelled = true; };
-  }, [activeJobId, isPreviewMode, mode]);
+  }, [activeJobId, isPreviewMode, mode, setActiveJobId, setMsg]);
 
   // Refresh text types when entity types are changed in Settings
   useEffect(() => {

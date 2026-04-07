@@ -52,6 +52,7 @@ export function useBBoxInteraction(opts: UseBBoxInteractionOptions): UseBBoxInte
 
   useEffect(() => {
     if (readOnly) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting interaction state when readOnly prop changes
       setDrawMode(false); setSelectedBoxId(null);
       setIsDrawing(false); setIsDragging(false); setIsResizing(false);
     }

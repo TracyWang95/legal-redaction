@@ -644,6 +644,7 @@
 
   
   'layout.navLabel': '主导航',
+  'layout.headerActions': '状态与设置',
   'health.status.checking': '检测中',
   'health.status.allOnline': '全部在线',
   'health.status.someOffline': '部分离线',

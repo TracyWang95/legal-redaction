@@ -72,7 +72,7 @@ export interface ReviewDataState {
 export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   const {
     step, reviewFile, activeJobId, itemIdByFileIdRef, cfg, isPreviewMode,
-    textTypes, reviewEntities, reviewBoxes, reviewItemId,
+    textTypes: _textTypes, reviewEntities, reviewBoxes, reviewItemId,
     reviewLoading, reviewTextContent,
     reviewDraftInitializedRef, reviewDraftDirtyRef,
     reviewLastSavedJsonRef, reviewAutosaveTimerRef,
@@ -107,13 +107,13 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       else if (u.startsWith('blob:')) URL.revokeObjectURL(u);
     }).catch(() => { if (!cancelled) setReviewOrigImageBlobUrl(raw); });
     return () => { cancelled = true; if (currentBlobUrl.startsWith('blob:')) URL.revokeObjectURL(currentBlobUrl); };
-  }, [reviewFile?.file_id, reviewFile?.isImageMode]);
+  }, [reviewFile, setReviewOrigImageBlobUrl]);
 
   // ── Set loading on step/file change ──
   useLayoutEffect(() => {
     if (step !== 4 || !reviewFile) return;
     setReviewLoading(true);
-  }, [step, reviewFile?.file_id, reviewFile?.isImageMode]);
+  }, [step, reviewFile, setReviewLoading]);
 
   // ── Load review data ──
   const loadReviewData = useCallback(
@@ -209,7 +209,12 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         if (loadSeq === reviewLoadSeqRef.current) setReviewLoading(false);
       }
     },
-    [activeJobId, cfg.replacementMode, cfg.selectedEntityTypeIds, isPreviewMode, textTypes],
+    [activeJobId, cfg.replacementMode, isPreviewMode,
+     itemIdByFileIdRef, reviewAutosaveTimerRef, reviewDraftDirtyRef, reviewDraftInitializedRef,
+     reviewLastSavedJsonRef, setPreviewEntityMap, setReviewBoxes, setReviewDraftError,
+     setReviewEntities, setReviewImagePreview, setReviewImageRedoStack, setReviewImageUndoStack,
+     setReviewLoading, setReviewOrigImageBlobUrl, setReviewTextContent, setReviewTextRedoStack,
+     setReviewTextUndoStack],
   );
 
   // Auto-load review data when step 4 and reviewFile changes
@@ -217,7 +222,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     if (step !== 4 || !reviewFile) return;
     const isImg = reviewFile.isImageMode === true;
     void loadReviewData(reviewFile.file_id, isImg);
-  }, [step, reviewFile?.file_id, reviewFile?.isImageMode, loadReviewData]);
+  }, [step, reviewFile, loadReviewData]);
 
   // ── Re-run recognition ──
   const rerunCurrentItemRecognition = useCallback(async () => {
@@ -308,7 +313,9 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         setRerunRecognitionLoading(false);
       }
     }
-  }, [reviewFile, cfg.selectedEntityTypeIds, cfg.ocrHasTypes, cfg.hasImageTypes, cfg.replacementMode]);
+  }, [reviewFile, cfg.selectedEntityTypeIds, cfg.ocrHasTypes, cfg.hasImageTypes, cfg.replacementMode,
+      reviewDraftDirtyRef, setMsg, setPreviewEntityMap, setReviewBoxes, setReviewEntities,
+      setReviewImageRedoStack, setReviewImageUndoStack, setReviewTextRedoStack, setReviewTextUndoStack]);
 
   // ── Autosave ──
   useEffect(() => {
@@ -322,7 +329,8 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     if (reviewAutosaveTimerRef.current !== null) window.clearTimeout(reviewAutosaveTimerRef.current);
     reviewAutosaveTimerRef.current = window.setTimeout(() => { void flushCurrentReviewDraft(); }, 900);
     return () => { if (reviewAutosaveTimerRef.current !== null) { window.clearTimeout(reviewAutosaveTimerRef.current); reviewAutosaveTimerRef.current = null; } };
-  }, [step, reviewFile?.file_id, reviewItemId, activeJobId, buildCurrentReviewDraftPayload, flushCurrentReviewDraft, isPreviewMode]);
+  }, [step, reviewFile, reviewItemId, activeJobId, buildCurrentReviewDraftPayload, flushCurrentReviewDraft, isPreviewMode,
+      reviewAutosaveTimerRef, reviewDraftDirtyRef, reviewDraftInitializedRef, reviewLastSavedJsonRef]);
 
   // ── Preview map refresh ──
   useEffect(() => {
@@ -335,7 +343,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       if (!cancelled) setPreviewEntityMap(map);
     }, 300);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [step, reviewFile?.file_id, reviewEntities, reviewTextContent, reviewLoading, cfg.replacementMode, isPreviewMode]);
+  }, [step, reviewFile, reviewEntities, reviewTextContent, reviewLoading, cfg.replacementMode, isPreviewMode, setPreviewEntityMap]);
 
   // ── Image preview ──
   useEffect(() => {
@@ -355,7 +363,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       finally { if (!cancelled) setReviewImagePreviewLoading(false); }
     }, 250);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [step, reviewFile?.file_id, reviewBoxes, reviewLoading, cfg.imageRedactionMethod, cfg.imageRedactionStrength, cfg.imageFillColor, isPreviewMode]);
+  }, [step, reviewFile, reviewBoxes, reviewLoading, cfg.imageRedactionMethod, cfg.imageRedactionStrength, cfg.imageFillColor, isPreviewMode, setReviewImagePreview]);
 
   return {
     loadReviewData,

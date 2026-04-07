@@ -227,7 +227,7 @@ export function useBatchReview(
     } finally {
       setReviewDraftSaving(false);
     }
-  }, [activeJobId, buildCurrentReviewDraftPayload, isPreviewMode, reviewFile]);
+  }, [activeJobId, buildCurrentReviewDraftPayload, isPreviewMode, reviewFile, itemIdByFileIdRef]);
 
   // ── Navigate review index ──
   const navigateReviewIndex = useCallback(async (nextIndex: number) => {

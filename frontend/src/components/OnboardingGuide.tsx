@@ -27,6 +27,7 @@ export function OnboardingGuide() {
 
   useEffect(() => {
     if (location.pathname !== '/') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with external system (route + localStorage)
       setShow(false);
       return;
     }

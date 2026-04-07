@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
       - name: TypeScript type-check
         run: npx tsc --noEmit
 
@@ -55,6 +58,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements-ci.txt
+
+      - name: Audit dependencies
+        run: pip install pip-audit && pip-audit -r requirements-ci.txt --ignore-vuln PYSEC-2024-*
 
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short

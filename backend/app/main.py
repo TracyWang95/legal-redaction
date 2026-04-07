@@ -106,7 +106,11 @@ async def _periodic_cleanup():
 async def lifespan(app: FastAPI):
     # === Startup ===
 
-    # 0. Database integrity check + restore from backup if corrupted
+    # 0a. Run schema migrations (idempotent, safe on every startup)
+    from app.core.migrations import run_migrations
+    run_migrations(settings.JOB_DB_PATH)
+
+    # 0b. Database integrity check + restore from backup if corrupted
     from app.core.db_backup import ensure_db_healthy, backup_sqlite
     ensure_db_healthy(settings.JOB_DB_PATH)
 

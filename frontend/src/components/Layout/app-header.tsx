@@ -29,7 +29,7 @@ export function AppHeader() {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1.5 shadow-[var(--shadow-control)]">
+      <nav aria-label={t('layout.headerActions')} className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1.5 shadow-[var(--shadow-control)]">
         <div
           className="flex items-center gap-1.5 rounded-full px-2.5 py-1"
           data-testid="health-indicator"
@@ -66,7 +66,7 @@ export function AppHeader() {
           <Globe className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">{locale === 'zh' ? 'EN' : 'ZH'}</span>
         </Button>
-      </div>
+      </nav>
     </header>
   );
 }

@@ -54,6 +54,7 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   // --- Default type selection ---
   useEffect(() => {
     if (!selectedTypeId && entityTypes.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing default from loaded entity types
       setSelectedTypeId(entityTypes[0].id);
     }
   }, [entityTypes, selectedTypeId]);
@@ -128,6 +129,7 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   useLayoutEffect(() => {
     if (!selectedText) {
       selectionRangeRef.current = null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing position with DOM layout
       setSelectionPos(null);
       return;
     }
@@ -168,6 +170,7 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   // --- Entity popup position tracking ---
   useLayoutEffect(() => {
     if (!clickedEntity) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing position with DOM layout
       setEntityPopupPos(null);
       return;
     }

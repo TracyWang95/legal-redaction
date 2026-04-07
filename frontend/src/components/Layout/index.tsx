@@ -17,12 +17,12 @@ export const Layout: React.FC = () => {
       <SidebarInset className="h-dvh overflow-hidden">
         <AppHeader />
         {}
-        <div
+        <main
           key={location.pathname}
           className="flex min-h-0 flex-1 flex-col overflow-hidden animate-fade-in"
         >
           <Outlet />
-        </div>
+        </main>
       </SidebarInset>
 
       <ToastContainer />

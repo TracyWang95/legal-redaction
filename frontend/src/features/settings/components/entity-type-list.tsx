@@ -33,10 +33,12 @@ export function EntityTypeList({
   const totalPages = Math.max(1, Math.ceil(types.length / pageSize));
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting pagination when variant changes
     setPage(1);
   }, [variant]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page to valid range when total changes
     setPage(current => Math.min(current, totalPages));
   }, [totalPages]);
 

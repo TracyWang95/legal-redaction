@@ -71,6 +71,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-2 py-2">
+        <nav aria-label={t('layout.navLabel')}>
         <SidebarGroup className="px-2 py-1">
           <SidebarGroupContent>
             <SidebarMenu className="gap-1">
@@ -147,6 +148,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      </nav>
       </SidebarContent>
 
       <SidebarFooter className="space-y-2 p-3">

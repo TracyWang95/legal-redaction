@@ -151,14 +151,14 @@ export function useBatchWizard() {
 
   useEffect(() => {
     if (!isPreviewMode && activeJobId && isPreviewBatchJobId(activeJobId)) {
-      setActiveJobId(null);
+      setActiveJobId(null); // eslint-disable-line react-hooks/set-state-in-effect -- clearing stale preview job id on mode change
     }
   }, [activeJobId, isPreviewMode]);
 
   useEffect(() => {
     const jid = searchParams.get('jobId');
     if (!jid) return;
-    setActiveJobId(prev => (prev === jid ? prev : jid));
+    setActiveJobId(prev => (prev === jid ? prev : jid)); // eslint-disable-line react-hooks/set-state-in-effect -- syncing job id from URL search params
   }, [searchParams]);
 
   useEffect(() => { lastSavedJobConfigJson.current = ''; }, [activeJobId]);
@@ -242,7 +242,7 @@ export function useBatchWizard() {
     if (isPreviewMode) {
       const previewStep = urlStepParsed ?? 1;
       const previewRows = buildPreviewBatchRows(previewStep);
-      setActiveJobId(PREVIEW_BATCH_JOB_ID);
+      setActiveJobId(PREVIEW_BATCH_JOB_ID); // eslint-disable-line react-hooks/set-state-in-effect -- hydrating state from URL/preview fixtures
       setJobSkipItemReview(false);
       itemIdByFileIdRef.current = Object.fromEntries(
         previewRows.map((row, index) => [row.file_id, `preview-item-${index + 1}`]),
@@ -397,7 +397,7 @@ export function useBatchWizard() {
       }
     })();
     return () => { batchHydrateGenRef.current += 1; };
-  }, [configLoaded, location.search, mode]);
+  }, [configLoaded, location.search, mode, isPreviewMode, searchParams, batchGroupIdRef, itemIdByFileIdRef, setCfg, setConfirmStep1, setMsg, setReviewIndex, setRows, setSelected, cfg, step]);
 
   // ── Sync step to URL ──
   useEffect(() => {
@@ -469,7 +469,7 @@ export function useBatchWizard() {
         } catch { /* ignore */ }
       })();
     }
-  }, [activeJobId, canGoStep, configLoaded, confirmStep1, doneRows, flushJobDraftFromStep1, isPreviewMode, isStep1Complete, step]);
+  }, [activeJobId, canGoStep, configLoaded, confirmStep1, doneRows, flushJobDraftFromStep1, isPreviewMode, isStep1Complete, step, setMsg, setReviewIndex, setRows]);
 
   const goStep = useCallback((s: Step) => {
     if (step === 4 && s !== 5) {
@@ -527,7 +527,7 @@ export function useBatchWizard() {
       setFurthestStep(prev => Math.max(prev, 2) as Step);
       setMsg(null);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' }); }
-  }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isPreviewMode, isStep1Complete, jobPriority, mode]);
+  }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isPreviewMode, isStep1Complete, jobPriority, mode, itemIdByFileIdRef, setMsg, setRows, setSelected]);
 
   const advanceToExportStep = useCallback(async () => {
     if (!rows.length) { setMsg({ text: t('batchWizard.noFilesToExport'), tone: 'warn' }); return; }
@@ -560,7 +560,7 @@ export function useBatchWizard() {
     setStep(5);
     setFurthestStep(prev => Math.max(prev, 5) as Step);
     setMsg(null);
-  }, [activeJobId, allReviewConfirmed, flushCurrentReviewDraft, isPreviewMode, rows.length]);
+  }, [activeJobId, allReviewConfirmed, flushCurrentReviewDraft, isPreviewMode, rows.length, setMsg, setRows]);
 
   // ── Blocker effects ──
   const [leaveConfirmOpen, _setLeaveConfirmOpen] = useState(false);
@@ -575,7 +575,7 @@ export function useBatchWizard() {
     const onBeforeUnload = (e: BeforeUnloadEvent) => { if (step !== 4 || !reviewDraftDirtyRef.current) return; e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [step]);
+  }, [step, reviewDraftDirtyRef]);
 
   useEffect(() => {
     if (step !== 4) return;

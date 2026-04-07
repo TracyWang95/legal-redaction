@@ -644,6 +644,7 @@
 
   
   'layout.navLabel': 'Main navigation',
+  'layout.headerActions': 'Status and settings',
   'layout.languageSwitch': 'Switch language',
   'health.status.checking': 'Checking',
   'health.status.allOnline': 'All online',

@@ -64,9 +64,10 @@ export function usePlayground() {
   });
 
   // --- Auto-switch type tab on file mode ---
+  const { setTypeTab } = recognition;
   useEffect(() => {
-    recognition.setTypeTab(fileCtx.isImageMode ? 'vision' : 'text');
-  }, [fileCtx.isImageMode, recognition.setTypeTab]);
+    setTypeTab(fileCtx.isImageMode ? 'vision' : 'text');
+  }, [fileCtx.isImageMode, setTypeTab]);
 
   // --- History / undo-redo / selection ---
   const allSelectedVisionTypes = useMemo(

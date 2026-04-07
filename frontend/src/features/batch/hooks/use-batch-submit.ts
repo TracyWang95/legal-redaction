@@ -81,7 +81,7 @@ export function useBatchSubmit(
       await apiSubmitJob(activeJobId);
       clearLocalWizardMaxStep(activeJobId);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.submitFailed'), tone: 'err' }); }
-  }, [activeJobId, cfg, furthestStep, isPreviewMode, mode]);
+  }, [activeJobId, cfg, furthestStep, isPreviewMode, mode, lastSavedJobConfigJson, setFurthestStep, setMsg, setRows]);
 
   // ── Requeue failed ──
   const requeueFailedItems = useCallback(async () => {
@@ -101,7 +101,7 @@ export function useBatchSubmit(
       } catch { /* fallback handled outside */ }
       return;
     }
-  }, [activeJobId, cfg.executionDefault, failedRows.length, isPreviewMode]);
+  }, [activeJobId, cfg.executionDefault, failedRows.length, isPreviewMode, setMsg, setRows]);
 
   // ── Confirm review ──
   const confirmCurrentReview = useCallback(async () => {
@@ -143,7 +143,8 @@ export function useBatchSubmit(
       setRows(prev => prev.map(r => r.file_id === currentFileId ? { ...r, reviewConfirmed: false, has_output: false, analyzeStatus: 'awaiting_review' as const } : r));
       setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
     } finally { setReviewExecuteLoading(false); }
-  }, [activeJobId, doneRows.length, flushCurrentReviewDraft, isPreviewMode, reviewBoxes, reviewDraftError, reviewEntities, reviewFile, reviewIndex]);
+  }, [activeJobId, doneRows.length, flushCurrentReviewDraft, isPreviewMode, reviewBoxes, reviewDraftError, reviewEntities, reviewFile, reviewIndex,
+      itemIdByFileIdRef, reviewDraftDirtyRef, reviewLastSavedJsonRef, setFurthestStep, setMsg, setReviewExecuteLoading, setReviewIndex, setRows]);
 
   // ── Download ZIP ──
   const downloadZip = useCallback(async (redacted: boolean) => {
@@ -167,7 +168,7 @@ export function useBatchSubmit(
       if (redacted && activeJobId) clearLocalWizardMaxStep(activeJobId);
     } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.downloadFailed'), tone: 'err' }); }
     finally { setZipLoading(false); }
-  }, [activeJobId, isPreviewMode, rows, selected]);
+  }, [activeJobId, isPreviewMode, rows, selected, setMsg]);
 
   return {
     submitQueueToWorker,

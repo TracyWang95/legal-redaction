@@ -100,10 +100,12 @@ export function PipelineConfigPanel({
   const totalPages = Math.max(1, Math.ceil(activeCount / pageSize));
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting pagination when active tab changes
     setPage(1);
   }, [activeSub]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page to valid range when total changes
     setPage(current => Math.min(current, totalPages));
   }, [totalPages]);
 

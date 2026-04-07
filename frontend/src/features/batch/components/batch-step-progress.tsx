@@ -48,6 +48,8 @@ export function BatchStepProgress({
                 isCompleted && 'border border-border/70 bg-background text-foreground',
                 isUpcoming && 'bg-muted/40 text-muted-foreground opacity-40',
               )}
+              aria-label={`${labels[stepNumber]} (${stepNumber}/${stepOrder.length})`}
+              aria-current={isCurrent ? 'step' : undefined}
               data-testid={`batch-step-${stepNumber}`}
             >
               <span className="tabular-nums mr-1">{stepNumber}</span>

@@ -31,7 +31,7 @@ export function useImageViewport(imageSrc: string, readOnly: boolean): UseImageV
 
   const [naturalSize, setNaturalSize] = useState<DisplaySize>({ width: 0, height: 0 });
   const [viewportSize, setViewportSize] = useState<DisplaySize>({ width: 0, height: 0 });
-  const [displaySize, setDisplaySize] = useState<DisplaySize>({ width: 0, height: 0 });
+  // displaySize is now derived via useMemo below (no longer a separate state)
   const [zoom, setZoom] = useState(1);
 
   // Observe viewport resize
@@ -64,13 +64,14 @@ export function useImageViewport(imageSrc: string, readOnly: boolean): UseImageV
     }
   }, []);
 
-  // Sync displaySize state (consumed by coordinate helpers)
-  useEffect(() => {
-    setDisplaySize({ width: displayW, height: displayH });
-  }, [displayW, displayH]);
+  const displaySize = useMemo<DisplaySize>(
+    () => ({ width: displayW, height: displayH }),
+    [displayW, displayH],
+  );
 
   // Reset when image source changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when image source prop changes
     setZoom(1);
     setNaturalSize({ width: 0, height: 0 });
   }, [imageSrc]);
@@ -78,6 +79,7 @@ export function useImageViewport(imageSrc: string, readOnly: boolean): UseImageV
   // Reset interaction-related state when entering readOnly
   useEffect(() => {
     if (readOnly) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting zoom when readOnly prop changes
       setZoom(1);
     }
   }, [readOnly]);

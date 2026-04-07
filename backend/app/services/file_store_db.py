@@ -28,11 +28,15 @@ CREATE INDEX IF NOT EXISTS idx_fs_created ON file_store(created_at);
 """
 
 
+_thread_local = threading.local()
+
+
 class FileStoreDB:
     """SQLite-backed file store with dict-like API.
 
     注意：不使用进程内缓存，每次读写均直接访问 SQLite。
     SQLite WAL 模式 + busy_timeout=5000 可满足并发读写需求。
+    使用 thread-local 连接复用，避免每次调用都创建新连接。
     """
 
     def __init__(self, db_path: str) -> None:
@@ -44,10 +48,20 @@ class FileStoreDB:
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
+        attr = f"_filestore_conn_{self._path}"
+        conn: sqlite3.Connection | None = getattr(_thread_local, attr, None)
+        if conn is not None:
+            try:
+                conn.execute("SELECT 1")
+                return conn
+            except sqlite3.ProgrammingError:
+                # Connection was closed; fall through to create a new one
+                pass
         conn = sqlite3.connect(self._path, check_same_thread=False, timeout=10.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout = 5000")
+        setattr(_thread_local, attr, conn)
         return conn
 
     def _init_db(self) -> None:

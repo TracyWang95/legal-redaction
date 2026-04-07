@@ -64,6 +64,7 @@ async function runHealthCheck(showChecking: boolean) {
     const timer = window.setTimeout(() => ac.abort(), HEALTH_TIMEOUT_MS);
     const t0 = performance.now();
     try {
+      // Intentionally uses raw fetch: health endpoint is unauthenticated
       const res = await fetch('/health/services', { signal: ac.signal });
       if (!res.ok) {
         updateSnapshot({ health: null, roundTripMs: null });

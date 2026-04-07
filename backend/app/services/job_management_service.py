@@ -70,7 +70,7 @@ def refresh_job_status(store: JobStore, job_id: str) -> None:
             store.update_job_status(job_id, JobStatus.AWAITING_REVIEW)
         elif any(s == JobItemStatus.FAILED.value for s in sts):
             store.update_job_status(job_id, JobStatus.FAILED)
-    except Exception:
+    except (InvalidStatusTransition, KeyError, ValueError):
         pass  # 状态已是目标值或转换不合法，忽略
 
 
@@ -226,7 +226,7 @@ def enqueue_task(task_type: str, job_id: str, item_id: str, file_id: str) -> Non
             file_id=file_id,
             task_type=task_type,
         ))
-    except Exception:
+    except (RuntimeError, ValueError):
         logger.exception("enqueue_task: 投递 %s 失败（item=%s）", task_type, item_id[:8])
 
 
@@ -608,12 +608,12 @@ async def commit_review(
         store.complete_item_review(item_id, reviewer=reviewer)
         store.touch_job_updated(job_id)
         refresh_job_status(store, job_id)
-    except Exception as exc:
+    except Exception as exc:  # broad catch: commit_review must report all failures to caller
         import traceback
         logger.error("commit_review Exception for item %s: %s\n%s", item_id, str(exc), traceback.format_exc())
         try:
             store.update_item_status(item_id, JobItemStatus.AWAITING_REVIEW, error_message=str(exc))
-        except Exception:
+        except (InvalidStatusTransition, KeyError, ValueError):
             store.update_item_status(item_id, JobItemStatus.FAILED, error_message=str(exc))
         store.touch_job_updated(job_id)
         refresh_job_status(store, job_id)
