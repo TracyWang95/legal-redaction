@@ -124,6 +124,11 @@ export function usePlaygroundImage(options: UsePlaygroundImageOptions) {
   }, [boundingBoxes]);
 
   // --- Re-run vision recognition ---
+  const visionAbortRef = useRef<AbortController | null>(null);
+
+  // Abort vision on unmount
+  useEffect(() => () => { visionAbortRef.current?.abort(); }, []);
+
   const handleRerunNerImage = useCallback(async (
     fileId: string,
     ocrHasTypes: string[],
@@ -131,6 +136,11 @@ export function usePlaygroundImage(options: UsePlaygroundImageOptions) {
     setIsLoading: (v: boolean) => void,
     setLoadingMessage: (v: string) => void,
   ) => {
+    // Abort any in-flight vision request before starting a new one
+    visionAbortRef.current?.abort();
+    const controller = new AbortController();
+    visionAbortRef.current = controller;
+
     const o = ocrHasTypes.length > 0;
     const g = hasImageTypes.length > 0;
     setIsLoading(true);
@@ -141,15 +151,19 @@ export function usePlaygroundImage(options: UsePlaygroundImageOptions) {
             : '重新识别中...',
     );
     try {
-      const result = await runVisionDetection(fileId, ocrHasTypes, hasImageTypes);
+      const result = await runVisionDetection(fileId, ocrHasTypes, hasImageTypes, controller.signal);
+      if (controller.signal.aborted) return;
       setBoundingBoxes(result.boxes);
       imageHistory.reset();
       showToast(`重新识别完成：${result.boxes.length} 个区域`, 'success');
     } catch (err) {
+      if (controller.signal.aborted) return;
       showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
     } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
     }
   }, [imageHistory]);
 

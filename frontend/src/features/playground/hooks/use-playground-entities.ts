@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { authFetch } from '@/services/api-client';
 import { showToast } from '@/components/Toast';
@@ -10,6 +10,7 @@ import type { Entity } from '../types';
 export function usePlaygroundEntities() {
   const [entities, setEntities] = useState<Entity[]>([]);
   const entityHistory = useUndoRedo<Entity[]>();
+  const nerAbortRef = useRef<AbortController | null>(null);
 
   const applyEntities = useCallback((next: Entity[]) => {
     entityHistory.save(entities);
@@ -32,12 +33,20 @@ export function usePlaygroundEntities() {
     setEntities(prev => prev.map(e => ({ ...e, selected: false })));
   }, []);
 
+  // Abort NER on unmount
+  useEffect(() => () => { nerAbortRef.current?.abort(); }, []);
+
   const handleRerunNerText = useCallback(async (
     fileId: string,
     selectedTypes: string[],
     setIsLoading: (v: boolean) => void,
     setLoadingMessage: (v: string) => void,
   ) => {
+    // Abort any in-flight NER request before starting a new one
+    nerAbortRef.current?.abort();
+    const controller = new AbortController();
+    nerAbortRef.current = controller;
+
     setIsLoading(true);
     setLoadingMessage('重新识别中（正则+AI语义识别）...');
     try {
@@ -45,9 +54,12 @@ export function usePlaygroundEntities() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ entity_type_ids: selectedTypes }),
+        signal: controller.signal,
       });
+      if (controller.signal.aborted) return;
       if (!nerRes.ok) throw new Error('重新识别失败');
       const nerData = await safeJson(nerRes);
+      if (controller.signal.aborted) return;
       const entitiesWithSource = (nerData.entities || []).map(
         (e: Record<string, unknown>, idx: number) => ({
           ...e,
@@ -60,10 +72,13 @@ export function usePlaygroundEntities() {
       entityHistory.reset();
       showToast(`重新识别完成：${entitiesWithSource.length} 处`, 'success');
     } catch (err) {
+      if (controller.signal.aborted) return;
       showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
     } finally {
-      setIsLoading(false);
-      setLoadingMessage('');
+      if (!controller.signal.aborted) {
+        setIsLoading(false);
+        setLoadingMessage('');
+      }
     }
   }, [entityHistory]);
 

@@ -59,7 +59,8 @@ export const VISION_FETCH_TIMEOUT_MS = VISION_TIMEOUT;
 export async function runVisionDetection(
   fileId: string,
   ocrHasTypes: string[],
-  hasImageTypes: string[]
+  hasImageTypes: string[],
+  externalSignal?: AbortSignal,
 ): Promise<{ boxes: BoundingBox[]; resultImage?: string }> {
   if (import.meta.env.DEV) {
     console.log('[Vision] 发送识别请求:', { ocrHasTypes, hasImageTypes });
@@ -67,6 +68,16 @@ export async function runVisionDetection(
 
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), VISION_FETCH_TIMEOUT_MS);
+
+  // Forward external abort to our controller
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      window.clearTimeout(timer);
+      throw new DOMException('Aborted', 'AbortError');
+    }
+    externalSignal.addEventListener('abort', onExternalAbort);
+  }
 
   let res: Response;
   try {
@@ -81,6 +92,8 @@ export async function runVisionDetection(
     });
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
+      // If aborted by external signal, re-throw as AbortError (caller handles it)
+      if (externalSignal?.aborted) throw e;
       throw new Error(
         '图像识别超时（超过 3 分钟）。若 Paddle 在 CPU 上跑会很慢，可换更小图片或安装 paddle GPU 版加速。'
       );
@@ -88,6 +101,7 @@ export async function runVisionDetection(
     throw e;
   } finally {
     window.clearTimeout(timer);
+    externalSignal?.removeEventListener('abort', onExternalAbort);
   }
 
   if (!res.ok) {

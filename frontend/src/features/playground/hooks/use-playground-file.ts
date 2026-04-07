@@ -142,7 +142,7 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
                 : '正在进行图像识别...';
           setLoadingMessage(vLabel);
 
-          const result = await runVisionDetection(fileId, ocrTypes, hiTypes);
+          const result = await runVisionDetection(fileId, ocrTypes, hiTypes, signal);
           if (signal.aborted) return;
 
           opts.setBoundingBoxes(result.boxes);
