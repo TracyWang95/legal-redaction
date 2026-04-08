@@ -1,7 +1,8 @@
 """Retry utility with exponential backoff for HTTP microservice calls."""
 import asyncio
 import logging
-from typing import TypeVar, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 logger = logging.getLogger(__name__)
 

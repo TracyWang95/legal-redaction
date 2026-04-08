@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Optional, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -24,12 +24,12 @@ def _path() -> str:
     return os.path.join(get_settings().DATA_DIR, "ner_backend.json")
 
 
-def load_ner_runtime() -> Optional[NerBackendRuntime]:
+def load_ner_runtime() -> NerBackendRuntime | None:
     p = _path()
     if not os.path.exists(p):
         return None
     try:
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             return NerBackendRuntime(**json.load(f))
     except Exception as e:
         logger.warning("读取 ner_backend.json 失败: %s", e)

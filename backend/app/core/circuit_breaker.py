@@ -1,6 +1,6 @@
 """Simple circuit breaker for external service calls."""
-import time
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 

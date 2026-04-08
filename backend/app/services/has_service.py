@@ -14,10 +14,10 @@ import logging
 import re
 
 logger = logging.getLogger(__name__)
-from typing import Optional, Dict, List
-from app.models.schemas import Entity
-from app.services.has_client import has_client, HaSClient
 from typing import Any
+
+from app.models.schemas import Entity
+from app.services.has_client import HaSClient
 
 # 类型别名，兼容 EntityTypeConfig 和 CustomEntityType
 EntityTypeConfig = Any
@@ -29,18 +29,18 @@ class HaSService:
     # 统一引用 models/type_mapping.py 的单一数据源
     from app.models.type_mapping import TYPE_CN_TO_ID as TYPE_MAPPING_CN_TO_ID
     from app.models.type_mapping import TYPE_ID_TO_CN as TYPE_MAPPING_ID_TO_CN
-    
-    def __init__(self, base_url: Optional[str] = None):
+
+    def __init__(self, base_url: str | None = None):
         self.client = HaSClient(base_url=base_url)
-    
+
     def is_available(self) -> bool:
         """检查 HaS 服务是否可用"""
         return self.client.is_available()
-    
+
     def _convert_entity_types_to_chinese(
-        self, 
-        entity_types: List[EntityTypeConfig]
-    ) -> List[str]:
+        self,
+        entity_types: list[EntityTypeConfig]
+    ) -> list[str]:
         """将实体类型配置转换为 HaS 需要的中文类型列表"""
         chinese_types = []
         for et in entity_types:
@@ -51,60 +51,60 @@ class HaSService:
                 # 自定义类型使用名称
                 chinese_types.append(et.name)
         return chinese_types
-    
+
     async def extract_entities(
-        self, 
-        content: str, 
-        entity_types: List[EntityTypeConfig]
-    ) -> List[Entity]:
+        self,
+        content: str,
+        entity_types: list[EntityTypeConfig]
+    ) -> list[Entity]:
         """
         使用 HaS 模型进行 NER 识别
-        
+
         Args:
             content: 待识别文本
             entity_types: 要识别的实体类型配置
-            
+
         Returns:
             识别到的实体列表
         """
         if not content.strip():
             return []
-        
+
         # 转换实体类型为中文
         chinese_types = self._convert_entity_types_to_chinese(entity_types)
-        
+
         try:
             # 调用 HaS NER
             ner_result = self.client.ner(content, chinese_types)
-            
+
             if not ner_result:
                 return []
-            
+
             # 转换为 Entity 对象
             entities = []
             entity_id = 0
-            coref_map: Dict[str, str] = {}  # text:type -> coref_id
-            
+            coref_map: dict[str, str] = {}  # text:type -> coref_id
+
             for chinese_type, entity_list in ner_result.items():
                 # 映射中文类型到英文ID
                 entity_type_id = self.TYPE_MAPPING_CN_TO_ID.get(chinese_type, chinese_type.upper())
-                
+
                 for entity_text in entity_list:
                     if not entity_text:
                         continue
-                    
+
                     # 在原文中查找所有出现位置
                     start = 0
                     while True:
                         pos = content.find(entity_text, start)
                         if pos < 0:
                             break
-                        
+
                         # 指代消解：相同文本+类型使用相同 coref_id
                         coref_key = f"{entity_text}:{entity_type_id}"
                         if coref_key not in coref_map:
                             coref_map[coref_key] = f"coref_{len(coref_map)}"
-                        
+
                         entities.append(Entity(
                             id=f"has_{entity_id}",
                             text=entity_text,
@@ -116,48 +116,48 @@ class HaSService:
                             source="has",
                             coref_id=coref_map[coref_key],
                         ))
-                        
+
                         entity_id += 1
                         start = pos + len(entity_text)
-            
+
             # 按位置排序
             entities.sort(key=lambda e: e.start)
-            
+
             return entities
-            
+
         except Exception as e:
             logger.exception("HaS NER 失败: %s", e)
             return []
-    
+
     async def hide_text(
-        self, 
+        self,
         content: str,
-        entity_types: List[EntityTypeConfig]
-    ) -> tuple[str, Dict[str, List[str]]]:
+        entity_types: list[EntityTypeConfig]
+    ) -> tuple[str, dict[str, list[str]]]:
         """
         使用 HaS 进行结构化语义标签匿名化
-        
+
         Args:
             content: 原始文本
             entity_types: 要匿名化的实体类型
-            
+
         Returns:
             (匿名化后文本, 映射表)
         """
         chinese_types = self._convert_entity_types_to_chinese(entity_types)
-        
+
         try:
             masked_text, mapping = self.client.hide(content, chinese_types)
             return masked_text, mapping
         except Exception as e:
             logger.error("HaS Hide 失败: %s", e)
             return content, {}
-    
+
     async def extract_entities_with_hide(
         self,
         content: str,
-        entity_types: List[EntityTypeConfig],
-    ) -> List[Entity]:
+        entity_types: list[EntityTypeConfig],
+    ) -> list[Entity]:
         """
         使用 HaS Hide 模式识别实体（带指代消解）
 
@@ -179,11 +179,11 @@ class HaSService:
         if not mapping:
             return []
 
-        entities: List[Entity] = []
+        entities: list[Entity] = []
         used_positions: set[tuple[int, int]] = set()
         entity_id = 0
 
-        def find_next_occurrence(text: str) -> Optional[int]:
+        def find_next_occurrence(text: str) -> int | None:
             start = 0
             while True:
                 pos = content.find(text, start)
@@ -247,15 +247,15 @@ class HaSService:
     async def seek_text(
         self,
         masked_text: str,
-        mapping: Optional[Dict[str, List[str]]] = None
+        mapping: dict[str, list[str]] | None = None
     ) -> str:
         """
         使用 HaS 进行标签还原
-        
+
         Args:
             masked_text: 匿名化后的文本
             mapping: 标签映射表
-            
+
         Returns:
             还原后的原文
         """
@@ -270,12 +270,12 @@ class HaSService:
 # 标签解析工具
 class HaSTagParser:
     """HaS 结构化语义标签解析器"""
-    
+
     # 标签正则: <类型[序号].子类型.属性>
     TAG_PATTERN = re.compile(r'<([^>\[]+)\[(\d+)\]\.([^>\.]+)\.([^>]+)>')
-    
+
     @classmethod
-    def parse_tag(cls, tag: str) -> Optional[Dict]:
+    def parse_tag(cls, tag: str) -> dict | None:
         """解析标签"""
         match = cls.TAG_PATTERN.match(tag)
         if match:
@@ -286,9 +286,9 @@ class HaSTagParser:
                 "attribute": match.group(4),
             }
         return None
-    
+
     @classmethod
-    def find_all_tags(cls, text: str) -> List[Dict]:
+    def find_all_tags(cls, text: str) -> list[dict]:
         """在文本中查找所有标签"""
         tags = []
         for match in cls.TAG_PATTERN.finditer(text):
@@ -299,11 +299,11 @@ class HaSTagParser:
                 **cls.parse_tag(match.group()),
             })
         return tags
-    
+
     @classmethod
     def generate_tag(
-        cls, 
-        entity_type: str, 
+        cls,
+        entity_type: str,
         entity_id: int,
         sub_type: str,
         attribute: str

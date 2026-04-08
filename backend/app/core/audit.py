@@ -1,9 +1,8 @@
 """Audit logging for sensitive operations."""
+import json
 import logging
 import os
-import json
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.core.config import settings
 
@@ -29,11 +28,11 @@ def audit_log(
     resource_type: str,
     resource_id: str = "",
     user: str = "anonymous",
-    detail: Optional[dict] = None,
+    detail: dict | None = None,
 ) -> None:
     """Write a structured audit log entry."""
     entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "action": action,
         "resource_type": resource_type,
         "resource_id": resource_id,

@@ -9,9 +9,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import traceback
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.services.job_store import JobStore
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +40,9 @@ class SimpleTaskQueue:
 
     def __init__(self) -> None:
         self._queue: asyncio.Queue[TaskItem] = asyncio.Queue()
-        self._worker_task: Optional[asyncio.Task] = None
+        self._worker_task: asyncio.Task | None = None
         self._running = False
-        self._current: Optional[TaskItem] = None
+        self._current: TaskItem | None = None
         self._pending_items: set[str] = set()  # item_id 去重
 
     # ------------------------------------------------------------------
@@ -86,7 +88,7 @@ class SimpleTaskQueue:
         return self._queue.qsize()
 
     @property
-    def current_task(self) -> Optional[TaskItem]:
+    def current_task(self) -> TaskItem | None:
         return self._current
 
     # ------------------------------------------------------------------
@@ -98,7 +100,7 @@ class SimpleTaskQueue:
         while self._running:
             try:
                 task = await asyncio.wait_for(self._queue.get(), timeout=2.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
             except asyncio.CancelledError:
                 break
@@ -116,8 +118,7 @@ class SimpleTaskQueue:
                     await self._run_redaction(task)
                 else:
                     logger.warning("unknown task_type: %s", task.task_type)
-            except (OSError, RuntimeError, ValueError, KeyError,
-                    json.JSONDecodeError, asyncio.TimeoutError) as exc:
+            except (TimeoutError, OSError, RuntimeError, ValueError, KeyError, json.JSONDecodeError) as exc:
                 logger.error(
                     "task failed: job=%s item=%s: %s: %s",
                     task.job_id[:8], task.item_id[:8],
@@ -271,7 +272,7 @@ class SimpleTaskQueue:
             entity_type_ids = list(cfg.get("entity_type_ids") or [])
             await self._run_ner(task, entity_type_ids)
 
-    def _mark_recognition_complete(self, task: TaskItem, job: dict, store: "JobStore") -> None:
+    def _mark_recognition_complete(self, task: TaskItem, job: dict, store: JobStore) -> None:
         """Step 3: 更新状态为 awaiting_review，可选自动入队匿名化。"""
         from app.services.job_store import JobItemStatus
 
@@ -294,9 +295,9 @@ class SimpleTaskQueue:
     # ------------------------------------------------------------------
 
     async def _run_redaction(self, task: TaskItem) -> None:
-        from app.services.job_store import JobItemStatus, JobStore
-        from app.services.file_operations import get_file_info, execute_redaction_request
         from app.models.schemas import RedactionConfig, ReplacementMode
+        from app.services.file_operations import execute_redaction_request, get_file_info
+        from app.services.job_store import JobItemStatus
 
         store = self._get_store()
         job = store.get_job(task.job_id)
@@ -320,7 +321,7 @@ class SimpleTaskQueue:
                 store.update_item_status(task.item_id, JobItemStatus.COMPLETED)
                 return
 
-            from app.models.schemas import Entity, BoundingBox
+            from app.models.schemas import BoundingBox, Entity
             raw_ents = fi.get("entities") or []
             entities = []
             for e in raw_ents:
@@ -391,7 +392,7 @@ class SimpleTaskQueue:
     # helpers
     # ------------------------------------------------------------------
 
-    def _get_store(self) -> "JobStore":
+    def _get_store(self) -> JobStore:
         from app.services.job_store import get_job_store
         return get_job_store()
 
@@ -404,7 +405,7 @@ class SimpleTaskQueue:
 
     def _refresh_job_status(self, store, job_id: str) -> None:
         """根据所有 item 状态聚合 job 级状态。"""
-        from app.services.job_store import JobStatus, JobItemStatus
+        from app.services.job_store import JobItemStatus, JobStatus
 
         job = store.get_job(job_id)
         if not job or job["status"] in (JobStatus.CANCELLED.value,):
@@ -440,7 +441,7 @@ class SimpleTaskQueue:
 # ------------------------------------------------------------------
 # 单例
 # ------------------------------------------------------------------
-_instance: Optional[SimpleTaskQueue] = None
+_instance: SimpleTaskQueue | None = None
 
 
 def get_task_queue() -> SimpleTaskQueue:

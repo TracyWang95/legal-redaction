@@ -9,8 +9,8 @@ from app.models.schemas import (
     PresetCreate,
     PresetImportRequest,
     PresetOut,
-    PresetUpdate,
     PresetsListResponse,
+    PresetUpdate,
 )
 from app.services import preset_service
 

@@ -1,8 +1,9 @@
 """
 Model (LLM provider) configuration schemas.
 """
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Optional, Literal
 
 __all__ = [
     "ModelConfig",
@@ -20,8 +21,8 @@ class ModelConfig(BaseModel):
     enabled: bool = Field(default=True, description="是否启用")
 
     # API 配置
-    base_url: Optional[str] = Field(None, description="API 基础 URL（本地/自定义）")
-    api_key: Optional[str] = Field(None, description="API Key（云端服务）")
+    base_url: str | None = Field(None, description="API 基础 URL（本地/自定义）")
+    api_key: str | None = Field(None, description="API Key（云端服务）")
     model_name: str = Field(..., description="模型名称")
 
     # 生成参数
@@ -32,10 +33,10 @@ class ModelConfig(BaseModel):
     enable_thinking: bool = Field(default=False, description="保留字段")
 
     # 备注
-    description: Optional[str] = Field(None, description="配置说明")
+    description: str | None = Field(None, description="配置说明")
 
 
 class ModelConfigList(BaseModel):
     """模型配置列表"""
     configs: list[ModelConfig]
-    active_id: Optional[str] = Field(None, description="当前激活的配置ID")
+    active_id: str | None = Field(None, description="当前激活的配置ID")

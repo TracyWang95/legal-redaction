@@ -5,36 +5,35 @@
 Thin routing layer — business logic lives in
 app.services.file_management_service.
 """
+import logging
 import os
 import shutil
 import uuid
 
 import aiofiles
-import logging
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, UploadFile, File, Form, Header, HTTPException, BackgroundTasks, Body, Query, Depends
-from fastapi.responses import FileResponse, Response
-from typing import Optional
 
-from app.core.idempotency import check_idempotency, save_idempotency
-from app.core.audit import audit_log
-from app.core.config import settings
-from app.api.jobs import get_job_store
-from app.models.schemas import (
-    FileUploadResponse,
-    FileListResponse,
-    ParseResult,
-    NERResult,
-    NERRequest,
-    APIResponse,
-    HybridNERRequest,
-    BatchDownloadRequest,
-)
-from app.services.job_store import JobStore
+from fastapi import APIRouter, Body, Depends, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
 
 import app.services.file_management_service as _fms
+from app.api.jobs import get_job_store
+from app.core.audit import audit_log
+from app.core.config import settings
+from app.core.idempotency import check_idempotency, save_idempotency
+from app.models.schemas import (
+    APIResponse,
+    BatchDownloadRequest,
+    FileListResponse,
+    FileUploadResponse,
+    HybridNERRequest,
+    NERRequest,
+    NERResult,
+    ParseResult,
+)
+from app.services.job_store import JobStore
 
 router = APIRouter()
 
@@ -53,7 +52,7 @@ def validate_file(file: UploadFile) -> None:
 async def list_files(
     page: int = Query(1, ge=1, description="页码，从 1 开始"),
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
-    source: Optional[str] = Query(
+    source: str | None = Query(
         None,
         description="按来源筛选：playground（仅 Playground）| batch（批量/任务）；不传为全部",
     ),
@@ -61,11 +60,11 @@ async def list_files(
         False,
         description="为 true 时对本页含 job_id 的行注入 job_embed（状态、类型、items 摘要），避免前端逐条 getJob",
     ),
-    job_id: Optional[str] = Query(None, description="按 job_id 筛选，仅返回属于该任务的文件"),
+    job_id: str | None = Query(None, description="按 job_id 筛选，仅返回属于该任务的文件"),
     store: JobStore = Depends(get_job_store),
 ):
     """列出已上传文件（处理历史）；同批次文件相邻排列，支持分页与来源筛选。"""
-    src_filter: Optional[str] = None
+    src_filter: str | None = None
     if source is not None and str(source).strip():
         s = str(source).strip().lower()
         if s not in ("playground", "batch"):
@@ -139,10 +138,10 @@ async def batch_download_zip(request: BatchDownloadRequest):
 @router.post("/files/upload", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
-    batch_group_id: Optional[str] = Form(None),
-    job_id: Optional[str] = Form(None),
-    upload_source: Optional[str] = Form(None),
-    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    batch_group_id: str | None = Form(None),
+    job_id: str | None = Form(None),
+    upload_source: str | None = Form(None),
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
 ):
     """
     上传文件
@@ -189,7 +188,7 @@ async def upload_file(
                 await f.write(chunk)
     except HTTPException:
         raise
-    except (OSError, IOError):
+    except OSError:
         if os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(status_code=500, detail="文件保存失败，请稍后重试")

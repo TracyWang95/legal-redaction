@@ -7,14 +7,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 def _store_and_lock():
     """Deferred import to avoid circular dependency at module load time."""
-    from app.services.file_management_service import file_store, _file_store_lock
+    from app.services.file_management_service import _file_store_lock, file_store
     return file_store, _file_store_lock
 
 
@@ -60,12 +60,12 @@ async def parse_file(file_id: str) -> dict[str, Any]:
 # Hybrid NER
 # ---------------------------------------------------------------------------
 
-async def run_hybrid_ner(file_id: str, entity_type_ids: Optional[list[str]] = None) -> dict[str, Any]:
+async def run_hybrid_ner(file_id: str, entity_type_ids: list[str] | None = None) -> dict[str, Any]:
     """
     Run hybrid NER on parsed file. Returns NERResult-compatible values.
     Raises ValueError if file not found or not yet parsed.
     """
-    from app.services.hybrid_ner_service import perform_hybrid_ner, HybridNERService
+    from app.services.hybrid_ner_service import HybridNERService, perform_hybrid_ner
 
     file_store, _file_store_lock = _store_and_lock()
 
@@ -83,7 +83,7 @@ async def run_hybrid_ner(file_id: str, entity_type_ids: Optional[list[str]] = No
 
     content = snapshot["content"]
 
-    from app.services.entity_type_service import get_enabled_types, entity_types_db
+    from app.services.entity_type_service import entity_types_db, get_enabled_types
 
     if entity_type_ids:
         entity_types = [entity_types_db[tid] for tid in entity_type_ids if tid in entity_types_db]

@@ -4,9 +4,6 @@
 """
 from __future__ import annotations
 
-import httpx
-from typing import Optional
-
 from fastapi import APIRouter
 
 from app.core.config import get_settings
@@ -16,11 +13,11 @@ from app.core.ner_runtime import NerBackendRuntime, load_ner_runtime, save_ner_r
 router = APIRouter(prefix="/ner-backend", tags=["文本NER后端"])
 
 
-def _with_hint(msg: str, hint: Optional[str]) -> str:
+def _with_hint(msg: str, hint: str | None) -> str:
     return f"{msg} {hint}" if hint else msg
 
 
-def _saved_vs_form_hint(body: NerBackendRuntime) -> Optional[str]:
+def _saved_vs_form_hint(body: NerBackendRuntime) -> str | None:
     """侧栏健康检查读的是已保存配置；若与当前表单不一致，提示用户。"""
     rt = load_ner_runtime()
     if rt is None:
@@ -59,6 +56,7 @@ async def put_ner_backend(body: NerBackendRuntime):
 async def delete_ner_backend():
     """删除运行时配置，恢复为环境变量 / .env 默认值。"""
     import os
+
     from app.core.config import get_settings
     path = os.path.join(get_settings().DATA_DIR, "ner_backend.json")
     if os.path.exists(path):

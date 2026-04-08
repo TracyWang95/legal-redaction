@@ -16,16 +16,18 @@ import os
 import re
 import uuid
 import zipfile
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from app.core.config import settings
 from app.core.file_validation import (  # canonical source; re-exported for backward compat
     MAGIC_BYTES,  # noqa: F401
-    TEXT_EXTENSIONS as _TEXT_EXTENSIONS,  # noqa: F401
     get_file_type,
     safe_path_in_dir,
     validate_magic_bytes,
+)
+from app.core.file_validation import (
+    TEXT_EXTENSIONS as _TEXT_EXTENSIONS,  # noqa: F401
 )
 from app.core.persistence import load_json
 from app.models.schemas import (
@@ -55,7 +57,7 @@ _file_store_lock = asyncio.Lock()
 # Helpers: sanitize / normalize
 # ---------------------------------------------------------------------------
 
-def sanitize_job_id(raw: Optional[str]) -> Optional[str]:
+def sanitize_job_id(raw: str | None) -> str | None:
     """任务中心 Job UUID，合法则绑定 job_items。"""
     if not raw or not str(raw).strip():
         return None
@@ -67,7 +69,7 @@ def sanitize_job_id(raw: Optional[str]) -> Optional[str]:
     return s
 
 
-def sanitize_upload_source(raw: Optional[str]) -> Optional[str]:
+def sanitize_upload_source(raw: str | None) -> str | None:
     if not raw or not str(raw).strip():
         return None
     s = str(raw).strip().lower()
@@ -86,7 +88,7 @@ def effective_upload_source(info: dict) -> str:
     return "playground"
 
 
-def sanitize_batch_group_id(raw: Optional[str]) -> Optional[str]:
+def sanitize_batch_group_id(raw: str | None) -> str | None:
     """批量向导会话 ID：UUID 或短标识，非法则忽略（视为单文件）。"""
     if not raw or not str(raw).strip():
         return None
@@ -175,7 +177,7 @@ def _candidate_storage_dirs(preferred_dir: str) -> list[str]:
     return out
 
 
-def _normalize_store_path(raw: object, preferred_dir: str) -> Optional[str]:
+def _normalize_store_path(raw: object, preferred_dir: str) -> str | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
     path = raw.strip()
@@ -278,7 +280,6 @@ from app.services.file_list_service import (  # noqa: E402, F401
     group_and_sort_items,
 )
 
-
 # ---------------------------------------------------------------------------
 # File upload processing
 # ---------------------------------------------------------------------------
@@ -288,9 +289,9 @@ async def process_upload(
     file_ext: str,
     filename: str,
     file_size: int,
-    batch_group_id: Optional[str],
-    job_id: Optional[str],
-    upload_source: Optional[str],
+    batch_group_id: str | None,
+    job_id: str | None,
+    upload_source: str | None,
 ) -> tuple:
     """
     Core upload processing after the file has been saved to disk.
@@ -322,7 +323,7 @@ async def process_upload(
     FILE_UPLOAD_TOTAL.labels(file_type=ft.value if hasattr(ft, 'value') else str(ft)).inc()
 
     file_id = os.path.splitext(os.path.basename(file_path))[0]
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
     jid = sanitize_job_id(job_id)
     bg = sanitize_batch_group_id(batch_group_id)
     if jid:
@@ -459,7 +460,7 @@ def build_batch_zip(request: BatchDownloadRequest) -> tuple[bytes, str]:
 # File info / download / delete helpers
 # ---------------------------------------------------------------------------
 
-async def get_file_info(file_id: str) -> Optional[dict[str, Any]]:
+async def get_file_info(file_id: str) -> dict[str, Any] | None:
     """Get file info dict under lock, or None."""
     async with _file_store_lock:
         info = file_store.get(file_id)
@@ -468,7 +469,7 @@ async def get_file_info(file_id: str) -> Optional[dict[str, Any]]:
         return dict(info)
 
 
-async def get_file_snapshot(file_id: str) -> Optional[dict[str, Any]]:
+async def get_file_snapshot(file_id: str) -> dict[str, Any] | None:
     """Get a snapshot (copy) of file info under lock."""
     async with _file_store_lock:
         info = file_store.get(file_id)
@@ -477,7 +478,7 @@ async def get_file_snapshot(file_id: str) -> Optional[dict[str, Any]]:
         return dict(info)
 
 
-async def delete_file(file_id: str) -> Optional[dict[str, Any]]:
+async def delete_file(file_id: str) -> dict[str, Any] | None:
     """
     Delete file from store and disk. Returns the snapshot of deleted info,
     or None if file not found.
@@ -510,7 +511,6 @@ from app.services.file_processing_service import (  # noqa: E402, F401
     run_default_ner,
     run_hybrid_ner,
 )
-
 
 # ---------------------------------------------------------------------------
 # Public accessor functions — use these instead of importing module-level

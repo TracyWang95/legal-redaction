@@ -5,17 +5,16 @@
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.models.schemas import ToggleResponse, MessageResponse
+from app.models.schemas import MessageResponse, ToggleResponse
+from app.services import entity_type_service
 from app.services.entity_type_service import (
+    CreateEntityTypeRequest,
     EntityTypeConfig,
     EntityTypesResponse,
-    CreateEntityTypeRequest,
-    UpdateEntityTypeRequest,
     RegexTestRequest,
     RegexTestResult,
+    UpdateEntityTypeRequest,
 )
-from app.services import entity_type_service
-
 
 router = APIRouter()
 

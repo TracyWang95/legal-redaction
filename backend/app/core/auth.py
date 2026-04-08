@@ -1,15 +1,14 @@
 """Authentication module - JWT + local password."""
-import os
-import json
 import hashlib
 import hmac
+import json
+import os
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
-from fastapi import Request, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
+from fastapi import Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
 from app.core.token_blacklist import get_blacklist
@@ -21,7 +20,7 @@ _AUTH_FILE = os.path.join(settings.DATA_DIR, "auth.json")
 
 def _load_auth() -> dict:
     if os.path.exists(_AUTH_FILE):
-        with open(_AUTH_FILE, "r") as f:
+        with open(_AUTH_FILE) as f:
             return json.load(f)
     return {}
 
@@ -55,7 +54,7 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def create_token(subject: str = "local_user") -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
     payload = {
         "sub": subject,
         "exp": expire,
@@ -121,8 +120,8 @@ def check_password(password: str) -> bool:
 
 async def require_auth(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-) -> Optional[str]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+) -> str | None:
     """Dependency: require valid JWT if AUTH_ENABLED."""
     if not settings.AUTH_ENABLED:
         return "anonymous"

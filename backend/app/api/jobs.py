@@ -9,22 +9,29 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette.responses import StreamingResponse
 
+import app.services.job_management_service as _jms
 from app.core.audit import audit_log
 from app.models.schemas import (
-    JobResponse, JobItemResponse, JobListResponse, JobDetailResponse,
-    JobDeleteResponse, JobProgressResponse, ReviewDraftResponse,
-    JobCreateBody, JobItemAddBody, JobUpdateBody, ReviewDraftBody, ReviewCommitBody,
+    JobCreateBody,
+    JobDeleteResponse,
+    JobDetailResponse,
+    JobItemAddBody,
+    JobItemResponse,
+    JobListResponse,
+    JobResponse,
+    JobUpdateBody,
+    ReviewCommitBody,
+    ReviewDraftBody,
+    ReviewDraftResponse,
 )
 from app.services.job_store import JobStore, get_job_store
-
-import app.services.job_management_service as _jms
 
 router = APIRouter(prefix="/jobs", tags=["batch jobs"])
 
@@ -48,7 +55,7 @@ async def create_job(body: JobCreateBody, store: JobStore = Depends(get_job_stor
 
 @router.get("", response_model=JobListResponse)
 async def list_jobs(
-    job_type: Optional[str] = Query(None),
+    job_type: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     store: JobStore = Depends(get_job_store),

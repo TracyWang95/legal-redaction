@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import base64
-from typing import Any, List, Optional
+from typing import Any
 
 import httpx
 
 from app.core.config import settings
-from app.core.retry import retry_async, RETRYABLE_HTTPX
+from app.core.retry import RETRYABLE_HTTPX, retry_async
 
 
 async def _do_detect_request(url: str, body: dict) -> httpx.Response:
@@ -20,9 +20,9 @@ async def _do_detect_request(url: str, body: dict) -> httpx.Response:
 
 async def detect_privacy_regions(
     image_data: bytes,
-    conf: Optional[float] = None,
-    category_slugs: Optional[List[str]] = None,
-) -> List[dict[str, Any]]:
+    conf: float | None = None,
+    category_slugs: list[str] | None = None,
+) -> list[dict[str, Any]]:
     """
     返回服务端 boxes 列表 dict:
     x, y, width, height (0-1), category (slug), confidence

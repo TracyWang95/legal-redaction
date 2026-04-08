@@ -11,13 +11,12 @@ from __future__ import annotations
 
 import base64
 import logging
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from app.core.persistence import to_jsonable
 from app.models.schemas import (
     CompareData,
-    Entity,
     EntityType,
     PreviewEntityMapResponse,
     PreviewImageResponse,
@@ -25,7 +24,6 @@ from app.models.schemas import (
     RedactionReport,
     RedactionRequest,
     RedactionResult,
-    RedactionVersionsResponse,
     ReplacementMode,
     VisionResult,
 )
@@ -95,7 +93,7 @@ async def execute_redaction(request: RedactionRequest) -> RedactionResult:
                 "redacted_count": result["redacted_count"],
                 "entity_map": result.get("entity_map", {}),
                 "mode": request.config.replacement_mode.value if hasattr(request.config.replacement_mode, 'value') else str(request.config.replacement_mode),
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
             }
             if "redaction_history" not in info:
                 info["redaction_history"] = []
@@ -112,7 +110,7 @@ async def execute_redaction(request: RedactionRequest) -> RedactionResult:
     )
 
     # Prometheus metrics
-    from app.core.metrics import REDACTION_DURATION, REDACTION_COUNT
+    from app.core.metrics import REDACTION_COUNT, REDACTION_DURATION
     ft = (file_store.get(file_id) or {}).get("file_type", "unknown")
     REDACTION_DURATION.labels(file_type=str(ft)).observe(_time.perf_counter() - _t0)
     mode_val = request.config.replacement_mode.value if hasattr(request.config.replacement_mode, 'value') else str(request.config.replacement_mode)
@@ -206,8 +204,8 @@ def get_versions(file_id: str) -> dict[str, Any]:
 async def detect_vision(
     file_id: str,
     page: int = 1,
-    selected_ocr_has_types: Optional[list[str]] = None,
-    selected_has_image_types: Optional[list[str]] = None,
+    selected_ocr_has_types: list[str] | None = None,
+    selected_has_image_types: list[str] | None = None,
     has_request: bool = True,
 ) -> VisionResult:
     """
@@ -229,8 +227,8 @@ async def detect_vision(
     all_ocr_has_types = get_pipeline_types_for_mode("ocr_has")
     all_has_image_types = get_pipeline_types_for_mode("has_image")
 
-    sel_ocr_ids: Optional[set[str]] = None
-    sel_img_ids: Optional[set[str]] = None
+    sel_ocr_ids: set[str] | None = None
+    sel_img_ids: set[str] | None = None
 
     if not has_request:
         sel_img_ids = set()

@@ -4,13 +4,12 @@
 维护实体映射关系，确保同一实体在文档中的一致性
 """
 import logging
-from typing import Optional, Dict
 
 from app.models.schemas import (
     Entity,
+    EntityType,
     RedactionConfig,
     ReplacementMode,
-    EntityType,
 )
 
 logger = logging.getLogger(__name__)
@@ -179,7 +178,7 @@ class RedactionContext:
         label = type_key
         return f"<{label}[{index:03d}].完整名称>"
 
-    def _get_tag_template(self, type_key: str) -> Optional[str]:
+    def _get_tag_template(self, type_key: str) -> str | None:
         try:
             from app.services.entity_type_service import entity_types_db
             cfg = entity_types_db.get(type_key)
@@ -190,7 +189,7 @@ class RedactionContext:
         return None
 
 
-def build_preview_entity_map(entities: list[Entity], config: RedactionConfig) -> Dict[str, str]:
+def build_preview_entity_map(entities: list[Entity], config: RedactionConfig) -> dict[str, str]:
     """
     计算与 execute 一致的「原文 -> 替换」映射，不落盘、不写文件。
     供批量向导第 4 步与 Playground 一致的三列预览。

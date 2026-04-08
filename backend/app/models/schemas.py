@@ -11,11 +11,11 @@ Domain files:
   config_schemas.py   — ModelConfig, ModelConfigList
   preset_schemas.py   — Preset CRUD models
 """
-from .common import *            # noqa: F401,F403
-from .entity_schemas import *    # noqa: F401,F403
-from .redaction_schemas import * # noqa: F401,F403
-from .job_schemas import *       # noqa: F401,F403
-from .file_schemas import *      # noqa: F401,F403
-from .vision_schemas import *    # noqa: F401,F403
-from .config_schemas import *    # noqa: F401,F403
-from .preset_schemas import *    # noqa: F401,F403
+from .common import *  # noqa: F401,F403
+from .config_schemas import *  # noqa: F401,F403
+from .entity_schemas import *  # noqa: F401,F403
+from .file_schemas import *  # noqa: F401,F403
+from .job_schemas import *  # noqa: F401,F403
+from .preset_schemas import *  # noqa: F401,F403
+from .redaction_schemas import *  # noqa: F401,F403
+from .vision_schemas import *  # noqa: F401,F403

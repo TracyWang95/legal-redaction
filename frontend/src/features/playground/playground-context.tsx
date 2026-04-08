@@ -199,7 +199,6 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
   );
 
   // UI context — explicit property-level deps to avoid re-renders when `ui` ref changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const uiValue = useMemo(
     () => ui,
     [

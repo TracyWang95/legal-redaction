@@ -5,9 +5,9 @@ Re-export public API for backward compatibility.
 Usage:
     from app.services.redaction import Redactor, RedactionContext, build_preview_entity_map
 """
+from app.services.redaction.image_redactor import ImageRedactorMixin
 from app.services.redaction.replacement_strategy import RedactionContext, build_preview_entity_map
 from app.services.redaction.text_redactor import TextRedactorMixin
-from app.services.redaction.image_redactor import ImageRedactorMixin
 
 # Redactor is defined in the parent redactor.py (thin orchestrator)
 # and re-exported here once that module imports it.

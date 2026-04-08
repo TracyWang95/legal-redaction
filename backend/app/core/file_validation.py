@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from app.core.config import settings
 from app.models.schemas import FileType
@@ -63,7 +62,7 @@ def validate_extension(ext: str) -> bool:
     return ext in settings.ALLOWED_EXTENSIONS
 
 
-def get_file_type(filename: str) -> Optional[FileType]:
+def get_file_type(filename: str) -> FileType | None:
     """Infer :class:`FileType` from file extension. Returns ``None`` for
     unsupported types (caller should raise an appropriate error)."""
     ext = os.path.splitext(filename)[1].lower()

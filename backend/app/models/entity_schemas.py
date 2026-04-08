@@ -2,9 +2,10 @@
 Entity and bounding-box models, custom entity type definitions,
 and entity-type list responses.
 """
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 __all__ = [
     "Entity",
@@ -44,12 +45,12 @@ class CustomEntityTypeCreate(BaseModel):
 
 class CustomEntityTypeUpdate(BaseModel):
     """更新自定义实体类型请求"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    examples: Optional[list[str]] = None
-    color: Optional[str] = None
-    replacement_template: Optional[str] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    examples: list[str] | None = None
+    color: str | None = None
+    replacement_template: str | None = None
+    enabled: bool | None = None
 
 
 # ============ 请求模型 ============
@@ -63,13 +64,13 @@ class Entity(BaseModel):
     end: int = Field(..., description="结束位置")
     page: int = Field(default=1, description="所在页码")
     confidence: float = Field(default=1.0, description="置信度")
-    source: Optional[Literal["regex", "llm", "manual", "has"]] = Field(
+    source: Literal["regex", "llm", "manual", "has"] | None = Field(
         default=None, description="实体来源"
     )
-    coref_id: Optional[str] = Field(None, description="指代消解ID")
-    replacement: Optional[str] = Field(None, description="替换文本")
+    coref_id: str | None = Field(None, description="指代消解ID")
+    replacement: str | None = Field(None, description="替换文本")
     selected: bool = Field(default=True, description="是否选中进行匿名化")
-    custom_type_id: Optional[str] = Field(None, description="自定义类型ID（如果是自定义类型）")
+    custom_type_id: str | None = Field(None, description="自定义类型ID（如果是自定义类型）")
 
 
 class BoundingBox(BaseModel):
@@ -81,9 +82,9 @@ class BoundingBox(BaseModel):
     height: float = Field(..., description="高度")
     page: int = Field(default=1, description="所在页码")
     type: str = Field(..., description="实体类型")
-    text: Optional[str] = Field(None, description="识别到的文本")
+    text: str | None = Field(None, description="识别到的文本")
     selected: bool = Field(default=True, description="是否选中进行匿名化")
-    source: Optional[Literal["ocr_has", "has_image", "manual"]] = Field(
+    source: Literal["ocr_has", "has_image", "manual"] | None = Field(
         default=None, description="来源: ocr_has=OCR+HaS, has_image=HaS Image YOLO, manual=手动"
     )
 

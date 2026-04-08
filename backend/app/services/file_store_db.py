@@ -11,7 +11,8 @@ import logging
 import os
 import sqlite3
 import threading
-from typing import Any, Iterator, Optional
+from collections.abc import Iterator
+from typing import Any
 
 from app.core.persistence import to_jsonable
 
@@ -55,7 +56,7 @@ class FileStoreDB:
             conn.executescript(_SCHEMA)
             conn.commit()
 
-    def get(self, file_id: str) -> Optional[dict]:
+    def get(self, file_id: str) -> dict | None:
         with self._lock:
             with self._connect() as conn:
                 row = conn.execute(
@@ -171,7 +172,7 @@ class FileStoreDB:
         if not os.path.exists(json_path):
             return 0
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 old_data = json.load(f)
         except (json.JSONDecodeError, OSError):
             return 0

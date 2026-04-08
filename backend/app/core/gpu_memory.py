@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 
 # ---------------------------------------------------------------------------
 # Module-level state
@@ -205,8 +204,7 @@ def _ensure_nvml_dll_windows() -> None:
         nvml = os.path.join(d, "nvml.dll")
         if os.path.isfile(nvml):
             try:
-                if sys.version_info >= (3, 8):
-                    os.add_dll_directory(d)
+                os.add_dll_directory(d)
             except (OSError, AttributeError):
                 pass
             path_prefix.append(d)

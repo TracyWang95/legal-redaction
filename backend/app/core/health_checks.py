@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import httpx
 
-from app.core.config import get_has_display_name, get_has_chat_base_url, get_has_health_check_url
+from app.core.config import get_has_chat_base_url, get_has_display_name
 
 # ---------------------------------------------------------------------------
 # Shared HTTP client (connection-pooled singleton)

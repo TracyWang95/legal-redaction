@@ -8,24 +8,24 @@
 import logging
 import os
 import uuid
-from typing import Optional, Any
+from typing import Any
 
 from app.core.config import settings
 from app.models.schemas import (
-    Entity,
     BoundingBox,
-    RedactionConfig,
+    Entity,
     FileType,
+    RedactionConfig,
 )
-from app.services.vision_service import VisionService
+from app.services.redaction.image_redactor import ImageRedactorMixin
 
 # ---- Re-export 公共符号，保持向后兼容 ----
-from app.services.redaction.replacement_strategy import (   # noqa: F401
+from app.services.redaction.replacement_strategy import (  # noqa: F401
     RedactionContext,
     build_preview_entity_map,
 )
 from app.services.redaction.text_redactor import TextRedactorMixin
-from app.services.redaction.image_redactor import ImageRedactorMixin
+from app.services.vision_service import VisionService
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class Redactor(TextRedactorMixin, ImageRedactorMixin):
     def __init__(self):
         self.vision_service = VisionService()
 
-    def _resolve_existing_path(self, raw_path: Any, preferred_dir: str) -> Optional[str]:
+    def _resolve_existing_path(self, raw_path: Any, preferred_dir: str) -> str | None:
         """Resolve legacy relative storage paths against the configured storage directory."""
         if not isinstance(raw_path, str) or not raw_path.strip():
             return None
@@ -151,7 +151,7 @@ class Redactor(TextRedactorMixin, ImageRedactorMixin):
             "entity_map": context.entity_map,
         }
 
-    async def _convert_doc_to_docx(self, file_path: str) -> Optional[str]:
+    async def _convert_doc_to_docx(self, file_path: str) -> str | None:
         """将 .doc 转换为 .docx（复用 FileParser 逻辑）"""
         try:
             from app.services.file_parser import FileParser

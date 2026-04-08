@@ -12,7 +12,8 @@ natively support cancellation.
 
 import multiprocessing
 import re
-from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 
 
 class RegexTimeoutError(ValueError):

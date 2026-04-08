@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import base64
 import logging
-import httpx
 from dataclasses import dataclass
-from typing import List
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
-from app.core.config import settings
-from app.core.retry import retry_sync, RETRYABLE_HTTPX
 from app.core.circuit_breaker import ocr_breaker
+from app.core.config import settings
+from app.core.retry import RETRYABLE_HTTPX, retry_sync
 
 
 class OCRServiceError(Exception):
@@ -79,7 +79,7 @@ class OCRService:
             )
         return ocr_breaker.call_sync(_request)
 
-    def extract_text_boxes(self, image_bytes: bytes) -> List[OCRItem]:
+    def extract_text_boxes(self, image_bytes: bytes) -> list[OCRItem]:
         """调用 OCR 微服务提取文本框"""
         if not image_bytes:
             return []

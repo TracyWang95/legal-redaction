@@ -5,10 +5,9 @@
 import json
 import logging
 import os
-import re
 from collections import Counter
 from datetime import datetime
-from typing import Optional, Any
+from typing import Any
 
 import fitz
 from docx import Document
@@ -89,9 +88,9 @@ class TextRedactorMixin:
         self,
         para,
         replacements: dict[str, str],
-        para_idx: Optional[int] = None,
+        para_idx: int | None = None,
         trace_enabled: bool = False,
-        trace_path: Optional[str] = None,
+        trace_path: str | None = None,
     ) -> int:
         """在段落内进行 run 级替换，尽量保留原始格式"""
         if not replacements:
@@ -326,13 +325,13 @@ class TextRedactorMixin:
         content = None
         for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
             try:
-                with open(input_path, "r", encoding=enc) as f:
+                with open(input_path, encoding=enc) as f:
                     content = f.read()
                 break
             except (UnicodeDecodeError, ValueError):
                 continue
         if content is None:
-            with open(input_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(input_path, encoding="utf-8", errors="replace") as f:
                 content = f.read()
 
         # 构建替换映射
@@ -447,11 +446,11 @@ class TextRedactorMixin:
         """读取纯文本文件（兼容多编码）"""
         for enc in ("utf-8", "gbk", "gb2312", "latin-1"):
             try:
-                with open(file_path, "r", encoding=enc) as f:
+                with open(file_path, encoding=enc) as f:
                     return f.read()
             except (UnicodeDecodeError, ValueError):
                 continue
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             return f.read()
 
     def _safe_extract_text(self, file_path: str, ft: str) -> str:

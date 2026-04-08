@@ -17,11 +17,11 @@ import logging
 import re
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any
 
 from PIL import Image, ImageOps
 
-from app.services.hybrid_vision_service import SensitiveRegion, OCRTextBlock
+from app.services.hybrid_vision_service import OCRTextBlock, SensitiveRegion
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # Image preparation
 # ---------------------------------------------------------------------------
 
-def prepare_image(image_bytes: bytes) -> Tuple[Image.Image, int, int]:
+def prepare_image(image_bytes: bytes) -> tuple[Image.Image, int, int]:
     """Decode image bytes, apply EXIF orientation, convert to RGB."""
     image = Image.open(io.BytesIO(image_bytes))
     image = ImageOps.exif_transpose(image)
@@ -46,7 +46,7 @@ def prepare_image(image_bytes: bytes) -> Tuple[Image.Image, int, int]:
 def run_paddle_ocr(
     image: Image.Image,
     ocr_service: Any,
-) -> Tuple[List[OCRTextBlock], List[SensitiveRegion]]:
+) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
     """
     Call PaddleOCR-VL microservice (port 8082) to extract text blocks and visual
     regions (e.g. seals).
@@ -73,7 +73,7 @@ def run_paddle_ocr(
 def _run_ocr_service(
     image: Image.Image,
     ocr_service: Any,
-) -> Tuple[List[OCRTextBlock], List[SensitiveRegion]]:
+) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
     """Low-level call to OCRService (PaddleOCR-VL) and result conversion."""
     if not ocr_service or not ocr_service.is_available():
         return [], []
@@ -94,8 +94,8 @@ def _run_ocr_service(
         return [], []
 
     width, height = image.size
-    blocks: List[OCRTextBlock] = []
-    visual_regions: List[SensitiveRegion] = []
+    blocks: list[OCRTextBlock] = []
+    visual_regions: list[SensitiveRegion] = []
 
     for item in items:
         left = int(item.x * width)
@@ -147,21 +147,21 @@ def _run_ocr_service(
 # HTML table expansion
 # ---------------------------------------------------------------------------
 
-def extract_table_cells(table_html: str, block: OCRTextBlock) -> List[OCRTextBlock]:
+def extract_table_cells(table_html: str, block: OCRTextBlock) -> list[OCRTextBlock]:
     """
     Parse an HTML table and create virtual OCRTextBlock per cell.
 
     Cell positions are estimated from row/column indices and the parent block's
     bounding box.
     """
-    rows: List[List[tuple]] = []
+    rows: list[list[tuple]] = []
 
     class TableCellParser(HTMLParser):
         def __init__(self):
             super().__init__()
             self.in_cell = False
             self.current_cell = ""
-            self.current_row: List[tuple] = []
+            self.current_row: list[tuple] = []
             self.current_colspan = 1
 
         def handle_starttag(self, tag, attrs):
@@ -215,7 +215,7 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> List[OCRTextBlo
     row_height = max(block.height / num_rows, 1.0)
     col_width = max(block.width / num_cols, 1.0)
 
-    virtual_blocks: List[OCRTextBlock] = []
+    virtual_blocks: list[OCRTextBlock] = []
     for r_idx, row in enumerate(rows):
         col_idx = 0
         for cell_text, colspan in row:
@@ -241,9 +241,9 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> List[OCRTextBlo
     return virtual_blocks
 
 
-def expand_table_blocks(ocr_blocks: List[OCRTextBlock]) -> List[OCRTextBlock]:
+def expand_table_blocks(ocr_blocks: list[OCRTextBlock]) -> list[OCRTextBlock]:
     """Expand HTML table blocks into per-cell blocks for cleaner NER input."""
-    expanded: List[OCRTextBlock] = []
+    expanded: list[OCRTextBlock] = []
     for block in ocr_blocks:
         if block.text.startswith("<table") and "</table>" in block.text:
             cell_blocks = extract_table_cells(block.text, block)
@@ -271,10 +271,10 @@ def expand_table_blocks(ocr_blocks: List[OCRTextBlock]) -> List[OCRTextBlock]:
 # ---------------------------------------------------------------------------
 
 async def run_has_text_analysis(
-    ocr_blocks: List[OCRTextBlock],
+    ocr_blocks: list[OCRTextBlock],
     has_client: Any,
-    vision_types: Optional[list] = None,
-) -> List[Dict[str, str]]:
+    vision_types: list | None = None,
+) -> list[dict[str, str]]:
     """
     Analyse OCR text with HaS local NER model to identify sensitive entities.
     Fully offline - no cloud API dependency.
@@ -318,7 +318,7 @@ async def run_has_text_analysis(
         logger.info("HaS analyzing %d text blocks...", len(all_texts))
 
         # ----- type ID <-> Chinese name mappings -----
-        from app.models.type_mapping import TYPE_ID_TO_CN as id_to_chinese
+        from app.models.type_mapping import TYPE_ID_TO_CN
 
         VISUAL_ONLY_TYPES = {
             "SEAL", "SIGNATURE", "FINGERPRINT", "PHOTO",
@@ -330,8 +330,8 @@ async def run_has_text_analysis(
             for vt in vision_types:
                 if vt.id in VISUAL_ONLY_TYPES:
                     continue
-                if vt.id in id_to_chinese:
-                    chinese_types.append(id_to_chinese[vt.id])
+                if vt.id in TYPE_ID_TO_CN:
+                    chinese_types.append(TYPE_ID_TO_CN[vt.id])
                 else:
                     chinese_types.append(vt.name)
             chinese_types = list(dict.fromkeys(chinese_types))
@@ -361,7 +361,7 @@ async def run_has_text_analysis(
 
         if vision_types:
             for vt in vision_types:
-                if vt.id not in id_to_chinese:
+                if vt.id not in TYPE_ID_TO_CN:
                     chinese_to_id[vt.name] = vt.id
 
         entities = []
@@ -404,18 +404,18 @@ async def run_has_text_analysis(
 # ---------------------------------------------------------------------------
 
 def match_entities_to_ocr(
-    ocr_blocks: List[OCRTextBlock],
-    entities: List[Dict[str, str]],
-) -> List[SensitiveRegion]:
+    ocr_blocks: list[OCRTextBlock],
+    entities: list[dict[str, str]],
+) -> list[SensitiveRegion]:
     """
     Match HaS-detected entities to OCR text blocks using text matching to get
     precise bounding boxes.  Supports sub-word positioning, HTML table expansion,
     and fuzzy matching.
     """
-    regions: List[SensitiveRegion] = []
+    regions: list[SensitiveRegion] = []
 
     # Expand HTML tables into virtual cell blocks
-    expanded_blocks: List[OCRTextBlock] = []
+    expanded_blocks: list[OCRTextBlock] = []
     for block in ocr_blocks:
         if block.text.startswith("<table") and "</table>" in block.text:
             cell_blocks = extract_table_cells(block.text, block)
@@ -544,9 +544,9 @@ def match_entities_to_ocr(
 # ---------------------------------------------------------------------------
 
 def apply_regex_rules(
-    ocr_blocks: List[OCRTextBlock],
-    entity_types: List[str],
-) -> List[SensitiveRegion]:
+    ocr_blocks: list[OCRTextBlock],
+    entity_types: list[str],
+) -> list[SensitiveRegion]:
     """
     Apply regex patterns to OCR text blocks for supplementary sensitive-info
     detection (IDs, phone numbers, emails, bank cards, etc.).
@@ -568,7 +568,7 @@ def apply_regex_rules(
         "DATE": r"(?:\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)|(?:\d{4}年\d{1,2}月\d{1,2}日)",
     }
 
-    regions: List[SensitiveRegion] = []
+    regions: list[SensitiveRegion] = []
 
     for block in ocr_blocks:
         block_text = block.text

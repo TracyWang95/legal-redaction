@@ -8,14 +8,12 @@ from __future__ import annotations
 import os as _os
 import re
 import uuid
-from typing import Dict, List, Optional
-
-from pydantic import BaseModel, Field
 from enum import Enum
 
-from app.core.persistence import load_json, save_json
-from app.core.config import settings
+from pydantic import BaseModel, Field
 
+from app.core.config import settings
+from app.core.persistence import load_json, save_json
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -35,20 +33,20 @@ class EntityTypeConfig(BaseModel):
         default=IdentifierCategory.QUASI,
         description="标识符类别（GB/T 37964-2019）：direct=直接标识符, quasi=准标识符, sensitive=敏感属性",
     )
-    description: Optional[str] = Field(None, description="语义描述，用于指导LLM识别")
-    examples: List[str] = Field(default_factory=list, description="示例文本")
+    description: str | None = Field(None, description="语义描述，用于指导LLM识别")
+    examples: list[str] = Field(default_factory=list, description="示例文本")
     color: str = Field(default="#6B7280", description="前端显示颜色")
-    regex_pattern: Optional[str] = Field(None, description="正则表达式（优先使用）")
+    regex_pattern: str | None = Field(None, description="正则表达式（优先使用）")
     use_llm: bool = Field(default=True, description="是否使用LLM识别（无正则时必须为True）")
     enabled: bool = Field(default=True, description="是否启用")
     order: int = Field(default=100, description="排序权重")
-    tag_template: Optional[str] = Field(None, description="结构化标签模板，如 <组织[{index}].企业.完整名称>")
+    tag_template: str | None = Field(None, description="结构化标签模板，如 <组织[{index}].企业.完整名称>")
     risk_level: int = Field(default=2, description="重标识风险等级 1-5，参考 GB/T 37964-2019 第4.3节")
 
 
 class EntityTypesResponse(BaseModel):
     """实体类型列表响应"""
-    custom_types: List[EntityTypeConfig]
+    custom_types: list[EntityTypeConfig]
     total: int
     page: int = 1
     page_size: int = 50
@@ -57,25 +55,25 @@ class EntityTypesResponse(BaseModel):
 class CreateEntityTypeRequest(BaseModel):
     """创建实体类型请求"""
     name: str
-    description: Optional[str] = None
-    examples: List[str] = []
+    description: str | None = None
+    examples: list[str] = []
     color: str = "#6B7280"
-    regex_pattern: Optional[str] = None
+    regex_pattern: str | None = None
     use_llm: bool = True
-    tag_template: Optional[str] = None
+    tag_template: str | None = None
 
 
 class UpdateEntityTypeRequest(BaseModel):
     """更新实体类型请求"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    examples: Optional[List[str]] = None
-    color: Optional[str] = None
-    regex_pattern: Optional[str] = None
-    use_llm: Optional[bool] = None
-    enabled: Optional[bool] = None
-    order: Optional[int] = None
-    tag_template: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    examples: list[str] | None = None
+    color: str | None = None
+    regex_pattern: str | None = None
+    use_llm: bool | None = None
+    enabled: bool | None = None
+    order: int | None = None
+    tag_template: str | None = None
 
 
 class RegexTestRequest(BaseModel):
@@ -95,19 +93,19 @@ _PRESET_JSON_PATH = _os.path.join(
     _os.path.dirname(__file__), "..", "..", "config", "preset_entity_types.json"
 )
 _raw_presets = load_json(_PRESET_JSON_PATH, default={})
-PRESET_ENTITY_TYPES: Dict[str, EntityTypeConfig] = {
+PRESET_ENTITY_TYPES: dict[str, EntityTypeConfig] = {
     k: EntityTypeConfig(**v) for k, v in _raw_presets.items()
 }
 
 
 # ── 持久化 ────────────────────────────────────────────────
 
-def _load_entity_types() -> Dict[str, EntityTypeConfig]:
+def _load_entity_types() -> dict[str, EntityTypeConfig]:
     """Load entity types from disk, merging with presets."""
     raw = load_json(settings.ENTITY_TYPES_STORE_PATH, default=None)
     if raw is None or not isinstance(raw, dict):
         return {k: v.model_copy() if hasattr(v, "model_copy") else v for k, v in PRESET_ENTITY_TYPES.items()}
-    merged: Dict[str, EntityTypeConfig] = {}
+    merged: dict[str, EntityTypeConfig] = {}
     for key, preset in PRESET_ENTITY_TYPES.items():
         if key in raw:
             try:
@@ -130,23 +128,23 @@ def _persist_entity_types() -> None:
 
 
 # 内存存储（启动时从磁盘恢复）
-entity_types_db: Dict[str, EntityTypeConfig] = _load_entity_types()
+entity_types_db: dict[str, EntityTypeConfig] = _load_entity_types()
 _persist_entity_types()
 
 
 # ── 公共查询 ──────────────────────────────────────────────
 
-def get_enabled_types() -> List[EntityTypeConfig]:
+def get_enabled_types() -> list[EntityTypeConfig]:
     """获取所有启用的实体类型"""
     return [t for t in entity_types_db.values() if t.enabled]
 
 
-def get_regex_types() -> List[EntityTypeConfig]:
+def get_regex_types() -> list[EntityTypeConfig]:
     """获取使用正则识别的类型"""
     return [t for t in entity_types_db.values() if t.enabled and t.regex_pattern]
 
 
-def get_llm_types() -> List[EntityTypeConfig]:
+def get_llm_types() -> list[EntityTypeConfig]:
     """获取使用LLM识别的类型"""
     return [t for t in entity_types_db.values() if t.enabled and t.use_llm]
 
@@ -252,6 +250,6 @@ def test_regex(pattern: str, test_text: str) -> RegexTestResult:
 # so other layers don't couple to the module-level mutable dict.
 # ---------------------------------------------------------------------------
 
-def get_entity_types_db() -> Dict[str, EntityTypeConfig]:
+def get_entity_types_db() -> dict[str, EntityTypeConfig]:
     """Return the in-memory entity-types dictionary."""
     return entity_types_db

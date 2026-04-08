@@ -2,10 +2,11 @@
 Job (task-center) request/response models: create, list, detail,
 progress, review-draft, and related bodies.
 """
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, List, Optional, Literal
+from typing import Any, Literal
 
-from .entity_schemas import Entity, BoundingBox
+from pydantic import BaseModel, ConfigDict, Field
+
+from .entity_schemas import BoundingBox, Entity
 
 __all__ = [
     "JobItemMini",
@@ -62,11 +63,11 @@ class JobEmbedSummary(BaseModel):
     job_type: Literal["text_batch", "image_batch", "smart_batch"]
     items: list[JobItemMini] = Field(default_factory=list)
     progress: JobProgress = Field(default_factory=JobProgress)
-    wizard_furthest_step: Optional[int] = Field(
+    wizard_furthest_step: int | None = Field(
         default=None,
         description="来自任务 config，供历史页主 CTA 与任务中心「继续上传」一致",
     )
-    first_awaiting_review_item_id: Optional[str] = Field(
+    first_awaiting_review_item_id: str | None = Field(
         default=None,
         description="与 /jobs 列表 nav_hints 一致，待审 deep-link 用",
     )
@@ -81,9 +82,9 @@ class NavHints(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     item_count: int = 0
-    first_awaiting_review_item_id: Optional[str] = None
+    first_awaiting_review_item_id: str | None = None
     batch_step1_configured: bool = False
-    wizard_furthest_step: Optional[int] = None
+    wizard_furthest_step: int | None = None
 
 
 class JobResponse(BaseModel):
@@ -97,12 +98,12 @@ class JobResponse(BaseModel):
     priority: int = 0
     skip_item_review: bool = False
     config: dict = Field(default_factory=dict)
-    config_json: Optional[str] = None
-    error_message: Optional[str] = None
+    config_json: str | None = None
+    error_message: str | None = None
     created_at: str
     updated_at: str
     progress: JobProgress = Field(default_factory=JobProgress)
-    nav_hints: Optional[NavHints] = None
+    nav_hints: NavHints | None = None
 
 
 class JobItemResponse(BaseModel):
@@ -114,18 +115,18 @@ class JobItemResponse(BaseModel):
     file_id: str
     sort_order: int = 0
     status: str
-    error_message: Optional[str] = None
-    reviewed_at: Optional[str] = None
-    reviewer: Optional[str] = None
-    review_draft_json: Optional[str] = None
+    error_message: str | None = None
+    reviewed_at: str | None = None
+    reviewer: str | None = None
+    review_draft_json: str | None = None
     created_at: str
     updated_at: str
-    filename: Optional[str] = None
-    file_type: Optional[str] = None
+    filename: str | None = None
+    file_type: str | None = None
     has_output: bool = False
     entity_count: int = 0
     has_review_draft: bool = False
-    review_draft_updated_at: Optional[str] = None
+    review_draft_updated_at: str | None = None
 
 
 class JobListResponse(BaseModel):
@@ -175,7 +176,7 @@ class ReviewDraftResponse(BaseModel):
     exists: bool
     entities: list = Field(default_factory=list)
     bounding_boxes: list = Field(default_factory=list)
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
 
 # ─── Job Request Models ───
@@ -194,16 +195,16 @@ class JobItemAddBody(BaseModel):
 
 
 class JobUpdateBody(BaseModel):
-    title: Optional[str] = None
-    config: Optional[dict[str, Any]] = None
-    skip_item_review: Optional[bool] = None
-    priority: Optional[int] = None
+    title: str | None = None
+    config: dict[str, Any] | None = None
+    skip_item_review: bool | None = None
+    priority: int | None = None
 
 
 class ReviewDraftBody(BaseModel):
     entities: list[Entity] = Field(default_factory=list)
     bounding_boxes: list[BoundingBox] = Field(default_factory=list)
-    updated_at: Optional[str] = None
+    updated_at: str | None = None
 
 
 class ReviewCommitBody(ReviewDraftBody):

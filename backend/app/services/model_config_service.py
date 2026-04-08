@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from app.core.config import settings
 from app.core.persistence import load_json, save_json
@@ -124,7 +123,7 @@ def get_configs() -> ModelConfigList:
     return load_configs()
 
 
-def get_active() -> Optional[ModelConfig]:
+def get_active() -> ModelConfig | None:
     configs = load_configs()
     if configs.active_id:
         for cfg in configs.configs:
@@ -205,7 +204,7 @@ def reset_configs() -> None:
 
 # ── 健康探测 ──────────────────────────────────────────────
 
-async def _probe_paddle_ocr_health(base_override: Optional[str] = None) -> dict:
+async def _probe_paddle_ocr_health(base_override: str | None = None) -> dict:
     """探测 PaddleOCR-VL：GET /health，检查 ready。"""
     import httpx
 

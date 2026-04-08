@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 from app.core.config import settings
 from app.core.persistence import to_jsonable
@@ -123,7 +123,7 @@ def job_config_dict(job_row: dict[str, Any]) -> dict[str, Any]:
 
 def file_meta_for_item(file_id: str) -> dict[str, Any]:
     """Get file metadata for a job item."""
-    from app.services.file_management_service import file_store, entity_count
+    from app.services.file_management_service import entity_count, file_store
 
     info = file_store.get(file_id)
     if not info:
@@ -218,7 +218,7 @@ def job_to_summary(row: dict[str, Any], store: JobStore) -> dict[str, Any]:
 def enqueue_task(task_type: str, job_id: str, item_id: str, file_id: str) -> None:
     """投递任务到进程内队列。"""
     try:
-        from app.services.task_queue import get_task_queue, TaskItem
+        from app.services.task_queue import TaskItem, get_task_queue
         queue = get_task_queue()
         queue.enqueue(TaskItem(
             job_id=job_id,
@@ -258,7 +258,7 @@ def resolve_committed_output_path(
     file_info: dict[str, Any],
     result: Any,
     stored_info: dict[str, Any],
-) -> Optional[str]:
+) -> str | None:
     candidates: list[str] = []
 
     for raw in (getattr(result, "output_path", None), stored_info.get("output_path")):
@@ -360,9 +360,9 @@ def create_job(store: JobStore, job_type_str: str, title: str, config: Any,
     return job_to_summary(row, store)
 
 
-def list_jobs(store: JobStore, job_type: Optional[str], page: int, page_size: int) -> dict[str, Any]:
+def list_jobs(store: JobStore, job_type: str | None, page: int, page_size: int) -> dict[str, Any]:
     """List jobs with pagination and optional type filter."""
-    jt_filter: Optional[JobType] = job_type_from_str(job_type) if job_type else None
+    jt_filter: JobType | None = job_type_from_str(job_type) if job_type else None
     rows, total = store.list_jobs(job_type=jt_filter, page=page, page_size=page_size)
     jobs = [job_to_summary(r, store) for r in rows]
     return {"jobs": jobs, "total": total, "page": page, "page_size": page_size}
@@ -396,7 +396,7 @@ def update_draft(store: JobStore, job_id: str, patch: dict[str, Any]) -> dict[st
     return job_to_summary(row2, store)
 
 
-def add_item(store: JobStore, job_id: str, file_id: str, sort_order: Optional[int]) -> dict[str, Any]:
+def add_item(store: JobStore, job_id: str, file_id: str, sort_order: int | None) -> dict[str, Any]:
     """Add an item to a draft job. Raises ValueError on errors."""
     row = store.get_job(job_id)
     if not row:

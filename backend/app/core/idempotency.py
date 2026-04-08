@@ -1,7 +1,7 @@
 """Simple in-memory idempotency key store for POST endpoints."""
-import time
 import logging
-from typing import Optional, Any
+import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ def _cleanup():
         del _store[k]
 
 
-def check_idempotency(key: Optional[str]) -> Optional[Any]:
+def check_idempotency(key: str | None) -> Any | None:
     """Check if an idempotency key has been used. Returns cached response or None."""
     if not key:
         return None
@@ -30,7 +30,7 @@ def check_idempotency(key: Optional[str]) -> Optional[Any]:
     return None
 
 
-def save_idempotency(key: Optional[str], response_data: Any) -> None:
+def save_idempotency(key: str | None, response_data: Any) -> None:
     """Save response for an idempotency key."""
     if not key:
         return

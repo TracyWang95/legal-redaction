@@ -10,16 +10,14 @@
 """
 
 import logging
-import re
 
 logger = logging.getLogger(__name__)
-from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
+from typing import Any
 
 from app.models.schemas import Entity
-from app.services.has_service import has_service, HaSService
+from app.services.has_service import HaSService, has_service
 from app.services.regex_service import regex_service as _regex_svc
-from typing import Any
 
 # 类型别名，兼容 EntityTypeConfig 和 CustomEntityType
 EntityTypeConfig = Any  # 只需要 id, name, regex_pattern, use_llm 等字段
@@ -35,8 +33,8 @@ class HybridEntity:
     end: int
     confidence: float
     source: str  # regex / has
-    tag: Optional[str] = None  # HaS格式标签
-    coref_id: Optional[str] = None  # 指代消解ID
+    tag: str | None = None  # HaS格式标签
+    coref_id: str | None = None  # 指代消解ID
 
 
 class HybridNERService:
@@ -49,21 +47,20 @@ class HybridNERService:
 
     def __init__(self, has_service_instance: HaSService = None):
         self.has_service = has_service_instance or has_service
-    
+
     async def extract(
         self,
         text: str,
-        entity_types: List[EntityTypeConfig],
-    ) -> List[Entity]:
+        entity_types: list[EntityTypeConfig],
+    ) -> list[Entity]:
         """
         混合识别主入口（HaS 仅使用 NER 单次推理；Hide 模式已移除）
         """
         import time as _time
         _t0 = _time.perf_counter()
-        all_entities: List[Entity] = []
+        all_entities: list[Entity] = []
 
         # 文本长度保护 — truncate to prevent OOM/timeout but warn clearly
-        truncated = False
         original_length = len(text)
         if original_length > self.MAX_TEXT_LENGTH:
             logger.warning(
@@ -71,7 +68,6 @@ class HybridNERService:
                 original_length, original_length / 1_048_576, self.MAX_TEXT_LENGTH,
             )
             text = text[:self.MAX_TEXT_LENGTH]
-            truncated = True
 
         # Stage 1: HaS 本地模型 NER
         logger.info("Stage 1: HaS 本地模型 NER...")
@@ -103,12 +99,12 @@ class HybridNERService:
         NER_ENTITY_COUNT.observe(len(validated_entities))
 
         return validated_entities
-    
+
     def _regex_extract(
         self,
         text: str,
         enabled_type_ids: set,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """正则识别 — 委托给 regex_service（单一数据源，避免重复维护模式）"""
         if not enabled_type_ids:
             return []
@@ -126,16 +122,16 @@ class HybridNERService:
                 source="regex",
             ))
         return entities
-    
+
     def _cross_validate(
         self,
-        entities: List[Entity],
+        entities: list[Entity],
         text: str,
-    ) -> List[Entity]:
+    ) -> list[Entity]:
         """交叉验证与指代消解"""
         if not entities:
             return []
-        
+
         # 1. 验证实体文本是否在原文中正确位置
         validated = []
         used_positions: set[tuple[int, int]] = set()
@@ -146,7 +142,7 @@ class HybridNERService:
                     validated.append(entity)
                     used_positions.add((entity.start, entity.end))
                     continue
-            
+
             # 尝试重新定位（避开已占用位置）
             start_index = 0
             while True:
@@ -162,13 +158,13 @@ class HybridNERService:
                     used_positions.add((found, end))
                     break
                 start_index = found + len(entity.text)
-        
+
         # 2. 去重（优先保留高置信度与正则结果）
-        def source_rank(source: Optional[str]) -> int:
+        def source_rank(source: str | None) -> int:
             order = {"regex": 3, "has": 2, "llm": 2, "manual": 1}
             return order.get(source or "", 0)
 
-        def type_priority(entity_type: Optional[str]) -> int:
+        def type_priority(entity_type: str | None) -> int:
             # 地址优先，避免“地点词”被误识别为机构
             priority = {
                 "ADDRESS": 3,
@@ -179,8 +175,8 @@ class HybridNERService:
                 "JUDGE": 2,
             }
             return priority.get(entity_type or "", 1)
-        
-        entity_map: Dict[tuple, Entity] = {}
+
+        entity_map: dict[tuple, Entity] = {}
         for entity in validated:
             key = (entity.start, entity.end)
             if key not in entity_map:
@@ -195,25 +191,25 @@ class HybridNERService:
                 elif source_rank(entity.source) == source_rank(existing.source):
                     if type_priority(entity.type) > type_priority(existing.type):
                         entity_map[key] = entity
-        
+
         deduped = list(entity_map.values())
-        
+
         # 3. 指代消解（相同文本+类型赋予相同coref_id）
-        text_type_to_coref: Dict[tuple, str] = {}
+        text_type_to_coref: dict[tuple, str] = {}
         coref_counter = 0
-        
+
         for entity in deduped:
             key = (entity.text, entity.type)
             if key not in text_type_to_coref:
                 coref_counter += 1
                 text_type_to_coref[key] = f"coref_{coref_counter:03d}"
             entity.coref_id = text_type_to_coref[key]
-        
+
         # 4. 按位置排序并重新分配ID
         deduped.sort(key=lambda e: e.start)
         for i, entity in enumerate(deduped):
             entity.id = f"entity_{i}"
-        
+
         return deduped
 
 
@@ -223,7 +219,7 @@ hybrid_ner_service = HybridNERService()
 
 async def perform_hybrid_ner(
     content: str,
-    entity_types: List[EntityTypeConfig],
-) -> List[Entity]:
+    entity_types: list[EntityTypeConfig],
+) -> list[Entity]:
     """执行混合 NER 识别（HaS 仅 NER）"""
     return await hybrid_ner_service.extract(content, entity_types)

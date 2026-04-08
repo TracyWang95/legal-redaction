@@ -8,16 +8,14 @@ Responsibilities:
 """
 from __future__ import annotations
 
-import io
 import logging
 import os
 import re
 from difflib import SequenceMatcher
-from typing import List, Optional, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.services.hybrid_vision_service import SensitiveRegion, OCRTextBlock
+from app.services.hybrid_vision_service import OCRTextBlock, SensitiveRegion
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +25,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def match_ocr_to_vlm(
-    ocr_blocks: List[OCRTextBlock],
-    vlm_regions: List[SensitiveRegion],
+    ocr_blocks: list[OCRTextBlock],
+    vlm_regions: list[SensitiveRegion],
     iou_threshold: float = 0.3,
-) -> List[SensitiveRegion]:
+) -> list[SensitiveRegion]:
     """
     Refine VLM detection results using OCR text blocks.
 
@@ -46,12 +44,12 @@ def match_ocr_to_vlm(
         text = re.sub(r"[^\w\u4e00-\u9fff]", "", text)
         return text
 
-    refined_regions: List[SensitiveRegion] = []
+    refined_regions: list[SensitiveRegion] = []
 
     for vlm_region in vlm_regions:
         vlm_box = (vlm_region.left, vlm_region.top, vlm_region.width, vlm_region.height)
 
-        best_match: Optional[OCRTextBlock] = None
+        best_match: OCRTextBlock | None = None
         best_iou = 0.0
 
         for ocr_block in ocr_blocks:
@@ -101,7 +99,7 @@ def match_ocr_to_vlm(
 
 def draw_regions_on_image(
     image: Image.Image,
-    regions: List[SensitiveRegion],
+    regions: list[SensitiveRegion],
 ) -> Image.Image:
     """Draw bounding boxes and labels on an image for debugging / preview."""
     draw_image = image.copy()
@@ -119,7 +117,7 @@ def draw_regions_on_image(
             try:
                 font = ImageFont.truetype(fp, 14)
                 break
-            except (OSError, IOError):
+            except OSError:
                 pass
     if not font:
         font = ImageFont.load_default()
@@ -172,8 +170,8 @@ def draw_regions_on_image(
 
 def apply_redaction(
     image: Image.Image,
-    regions: List[SensitiveRegion],
-    redaction_color: Tuple[int, int, int] = (0, 0, 0),
+    regions: list[SensitiveRegion],
+    redaction_color: tuple[int, int, int] = (0, 0, 0),
 ) -> Image.Image:
     """Cover sensitive regions with a solid color block."""
     draw = ImageDraw.Draw(image)

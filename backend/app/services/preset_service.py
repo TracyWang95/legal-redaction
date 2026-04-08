@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import settings
@@ -15,15 +15,14 @@ from app.models.schemas import (
     PresetCreate,
     PresetImportRequest,
     PresetOut,
-    PresetUpdate,
     PresetsListResponse,
+    PresetUpdate,
 )
-
 
 # ── 内部工具 ─────────────────────────────────────────────
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _load_store() -> list[dict[str, Any]]:
@@ -130,7 +129,7 @@ def delete(preset_id: str) -> bool:
 
 def export_all() -> dict:
     data = _load_store()
-    return {"presets": data, "exported_at": datetime.now(timezone.utc).isoformat(), "version": "1.0"}
+    return {"presets": data, "exported_at": datetime.now(UTC).isoformat(), "version": "1.0"}
 
 
 def import_presets(request: PresetImportRequest) -> int:

@@ -1,7 +1,7 @@
 """Unified error response handling."""
 from fastapi import Request
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.request_id import request_id_var

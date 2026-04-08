@@ -8,7 +8,6 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
 
 from app.services.hybrid_vision_service import SensitiveRegion
 
@@ -20,8 +19,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def calc_iou_boxes(
-    box1: Tuple[int, int, int, int],
-    box2: Tuple[int, int, int, int],
+    box1: tuple[int, int, int, int],
+    box2: tuple[int, int, int, int],
 ) -> float:
     """
     Compute IoU for two bounding boxes given as (left, top, width, height).
@@ -55,10 +54,10 @@ def calc_iou_regions(r1: SensitiveRegion, r2: SensitiveRegion) -> float:
 # ---------------------------------------------------------------------------
 
 def merge_regions(
-    regions1: List[SensitiveRegion],
-    regions2: List[SensitiveRegion],
+    regions1: list[SensitiveRegion],
+    regions2: list[SensitiveRegion],
     iou_threshold: float = 0.5,
-) -> List[SensitiveRegion]:
+) -> list[SensitiveRegion]:
     """
     Merge two region lists, dropping entries from *regions2* that overlap with
     an existing entry in *regions1* above *iou_threshold*.

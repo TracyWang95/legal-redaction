@@ -4,28 +4,20 @@
 2. HaS Image：端侧 YOLO 分割（8081 微服务），21 类隐私区域
 """
 
-from typing import List
+
 from fastapi import APIRouter, HTTPException
 
 from app.services import pipeline_service
 from app.services.pipeline_service import (
-    # Re-export models so existing imports keep working
-    PipelineMode,
-    PipelineTypeConfig,
     PipelineConfig,
-    # Re-export data / helpers consumed by other modules
-    PRESET_PIPELINES,
-    PRESET_OCR_HAS_TYPES,
-    PRESET_HAS_IMAGE_TYPES,
-    merge_pipeline_disk_snapshot,
-    pipelines_db,
-    get_pipeline_types_for_mode,
+    # Re-export models so existing imports keep working
+    PipelineTypeConfig,
 )
 
 router = APIRouter()
 
 
-@router.get("/vision-pipelines", response_model=List[PipelineConfig])
+@router.get("/vision-pipelines", response_model=list[PipelineConfig])
 async def get_pipelines(enabled_only: bool = False):
     """获取所有 Pipeline 配置"""
     return pipeline_service.list_pipelines(enabled_only)
@@ -49,7 +41,7 @@ async def toggle_pipeline(mode: str):
     return {"enabled": enabled}
 
 
-@router.get("/vision-pipelines/{mode}/types", response_model=List[PipelineTypeConfig])
+@router.get("/vision-pipelines/{mode}/types", response_model=list[PipelineTypeConfig])
 async def get_pipeline_types(mode: str, enabled_only: bool = True):
     """获取指定 Pipeline 的类型配置"""
     result = pipeline_service.get_pipeline_types(mode, enabled_only)

@@ -11,7 +11,6 @@ ClamAV daemon 需单独部署（clamd 监听 TCP 3310 或 Unix socket）。
 """
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ CLAMD_TIMEOUT = int(os.environ.get("CLAMD_TIMEOUT", "30"))
 
 class ScanResult:
     """病毒扫描结果"""
-    def __init__(self, clean: bool, virus_name: Optional[str] = None, error: Optional[str] = None):
+    def __init__(self, clean: bool, virus_name: str | None = None, error: str | None = None):
         self.clean = clean
         self.virus_name = virus_name
         self.error = error  # 扫描器不可用时的错误信息
@@ -67,7 +66,7 @@ def scan_file(file_path: str) -> ScanResult:
             return ScanResult(clean=True)
 
         # result 格式：{'/path/to/file': ('FOUND', 'VirusName')}
-        for path, (status, virus) in result.items():
+        for _path, (status, virus) in result.items():
             if status == "FOUND":
                 logger.warning("VIRUS DETECTED in %s: %s", file_path, virus)
                 return ScanResult(clean=False, virus_name=virus)

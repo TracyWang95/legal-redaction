@@ -9,30 +9,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 from fastapi import APIRouter, Header, HTTPException
-from typing import Optional
 
-from app.core.idempotency import check_idempotency, save_idempotency
+import app.services.redaction_orchestrator as _orch
 from app.core.audit import audit_log
-
+from app.core.idempotency import check_idempotency, save_idempotency
 from app.models.schemas import (
-    RedactionRequest,
-    RedactionResult,
     CompareData,
-    VisionResult,
-    APIResponse,
+    EntityTypeListResponse,
     PreviewEntityMapRequest,
     PreviewEntityMapResponse,
     PreviewImageRequest,
     PreviewImageResponse,
-    EntityTypeListResponse,
-    ReplacementModeListResponse,
-    RedactionVersionsResponse,
-    VisionDetectRequest,
     RedactionReport,
+    RedactionRequest,
+    RedactionResult,
+    RedactionVersionsResponse,
+    ReplacementModeListResponse,
+    VisionDetectRequest,
+    VisionResult,
 )
-
-import app.services.redaction_orchestrator as _orch
 
 router = APIRouter()
 
@@ -40,7 +37,7 @@ router = APIRouter()
 @router.post("/redaction/execute", response_model=RedactionResult)
 async def execute_redaction(
     request: RedactionRequest,
-    x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    x_idempotency_key: str | None = Header(None, alias="X-Idempotency-Key"),
 ):
     """
     执行文档匿名化
@@ -118,7 +115,7 @@ async def get_redaction_versions(file_id: str):
 async def detect_sensitive_regions(
     file_id: str,
     page: int = 1,
-    request: Optional[VisionDetectRequest] = None,
+    request: VisionDetectRequest | None = None,
 ):
     """
     对图片/扫描件进行视觉识别

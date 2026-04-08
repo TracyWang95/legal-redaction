@@ -5,6 +5,7 @@
 """
 import logging
 import sys
+
 from pythonjsonlogger import jsonlogger
 
 from app.core.request_id import request_id_var

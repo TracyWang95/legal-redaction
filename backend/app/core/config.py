@@ -6,12 +6,12 @@ import json
 import logging
 import os
 import secrets
+from functools import lru_cache
 from pathlib import Path
+from typing import Literal
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional, Literal
-from functools import lru_cache
-
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -60,7 +60,7 @@ def _load_or_create_jwt_secret(data_dir: str) -> str:
     secret_path = os.path.join(data_dir, "jwt_secret.json")
     if os.path.exists(secret_path):
         try:
-            with open(secret_path, "r") as f:
+            with open(secret_path) as f:
                 secret = json.load(f).get("secret", "")
             if secret:
                 return secret
@@ -150,7 +150,7 @@ class Settings(BaseSettings):
     HAS_TIMEOUT: float = 120.0
 
     # 兼容旧环境变量 HAS_BASE_URL
-    HAS_BASE_URL: Optional[str] = None
+    HAS_BASE_URL: str | None = None
 
     # 认证配置（JWT_SECRET_KEY 若未通过环境变量指定，则自动持久化到 data 目录）
     JWT_SECRET_KEY: str = ""

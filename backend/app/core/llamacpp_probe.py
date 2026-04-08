@@ -5,7 +5,6 @@ llama-server / OpenAI 兼容服务探测：不同版本/构建暴露的路径不
 from __future__ import annotations
 
 import concurrent.futures
-from typing import Optional, Tuple
 
 import httpx
 
@@ -66,7 +65,7 @@ def _parse_health_json(data: dict, url: str) -> tuple[bool, str]:
     return True, name
 
 
-def _fetch_url_sync(url: str, per_timeout: float) -> tuple[str, Optional[httpx.Response], str]:
+def _fetch_url_sync(url: str, per_timeout: float) -> tuple[str, httpx.Response | None, str]:
     """单次 GET；失败时 response 为 None，第三项为错误说明。"""
     try:
         with httpx.Client(timeout=per_timeout, trust_env=False) as client:
@@ -79,7 +78,7 @@ def _fetch_url_sync(url: str, per_timeout: float) -> tuple[str, Optional[httpx.R
 def probe_llamacpp(
     chat_base: str,
     timeout: float = 8.0,
-) -> Tuple[bool, str, Optional[str], bool]:
+) -> tuple[bool, str, str | None, bool]:
     """
     探测 llama-server 可用端点（各 URL **并行**请求，避免顺序探测导致 /health/services 卡十几秒）。
     返回 (成功, 展示名称或错误说明, 实际命中的 URL, 是否严格 OpenAI models/health JSON)。
@@ -94,7 +93,7 @@ def probe_llamacpp(
 
     # 单次请求超时：并行后总耗时约等于「最慢的一条」，而不是「各条之和」
     per_timeout = min(2.5, max(0.8, timeout / max(len(urls), 1)))
-    by_url: dict[str, Optional[httpx.Response]] = {}
+    by_url: dict[str, httpx.Response | None] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(8, len(urls))) as ex:
         futures = {ex.submit(_fetch_url_sync, u, per_timeout): u for u in urls}
         done, not_done = concurrent.futures.wait(

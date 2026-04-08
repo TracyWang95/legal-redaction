@@ -101,8 +101,9 @@ def get_blacklist() -> TokenBlacklist:
     if _instance is None:
         with _init_lock:
             if _instance is None:
-                from app.core.config import settings
                 import os
+
+                from app.core.config import settings
 
                 db_path = os.path.join(settings.DATA_DIR, "token_blacklist.sqlite3")
                 os.makedirs(settings.DATA_DIR, exist_ok=True)

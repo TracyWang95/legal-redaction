@@ -13,7 +13,7 @@ from app.core.auth import (
 )
 from app.core.config import settings
 from app.core.rate_limit import RateLimiter
-from app.models.schemas import PasswordRequest, ChangePasswordRequest, TokenResponse, AuthStatusResponse
+from app.models.schemas import AuthStatusResponse, ChangePasswordRequest, PasswordRequest, TokenResponse
 
 router = APIRouter(tags=["auth"])
 
@@ -92,7 +92,9 @@ async def revoke_all_tokens(_: str = Depends(require_auth)):
 
     The caller must re-authenticate after this operation.
     """
-    import json, os, logging
+    import json
+    import logging
+    import os
     new_secret = _secrets.token_urlsafe(32)
 
     # Persist the new secret

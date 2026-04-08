@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any
 
 from app.models.schemas import (
     FileListItem,
@@ -55,7 +55,7 @@ def build_file_list_items(
             except (ValueError, KeyError):
                 ft = FileType.DOCX
         bg_raw = info.get("batch_group_id")
-        bg_key: Optional[str] = None
+        bg_key: str | None = None
         if isinstance(bg_raw, str) and bg_raw.strip():
             bg_key = bg_raw.strip()
         cnt = batch_counts.get(bg_key) if bg_key else None

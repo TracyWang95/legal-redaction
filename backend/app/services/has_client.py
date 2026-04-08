@@ -15,14 +15,15 @@ NER / Hide / Pair / Seek 的 user 提示须与模型卡模板逐字一致（勿�
 import json
 import logging
 import re
+
 import httpx
 
 logger = logging.getLogger(__name__)
-from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
+from typing import Any
 
-from app.core.retry import retry_sync, RETRYABLE_HTTPX
 from app.core.circuit_breaker import ner_breaker
+from app.core.retry import RETRYABLE_HTTPX, retry_sync
 
 
 @dataclass
@@ -30,28 +31,28 @@ class HaSEntity:
     """HaS识别的实体"""
     text: str
     type: str
-    tag: Optional[str] = None  # 结构化语义标签
+    tag: str | None = None  # 结构化语义标签
 
 
-@dataclass 
+@dataclass
 class HaSResult:
     """HaS处理结果"""
     original_text: str
     masked_text: str
-    entities: Dict[str, List[str]]  # {类型: [实体列表]}
-    mapping: Dict[str, List[str]]   # {标签: [原文列表]}
+    entities: dict[str, list[str]]  # {类型: [实体列表]}
+    mapping: dict[str, list[str]]   # {标签: [原文列表]}
 
 
 class HaSClient:
     """HaS本地模型客户端"""
-    
+
     # 法律文档常用实体类型
     LEGAL_ENTITY_TYPES = [
-        "人名", "组织", "地址", "职务", 
+        "人名", "组织", "地址", "职务",
         "联系方式", "身份证号", "银行卡号",
         "案件编号", "金额", "日期", "合同编号"
     ]
-    
+
     def __init__(
         self,
         base_url: str = None,
@@ -68,8 +69,8 @@ class HaSClient:
         if self._base_url_override:
             return self._base_url_override.rstrip("/")
         return get_has_chat_base_url().rstrip("/")
-    
-    def _do_chat_request(self, base: str, payload: Dict[str, Any]) -> httpx.Response:
+
+    def _do_chat_request(self, base: str, payload: dict[str, Any]) -> httpx.Response:
         """Execute a single chat completions HTTP request (retryable, uses pooled client)."""
         def _request():
             resp = self._http_client.post(f"{base}/chat/completions", json=payload)
@@ -77,10 +78,10 @@ class HaSClient:
             return resp
         return ner_breaker.call_sync(_request)
 
-    def _call_model(self, messages: List[Dict]) -> str:
+    def _call_model(self, messages: list[dict]) -> str:
         """调用 OpenAI 兼容接口（llama.cpp HaS）。"""
         base = self._effective_base_url()
-        payload: Dict[str, Any] = {"messages": messages}
+        payload: dict[str, Any] = {"messages": messages}
         response = retry_sync(
             self._do_chat_request, base, payload,
             max_retries=2, base_delay=1.0,
@@ -94,27 +95,27 @@ class HaSClient:
             return ""
         message = choices[0].get("message", {})
         return message.get("content", "")
-    
-    def create_session_mapping(self) -> Dict[str, List[str]]:
+
+    def create_session_mapping(self) -> dict[str, list[str]]:
         """创建一个独立的会话映射（用于并发安全的批处理）。
 
         调用方应在请求开始时创建，然后传给 hide() 的 mapping 参数，
         这样每个请求拥有独立的映射，不会互相污染。
         """
         return {}
-    
+
     def ner(
-        self, 
-        text: str, 
-        entity_types: Optional[List[str]] = None
-    ) -> Dict[str, List[str]]:
+        self,
+        text: str,
+        entity_types: list[str] | None = None
+    ) -> dict[str, list[str]]:
         """
         使用NER能力进行敏感实体识别
-        
+
         Args:
             text: 待识别文本
             entity_types: 要识别的实体类型，默认使用法律文档类型
-            
+
         Returns:
             {类型: [实体列表]}
         """
@@ -125,14 +126,14 @@ class HaSClient:
         prompt = f"""Recognize the following entity types in the text.
 Specified types:{types_str}
 <text>{text}</text>"""
-        
+
         messages = [
             {
                 "role": "user",
                 "content": prompt
             }
         ]
-        
+
         try:
             response = self._call_model(messages)
             # 解析JSON响应
@@ -156,14 +157,14 @@ Specified types:{types_str}
         except Exception as e:
             logger.error("HaS NER 失败: %s", e)
             return {}
-    
+
     def hide(
         self,
         text: str,
-        entity_types: Optional[List[str]] = None,
+        entity_types: list[str] | None = None,
         use_history: bool = True,
-        mapping: Optional[Dict[str, List[str]]] = None,
-    ) -> Tuple[str, Dict[str, List[str]]]:
+        mapping: dict[str, list[str]] | None = None,
+    ) -> tuple[str, dict[str, list[str]]]:
         """
         使用Hide能力进行标签化匿名化
 
@@ -185,7 +186,7 @@ Specified types:{types_str}
         types_str = json.dumps(types, ensure_ascii=False)
 
         # 使用调用方传入的映射，或创建一个请求局部的空映射
-        session_mapping: Dict[str, List[str]] = mapping if mapping is not None else {}
+        session_mapping: dict[str, list[str]] = mapping if mapping is not None else {}
 
         # Step 1: NER识别
         ner_result = self.ner(text, types)
@@ -252,15 +253,15 @@ Specified types:{types_str}
         except Exception as e:
             logger.error("HaS Hide 失败: %s", e)
             return text, {}
-    
-    def pair(self, original_text: str, masked_text: str) -> Dict[str, List[str]]:
+
+    def pair(self, original_text: str, masked_text: str) -> dict[str, list[str]]:
         """
         使用Pair能力提取标签映射
-        
+
         Args:
             original_text: 原始文本
             masked_text: 匿名化后文本
-            
+
         Returns:
             {标签: [原文列表]}
         """
@@ -272,7 +273,7 @@ Specified types:{types_str}
 Extract the mapping from anonymized entities to original entities."""
             }
         ]
-        
+
         try:
             response = self._call_model(messages)
             result = json.loads(response)
@@ -288,8 +289,8 @@ Extract the mapping from anonymized entities to original entities."""
         except Exception as e:
             logger.error("HaS Pair 失败: %s", e)
             return {}
-    
-    def seek(self, masked_text: str, mapping: Optional[Dict[str, List[str]]] = None) -> str:
+
+    def seek(self, masked_text: str, mapping: dict[str, list[str]] | None = None) -> str:
         """
         使用Seek能力进行标签还原
 
@@ -304,7 +305,7 @@ Extract the mapping from anonymized entities to original entities."""
             return masked_text
 
         mapping_json = json.dumps(mapping, ensure_ascii=False)
-        
+
         messages = [
             {
                 "role": "user",
@@ -314,31 +315,31 @@ Restore the original text based on the above mapping:
 {masked_text}"""
             }
         ]
-        
+
         try:
             restored_text = self._call_model(messages)
             return restored_text
         except Exception as e:
             logger.error("HaS Seek 失败: %s", e)
             return masked_text
-    
+
     def extract_entities_for_ui(
-        self, 
+        self,
         text: str,
-        entity_types: Optional[List[str]] = None
-    ) -> List[Dict]:
+        entity_types: list[str] | None = None
+    ) -> list[dict]:
         """
         提取实体用于前端展示
-        
+
         Returns:
             [{"id", "text", "type", "start", "end", "tag", "source"}]
         """
         # 先做NER
         ner_result = self.ner(text, entity_types)
-        
+
         entities = []
         entity_id = 0
-        
+
         for entity_type, entity_list in ner_result.items():
             for entity_text in entity_list:
                 # 在原文中查找位置
@@ -355,17 +356,17 @@ Restore the original text based on the above mapping:
                         "confidence": 0.95,
                     })
                     entity_id += 1
-        
+
         # 按位置排序
         entities.sort(key=lambda e: e["start"])
-        
+
         return entities
-    
+
     def _map_type_to_english(self, chinese_type: str) -> str:
         """中文类型映射到英文（使用统一数据源）"""
         from app.models.type_mapping import cn_to_id
         return cn_to_id(chinese_type)
-    
+
     def is_available(self) -> bool:
         """检查 NER 后端是否可用（llama.cpp /v1/models）。"""
         from app.core.config import get_has_health_check_url

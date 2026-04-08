@@ -3,19 +3,10 @@
 （视觉：HaS Image 8081 微服务；与文本 NER 分离）
 """
 
-from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import ModelConfig, ModelConfigList
 from app.services import model_config_service
-from app.services.model_config_service import (
-    # Re-export constants consumed by other modules
-    DEFAULT_CONFIGS,
-    VISION_BUILTIN_IDS,
-    # Re-export functions consumed by other modules
-    load_configs,
-    save_configs,
-)
 
 router = APIRouter(prefix="/model-config", tags=["model-config"])
 
@@ -26,7 +17,7 @@ async def get_model_configs():
     return model_config_service.get_configs()
 
 
-@router.get("/active", response_model=Optional[ModelConfig])
+@router.get("/active", response_model=ModelConfig | None)
 async def get_active_config():
     """获取当前激活的模型配置"""
     return model_config_service.get_active()

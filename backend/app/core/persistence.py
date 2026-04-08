@@ -1,7 +1,7 @@
 import json
 import os
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 import aiofiles
 
@@ -18,11 +18,11 @@ def to_jsonable(value: Any) -> Any:
     return value
 
 
-def load_json(path: str, default: Optional[Any] = None) -> Any:
+def load_json(path: str, default: Any | None = None) -> Any:
     if not path or not os.path.exists(path):
         return default
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError, ValueError):
         return default

@@ -7,14 +7,12 @@
 from __future__ import annotations
 
 import os as _os
-from typing import Dict, List, Optional
+from enum import Enum
 
 from pydantic import BaseModel, Field
-from enum import Enum
 
 from app.core.config import settings
 from app.core.persistence import load_json, save_json
-
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -27,8 +25,8 @@ class PipelineTypeConfig(BaseModel):
     """Pipeline 下的类型配置"""
     id: str = Field(..., description="唯一ID")
     name: str = Field(..., description="显示名称")
-    description: Optional[str] = Field(None, description="语义描述/视觉提示")
-    examples: List[str] = Field(default_factory=list, description="示例文本")
+    description: str | None = Field(None, description="语义描述/视觉提示")
+    examples: list[str] = Field(default_factory=list, description="示例文本")
     color: str = Field(default="#6B7280", description="前端显示颜色")
     enabled: bool = Field(default=True, description="是否启用")
     order: int = Field(default=100, description="排序权重")
@@ -40,7 +38,7 @@ class PipelineConfig(BaseModel):
     name: str = Field(..., description="显示名称")
     description: str = Field(..., description="描述")
     enabled: bool = Field(default=True, description="是否启用")
-    types: List[PipelineTypeConfig] = Field(default_factory=list, description="该 Pipeline 下的类型配置")
+    types: list[PipelineTypeConfig] = Field(default_factory=list, description="该 Pipeline 下的类型配置")
 
 
 # ── 预置 Pipeline 类型 ───────────────────────────────────
@@ -49,14 +47,14 @@ _PIPELINE_JSON_PATH = _os.path.join(
     _os.path.dirname(__file__), "..", "..", "config", "preset_pipeline_types.json"
 )
 _raw_pipeline = load_json(_PIPELINE_JSON_PATH, default={})
-PRESET_OCR_HAS_TYPES: List[PipelineTypeConfig] = [
+PRESET_OCR_HAS_TYPES: list[PipelineTypeConfig] = [
     PipelineTypeConfig(**item) for item in _raw_pipeline.get("ocr_has", [])
 ]
-PRESET_HAS_IMAGE_TYPES: List[PipelineTypeConfig] = [
+PRESET_HAS_IMAGE_TYPES: list[PipelineTypeConfig] = [
     PipelineTypeConfig(**item) for item in _raw_pipeline.get("has_image", [])
 ]
 
-PRESET_PIPELINES: Dict[str, PipelineConfig] = {
+PRESET_PIPELINES: dict[str, PipelineConfig] = {
     "ocr_has": PipelineConfig(
         mode=PipelineMode.OCR_HAS,
         name="OCR + HaS (本地)",
@@ -76,7 +74,7 @@ PRESET_PIPELINES: Dict[str, PipelineConfig] = {
 
 # ── 磁盘快照合并 ─────────────────────────────────────────
 
-def merge_pipeline_disk_snapshot(raw: Optional[dict]) -> Dict[str, PipelineConfig]:
+def merge_pipeline_disk_snapshot(raw: dict | None) -> dict[str, PipelineConfig]:
     """
     将磁盘/快照中的 pipeline JSON 合并到预置配置上（不写盘）。
     用于启动加载与单元测试。
@@ -87,7 +85,7 @@ def merge_pipeline_disk_snapshot(raw: Optional[dict]) -> Dict[str, PipelineConfi
         raw = None
     if not raw:
         return {k: v.model_copy(deep=True) for k, v in PRESET_PIPELINES.items()}
-    pipelines: Dict[str, PipelineConfig] = {k: v.model_copy(deep=True) for k, v in PRESET_PIPELINES.items()}
+    pipelines: dict[str, PipelineConfig] = {k: v.model_copy(deep=True) for k, v in PRESET_PIPELINES.items()}
     for key, value in raw.items():
         if key == "glm_vision":
             continue
@@ -110,7 +108,7 @@ def merge_pipeline_disk_snapshot(raw: Optional[dict]) -> Dict[str, PipelineConfi
 
 # ── 持久化 ────────────────────────────────────────────────
 
-def _load_pipelines() -> Dict[str, PipelineConfig]:
+def _load_pipelines() -> dict[str, PipelineConfig]:
     raw = load_json(settings.PIPELINE_STORE_PATH, default=None)
     return merge_pipeline_disk_snapshot(raw if isinstance(raw, dict) else None)
 
@@ -120,13 +118,13 @@ def _persist_pipelines() -> None:
 
 
 # 内存存储（启动时从磁盘恢复）
-pipelines_db: Dict[str, PipelineConfig] = _load_pipelines()
+pipelines_db: dict[str, PipelineConfig] = _load_pipelines()
 _persist_pipelines()
 
 
 # ── 公共查询 ──────────────────────────────────────────────
 
-def get_pipeline_types_for_mode(mode: str) -> List[PipelineTypeConfig]:
+def get_pipeline_types_for_mode(mode: str) -> list[PipelineTypeConfig]:
     """获取指定模式下启用的类型配置"""
     if mode not in pipelines_db:
         return []
@@ -135,7 +133,7 @@ def get_pipeline_types_for_mode(mode: str) -> List[PipelineTypeConfig]:
 
 # ── 业务方法 ──────────────────────────────────────────────
 
-def list_pipelines(enabled_only: bool = False) -> List[PipelineConfig]:
+def list_pipelines(enabled_only: bool = False) -> list[PipelineConfig]:
     pipelines = list(pipelines_db.values())
     if enabled_only:
         pipelines = [p for p in pipelines if p.enabled]
@@ -155,7 +153,7 @@ def toggle_pipeline(mode: str) -> bool | None:
     return pipelines_db[mode].enabled
 
 
-def get_pipeline_types(mode: str, enabled_only: bool = True) -> List[PipelineTypeConfig] | None:
+def get_pipeline_types(mode: str, enabled_only: bool = True) -> list[PipelineTypeConfig] | None:
     """Returns sorted types list, or None if pipeline not found."""
     if mode not in pipelines_db:
         return None

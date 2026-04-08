@@ -1,8 +1,8 @@
 """
 Vision (image/scanned-PDF) detection result models.
 """
+
 from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
 
 from .entity_schemas import BoundingBox
 
@@ -17,11 +17,11 @@ class VisionResult(BaseModel):
     file_id: str
     page: int
     bounding_boxes: list[BoundingBox]
-    result_image: Optional[str] = None  # 带检测框的图片 base64
+    result_image: str | None = None  # 带检测框的图片 base64
 
 
 class HybridNERRequest(BaseModel):
     """混合识别请求（HaS 固定为 NER）"""
     model_config = ConfigDict(extra="ignore")
 
-    entity_type_ids: List[str] = Field(default_factory=list, description="要识别的实体类型ID列表")
+    entity_type_ids: list[str] = Field(default_factory=list, description="要识别的实体类型ID列表")

@@ -235,8 +235,8 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
             await vision_detect(file_id, p, ocr_types or None, has_img or None)
 
     async def execute_redaction(self, file_id: str, job_config: dict[str, Any]) -> None:
-        from app.services.file_operations import get_file_info, execute_redaction_request
         from app.models.schemas import BoundingBox, Entity, RedactionConfig, ReplacementMode
+        from app.services.file_operations import execute_redaction_request, get_file_info
 
         fi = get_file_info(file_id)
         if not fi:

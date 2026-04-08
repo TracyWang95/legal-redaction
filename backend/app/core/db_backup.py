@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from glob import glob
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def backup_sqlite(db_path: str, backup_dir: str | None = None) -> str | None:
         backup_dir = os.path.join(os.path.dirname(db_path), "backups")
     os.makedirs(backup_dir, exist_ok=True)
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     db_name = os.path.splitext(os.path.basename(db_path))[0]
     backup_path = os.path.join(backup_dir, f"{db_name}_{timestamp}.sqlite3")
 

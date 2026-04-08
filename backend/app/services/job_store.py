@@ -3,19 +3,19 @@
 """
 from __future__ import annotations
 
-import logging
 import json
+import logging
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 
 def _utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class JobType(str, Enum):
@@ -213,7 +213,7 @@ class JobStore:
         *,
         job_type: JobType,
         title: str = "",
-        config: Optional[dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
         skip_item_review: bool = False,
         priority: int = 0,
     ) -> str:
@@ -273,7 +273,7 @@ class JobStore:
             )
             # 将所有非终态 item 重置为 PENDING
             conn.execute(
-                f"""
+                """
                 UPDATE job_items SET status = ?, error_message = NULL, updated_at = ?
                 WHERE job_id = ? AND status NOT IN (?, ?)
                 """,
@@ -336,13 +336,13 @@ class JobStore:
             )
             return [dict(r) for r in cur.fetchall()]
 
-    def get_job(self, job_id: str) -> Optional[dict[str, Any]]:
+    def get_job(self, job_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             cur = conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,))
             row = cur.fetchone()
             return dict(row) if row else None
 
-    def get_item(self, item_id: str) -> Optional[dict[str, Any]]:
+    def get_item(self, item_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             cur = conn.execute("SELECT * FROM job_items WHERE id = ?", (item_id,))
             row = cur.fetchone()
@@ -359,7 +359,7 @@ class JobStore:
     def list_jobs(
         self,
         *,
-        job_type: Optional[JobType] = None,
+        job_type: JobType | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -384,7 +384,7 @@ class JobStore:
         self,
         item_id: str,
         status: JobItemStatus,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
     ) -> None:
         now = _utc_iso()
         with self._connect() as conn:
@@ -406,7 +406,7 @@ class JobStore:
             )
             conn.commit()
 
-    def update_job_status(self, job_id: str, status: JobStatus, error_message: Optional[str] = None) -> None:
+    def update_job_status(self, job_id: str, status: JobStatus, error_message: str | None = None) -> None:
         now = _utc_iso()
         with self._connect() as conn:
             cur = conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,))
@@ -468,7 +468,7 @@ class JobStore:
             )
             conn.commit()
 
-    def get_item_review_draft(self, item_id: str) -> Optional[dict[str, Any]]:
+    def get_item_review_draft(self, item_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
             cur = conn.execute(
                 "SELECT review_draft_json, review_draft_updated_at FROM job_items WHERE id = ?",
@@ -542,7 +542,7 @@ class JobStore:
             )
             conn.commit()
 
-    def find_item_status_by_file_id(self, file_id: str) -> Optional[str]:
+    def find_item_status_by_file_id(self, file_id: str) -> str | None:
         """查找文件关联的最新 job_item 状态，用于三态匿名化显示。"""
         with self._connect() as conn:
             row = conn.execute(

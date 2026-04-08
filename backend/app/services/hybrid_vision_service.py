@@ -13,13 +13,12 @@ sub-modules under ``app.services.vision``:
 """
 from __future__ import annotations
 
-import base64
 import asyncio
+import base64
+import io
 import logging
 import time
-import io
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -40,18 +39,18 @@ class SensitiveRegion:
     height: int
     confidence: float = 1.0
     source: str = "unknown"  # "ocr", "vlm", "merged"
-    color: Tuple[int, int, int] = (255, 0, 0)
+    color: tuple[int, int, int] = (255, 0, 0)
 
 
 @dataclass
 class OCRTextBlock:
     """OCR 识别的文本块（bbox 在构造时缓存，避免每次 property 访问重算）"""
     text: str
-    polygon: List[List[float]]  # 四边形顶点 [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+    polygon: list[list[float]]  # 四边形顶点 [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
     confidence: float = 1.0
 
     # 构造后缓存的 bbox 值
-    _bbox_cache: Tuple[int, int, int, int] = field(default=(0, 0, 0, 0), init=False, repr=False)
+    _bbox_cache: tuple[int, int, int, int] = field(default=(0, 0, 0, 0), init=False, repr=False)
 
     def __post_init__(self):
         xs = [p[0] for p in self.polygon]
@@ -59,7 +58,7 @@ class OCRTextBlock:
         self._bbox_cache = (int(min(xs)), int(min(ys)), int(max(xs)), int(max(ys)))
 
     @property
-    def bbox(self) -> Tuple[int, int, int, int]:
+    def bbox(self) -> tuple[int, int, int, int]:
         return self._bbox_cache
 
     @property
@@ -126,19 +125,19 @@ class HybridVisionService:
     # Delegated helpers (keep old private names for any internal callers)
     # ------------------------------------------------------------------
 
-    def _prepare_image(self, image_bytes: bytes) -> Tuple[Image.Image, int, int]:
+    def _prepare_image(self, image_bytes: bytes) -> tuple[Image.Image, int, int]:
         from app.services.vision.ocr_pipeline import prepare_image
         return prepare_image(image_bytes)
 
-    def _run_paddle_ocr(self, image: Image.Image) -> Tuple[List[OCRTextBlock], List[SensitiveRegion]]:
+    def _run_paddle_ocr(self, image: Image.Image) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
         from app.services.vision.ocr_pipeline import run_paddle_ocr
         return run_paddle_ocr(image, self._ocr_service)
 
     async def _run_has_text_analysis(
         self,
-        ocr_blocks: List[OCRTextBlock],
-        vision_types: Optional[list] = None,
-    ) -> List[dict]:
+        ocr_blocks: list[OCRTextBlock],
+        vision_types: list | None = None,
+    ) -> list[dict]:
         # Lazy re-init (service may have started after us)
         if not self._has_client:
             try:
@@ -149,53 +148,53 @@ class HybridVisionService:
         from app.services.vision.ocr_pipeline import run_has_text_analysis
         return await run_has_text_analysis(ocr_blocks, self._has_client, vision_types)
 
-    def _extract_table_cells(self, table_html: str, block: OCRTextBlock) -> List[OCRTextBlock]:
+    def _extract_table_cells(self, table_html: str, block: OCRTextBlock) -> list[OCRTextBlock]:
         from app.services.vision.ocr_pipeline import extract_table_cells
         return extract_table_cells(table_html, block)
 
-    def _expand_table_blocks(self, ocr_blocks: List[OCRTextBlock]) -> List[OCRTextBlock]:
+    def _expand_table_blocks(self, ocr_blocks: list[OCRTextBlock]) -> list[OCRTextBlock]:
         from app.services.vision.ocr_pipeline import expand_table_blocks
         return expand_table_blocks(ocr_blocks)
 
     def _match_entities_to_ocr(
         self,
-        ocr_blocks: List[OCRTextBlock],
-        entities: List[dict],
-    ) -> List[SensitiveRegion]:
+        ocr_blocks: list[OCRTextBlock],
+        entities: list[dict],
+    ) -> list[SensitiveRegion]:
         from app.services.vision.ocr_pipeline import match_entities_to_ocr
         return match_entities_to_ocr(ocr_blocks, entities)
 
     def _apply_regex_rules(
         self,
-        ocr_blocks: List[OCRTextBlock],
-        entity_types: List[str],
-    ) -> List[SensitiveRegion]:
+        ocr_blocks: list[OCRTextBlock],
+        entity_types: list[str],
+    ) -> list[SensitiveRegion]:
         from app.services.vision.ocr_pipeline import apply_regex_rules
         return apply_regex_rules(ocr_blocks, entity_types)
 
     def _match_ocr_to_vlm(
         self,
-        ocr_blocks: List[OCRTextBlock],
-        vlm_regions: List[SensitiveRegion],
+        ocr_blocks: list[OCRTextBlock],
+        vlm_regions: list[SensitiveRegion],
         iou_threshold: float = 0.3,
-    ) -> List[SensitiveRegion]:
+    ) -> list[SensitiveRegion]:
         from app.services.vision.image_pipeline import match_ocr_to_vlm
         return match_ocr_to_vlm(ocr_blocks, vlm_regions, iou_threshold)
 
     def _draw_regions_on_image(
         self,
         image: Image.Image,
-        regions: List[SensitiveRegion],
+        regions: list[SensitiveRegion],
     ) -> Image.Image:
         from app.services.vision.image_pipeline import draw_regions_on_image
         return draw_regions_on_image(image, regions)
 
     def _merge_regions(
         self,
-        regions1: List[SensitiveRegion],
-        regions2: List[SensitiveRegion],
+        regions1: list[SensitiveRegion],
+        regions2: list[SensitiveRegion],
         iou_threshold: float = 0.5,
-    ) -> List[SensitiveRegion]:
+    ) -> list[SensitiveRegion]:
         from app.services.vision.region_merger import merge_regions
         return merge_regions(regions1, regions2, iou_threshold)
 
@@ -206,8 +205,8 @@ class HybridVisionService:
     async def detect_and_draw(
         self,
         image_bytes: bytes,
-        vision_types: Optional[list] = None,
-    ) -> Tuple[List[SensitiveRegion], str]:
+        vision_types: list | None = None,
+    ) -> tuple[list[SensitiveRegion], str]:
         """
         检测敏感信息并在图像上绘制
 
@@ -246,7 +245,7 @@ class HybridVisionService:
         ocr_blocks, visual_regions = await asyncio.to_thread(self._run_paddle_ocr, image)
         logger.info("OCR finished in %.2fs, blocks=%d", time.perf_counter() - ocr_start, len(ocr_blocks))
 
-        all_regions: List[SensitiveRegion] = []
+        all_regions: list[SensitiveRegion] = []
 
         # 1.5 添加视觉敏感区域（公章等）
         for vr in visual_regions:
@@ -301,8 +300,8 @@ class HybridVisionService:
     async def apply_redaction(
         self,
         image_bytes: bytes,
-        regions: List[SensitiveRegion],
-        redaction_color: Tuple[int, int, int] = (0, 0, 0),
+        regions: list[SensitiveRegion],
+        redaction_color: tuple[int, int, int] = (0, 0, 0),
     ) -> bytes:
         """应用匿名化（用纯色块覆盖敏感区域）"""
         from app.services.vision.image_pipeline import apply_redaction as _apply_redaction
@@ -316,7 +315,7 @@ class HybridVisionService:
 
 
 # 单例
-_hybrid_service: Optional[HybridVisionService] = None
+_hybrid_service: HybridVisionService | None = None
 
 def get_hybrid_vision_service() -> HybridVisionService:
     global _hybrid_service

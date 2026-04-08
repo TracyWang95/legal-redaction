@@ -13,7 +13,6 @@ import json
 import logging
 import os
 import secrets
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ def _load_or_create_key(data_dir: str) -> bytes:
     key_path = os.path.join(data_dir, "encryption_key.json")
     if os.path.exists(key_path):
         try:
-            with open(key_path, "r") as f:
+            with open(key_path) as f:
                 hex_key = json.load(f).get("key", "")
             key = bytes.fromhex(hex_key)
             if len(key) == _KEY_LENGTH:
@@ -59,7 +58,7 @@ class FileEncryptor:
 
     def __init__(self, data_dir: str, enabled: bool = False):
         self.enabled = enabled
-        self._key: Optional[bytes] = None
+        self._key: bytes | None = None
         self._data_dir = data_dir
         if enabled:
             self._key = _load_or_create_key(data_dir)

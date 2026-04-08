@@ -5,7 +5,7 @@
 """
 import logging
 
-from app.models.schemas import BoundingBox, RedactionConfig, FileType
+from app.models.schemas import BoundingBox, FileType, RedactionConfig
 
 logger = logging.getLogger(__name__)
 

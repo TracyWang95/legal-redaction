@@ -5,7 +5,6 @@ id = 英文 slug；class_id = 模型输出 cls 整数 0–20。
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
 # 配色供 Pipeline / 前端展示
 _COLORS = (
@@ -25,7 +24,7 @@ class HasImageCategory:
 
 
 # 顺序必须与模型 0..20 一致
-HAS_IMAGE_CATEGORIES: Tuple[HasImageCategory, ...] = (
+HAS_IMAGE_CATEGORIES: tuple[HasImageCategory, ...] = (
     HasImageCategory(0, "face", "人脸", "人体面部区域"),
     HasImageCategory(1, "fingerprint", "指纹", "指纹、捺印区域"),
     HasImageCategory(2, "palmprint", "掌纹", "掌纹区域"),
@@ -49,12 +48,12 @@ HAS_IMAGE_CATEGORIES: Tuple[HasImageCategory, ...] = (
     HasImageCategory(20, "paper", "纸质文档", "纸张文档区域"),
 )
 
-SLUG_TO_CLASS_ID: Dict[str, int] = {c.id: c.class_id for c in HAS_IMAGE_CATEGORIES}
-CLASS_ID_TO_SLUG: Dict[int, str] = {c.class_id: c.id for c in HAS_IMAGE_CATEGORIES}
-SLUG_TO_NAME_ZH: Dict[str, str] = {c.id: c.name_zh for c in HAS_IMAGE_CATEGORIES}
+SLUG_TO_CLASS_ID: dict[str, int] = {c.id: c.class_id for c in HAS_IMAGE_CATEGORIES}
+CLASS_ID_TO_SLUG: dict[int, str] = {c.class_id: c.id for c in HAS_IMAGE_CATEGORIES}
+SLUG_TO_NAME_ZH: dict[str, str] = {c.id: c.name_zh for c in HAS_IMAGE_CATEGORIES}
 
 
-def slug_list_to_class_indices(slugs: Optional[List[str]]) -> Optional[List[int]]:
+def slug_list_to_class_indices(slugs: list[str] | None) -> list[int] | None:
     """
     - None：不传类别限制，由调用方解释为「跑全类」。
     - []：显式空列表 → 无有效类别索引（应返回空检测结果，而非误跑全类）。
@@ -64,7 +63,7 @@ def slug_list_to_class_indices(slugs: Optional[List[str]]) -> Optional[List[int]
         return None
     if len(slugs) == 0:
         return []
-    out: List[int] = []
+    out: list[int] = []
     for s in slugs:
         if s in SLUG_TO_CLASS_ID:
             out.append(SLUG_TO_CLASS_ID[s])

@@ -3,7 +3,7 @@ Prometheus 监控指标 — 识别/匿名化延迟、错误率、队列深度。
 
 /metrics 端点由 main.py 挂载。
 """
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from starlette.requests import Request
 from starlette.responses import Response
 

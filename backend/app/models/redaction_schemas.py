@@ -2,11 +2,12 @@
 Redaction configuration, request/response, preview, compare,
 report, and version-history models.
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
 
 from .common import ReplacementMode
-from .entity_schemas import Entity, BoundingBox
+from .entity_schemas import BoundingBox, Entity
 
 __all__ = [
     "RedactionConfig",
@@ -35,7 +36,7 @@ class RedactionConfig(BaseModel):
     )
     custom_replacements: dict[str, str] = Field(default_factory=dict)
     # 图片 / 扫描件块级匿名化（与 HaS Image 文档一致：mosaic / blur / fill），与文本 replacement_mode 独立
-    image_redaction_method: Optional[Literal["mosaic", "blur", "fill"]] = Field(
+    image_redaction_method: Literal["mosaic", "blur", "fill"] | None = Field(
         default=None,
         description="图片类：马赛克、高斯模糊、纯色填充；未传时图片仍按 fill 处理",
     )
@@ -99,7 +100,7 @@ class RedactionResult(BaseModel):
     redacted_count: int
     entity_map: dict[str, str] = Field(default_factory=dict, description="实体映射表")
     download_url: str
-    output_path: Optional[str] = Field(default=None, exclude=True)
+    output_path: str | None = Field(default=None, exclude=True)
 
 
 class CompareData(BaseModel):
@@ -112,8 +113,8 @@ class CompareData(BaseModel):
 
 class VisionDetectRequest(BaseModel):
     """视觉识别请求体"""
-    selected_ocr_has_types: Optional[List[str]] = None
-    selected_has_image_types: Optional[List[str]] = None
+    selected_ocr_has_types: list[str] | None = None
+    selected_has_image_types: list[str] | None = None
 
 
 class RedactionReport(BaseModel):

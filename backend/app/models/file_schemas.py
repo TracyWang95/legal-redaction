@@ -1,9 +1,10 @@
 """
 File upload, listing, parsing, NER result, and batch-download models.
 """
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 from .common import FileType
 from .entity_schemas import Entity
@@ -27,7 +28,7 @@ class FileUploadResponse(BaseModel):
     file_size: int
     page_count: int = 1
     message: str = "文件上传成功"
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
 
 class FileListItem(BaseModel):
@@ -36,34 +37,34 @@ class FileListItem(BaseModel):
     original_filename: str
     file_size: int
     file_type: FileType
-    created_at: Optional[str] = None
+    created_at: str | None = None
     has_output: bool = False
     entity_count: int = 0
     upload_source: Literal["playground", "batch"] = Field(
         default="playground",
         description="playground=Playground 单文件；batch=批量向导或任务工单上传",
     )
-    job_id: Optional[str] = Field(
+    job_id: str | None = Field(
         default=None,
         description="若上传时绑定任务中心 Job，则为该 Job UUID，可与 /api/v1/jobs/{id} 关联",
     )
-    batch_group_id: Optional[str] = Field(
+    batch_group_id: str | None = Field(
         default=None,
         description="批量向导同一会话上传的文件共享此 ID；Playground 单文件上传为 null",
     )
-    batch_group_count: Optional[int] = Field(
+    batch_group_count: int | None = Field(
         default=None,
         description="该批次在系统中的文件总数（仅 batch_group_id 非空时有意义）",
     )
-    item_status: Optional[str] = Field(
+    item_status: str | None = Field(
         default=None,
         description="关联 job_item 的 pipeline 状态（awaiting_review / completed 等），用于三态匿名化显示",
     )
-    item_id: Optional[str] = Field(
+    item_id: str | None = Field(
         default=None,
         description="关联 job_item 的 ID，用于构建审阅跳转 URL",
     )
-    job_embed: Optional[JobEmbedSummary] = Field(
+    job_embed: JobEmbedSummary | None = Field(
         default=None,
         description="embed_job=1 且存在 job_id 时返回，供历史页主 CTA 与任务中心一致",
     )
@@ -98,5 +99,5 @@ class NERResult(BaseModel):
 
 class BatchDownloadRequest(BaseModel):
     """批量打包下载"""
-    file_ids: List[str] = Field(..., min_length=1, description="要打包的文件 ID 列表")
+    file_ids: list[str] = Field(..., min_length=1, description="要打包的文件 ID 列表")
     redacted: bool = Field(default=False, description="为 True 时打包匿名化后的文件（需已匿名化）")

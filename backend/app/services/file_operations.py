@@ -7,14 +7,13 @@ API-layer imports.  The functions here delegate to the service layer
 """
 from __future__ import annotations
 
-from typing import Any, Optional
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # file_store accessors – the store lives in the service layer.
 # ---------------------------------------------------------------------------
 
-def get_file_info(file_id: str) -> Optional[dict[str, Any]]:
+def get_file_info(file_id: str) -> dict[str, Any] | None:
     """Return the file-store dict for *file_id*, or ``None``."""
     from app.services.file_management_service import file_store
     return file_store.get(file_id)
@@ -39,8 +38,8 @@ async def hybrid_ner(file_id: str, entity_type_ids: list[str]) -> None:
 async def vision_detect(
     file_id: str,
     page: int,
-    ocr_has_types: Optional[list[str]] = None,
-    has_image_types: Optional[list[str]] = None,
+    ocr_has_types: list[str] | None = None,
+    has_image_types: list[str] | None = None,
 ) -> None:
     """Run dual-pipeline vision detection on a single page."""
     from app.services.redaction_orchestrator import detect_vision
@@ -60,8 +59,8 @@ async def execute_redaction_request(
     config: Any,
 ) -> None:
     """Execute redaction via the service layer."""
-    from app.services.redaction_orchestrator import execute_redaction
     from app.models.schemas import RedactionRequest
+    from app.services.redaction_orchestrator import execute_redaction
     req = RedactionRequest(
         file_id=file_id,
         entities=entities,

@@ -1,10 +1,10 @@
 """
 Common enums, base models, and generic API response schemas.
 """
-from pydantic import BaseModel, Field
-from typing import Optional
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+
+from pydantic import BaseModel, Field
 
 __all__ = [
     "IdentifierCategory",
@@ -118,8 +118,8 @@ class APIResponse(BaseModel):
     """通用 API 响应"""
     success: bool = True
     message: str = "操作成功"
-    data: Optional[dict] = None
-    error: Optional[str] = None
+    data: dict | None = None
+    error: str | None = None
 
 
 class HealthResponse(BaseModel):

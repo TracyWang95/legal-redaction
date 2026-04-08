@@ -7,6 +7,7 @@ import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,17 +16,17 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from app.api import auth as auth_api
+from app.api import entity_types, files, jobs, model_config, ner_backend, presets, redaction, vision_pipeline
+from app.api import safety as safety_api
 from app.core.auth import require_auth
 from app.core.config import settings
-from app.core.gpu_memory import query_gpu_memory as _query_gpu_memory
-from app.core.health_checks import check_sync, check_has_ner
-from app.api import safety as safety_api
 from app.core.errors import AppError, app_error_handler, http_exception_handler, validation_exception_handler
-from app.api import auth as auth_api
-from app.api import files, redaction, entity_types, vision_pipeline, model_config, ner_backend, presets, jobs
+from app.core.gpu_memory import query_gpu_memory as _query_gpu_memory
+from app.core.health_checks import check_has_ner, check_sync
+from app.core.logging_config import setup_logging
 from app.models.schemas import HealthResponse
 
-from app.core.logging_config import setup_logging
 # 生产环境用 JSON 格式；DEBUG 模式用文本格式（人类可读）
 setup_logging(json_mode=settings.LOG_JSON and not settings.DEBUG, level=logging.DEBUG if settings.DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ def cleanup_orphan_files() -> int:
     a failed migration that left file_store empty).
     """
     import time
+
     from app.services.file_management_service import get_file_store
     file_store = get_file_store()
 
@@ -107,7 +109,7 @@ async def lifespan(app: FastAPI):
     # === Startup ===
 
     # 0. Database integrity check + restore from backup if corrupted
-    from app.core.db_backup import ensure_db_healthy, backup_sqlite
+    from app.core.db_backup import backup_sqlite, ensure_db_healthy
     ensure_db_healthy(settings.JOB_DB_PATH)
 
     # 1. Clean up orphan files (once at startup)
@@ -135,7 +137,7 @@ async def lifespan(app: FastAPI):
         logger.info("Requeued %d failed items after repairing missing-file path records", _requeued)
 
     # 3. 启动进程内任务队列
-    from app.services.task_queue import get_task_queue, TaskItem
+    from app.services.task_queue import TaskItem, get_task_queue
     _task_queue = get_task_queue()
     _task_queue.start()
 
@@ -255,10 +257,12 @@ app.add_middleware(MaxBodySizeMiddleware)
 
 # Rate-limit: 600 requests/minute per IP（批量任务含高频轮询，120 太紧）
 from app.core.rate_limit import RateLimitMiddleware  # noqa: E402
+
 app.add_middleware(RateLimitMiddleware, max_requests=600, window_seconds=60)
 
 # Request-ID: outermost middleware (registered last = runs first in Starlette)
 from app.core.request_id import RequestIdMiddleware  # noqa: E402
+
 app.add_middleware(RequestIdMiddleware)
 
 # 确保上传和输出目录存在
@@ -284,7 +288,10 @@ app.include_router(safety_api.router, prefix=settings.API_PREFIX, tags=["数据�
 logger.info("presets API: GET/POST %s/presets (若前端仍 404，请重启本进程以加载最新路由)", settings.API_PREFIX)
 
 # Prometheus metrics endpoint
+from datetime import UTC
+
 from app.core.metrics import metrics_endpoint
+
 app.add_route("/metrics", metrics_endpoint, methods=["GET"])
 
 
@@ -315,7 +322,7 @@ async def services_health():
     """
     import asyncio
     import time
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     services = {}
 
@@ -345,7 +352,7 @@ async def services_health():
         "all_online": all_online,
         "services": services,
         "probe_ms": probe_ms,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "checked_at": datetime.now(UTC).isoformat(),
         "gpu_memory": gpu_mem,
     }
 

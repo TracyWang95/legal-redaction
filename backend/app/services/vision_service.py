@@ -12,14 +12,13 @@ import time
 import uuid
 
 logger = logging.getLogger(__name__)
-from typing import Optional
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
-from app.models.schemas import BoundingBox, FileType
 from app.core.config import settings
 from app.core.has_image_categories import SLUG_TO_NAME_ZH
 from app.core.has_image_client import detect_privacy_regions
+from app.models.schemas import BoundingBox, FileType
 from app.services.file_parser import FileParser
 from app.services.hybrid_vision_service import get_hybrid_vision_service
 
@@ -39,7 +38,7 @@ class VisionService:
         draw_result: bool = True,
         pipeline_mode: str = "ocr_has",
         pipeline_types: list = None,
-    ) -> tuple[list[BoundingBox], Optional[str]]:
+    ) -> tuple[list[BoundingBox], str | None]:
         if file_type == FileType.IMAGE:
             image_data = await self.file_parser.read_image(file_path)
         elif file_type in [FileType.PDF, FileType.PDF_SCANNED]:
@@ -68,7 +67,7 @@ class VisionService:
         page: int = 1,
         ocr_has_types: list = None,
         has_image_types: list = None,
-    ) -> tuple[list[BoundingBox], Optional[str]]:
+    ) -> tuple[list[BoundingBox], str | None]:
         if file_type == FileType.IMAGE:
             image_data = await self.file_parser.read_image(file_path)
         elif file_type in [FileType.PDF, FileType.PDF_SCANNED]:
@@ -121,7 +120,7 @@ class VisionService:
             logger.info("两路均未运行，将返回空结果")
             results = []
 
-        for label, result in zip(labels, results):
+        for label, result in zip(labels, results, strict=False):
             if isinstance(result, Exception):
                 logger.error("%s failed: %s", label, result)
                 continue
@@ -210,7 +209,7 @@ class VisionService:
         image_data: bytes,
         page: int,
         pipeline_types: list = None,
-    ) -> tuple[list[BoundingBox], Optional[str]]:
+    ) -> tuple[list[BoundingBox], str | None]:
         regions, result_image_base64 = await self.hybrid_service.detect_and_draw(
             image_data,
             vision_types=pipeline_types,
@@ -242,7 +241,7 @@ class VisionService:
         image_data: bytes,
         page: int,
         pipeline_types: list = None,
-    ) -> tuple[list[BoundingBox], Optional[str]]:
+    ) -> tuple[list[BoundingBox], str | None]:
         slugs = [t.id for t in pipeline_types] if pipeline_types else None
         raw_boxes = await detect_privacy_regions(
             image_data,
@@ -278,7 +277,6 @@ class VisionService:
         image: Image.Image,
         bounding_boxes: list[BoundingBox],
     ) -> str:
-        import os
 
         draw_image = image.copy()
         draw = ImageDraw.Draw(draw_image)
@@ -296,7 +294,7 @@ class VisionService:
                 if os.path.exists(fp):
                     font = ImageFont.truetype(fp, 16)
                     break
-        except (OSError, IOError):
+        except OSError:
             pass
 
         type_colors = {

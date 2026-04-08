@@ -1,6 +1,7 @@
 """Request-ID middleware: propagates or generates X-Request-ID for tracing."""
-import uuid
 import contextvars
+import uuid
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
