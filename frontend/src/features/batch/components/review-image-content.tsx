@@ -37,7 +37,7 @@ function ReviewImageContentInner({
 
   const getVisionTypeMeta = (id: string) => {
     for (const p of pipelines) {
-      const tt = p.types.find(x => x.id === id);
+      const tt = p.types.find((x) => x.id === id);
       if (tt) return { name: tt.name, color: '#6366F1' };
     }
     return { name: id, color: '#6366F1' };
@@ -55,7 +55,7 @@ function ReviewImageContentInner({
               onBoxesChange={setReviewBoxes}
               onBoxesCommit={handleReviewBoxesCommit}
               getTypeConfig={getVisionTypeMeta}
-              availableTypes={pipelines.flatMap(p => p.types.filter(tt => tt.enabled))}
+              availableTypes={pipelines.flatMap((p) => p.types.filter((tt) => tt.enabled))}
               defaultType="CUSTOM"
             />
           </div>
@@ -74,10 +74,16 @@ function ReviewImageContentInner({
         </div>
         <div className="flex-1 min-h-0 overflow-auto bg-muted/20 flex items-center justify-center">
           {reviewImagePreviewSrc ? (
-            <img src={reviewImagePreviewSrc} alt={t('batchWizard.step4.previewImage')} className="max-w-full max-h-full object-contain" />
+            <img
+              src={reviewImagePreviewSrc}
+              alt={t('batchWizard.step4.previewImage')}
+              className="max-w-full max-h-full object-contain"
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
-              {reviewImagePreviewLoading ? t('batchWizard.step4.generating') : t('batchWizard.step4.noBoxes')}
+              {reviewImagePreviewLoading
+                ? t('batchWizard.step4.generating')
+                : t('batchWizard.step4.noBoxes')}
             </p>
           )}
         </div>
@@ -92,7 +98,7 @@ function ReviewImageContentInner({
           </span>
         </div>
         <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-          {reviewBoxes.map(box => {
+          {reviewBoxes.map((box) => {
             const meta = getVisionTypeMeta(box.type);
             return (
               <button

@@ -13,7 +13,9 @@ interface PlaygroundTextSelectionPopoverProps {
   entityTypes: EntityTypeConfig[];
 }
 
-export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverProps> = ({ entityTypes }) => {
+export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverProps> = ({
+  entityTypes,
+}) => {
   const t = useT();
   const ui = usePlaygroundUIContext();
 
@@ -36,7 +38,12 @@ export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverPr
           className="ml-2 shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z" fill="currentColor"/></svg>
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+            <path
+              d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z"
+              fill="currentColor"
+            />
+          </svg>
         </button>
       </div>
 
@@ -56,7 +63,15 @@ export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverPr
                   'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
                   active ? 'font-medium shadow-sm ring-1 ring-inset' : 'hover:bg-accent',
                 )}
-                style={active ? { backgroundColor: risk.bgColor, color: risk.textColor, '--tw-ring-color': risk.color } as React.CSSProperties : undefined}
+                style={
+                  active
+                    ? ({
+                        backgroundColor: risk.bgColor,
+                        color: risk.textColor,
+                        '--tw-ring-color': risk.color,
+                      } as React.CSSProperties)
+                    : undefined
+                }
               >
                 {getEntityTypeName(et.id)}
               </button>
@@ -69,7 +84,9 @@ export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverPr
             onClick={() => ui.setSelectedTypeId('CUSTOM')}
             className={cn(
               'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
-              ui.selectedTypeId === 'CUSTOM' ? 'bg-muted font-medium shadow-sm ring-1 ring-inset ring-border' : 'hover:bg-accent',
+              ui.selectedTypeId === 'CUSTOM'
+                ? 'bg-muted font-medium shadow-sm ring-1 ring-inset ring-border'
+                : 'hover:bg-accent',
             )}
           >
             {t('playground.customType')}
@@ -84,10 +101,17 @@ export const PlaygroundTextSelectionPopover: FC<PlaygroundTextSelectionPopoverPr
           disabled={!ui.selectedTypeId}
           className="h-7 flex-1 text-xs"
         >
-          {ui.selectedOverlapIds.length > 0 ? t('playground.updateAnnotation') : t('playground.addAnnotation')}
+          {ui.selectedOverlapIds.length > 0
+            ? t('playground.updateAnnotation')
+            : t('playground.addAnnotation')}
         </Button>
         {ui.selectedOverlapIds.length > 0 && (
-          <Button size="sm" variant="ghost" onClick={ui.removeSelectedEntities} className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={ui.removeSelectedEntities}
+            className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
             {t('playground.remove')}
           </Button>
         )}

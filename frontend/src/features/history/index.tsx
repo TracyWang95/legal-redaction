@@ -1,11 +1,16 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { PaginationRail } from '@/components/PaginationRail';
@@ -19,7 +24,10 @@ export function History() {
   const s = useHistory();
 
   return (
-    <div className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background" data-testid="history-page">
+    <div
+      className="saas-page flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+      data-testid="history-page"
+    >
       <div className="page-shell !max-w-[min(100%,2048px)] !px-3 !pt-4 sm:!px-5 sm:!pt-5 2xl:!px-8">
         <HistoryFilters
           sourceTab={s.sourceTab}
@@ -83,7 +91,12 @@ export function History() {
         </Card>
       </div>
 
-      <Dialog open={s.compareOpen} onOpenChange={(open) => { if (!open) s.closeCompareModal(); }}>
+      <Dialog
+        open={s.compareOpen}
+        onOpenChange={(open) => {
+          if (!open) s.closeCompareModal();
+        }}
+      >
         <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('history.compareTitle')}</DialogTitle>
@@ -117,26 +130,31 @@ export function History() {
                   </div>
                 </div>
               )}
-              {!s.compareBlobUrls && (s.compareData.original_content || s.compareData.redacted_content) && (
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <h4 className="mb-2 font-medium">
-                      {s.compareBlobUrls ? t('history.originalText') : t('history.beforeRedaction')}
-                    </h4>
-                    <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
-                      {s.compareData.original_content}
-                    </pre>
+              {!s.compareBlobUrls &&
+                (s.compareData.original_content || s.compareData.redacted_content) && (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <h4 className="mb-2 font-medium">
+                        {s.compareBlobUrls
+                          ? t('history.originalText')
+                          : t('history.beforeRedaction')}
+                      </h4>
+                      <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
+                        {s.compareData.original_content}
+                      </pre>
+                    </div>
+                    <div>
+                      <h4 className="mb-2 font-medium">
+                        {s.compareBlobUrls
+                          ? t('history.redactedText')
+                          : t('history.afterRedaction')}
+                      </h4>
+                      <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
+                        {s.compareData.redacted_content}
+                      </pre>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="mb-2 font-medium">
-                      {s.compareBlobUrls ? t('history.redactedText') : t('history.afterRedaction')}
-                    </h4>
-                    <pre className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs">
-                      {s.compareData.redacted_content}
-                    </pre>
-                  </div>
-                </div>
-              )}
+                )}
             </>
           ) : null}
         </DialogContent>

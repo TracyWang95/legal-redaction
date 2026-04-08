@@ -7,10 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import {
-  BUILTIN_VISION_IDS,
-  useVisionModelConfig,
-} from './hooks/use-model-config';
+import { BUILTIN_VISION_IDS, useVisionModelConfig } from './hooks/use-model-config';
 import { useVisionModelForm } from './use-vision-model-form';
 import { tonePanelClass } from '@/utils/toneClasses';
 import { VisionModelDialog } from './vision-model-dialog';
@@ -61,7 +58,9 @@ export function VisionModel() {
         <div className="page-stack">
           <Card className="rounded-[24px] border-border/70 bg-muted/30 shadow-[var(--shadow-control)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base tracking-[-0.03em]">{t('settings.visionModel.infoTitle')}</CardTitle>
+              <CardTitle className="text-base tracking-[-0.03em]">
+                {t('settings.visionModel.infoTitle')}
+              </CardTitle>
               <CardDescription className="mt-2 text-sm leading-relaxed">
                 {t('settings.visionModel.infoDesc')}
               </CardDescription>
@@ -92,45 +91,44 @@ export function VisionModel() {
 
             <CardContent className="p-0">
               <div className="divide-y divide-border/70">
-                {modelConfigs.configs.map(config => (
+                {modelConfigs.configs.map((config) => (
                   <div key={config.id} className="flex items-center gap-4 px-5 py-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-medium">{config.name}</span>
                         <Badge
-                          variant={BUILTIN_VISION_IDS.has(config.id) || config.enabled ? 'secondary' : 'outline'}
+                          variant={
+                            BUILTIN_VISION_IDS.has(config.id) || config.enabled
+                              ? 'secondary'
+                              : 'outline'
+                          }
                           className="text-xs"
                         >
                           {BUILTIN_VISION_IDS.has(config.id) || config.enabled
                             ? t('common.enabled')
                             : t('common.disabled')}
                         </Badge>
-                        {BUILTIN_VISION_IDS.has(config.id) && (() => {
-                          const live = liveForBuiltin(config.id);
-                          return live === 'online'
-                            ? (
+                        {BUILTIN_VISION_IDS.has(config.id) &&
+                          (() => {
+                            const live = liveForBuiltin(config.id);
+                            return live === 'online' ? (
                               <Badge className={`text-xs ${tonePanelClass.success}`}>
                                 {t('common.online')}
                               </Badge>
-                            )
-                            : live === 'offline'
-                              ? (
-                                <Badge variant="destructive" className="text-xs">
-                                  {t('common.offline')}
-                                </Badge>
-                              )
-                              : builtinLive === null
-                                ? (
-                                  <Badge variant="outline" className="text-xs">
-                                    {t('common.checking')}
-                                  </Badge>
-                                )
-                                : (
-                                  <Badge variant="outline" className="text-xs">
-                                    {t('common.unknown')}
-                                  </Badge>
-                                );
-                        })()}
+                            ) : live === 'offline' ? (
+                              <Badge variant="destructive" className="text-xs">
+                                {t('common.offline')}
+                              </Badge>
+                            ) : builtinLive === null ? (
+                              <Badge variant="outline" className="text-xs">
+                                {t('common.checking')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                {t('common.unknown')}
+                              </Badge>
+                            );
+                          })()}
                       </div>
 
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -148,7 +146,9 @@ export function VisionModel() {
                       </div>
 
                       {config.description && (
-                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{config.description}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                          {config.description}
+                        </p>
                       )}
                     </div>
 
@@ -162,20 +162,30 @@ export function VisionModel() {
                       >
                         {testingModelId === config.id ? t('common.testing') : t('common.test')}
                       </Button>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(config)} data-testid={`edit-model-${config.id}`} aria-label={t('common.edit')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => openEdit(config)}
+                        data-testid={`edit-model-${config.id}`}
+                        aria-label={t('common.edit')}
+                      >
                         <PencilIcon />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
                         disabled={BUILTIN_VISION_IDS.has(config.id)}
-                        className={cn(BUILTIN_VISION_IDS.has(config.id) && 'cursor-not-allowed opacity-20')}
-                        onClick={() => requestConfirm({
-                          title: t('common.delete'),
-                          message: t('settings.visionModel.confirmDelete'),
-                          danger: true,
-                          onConfirm: () => void deleteModelConfig(config.id),
-                        })}
+                        className={cn(
+                          BUILTIN_VISION_IDS.has(config.id) && 'cursor-not-allowed opacity-20',
+                        )}
+                        onClick={() =>
+                          requestConfirm({
+                            title: t('common.delete'),
+                            message: t('settings.visionModel.confirmDelete'),
+                            danger: true,
+                            onConfirm: () => void deleteModelConfig(config.id),
+                          })
+                        }
                         aria-label={t('common.delete')}
                         data-testid={`delete-model-${config.id}`}
                       >
@@ -199,12 +209,14 @@ export function VisionModel() {
           <div className="flex justify-end">
             <Button
               variant="outline"
-              onClick={() => requestConfirm({
-                title: t('settings.visionModel.reset'),
-                message: t('settings.visionModel.confirmReset'),
-                danger: true,
-                onConfirm: () => void resetModelConfigs(),
-              })}
+              onClick={() =>
+                requestConfirm({
+                  title: t('settings.visionModel.reset'),
+                  message: t('settings.visionModel.confirmReset'),
+                  danger: true,
+                  onConfirm: () => void resetModelConfigs(),
+                })
+              }
               data-testid="reset-vision-models"
             >
               {t('settings.visionModel.reset')}

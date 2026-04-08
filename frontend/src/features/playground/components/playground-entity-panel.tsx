@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { type FC, type MouseEvent as ReactMouseEvent, useMemo, memo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { ENTITY_GROUPS, getEntityGroup, getEntityGroupLabel, getEntityTypeName } from '@/config/entityTypes';
+import {
+  ENTITY_GROUPS,
+  getEntityGroup,
+  getEntityGroupLabel,
+  getEntityTypeName,
+} from '@/config/entityTypes';
 import { computeEntityStats, getModePreview } from '../utils';
 import type { BoundingBox, Entity } from '../types';
 
@@ -32,163 +36,183 @@ export interface PlaygroundEntityPanelProps {
   onRemoveEntity: (id: string) => void;
 }
 
-export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(({
-  isImageMode,
-  isLoading,
-  entities,
-  visibleBoxes,
-  selectedCount,
-  replacementMode,
-  setReplacementMode,
-  clearPlaygroundTextPresetTracking,
-  onRerunNer,
-  onRedact,
-  onSelectAll,
-  onDeselectAll,
-  onToggleBox,
-  onEntityClick,
-  onRemoveEntity,
-}) => {
-  const t = useT();
-  const stats = useMemo(() => computeEntityStats(entities), [entities]);
-  const totalCount = isImageMode ? visibleBoxes.length : entities.length;
+export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
+  ({
+    isImageMode,
+    isLoading,
+    entities,
+    visibleBoxes,
+    selectedCount,
+    replacementMode,
+    setReplacementMode,
+    clearPlaygroundTextPresetTracking,
+    onRerunNer,
+    onRedact,
+    onSelectAll,
+    onDeselectAll,
+    onToggleBox,
+    onEntityClick,
+    onRemoveEntity,
+  }) => {
+    const t = useT();
+    const stats = useMemo(() => computeEntityStats(entities), [entities]);
+    const totalCount = isImageMode ? visibleBoxes.length : entities.length;
 
-  return (
-    <div
-      className="flex min-h-0 w-full flex-shrink-0 flex-col gap-3 self-stretch overflow-x-hidden overflow-y-auto pr-1 lg:w-[320px] lg:max-w-[340px]"
-      data-testid="playground-entity-panel"
-    >
-      <Card className="overflow-hidden">
-        <CardContent className="flex flex-col gap-3 p-4">
-          <div className="space-y-1">
-            <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              {t('playground.recognitionSection')}
+    return (
+      <div
+        className="flex min-h-0 w-full flex-shrink-0 flex-col gap-3 self-stretch overflow-x-hidden overflow-y-auto pr-1 lg:w-[320px] lg:max-w-[340px]"
+        data-testid="playground-entity-panel"
+      >
+        <Card className="overflow-hidden">
+          <CardContent className="flex flex-col gap-3 p-4">
+            <div className="space-y-1">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                {t('playground.recognitionSection')}
+              </div>
+              <p className="text-sm text-foreground">{t('playground.recognitionSectionDesc')}</p>
             </div>
-            <p className="text-sm text-foreground">
-              {t('playground.recognitionSectionDesc')}
-            </p>
-          </div>
-          <Button onClick={onRerunNer} disabled={isLoading} className="w-full" data-testid="playground-rerun-btn">
-            {isLoading ? t('playground.recognizing') : t('playground.reRecognize')}
-          </Button>
-          <p className="text-xs leading-6 text-muted-foreground">
-            {t('playground.rerunHint')}
-          </p>
-        </CardContent>
-      </Card>
+            <Button
+              onClick={onRerunNer}
+              disabled={isLoading}
+              className="w-full"
+              data-testid="playground-rerun-btn"
+            >
+              {isLoading ? t('playground.recognizing') : t('playground.reRecognize')}
+            </Button>
+            <p className="text-xs leading-6 text-muted-foreground">{t('playground.rerunHint')}</p>
+          </CardContent>
+        </Card>
 
-      <Card className="overflow-hidden">
-        <CardHeader className="p-4 pb-3">
-          <div className="flex items-center justify-between gap-3">
+        <Card className="overflow-hidden">
+          <CardHeader className="p-4 pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-sm">
+                  {isImageMode ? t('playground.regionList') : t('playground.results')}
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('playground.selectionSummary')
+                    .replace('{selected}', String(selectedCount))
+                    .replace('{total}', String(totalCount))}
+                </p>
+              </div>
+              <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px]">
+                {selectedCount}/{totalCount}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 p-4 pt-0">
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                onClick={onSelectAll}
+                data-testid="playground-select-all"
+              >
+                {t('playground.selectAll')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={onDeselectAll}
+                data-testid="playground-deselect-all"
+              >
+                {t('playground.deselectAll')}
+              </Button>
+            </div>
+
+            {!isImageMode && (
+              <ReplacementModeSelector
+                entities={entities}
+                mode={replacementMode}
+                onModeChange={(mode) => {
+                  clearPlaygroundTextPresetTracking();
+                  setReplacementMode(mode);
+                }}
+              />
+            )}
+
+            {!isImageMode && Object.keys(stats).length > 0 && (
+              <div className="space-y-2">
+                {ENTITY_GROUPS.map((group) => {
+                  const groupedStats = Object.entries(stats).filter(([typeId]) =>
+                    group.types.some((groupType) => groupType.id === typeId),
+                  );
+                  if (groupedStats.length === 0) return null;
+
+                  const total = groupedStats.reduce((sum, [, count]) => sum + count.total, 0);
+                  const selected = groupedStats.reduce((sum, [, count]) => sum + count.selected, 0);
+
+                  return (
+                    <div key={group.id} className="rounded-2xl border border-border/70 bg-muted/25">
+                      <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          {getEntityGroupLabel(group.id)}
+                        </span>
+                        <span className="text-[11px] tabular-nums text-muted-foreground">
+                          {selected}/{total}
+                        </span>
+                      </div>
+                      <div className="space-y-1 px-3 py-2">
+                        {groupedStats.map(([typeId, count]) => (
+                          <div key={typeId} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">
+                              {getEntityTypeName(typeId)}
+                            </span>
+                            <span className="tabular-nums text-foreground">
+                              {count.selected}/{count.total}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-4 py-3">
             <div>
-              <CardTitle className="text-sm">{isImageMode ? t('playground.regionList') : t('playground.results')}</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('playground.selectionSummary')
-                  .replace('{selected}', String(selectedCount))
-                  .replace('{total}', String(totalCount))}
-              </p>
+              <span className="text-sm font-semibold text-foreground">
+                {isImageMode ? t('playground.regionList') : t('playground.results')}
+              </span>
+              <p className="mt-1 text-xs text-muted-foreground">{t('playground.clickToEdit')}</p>
             </div>
-            <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px]">
-              {selectedCount}/{totalCount}
+            <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
+              {totalCount}
             </Badge>
           </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 p-4 pt-0">
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" className="flex-1" onClick={onSelectAll} data-testid="playground-select-all">
-              {t('playground.selectAll')}
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1" onClick={onDeselectAll} data-testid="playground-deselect-all">
-              {t('playground.deselectAll')}
-            </Button>
-          </div>
+          <ScrollArea className="flex-1">
+            {isImageMode ? (
+              <BoxList boxes={visibleBoxes} onToggle={onToggleBox} />
+            ) : (
+              <EntityList entities={entities} onClick={onEntityClick} onRemove={onRemoveEntity} />
+            )}
+          </ScrollArea>
+        </Card>
 
-          {!isImageMode && (
-            <ReplacementModeSelector
-              entities={entities}
-              mode={replacementMode}
-              onModeChange={(mode) => {
-                clearPlaygroundTextPresetTracking();
-                setReplacementMode(mode);
-              }}
-            />
+        <Button
+          onClick={onRedact}
+          disabled={selectedCount === 0 || isLoading}
+          className={cn(
+            'h-12 rounded-2xl text-sm font-semibold shadow-[var(--shadow-control)]',
+            selectedCount === 0 && 'opacity-50',
           )}
-
-          {!isImageMode && Object.keys(stats).length > 0 && (
-            <div className="space-y-2">
-              {ENTITY_GROUPS.map((group) => {
-                const groupedStats = Object.entries(stats).filter(([typeId]) =>
-                  group.types.some((groupType) => groupType.id === typeId),
-                );
-                if (groupedStats.length === 0) return null;
-
-                const total = groupedStats.reduce((sum, [, count]) => sum + count.total, 0);
-                const selected = groupedStats.reduce((sum, [, count]) => sum + count.selected, 0);
-
-                return (
-                  <div key={group.id} className="rounded-2xl border border-border/70 bg-muted/25">
-                    <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        {getEntityGroupLabel(group.id)}
-                      </span>
-                      <span className="text-[11px] tabular-nums text-muted-foreground">
-                        {selected}/{total}
-                      </span>
-                    </div>
-                    <div className="space-y-1 px-3 py-2">
-                      {groupedStats.map(([typeId, count]) => (
-                        <div key={typeId} className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">{getEntityTypeName(typeId)}</span>
-                          <span className="tabular-nums text-foreground">
-                            {count.selected}/{count.total}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-4 py-3">
-          <div>
-            <span className="text-sm font-semibold text-foreground">
-              {isImageMode ? t('playground.regionList') : t('playground.results')}
-            </span>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('playground.clickToEdit')}
-            </p>
-          </div>
-          <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
-            {totalCount}
-          </Badge>
-        </div>
-        <ScrollArea className="flex-1">
-          {isImageMode ? (
-            <BoxList boxes={visibleBoxes} onToggle={onToggleBox} />
-          ) : (
-            <EntityList entities={entities} onClick={onEntityClick} onRemove={onRemoveEntity} />
-          )}
-        </ScrollArea>
-      </Card>
-
-      <Button
-        onClick={onRedact}
-        disabled={selectedCount === 0 || isLoading}
-        className={cn('h-12 rounded-2xl text-sm font-semibold shadow-[var(--shadow-control)]', selectedCount === 0 && 'opacity-50')}
-        data-testid="playground-redact-btn"
-      >
-        {isLoading
-          ? t('playground.processing')
-          : `${t('playground.startRedact')} (${selectedCount})`}
-      </Button>
-    </div>
-  );
-});
+          data-testid="playground-redact-btn"
+        >
+          {isLoading
+            ? t('playground.processing')
+            : `${t('playground.startRedact')} (${selectedCount})`}
+        </Button>
+      </div>
+    );
+  },
+);
 
 const ReplacementModeSelector: FC<{
   entities: Entity[];
@@ -214,7 +238,9 @@ const ReplacementModeSelector: FC<{
             key={item.value}
             className={cn(
               'flex cursor-pointer flex-col rounded-2xl border px-3 py-3 transition-colors',
-              mode === item.value ? 'border-primary/50 bg-primary/5' : 'border-border/70 bg-background hover:border-primary/30',
+              mode === item.value
+                ? 'border-primary/50 bg-primary/5'
+                : 'border-border/70 bg-background hover:border-primary/30',
             )}
           >
             <div className="flex items-center gap-2">
@@ -227,7 +253,11 @@ const ReplacementModeSelector: FC<{
                 className="accent-primary"
               />
               <span className="text-sm font-medium text-foreground">{item.label}</span>
-              {item.badge && <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">{item.badge}</Badge>}
+              {item.badge && (
+                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                  {item.badge}
+                </Badge>
+              )}
             </div>
             <span className="ml-6 mt-1 text-[11px] text-muted-foreground">
               {getModePreview(item.value, sampleEntity)}
@@ -239,22 +269,28 @@ const ReplacementModeSelector: FC<{
   );
 };
 
-const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({ boxes, onToggle }) => {
+const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
+  boxes,
+  onToggle,
+}) => {
   const t = useT();
 
   if (boxes.length === 0) {
-    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>;
+    return (
+      <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>
+    );
   }
 
   return (
     <>
       {boxes.map((box) => {
         const group = getEntityGroup(box.type);
-        const sourceLabel = box.source === 'ocr_has'
-          ? t('playground.sourceOcr')
-          : box.source === 'has_image'
-            ? t('playground.sourceImage')
-            : t('playground.sourceManual');
+        const sourceLabel =
+          box.source === 'ocr_has'
+            ? t('playground.sourceOcr')
+            : box.source === 'has_image'
+              ? t('playground.sourceImage')
+              : t('playground.sourceManual');
 
         return (
           <div
@@ -263,13 +299,23 @@ const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
             onClick={() => onToggle(box.id)}
             data-testid={`playground-box-${box.id}`}
           >
-            <Checkbox checked={box.selected} onCheckedChange={() => onToggle(box.id)} className="h-4 w-4" />
+            <Checkbox
+              checked={box.selected}
+              onCheckedChange={() => onToggle(box.id)}
+              className="h-4 w-4"
+            />
             <div className="min-w-0 flex-1">
               <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                <Badge variant="secondary" className="text-[10px]">{group?.label} / {getEntityTypeName(box.type)}</Badge>
-                <Badge variant="outline" className="text-[10px]">{sourceLabel}</Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {group?.label} / {getEntityTypeName(box.type)}
+                </Badge>
+                <Badge variant="outline" className="text-[10px]">
+                  {sourceLabel}
+                </Badge>
               </div>
-              <p className="truncate text-sm text-foreground">{box.text || t('playground.imageRegion')}</p>
+              <p className="truncate text-sm text-foreground">
+                {box.text || t('playground.imageRegion')}
+              </p>
             </div>
           </div>
         );
@@ -286,13 +332,17 @@ const EntityList: FC<{
   const t = useT();
 
   if (entities.length === 0) {
-    return <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>;
+    return (
+      <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>
+    );
   }
 
   return (
     <>
       {ENTITY_GROUPS.map((group) => {
-        const groupedEntities = entities.filter((entity) => group.types.some((groupType) => groupType.id === entity.type));
+        const groupedEntities = entities.filter((entity) =>
+          group.types.some((groupType) => groupType.id === entity.type),
+        );
         if (groupedEntities.length === 0) return null;
 
         return (
@@ -307,11 +357,12 @@ const EntityList: FC<{
             </div>
 
             {groupedEntities.map((entity) => {
-              const sourceLabel = entity.source === 'regex'
-                ? t('playground.sourceRegex')
-                : entity.source === 'manual'
-                  ? t('playground.sourceManual')
-                  : t('playground.sourceAi');
+              const sourceLabel =
+                entity.source === 'regex'
+                  ? t('playground.sourceRegex')
+                  : entity.source === 'manual'
+                    ? t('playground.sourceManual')
+                    : t('playground.sourceAi');
 
               return (
                 <div
@@ -322,7 +373,9 @@ const EntityList: FC<{
                 >
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[10px]">{getEntityTypeName(entity.type)}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {getEntityTypeName(entity.type)}
+                      </Badge>
                       <span className="text-[11px] text-muted-foreground">{sourceLabel}</span>
                     </div>
                     <p className="truncate text-sm text-foreground">{entity.text}</p>
@@ -338,8 +391,18 @@ const EntityList: FC<{
                     }}
                     aria-label={t('playground.removeAnnotation')}
                   >
-                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </Button>
                 </div>

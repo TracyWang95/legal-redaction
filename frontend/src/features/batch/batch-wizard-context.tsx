@@ -15,11 +15,7 @@ export function BatchWizardProvider({
   value: BatchWizardState;
   children: React.ReactNode;
 }) {
-  return (
-    <BatchWizardContext.Provider value={value}>
-      {children}
-    </BatchWizardContext.Provider>
-  );
+  return <BatchWizardContext.Provider value={value}>{children}</BatchWizardContext.Provider>;
 }
 
 export function useBatchWizardContext(): BatchWizardState {

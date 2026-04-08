@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const enBase: Record<string, string> = {
-  
   'nav.playground': 'Playground',
   'nav.batch': 'Batch',
   'nav.batch.sub': 'Create or resume wizard',
@@ -17,7 +16,6 @@ const enBase: Record<string, string> = {
   'nav.textModel': 'Text Model',
   'nav.visionModel': 'Vision Service',
 
-  
   'playground.title': 'Redaction Workspace',
   'playground.upload.hint': 'Drag & drop or click to upload',
   'playground.upload.formats': 'Supports Word, PDF, and image files',
@@ -33,7 +31,6 @@ const enBase: Record<string, string> = {
   'playground.entities': 'Entities',
   'playground.boundingBoxes': 'Regions',
 
-  
   'common.confirm': 'Confirm',
   'common.cancel': 'Cancel',
   'common.delete': 'Delete',
@@ -47,12 +44,10 @@ const enBase: Record<string, string> = {
   'common.error': 'Error',
   'common.retry': 'Retry',
 
-  
   'file.word': 'Word Document',
   'file.pdf': 'PDF Document',
   'file.image': 'Image',
 
-  
   'entity.PERSON': 'Name',
   'entity.ID_CARD': 'ID Card',
   'entity.PHONE': 'Phone',
@@ -64,13 +59,11 @@ const enBase: Record<string, string> = {
   'entity.DATE': 'Date',
   'entity.AMOUNT': 'Amount',
 
-  
   'mode.smart': 'Smart Replace',
   'mode.mask': 'Mask',
   'mode.custom': 'Custom',
   'mode.structured': 'Structured Tags',
 
-  
   'job.status.draft': 'Draft',
   'job.status.queued': 'Queued',
   'job.status.pending': 'Pending',
@@ -104,13 +97,11 @@ const enBase: Record<string, string> = {
   'redactionState.awaiting_review': 'Awaiting Review',
   'redactionState.unredacted': 'Unredacted',
 
-  
   'settings.title': 'Settings',
   'settings.presets': 'Presets',
   'settings.presets.export': 'Export Presets',
   'settings.presets.import': 'Import Presets',
 
-  
   'report.title': 'Redaction Report',
   'report.totalEntities': 'Total Entities',
   'report.redactedEntities': 'Redacted',
@@ -121,7 +112,6 @@ const enBase: Record<string, string> = {
   'report.medium': 'Medium',
   'report.low': 'Low',
 
-  
   'health.title': 'Service Status',
   'health.allOnline': 'All services online',
   'health.someOffline': 'Some services offline',
@@ -137,32 +127,34 @@ const enBase: Record<string, string> = {
   'health.probeTime': 'Probe time',
   'health.refreshTitle': 'Refresh service status',
 
-  
   'offline.banner': 'Network disconnected. Some features may be unavailable.',
 
-  
   'onboarding.skip': 'Skip',
   'onboarding.prev': 'Previous',
   'onboarding.next': 'Next',
   'onboarding.start': 'Get Started',
   'onboarding.step1.title': 'Welcome to the Redaction Console',
-  'onboarding.step1.desc': 'Handle upload, review, and export from one clean workspace. Everything stays local to your environment.',
+  'onboarding.step1.desc':
+    'Handle upload, review, and export from one clean workspace. Everything stays local to your environment.',
   'onboarding.step2.title': 'Drop In Your Documents',
-  'onboarding.step2.desc': 'Start with Word, PDF, or image files. The workspace is designed for quick intake without extra setup.',
+  'onboarding.step2.desc':
+    'Start with Word, PDF, or image files. The workspace is designed for quick intake without extra setup.',
   'onboarding.step3.title': 'Let Recognition Do The First Pass',
-  'onboarding.step3.desc': 'The system finds names, IDs, phone numbers, addresses, and other sensitive content before you touch a single file.',
+  'onboarding.step3.desc':
+    'The system finds names, IDs, phone numbers, addresses, and other sensitive content before you touch a single file.',
   'onboarding.step4.title': 'Review Before You Ship',
-  'onboarding.step4.desc': 'Adjust labels, keep or remove detections, and pick the redaction style that matches your delivery standard.',
+  'onboarding.step4.desc':
+    'Adjust labels, keep or remove detections, and pick the redaction style that matches your delivery standard.',
   'onboarding.step5.title': 'Scale To Batch Work',
-  'onboarding.step5.desc': 'When one file becomes many, move into batch jobs and keep the same review quality across the whole queue.',
+  'onboarding.step5.desc':
+    'When one file becomes many, move into batch jobs and keep the same review quality across the whole queue.',
 
-  
   'page.batch.title': 'Batch',
   'page.batch.sub': 'Choose type & create a job',
-'page.batchText.title': 'Text Batch',
-'page.batchText.sub': 'Documents and selectable-text PDFs',
-'page.batchImage.title': 'Image Batch',
-'page.batchImage.sub': 'Scans and image recognition',
+  'page.batchText.title': 'Text Batch',
+  'page.batchText.sub': 'Documents and selectable-text PDFs',
+  'page.batchImage.title': 'Image Batch',
+  'page.batchImage.sub': 'Scans and image recognition',
   'page.batchSmart.title': 'Smart Batch',
   'page.batchSmart.sub': 'Mixed files with auto-detection',
   'page.redactionList.title': 'Redaction List',
@@ -180,14 +172,12 @@ const enBase: Record<string, string> = {
   'page.visionModel.title': 'Vision Service',
   'page.visionModel.sub': 'HaS Image, PaddleOCR-VL registration & detection',
 
-  
   'preset.saveText.prompt': 'Save as text preset: enter name',
   'preset.saveText.success': 'Text preset saved.',
   'preset.saveVision.prompt': 'Save as vision preset: enter name',
   'preset.saveVision.success': 'Vision preset saved.',
   'preset.save.failed': 'Save failed',
 
-  
   'error.network': 'Network error. Please check if backend is running.',
   'error.auth': 'Authentication failed. Please log in again.',
   'error.server': 'Internal server error. Please try again later.',
@@ -202,7 +192,6 @@ const enBase: Record<string, string> = {
   'action.redacting': 'Applying redaction...',
   'action.downloading': 'Downloading...',
 
-  
   'jobDetail.batchTask': 'Batch Task',
   'jobDetail.loadFailed': 'Failed to load',
   'jobDetail.submitted': 'Submitted to queue',
@@ -210,7 +199,8 @@ const enBase: Record<string, string> = {
   'jobDetail.cancelled': 'Cancelled',
   'jobDetail.cancelFailed': 'Cancel failed',
   'jobDetail.unnamedTask': 'Unnamed Task',
-  'jobDetail.confirmDelete': 'Delete task "{title}"?\n\nThis removes the job and file item records from the job center, but retains uploaded originals and redacted results. Processing history remains viewable.',
+  'jobDetail.confirmDelete':
+    'Delete task "{title}"?\n\nThis removes the job and file item records from the job center, but retains uploaded originals and redacted results. Processing history remains viewable.',
   'jobDetail.deleteFailed': 'Failed to delete task',
   'jobDetail.requeuedSuccess': 'Failed items re-queued, awaiting processing',
   'jobDetail.requeueFailed': 'Re-queue failed',
@@ -235,7 +225,8 @@ const enBase: Record<string, string> = {
   'jobDetail.deleteTask': 'Delete Task',
   'jobDetail.deleteHintRunning': 'Cancel running tasks before deleting',
   'jobDetail.requeueFailed.btn': 'Retry failed items ({n})',
-  'jobDetail.reviewHint': '"Quick Approve" marks this file as reviewed and queues it for redaction; for full text selection/box editing, enter the batch wizard step 4 via the main button and save as draft.',
+  'jobDetail.reviewHint':
+    '"Quick Approve" marks this file as reviewed and queues it for redaction; for full text selection/box editing, enter the batch wizard step 4 via the main button and save as draft.',
   'jobDetail.fileDetail': 'File Details',
   'jobDetail.col.file': 'File',
   'jobDetail.col.status': 'Status',
@@ -252,7 +243,6 @@ const enBase: Record<string, string> = {
   'jobDetail.quickApprove': 'Quick Approve',
   'jobDetail.reject': 'Reject',
 
-  
   'jobs.batchTask': 'Batch Task',
   'jobs.localExec': 'Local',
   'jobs.queueExec': 'Background Queue',
@@ -272,7 +262,8 @@ const enBase: Record<string, string> = {
   'jobs.loadFailed': 'Failed to load',
   'jobs.expandFailed': 'Failed to expand task',
   'jobs.unnamedTask': 'Unnamed Task',
-  'jobs.confirmDelete': 'Delete task "{title}"?\n\nThis removes the job and file item records from the job center, but retains uploaded originals and redacted results. Processing history remains viewable.',
+  'jobs.confirmDelete':
+    'Delete task "{title}"?\n\nThis removes the job and file item records from the job center, but retains uploaded originals and redacted results. Processing history remains viewable.',
   'jobs.deletedNotice': 'Deleted task "{title}"',
   'jobs.deleteFailed': 'Failed to delete task',
   'jobs.requeuedNotice': 'Re-queued {n} failed items',
@@ -301,7 +292,8 @@ const enBase: Record<string, string> = {
   'jobs.detailAction': 'Details',
   'jobs.deleteAction': 'Delete',
   'jobs.noRecords': 'No task records',
-  'jobs.noRecordsHint': 'After creating from the batch entry, you can manage progress, expand file trees, and delete jobs here',
+  'jobs.noRecordsHint':
+    'After creating from the batch entry, you can manage progress, expand file trees, and delete jobs here',
   'jobs.gotoBatch': 'Go to Batch',
   'jobs.collapseFiles': 'Collapse files',
   'jobs.expandFiles': 'Expand files',
@@ -330,12 +322,12 @@ const enBase: Record<string, string> = {
   'jobs.nextPage': 'Next',
   'jobs.lastPage': 'Last',
 
-  
   'history.loadPreviewFailed.redacted': 'Failed to load redacted file preview',
   'history.loadPreviewFailed.original': 'Failed to load original file preview',
   'history.loadFailed': 'Failed to load',
   'history.compareFailed': 'Failed to load comparison',
-  'history.description': 'Switch tabs to view records from different sources. Files from the same "Batch" session are grouped together. Playground records are grouped by date. Pagination and selection apply to the current page only.',
+  'history.description':
+    'Switch tabs to view records from different sources. Files from the same "Batch" session are grouped together. Playground records are grouped by date. Pagination and selection apply to the current page only.',
   'history.tab.all': 'All',
   'history.tab.batch': 'Batch',
   'history.refresh': 'Refresh',
@@ -408,13 +400,13 @@ const enBase: Record<string, string> = {
   'history.previewItemText': 'Text item',
   'history.previewImageRegion': 'Image region',
   'history.previewItemPage': 'Page {page}',
-  'history.noChanges': 'No change details available (e.g., image-only redaction may not produce text-level changes)',
+  'history.noChanges':
+    'No change details available (e.g., image-only redaction may not produce text-level changes)',
   'history.col.original': 'Original',
   'history.col.replacement': 'Replacement',
   'history.col.count': 'Count',
   'history.confirmDeleteText': 'Delete',
 
-  
   'settings.testLabel': 'Test Text (Server-side Python regex engine)',
   'settings.testPlaceholder': 'Enter test text...',
   'settings.testing': 'Testing...',
@@ -429,7 +421,8 @@ const enBase: Record<string, string> = {
   'settings.saveFailed': 'Save failed',
   'settings.confirmDeleteType': 'Delete this type?',
   'settings.deleteTypeFailed': 'Delete failed',
-  'settings.confirmReset': 'Reset to default configuration? This will overwrite all custom modifications.',
+  'settings.confirmReset':
+    'Reset to default configuration? This will overwrite all custom modifications.',
   'settings.exportFailed': 'Export presets failed',
   'settings.importFailed': 'Import presets failed',
   'settings.importSuccess': 'Presets imported successfully',
@@ -455,7 +448,8 @@ const enBase: Record<string, string> = {
   'settings.addSemanticType': 'New Semantic Type',
   'settings.addRegexType': 'New Regex Type',
   'settings.addSemanticDesc': 'Name is required and description is optional.',
-  'settings.addRegexDesc': 'Name and regex are required, with sample text available for validation.',
+  'settings.addRegexDesc':
+    'Name and regex are required, with sample text available for validation.',
   'settings.nameLabel': 'Name',
   'settings.regexLabel': 'Regular Expression',
   'settings.testMatchLabel': 'Test Match Text',
@@ -473,35 +467,36 @@ const enBase: Record<string, string> = {
   'settings.editType': 'Edit Type',
   'settings.addType': 'New Type',
   'settings.pipelineTypeDescOcr': 'OCR + HaS · Same color as batch wizard "Image Text" (green)',
-  'settings.pipelineTypeDescImg': 'HaS Image · Same color as batch wizard "Visual Features" (purple)',
-  'settings.saveHint': 'After saving, items are displayed with the panel color scheme (green / purple), consistent with the batch wizard.',
+  'settings.pipelineTypeDescImg':
+    'HaS Image · Same color as batch wizard "Visual Features" (purple)',
+  'settings.saveHint':
+    'After saving, items are displayed with the panel color scheme (green / purple), consistent with the batch wizard.',
   'settings.save': 'Save',
   'settings.saving': 'Saving...',
   'settings.updateFailed': 'Update failed',
 
-  
   'sidebar.subtitle': 'Anonymization Data Infrastructure',
   'sidebar.devInProgress': 'In Dev',
 
-  
   'jobDetail.progressTotal': '{n} items total',
   'jobDetail.progressRedacted': '{n} redacted',
   'jobDetail.progressAwaiting': '{n} awaiting review',
   'jobDetail.progressFailed': '{n} failed',
 
-  
   'jobs.headlineRedacted': '{n} redacted',
   'jobs.headlineAwaiting': '{n} awaiting',
   'jobs.itemCount': '{n} items',
   'jobs.updatedAtLabel': 'Updated {time}',
 
-  
   'batchHub.title': 'Start or Resume Batch Task',
-  'batchHub.desc': 'Create a job first, then configure, upload, recognize, and review. Resume recent active tasks directly.',
+  'batchHub.desc':
+    'Create a job first, then configure, upload, recognize, and review. Resume recent active tasks directly.',
   'batchHub.newTask': 'New Batch Task',
-  'batchHub.newTaskDesc': 'Supports mixed Word / PDF / image uploads with automatic file type detection.',
+  'batchHub.newTaskDesc':
+    'Supports mixed Word / PDF / image uploads with automatic file type detection.',
   'batchHub.recentTitle': 'Resume Recent Tasks',
-  'batchHub.recentDesc': 'Jump to configuration, upload, monitoring, or review based on task status.',
+  'batchHub.recentDesc':
+    'Jump to configuration, upload, monitoring, or review based on task status.',
   'batchHub.jobCenter': 'Job Center',
   'batchHub.loading': 'Loading...',
   'batchHub.noActiveJobs': 'No active tasks to resume. Create a new batch job to get started.',
@@ -512,12 +507,12 @@ const enBase: Record<string, string> = {
   'batchHub.viewDetail': 'View Details',
   'batchHub.creating': 'Creating…',
   'batchHub.createFailed': 'Create failed',
-  'batchHub.previewDesc': 'The backend is unavailable. You can still open the batch preview flow to inspect layout and interaction polish.',
+  'batchHub.previewDesc':
+    'The backend is unavailable. You can still open the batch preview flow to inspect layout and interaction polish.',
   'batchHub.previewCta': 'Open preview flow',
   'batchHub.history': 'History',
   'batchHub.batchTaskTitle': 'Batch {time}',
 
-  
   'batchWizard.stepsOverview': '5 steps: Config -> Upload -> Recognize -> Review -> Export',
   'batchWizard.step1': 'Config',
   'batchWizard.step2': 'Upload',
@@ -525,13 +520,15 @@ const enBase: Record<string, string> = {
   'batchWizard.step4': 'Review',
   'batchWizard.step5': 'Export',
   'batchWizard.step1.title': '1. Task & Config',
-  'batchWizard.step1.desc': 'Bind recognition items and redaction options. Changes sync to draft automatically (~1s debounce).',
+  'batchWizard.step1.desc':
+    'Bind recognition items and redaction options. Changes sync to draft automatically (~1s debounce).',
   'batchWizard.step1.execQueue': 'Background Queue',
   'batchWizard.step1.execQueueDesc': '(Recommended: Worker continues after closing)',
   'batchWizard.step1.execLocal': 'Local Only',
   'batchWizard.step1.execLocalDesc': '(In-browser recognize, review, export)',
   'batchWizard.step1.execPath': 'Default Processing Path',
-  'batchWizard.step1.execPathHint': 'Choose whether the batch runs in the background or finishes in this page first. Text and image settings below follow the same path.',
+  'batchWizard.step1.execPathHint':
+    'Choose whether the batch runs in the background or finishes in this page first. Text and image settings below follow the same path.',
   'batchWizard.step1.textPreset': 'Text Redaction',
   'batchWizard.step1.textPresetDesc': 'Word / PDF text entity recognition',
   'batchWizard.step1.imagePreset': 'Image Redaction',
@@ -541,16 +538,23 @@ const enBase: Record<string, string> = {
   'batchWizard.step1.imageMethodMosaic': 'Mosaic',
   'batchWizard.step1.imageMethodBlur': 'Blur',
   'batchWizard.step1.imageMethodFill': 'Solid fill',
-  'batchWizard.step1.imageMethodMosaicHint': 'Best for signatures, stamps, and small areas when you want to keep the page layout readable.',
-  'batchWizard.step1.imageMethodBlurHint': 'Good when you want to keep rough shapes while making details unreadable. Higher strength means stronger protection.',
-  'batchWizard.step1.imageMethodFillHint': 'Covers the selected region with a solid color. Best when the area must be fully hidden.',
+  'batchWizard.step1.imageMethodMosaicHint':
+    'Best for signatures, stamps, and small areas when you want to keep the page layout readable.',
+  'batchWizard.step1.imageMethodBlurHint':
+    'Good when you want to keep rough shapes while making details unreadable. Higher strength means stronger protection.',
+  'batchWizard.step1.imageMethodFillHint':
+    'Covers the selected region with a solid color. Best when the area must be fully hidden.',
   'batchWizard.step1.imageStrengthLabel': 'Mask strength',
   'batchWizard.step1.imageFillColorLabel': 'Fill color',
   'batchWizard.step1.previewSwatch': 'Preview',
-  'batchWizard.step1.textModeHint': 'Text replacements follow this method across the batch, and the preview below reflects the current choice.',
-  'batchWizard.step1.textModeBulletStructured': 'Structured Tags — Replace with [NAME], [ID_CARD] labels; neat output for audits',
-  'batchWizard.step1.textModeBulletSmart': 'Smart Replace — Generate natural-sounding fake text; best for external documents',
-  'batchWizard.step1.textModeBulletMask': 'Mask Replace — Cover with ***; preserves length and position for quick redaction',
+  'batchWizard.step1.textModeHint':
+    'Text replacements follow this method across the batch, and the preview below reflects the current choice.',
+  'batchWizard.step1.textModeBulletStructured':
+    'Structured Tags — Replace with [NAME], [ID_CARD] labels; neat output for audits',
+  'batchWizard.step1.textModeBulletSmart':
+    'Smart Replace — Generate natural-sounding fake text; best for external documents',
+  'batchWizard.step1.textModeBulletMask':
+    'Mask Replace — Cover with ***; preserves length and position for quick redaction',
   'batchWizard.step1.summaryEtc': ' etc.',
   'batchWizard.step1.currentTextMethod': 'Text method: ',
   'batchWizard.step1.currentImageMethod': 'Image method: ',
@@ -575,7 +579,8 @@ const enBase: Record<string, string> = {
   'batchWizard.step1.nextUpload': 'Next: Upload',
   'batchWizard.step1.loadingConfig': 'Loading type configuration...',
   'batchWizard.step2.dropHint': 'Drop files here, or click to select',
-  'batchWizard.step2.dropHintSmart': 'Supports Word (.docx), PDF, images (.jpg .png), auto-detects file type',
+  'batchWizard.step2.dropHintSmart':
+    'Supports Word (.docx), PDF, images (.jpg .png), auto-detects file type',
   'batchWizard.step2.dropHintImage': 'Supports images (.jpg .png) and scanned PDFs',
   'batchWizard.step2.dropHintText': 'Supports Word (.docx .doc) and PDF documents',
   'batchWizard.step2.jobLinked': 'Current job',
@@ -585,7 +590,8 @@ const enBase: Record<string, string> = {
   'batchWizard.step2.prevStep': 'Previous',
   'batchWizard.step2.nextRecognize': 'Next: Recognize',
   'batchWizard.step3.title': '3. Batch Recognition',
-  'batchWizard.step3.desc': 'Submit all files to background Worker for processing. All files must complete before review.',
+  'batchWizard.step3.desc':
+    'Submit all files to background Worker for processing. All files must complete before review.',
   'batchWizard.step3.submitQueue': 'Submit to Queue',
   'batchWizard.step3.prevStep': 'Previous',
   'batchWizard.step3.retryFailed': 'Retry failed items',
@@ -594,7 +600,8 @@ const enBase: Record<string, string> = {
   'batchWizard.step3.pending': 'files pending',
   'batchWizard.step3.nextReview': 'Next: Review',
   'batchWizard.step4.textWorkbench': 'Text Review Workbench',
-  'batchWizard.step4.textWorkbenchDesc': 'Select text to annotate, click entities to edit type or delete; original and preview are linked.',
+  'batchWizard.step4.textWorkbenchDesc':
+    'Select text to annotate, click entities to edit type or delete; original and preview are linked.',
   'batchWizard.step4.originalText': 'Original',
   'batchWizard.step4.redactedPreview': 'Redacted Preview',
   'batchWizard.step4.entityList': 'Entity List',
@@ -605,7 +612,8 @@ const enBase: Record<string, string> = {
   'batchWizard.step4.confirmRedact': 'Confirm Redaction',
   'batchWizard.step4.submitting': 'Submitting...',
   'batchWizard.step4.completed': 'Completed',
-  'batchWizard.step4.readOnlyHint': 'This file is already redacted. To re-redact, reject it in job details first.',
+  'batchWizard.step4.readOnlyHint':
+    'This file is already redacted. To re-redact, reject it in job details first.',
   'batchWizard.step4.noRecognized': 'No recognized files yet. Complete step 3 first.',
   'batchWizard.step4.confirmed': 'Confirmed',
   'batchWizard.step4.allConfirmHint': 'All files must be confirmed before export',
@@ -622,17 +630,20 @@ const enBase: Record<string, string> = {
   'batchWizard.step4.rerunRecognition': 'Re-run Recognition',
   'batchWizard.step4.rerunningRecognition': 'Re-running…',
   'batchWizard.step5.title': '5. Export',
-  'batchWizard.step5.desc': 'Select files and download as ZIP. Redacted ZIP only includes files confirmed in step 4.',
+  'batchWizard.step5.desc':
+    'Select files and download as ZIP. Redacted ZIP only includes files confirmed in step 4.',
   'batchWizard.step5.backReview': 'Back to Review',
   'batchWizard.step5.downloadOriginal': 'Download Original ZIP',
   'batchWizard.step5.downloadRedacted': 'Download Redacted ZIP',
   'batchWizard.step5.downloading': 'Packaging...',
-  'batchWizard.stepsOrder': 'Please complete in order: Config -> Upload -> Recognize -> Review, then Export.',
-  'batchWizard.confirmConfigFirst': 'Please check "Confirm configuration" in step 1 before proceeding.',
-  'batchWizard.selectTypesFirst': 'Please complete step 1: select at least one text entity type or image recognition type.',
+  'batchWizard.stepsOrder':
+    'Please complete in order: Config -> Upload -> Recognize -> Review, then Export.',
+  'batchWizard.confirmConfigFirst':
+    'Please check "Confirm configuration" in step 1 before proceeding.',
+  'batchWizard.selectTypesFirst':
+    'Please complete step 1: select at least one text entity type or image recognition type.',
   'batchWizard.waitConfig': 'Please wait for configuration to load.',
 
-  
   'history.singleSession': 'Single · {id}',
   'history.batchLabel': 'Batch {id}',
   'history.loadingEllipsis': 'Loading…',
@@ -646,7 +657,6 @@ const enBase: Record<string, string> = {
   'history.unredactedStatus': 'Unredacted',
   'history.partiallyRedacted': 'Partially redacted',
 
-  
   'layout.navLabel': 'Main navigation',
   'layout.headerActions': 'Status and settings',
   'layout.toggleSidebar': 'Toggle sidebar',
@@ -656,7 +666,6 @@ const enBase: Record<string, string> = {
   'health.status.someOffline': 'Some offline',
   'health.status.backendDown': 'Backend disconnected',
 
-  
   'entityTag.PERSON': 'Name',
   'entityTag.ID_CARD': 'ID Card',
   'entityTag.PHONE': 'Phone',
@@ -668,7 +677,6 @@ const enBase: Record<string, string> = {
   'entityTag.CUSTOM': 'Custom',
   'entityTag.selected': ' (selected)',
 
-  
   'emptyState.history': 'No processing records',
   'emptyState.historyDesc': 'Records will appear here after you upload and process files',
   'emptyState.noFiles': 'No files yet',
@@ -677,11 +685,11 @@ const enBase: Record<string, string> = {
   'emptyState.noActiveJobsDesc': 'Create a new batch job to get started',
   'playground.loading': 'Loading...',
 
-  
   'safety.badge': '🔒 All processing runs locally — no data is uploaded',
   'safety.badge.short': 'On-device',
   'safety.title': 'Data Safety',
-  'safety.desc': 'All file parsing, entity recognition and redaction run entirely on your local device. Files are never sent to external servers.',
+  'safety.desc':
+    'All file parsing, entity recognition and redaction run entirely on your local device. Files are never sent to external servers.',
   'safety.storage.title': 'Storage Locations',
   'safety.storage.uploads': 'Originals: {path}',
   'safety.storage.outputs': 'Redacted: {path}',
@@ -695,7 +703,8 @@ const enBase: Record<string, string> = {
   'safety.autoDelete.label': 'Auto-delete originals after redaction',
   'safety.autoDelete.desc': 'Automatically remove uploaded source files once redaction completes',
 
-  'error.visionTimeout': 'Vision detection timed out (over 3 min). PaddleOCR is slow on CPU — try a smaller image or install paddle GPU.',
+  'error.visionTimeout':
+    'Vision detection timed out (over 3 min). PaddleOCR is slow on CPU — try a smaller image or install paddle GPU.',
   'error.visionDetectionFailed': 'Vision detection failed',
   'error.reRecognizeFailed': 'Re-recognition failed',
 };
@@ -748,7 +757,8 @@ const enOverrides: Record<string, string> = {
   'safety.badge.short': 'Local only',
   'batchHub.kicker': 'Batch workspace',
   'batchHub.title': 'Run high-volume redaction from one queue',
-  'batchHub.desc': 'Create a new batch job, pick up an active run, and keep review quality consistent at scale.',
+  'batchHub.desc':
+    'Create a new batch job, pick up an active run, and keep review quality consistent at scale.',
   'batchHub.newTask': 'New batch job',
   'batchHub.newTaskDesc': 'Start a new workflow with upload, review, and export.',
   'batchHub.creating': 'Creating job...',
@@ -762,12 +772,14 @@ const enOverrides: Record<string, string> = {
   'batchHub.failedSuffix': ' · {n} failed',
   'batchHub.viewDetail': 'View details',
   'batchHub.modeSectionTitle': 'Choose the right path for this batch',
-  'batchHub.modeSectionDesc': 'Start from the flow that matches the files in this run, then finish setup, upload, and review in that route.',
+  'batchHub.modeSectionDesc':
+    'Start from the flow that matches the files in this run, then finish setup, upload, and review in that route.',
   'batchHub.liveBadge': 'Live flow',
   'batchHub.previewBadge': 'Preview',
   'batchHub.enterConfig': 'Open config',
   'batchHub.mode.text.title': 'Text batch',
-  'batchHub.mode.text.desc': 'Best for Word files, editable PDFs, and runs led by text recognition.',
+  'batchHub.mode.text.desc':
+    'Best for Word files, editable PDFs, and runs led by text recognition.',
   'batchHub.mode.text.tag1': 'Word / PDF',
   'batchHub.mode.text.tag2': 'Text preset',
   'batchHub.mode.text.summaryLabel': 'Focus',
@@ -779,7 +791,8 @@ const enOverrides: Record<string, string> = {
   'batchHub.mode.image.summaryLabel': 'Focus',
   'batchHub.mode.image.summaryValue': 'OCR plus visual detection channels',
   'batchHub.mode.smart.title': 'Smart batch',
-  'batchHub.mode.smart.desc': 'Use one flow for mixed files and keep text and image review in sync.',
+  'batchHub.mode.smart.desc':
+    'Use one flow for mixed files and keep text and image review in sync.',
   'batchHub.mode.smart.tag1': 'Mixed files',
   'batchHub.mode.smart.tag2': 'Dual channel',
   'batchHub.mode.smart.summaryLabel': 'Focus',
@@ -807,10 +820,12 @@ const enOverrides: Record<string, string> = {
   'jobs.lastPage': 'Last',
   'jobs.cleanupTitle': 'Clear finished jobs',
   'jobs.cleanupMessage': 'Remove completed, failed, and cancelled jobs from the list?',
-  'jobs.previewBanner': 'The backend is unavailable. Preview job data is shown here so you can keep checking list density, detail rows, and pagination.',
+  'jobs.previewBanner':
+    'The backend is unavailable. Preview job data is shown here so you can keep checking list density, detail rows, and pagination.',
   'history.filters.kicker': 'Filters',
   'history.filters.title': 'Delivery History',
-  'history.filters.desc': 'Review processed files, compare results, and export clean bundles from one page.',
+  'history.filters.desc':
+    'Review processed files, compare results, and export clean bundles from one page.',
   'history.cleanupButton': 'Clear history',
   'history.tab.all': 'All',
   'history.tab.playground': 'Playground',
@@ -844,7 +859,8 @@ const enOverrides: Record<string, string> = {
   'history.afterRedaction': 'After',
   'history.cleanupTitle': 'Clear history',
   'history.cleanupMsg': 'Remove completed file records from history?',
-  'history.previewBanner': 'The backend is unavailable. Preview history data is shown here so you can keep checking filters, table density, and pagination.',
+  'history.previewBanner':
+    'The backend is unavailable. Preview history data is shown here so you can keep checking filters, table density, and pagination.',
   'history.unnamedContent': 'Unnamed content',
   'entityGroup.identity': 'Identity',
   'entityGroup.contact': 'Contact',
@@ -858,10 +874,14 @@ const enOverrides: Record<string, string> = {
   'entityGroup.other': 'Other',
   'playground.upload.kicker': 'Workspace intake',
   'playground.upload.title': 'Upload unstructured data, anonymize instantly',
-  'playground.upload.desc': 'Upload a file, select detection scope, preview anonymization results, then export.',
-  'playground.upload.standards': 'Standards: GDPR · PIPL · GB/T 37964-2019 · Anonymization Processing Guide for Data Circulation · Anonymization Effectiveness Assessment',
-  'playground.upload.configDesc': 'Presets, text rules, and vision rules are selected here in one place.',
-  'playground.upload.offlineHint': 'The backend is offline. Preview data is shown here so you can keep checking text rules, vision rules, and the overall layout.',
+  'playground.upload.desc':
+    'Upload a file, select detection scope, preview anonymization results, then export.',
+  'playground.upload.standards':
+    'Standards: GDPR · PIPL · GB/T 37964-2019 · Anonymization Processing Guide for Data Circulation · Anonymization Effectiveness Assessment',
+  'playground.upload.configDesc':
+    'Presets, text rules, and vision rules are selected here in one place.',
+  'playground.upload.offlineHint':
+    'The backend is offline. Preview data is shown here so you can keep checking text rules, vision rules, and the overall layout.',
   'playground.dropHere': 'Drop a file here to upload',
   'playground.supportedFormats': 'Supports .doc, .docx, .pdf, .jpg, and .png',
   'playground.clickToUpload': 'Or click to choose a file',
@@ -885,17 +905,22 @@ const enOverrides: Record<string, string> = {
   'playground.imageFeatures': 'Image features',
   'playground.ocrText': 'OCR text',
   'playground.textConfigUnavailableTitle': 'Text rules are unavailable right now',
-  'playground.textConfigUnavailableDesc': 'The real text recognition rules will appear here after the backend reconnects.',
+  'playground.textConfigUnavailableDesc':
+    'The real text recognition rules will appear here after the backend reconnects.',
   'playground.textConfigEmptyTitle': 'No text rules are available yet',
-  'playground.textConfigEmptyDesc': 'You can configure text rules in Recognition Settings, then come back here to pick them.',
+  'playground.textConfigEmptyDesc':
+    'You can configure text rules in Recognition Settings, then come back here to pick them.',
   'playground.visionConfigUnavailableTitle': 'Vision rules are unavailable right now',
-  'playground.visionConfigUnavailableDesc': 'The real vision recognition rules will appear here after the backend reconnects.',
+  'playground.visionConfigUnavailableDesc':
+    'The real vision recognition rules will appear here after the backend reconnects.',
   'playground.visionConfigEmptyTitle': 'No vision rules are available yet',
-  'playground.visionConfigEmptyDesc': 'You can configure vision rules in Recognition Settings, then come back here to pick them.',
+  'playground.visionConfigEmptyDesc':
+    'You can configure vision rules in Recognition Settings, then come back here to pick them.',
   'playground.popout': 'Pop out',
   'playground.reRecognize': 'Run recognition again',
   'playground.recognitionSection': 'Recognition',
-  'playground.recognitionSectionDesc': 'Refresh detection after updating rules or recognition settings.',
+  'playground.recognitionSectionDesc':
+    'Refresh detection after updating rules or recognition settings.',
   'playground.rerunHint': 'This refresh only applies to the current file.',
   'playground.results': 'Detection results',
   'playground.selectionSummary': '{selected} selected out of {total}',
@@ -918,7 +943,8 @@ const enOverrides: Record<string, string> = {
   'playground.loading.rerunVision': 'Running vision detection again...',
   'playground.loading.rerunVisionOcr': 'Running vision detection again (OCR text)...',
   'playground.loading.rerunVisionImage': 'Running vision detection again (image features)...',
-  'playground.loading.rerunVisionHybrid': 'Running vision detection again (OCR text + image features)...',
+  'playground.loading.rerunVisionHybrid':
+    'Running vision detection again (OCR text + image features)...',
   'playground.loading.rerunText': 'Running text recognition again...',
   'playground.startRedact': 'Start redaction',
   'playground.recommended': 'Recommended',
@@ -965,7 +991,8 @@ const enOverrides: Record<string, string> = {
   'playground.toast.redactDone': 'Redaction complete with {count} items processed.',
   'playground.noContent': 'No content available yet.',
   'playground.previewHint.image': 'Adjust regions, then choose what should be redacted.',
-  'playground.previewHint.text': 'Review highlights, select text, and refine annotations before export.',
+  'playground.previewHint.text':
+    'Review highlights, select text, and refine annotations before export.',
   'playground.selectedText': 'Selected text',
   'playground.selectType': 'Choose type',
   'playground.updateAnnotation': 'Update annotation',
@@ -1005,7 +1032,8 @@ const enOverrides: Record<string, string> = {
   'settings.typeNamePlaceholder.semantic': 'For example: project owner title',
   'settings.typeNamePlaceholder.regex': 'For example: contract signing date',
   'settings.regexPlaceholder': 'For example: \\d{4}-\\d{2}-\\d{2}',
-  'settings.semanticDescriptionPlaceholder': 'Briefly describe how this kind of information appears in a document.',
+  'settings.semanticDescriptionPlaceholder':
+    'Briefly describe how this kind of information appears in a document.',
   'settings.colorLabel': 'Highlight color',
   'settings.tagTemplateLabel': 'Replacement tag',
   'settings.tagTemplatePlaceholder': 'Optional. Leave blank to use the default tag.',
@@ -1013,40 +1041,50 @@ const enOverrides: Record<string, string> = {
   'settings.pipelineNamePlaceholder.image': 'For example: face region',
   'settings.pipelineDisplayName.ocr': 'OCR + HaS',
   'settings.pipelineDisplayName.image': 'HaS Image',
-  'settings.pipelineDescription.image': 'Use the vision-language service to detect signatures, stamps, handwriting, and other visual signals.',
-  'settings.provider.legacyZhipu': 'Zhipu (legacy)',
+  'settings.pipelineDescription.image':
+    'Use the vision-language service to detect signatures, stamps, handwriting, and other visual signals.',
   'settings.textModel.infoTitle': 'Text NER service',
-  'settings.textModel.infoDesc': 'Configure the text recognition endpoint used by the product. Save to apply immediately, or test first with the current address.',
+  'settings.textModel.infoDesc':
+    'Configure the text recognition endpoint used by the product. Save to apply immediately, or test first with the current address.',
   'settings.textModel.tag.openai': 'OpenAI-compatible',
   'settings.textModel.tag.local': 'Local HTTP',
   'settings.textModel.tag.server': 'llama-server',
   'settings.textModel.tag.builtin': 'Built-in',
   'settings.textModel.cardTitle': 'HaS text NER',
-  'settings.textModel.cardDescription': 'The app currently uses one text NER endpoint. Point it to an OpenAI-compatible address, then test and save from this page.',
+  'settings.textModel.cardDescription':
+    'The app currently uses one text NER endpoint. Point it to an OpenAI-compatible address, then test and save from this page.',
   'settings.textModel.endpointLabel': 'OpenAI-compatible API root',
-  'settings.textModel.endpointHint': 'Testing tries the current address directly. You do not need to save first.',
+  'settings.textModel.endpointHint':
+    'Testing tries the current address directly. You do not need to save first.',
   'settings.textModel.reset': 'Reset to environment default',
   'settings.textModel.saveSuccess': 'Configuration saved and applied.',
-  'settings.textModel.responseNotJson': 'HTTP {status}: response was not JSON. Check that the backend is running.',
+  'settings.textModel.responseNotJson':
+    'HTTP {status}: response was not JSON. Check that the backend is running.',
   'settings.textModel.requestFailedWithStatus': 'Request failed ({status})',
   'settings.textModel.connectSuccess': 'Connection successful.',
-  'settings.textModel.connectFailed': 'Connection failed. Check the backend log or save the configuration and try again.',
-  'settings.textModel.testRequestFailed': 'The test request failed because of a network or cross-origin issue.',
-  'settings.textModel.confirmClearOverride': 'Clear the saved frontend configuration and fall back to the server environment defaults?',
+  'settings.textModel.connectFailed':
+    'Connection failed. Check the backend log or save the configuration and try again.',
+  'settings.textModel.testRequestFailed':
+    'The test request failed because of a network or cross-origin issue.',
+  'settings.textModel.confirmClearOverride':
+    'Clear the saved frontend configuration and fall back to the server environment defaults?',
   'settings.textModel.resetSuccess': 'Reset to the environment default.',
   'settings.visionModel.infoTitle': 'Vision inference services',
-  'settings.visionModel.infoDesc': 'Manage image-side inference endpoints here. Built-in services and custom providers can all be tested from the same page.',
+  'settings.visionModel.infoDesc':
+    'Manage image-side inference endpoints here. Built-in services and custom providers can all be tested from the same page.',
   'settings.visionModel.tag.local': 'Local HTTP',
   'settings.visionModel.tag.openai': 'OpenAI-compatible',
   'settings.visionModel.tag.custom': 'Custom HTTP',
   'settings.visionModel.listTitle': 'Inference backends',
-  'settings.visionModel.listDesc': 'Keep built-in services and any external providers in one place, with testing and status checks included.',
+  'settings.visionModel.listDesc':
+    'Keep built-in services and any external providers in one place, with testing and status checks included.',
   'settings.visionModel.add': '+ New backend',
   'settings.visionModel.empty': 'No inference backends configured yet.',
   'settings.visionModel.reset': 'Reset to default configuration',
   'settings.visionModel.dialog.createTitle': 'New inference backend',
   'settings.visionModel.dialog.editTitle': 'Edit inference backend',
-  'settings.visionModel.dialog.desc': 'Set the connection details for this vision inference backend.',
+  'settings.visionModel.dialog.desc':
+    'Set the connection details for this vision inference backend.',
   'settings.visionModel.nameLabel': 'Display name',
   'settings.visionModel.namePlaceholder': 'For example: HaS Image local 8081',
   'settings.visionModel.providerLabel': 'Provider',
@@ -1066,13 +1104,15 @@ const enOverrides: Record<string, string> = {
   'settings.visionModel.notesPlaceholder': 'Optional. Add internal notes for this backend.',
   'settings.visionModel.confirmDelete': 'Delete this model configuration?',
   'settings.visionModel.confirmReset': 'Reset all model configurations to default?',
-  'settings.visionModel.testFailedLong': 'The test request failed or timed out. OCR may take longer on first load.',
+  'settings.visionModel.testFailedLong':
+    'The test request failed or timed out. OCR may take longer on first load.',
   'settings.visionModel.testFailed': 'The test request failed.',
   'settings.redaction.kind.text': 'Text',
   'settings.redaction.kind.vision': 'Vision',
   'settings.redaction.kind.full': 'Combined',
   'settings.redaction.configTitle': 'Redaction list configuration',
-  'settings.redaction.configDesc': 'Use the same preset service across Playground and Batch so each new session starts with a clean default.',
+  'settings.redaction.configDesc':
+    'Use the same preset service across Playground and Batch so each new session starts with a clean default.',
   'settings.redaction.newText': '+ New text list',
   'settings.redaction.newVision': '+ New image list',
   'settings.redaction.currentSelection': 'Current selection',
@@ -1099,7 +1139,8 @@ const enOverrides: Record<string, string> = {
   'settings.redaction.defaultNameVision': 'Default image redaction list',
   'settings.redaction.defaultShort': 'Default',
   'settings.redaction.confirmDelete': 'Delete this saved preset?',
-  'settings.redaction.previewBanner': 'The backend is currently unavailable. Sample data is shown here so you can review layout and interaction polish until live settings return.',
+  'settings.redaction.previewBanner':
+    'The backend is currently unavailable. Sample data is shown here so you can review layout and interaction polish until live settings return.',
   'settings.redaction.nameRequired': 'Please enter a preset name.',
   'settings.redaction.saveFailed': 'Failed to save preset.',
   'settings.redaction.processing': 'Processing...',
@@ -1107,7 +1148,8 @@ const enOverrides: Record<string, string> = {
   'settings.redaction.editPreset': 'Edit',
   'settings.redaction.createTitle': 'New {kind} preset',
   'settings.redaction.editTitle': 'Edit {kind} preset',
-  'settings.pipelineDescription.ocr': 'Use OCR and text recognition services to detect printed text, seal text, and handwriting from scanned files.',
+  'settings.pipelineDescription.ocr':
+    'Use OCR and text recognition services to detect printed text, seal text, and handwriting from scanned files.',
   'settings.preview.personName': 'Name',
   'settings.preview.idCard': 'ID card',
   'settings.preview.bankCard': 'Bank card',
@@ -1161,11 +1203,15 @@ const enOverrides: Record<string, string> = {
   'batchWizard.downloadFailed': 'Failed to download the package.',
   'batchWizard.noFilesToExport': 'There are no files ready to export.',
   'batchWizard.notAllFilesConfirmed': 'Confirm every file before exporting.',
-  'batchWizard.previewBanner': 'You are viewing the batch preview flow. The data on this page is sample data and will not create or update real backend tasks.',
+  'batchWizard.previewBanner':
+    'You are viewing the batch preview flow. The data on this page is sample data and will not create or update real backend tasks.',
   'batchWizard.previewFilesAdded': '{count} preview files added.',
-  'batchWizard.previewRecognitionDone': 'Preview data has been advanced to recognition results. You can keep checking the review and export screens.',
-  'batchWizard.previewReviewDone': 'The current preview file is confirmed. Continue checking the next file or the export step.',
-  'batchWizard.previewDownloadReady': 'A preview export file is ready so you can inspect the download entry and status states.',
+  'batchWizard.previewRecognitionDone':
+    'Preview data has been advanced to recognition results. You can keep checking the review and export screens.',
+  'batchWizard.previewReviewDone':
+    'The current preview file is confirmed. Continue checking the next file or the export step.',
+  'batchWizard.previewDownloadReady':
+    'A preview export file is ready so you can inspect the download entry and status states.',
   'batchWizard.previewJobLabel': 'Preview task',
 
   // Image BBox Editor

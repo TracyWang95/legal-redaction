@@ -38,13 +38,8 @@ function BatchStep1FooterInner({
     <div className="page-surface-footer">
       <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]">
         <div className="surface-subtle flex items-center justify-between gap-3 px-3 py-1.5">
-          <span className="text-sm text-muted-foreground">
-            {t('batchWizard.step1.priority')}
-          </span>
-          <Select
-            value={String(jobPriority)}
-            onValueChange={v => setJobPriority(Number(v))}
-          >
+          <span className="text-sm text-muted-foreground">{t('batchWizard.step1.priority')}</span>
+          <Select value={String(jobPriority)} onValueChange={(v) => setJobPriority(Number(v))}>
             <SelectTrigger className="w-24 text-xs" data-testid="priority-select">
               <SelectValue />
             </SelectTrigger>
@@ -60,7 +55,7 @@ function BatchStep1FooterInner({
           <label className="flex cursor-pointer items-start gap-2 text-sm">
             <Checkbox
               checked={confirmStep1}
-              onCheckedChange={v => setConfirmStep1(v === true)}
+              onCheckedChange={(v) => setConfirmStep1(v === true)}
               className="mt-0.5"
               data-testid="confirm-step1"
             />

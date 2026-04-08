@@ -16,7 +16,12 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
     <div className="flex flex-col items-center justify-center gap-5 py-20 animate-fade-in">
       <div className="flex h-16 w-16 items-center justify-center rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-md)]">
         {icon || (
-          <svg className="w-8 h-8 text-primary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg
+            className="w-8 h-8 text-primary/40"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -28,9 +33,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
       </div>
       <div className="max-w-xs text-center">
         <p className="mb-1 text-sm font-medium text-foreground/80">{title}</p>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
       {action && (
         <Button type="button" onClick={action.onClick} variant="outline" size="sm">

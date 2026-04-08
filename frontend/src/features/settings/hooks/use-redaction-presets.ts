@@ -13,7 +13,10 @@ import {
   presetAppliesText,
   presetAppliesVision,
 } from '@/services/presetsApi';
-import { buildDefaultPipelineTypeIds, buildDefaultTextTypeIds } from '@/services/defaultRedactionPreset';
+import {
+  buildDefaultPipelineTypeIds,
+  buildDefaultTextTypeIds,
+} from '@/services/defaultRedactionPreset';
 import {
   getActivePresetTextId,
   getActivePresetVisionId,
@@ -33,8 +36,10 @@ function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
   return [...presets].sort((left, right) => {
     const leftTime = left.created_at ? Date.parse(left.created_at) : Number.MAX_SAFE_INTEGER;
     const rightTime = right.created_at ? Date.parse(right.created_at) : Number.MAX_SAFE_INTEGER;
-    return (Number.isFinite(leftTime) ? leftTime : Number.MAX_SAFE_INTEGER)
-      - (Number.isFinite(rightTime) ? rightTime : Number.MAX_SAFE_INTEGER);
+    return (
+      (Number.isFinite(leftTime) ? leftTime : Number.MAX_SAFE_INTEGER) -
+      (Number.isFinite(rightTime) ? rightTime : Number.MAX_SAFE_INTEGER)
+    );
   });
 }
 
@@ -66,11 +71,14 @@ export function useRedactionPresets() {
     onConfirm: () => void;
   } | null>(null);
 
-  const presetKindLabel = useCallback((kind?: PresetKind) => {
-    if (kind === 'text') return t('settings.redaction.kind.text');
-    if (kind === 'vision') return t('settings.redaction.kind.vision');
-    return t('settings.redaction.kind.full');
-  }, [t]);
+  const presetKindLabel = useCallback(
+    (kind?: PresetKind) => {
+      if (kind === 'text') return t('settings.redaction.kind.text');
+      if (kind === 'vision') return t('settings.redaction.kind.vision');
+      return t('settings.redaction.kind.full');
+    },
+    [t],
+  );
 
   const reloadPresets = useCallback(async () => {
     try {
@@ -85,7 +93,7 @@ export function useRedactionPresets() {
     try {
       setLoading(true);
       setLoadError(null);
-      setEntityTypes(await fetchRecognitionEntityTypes(false, 3_500) as EntityTypeConfig[]);
+      setEntityTypes((await fetchRecognitionEntityTypes(false, 3_500)) as EntityTypeConfig[]);
     } catch {
       setEntityTypes([]);
       setLoadError(t('settings.loadFailed'));
@@ -97,10 +105,14 @@ export function useRedactionPresets() {
   const fetchPipelinesData = useCallback(async () => {
     try {
       setLoadError(null);
-      setPipelines((await fetchRecognitionPipelines(3_500) as PipelineConfig[]).map((pipeline: PipelineConfig) =>
-        pipeline.mode === 'has_image'
-          ? { ...pipeline, name: t('settings.pipelineDisplayName.image') }
-          : pipeline));
+      setPipelines(
+        ((await fetchRecognitionPipelines(3_500)) as PipelineConfig[]).map(
+          (pipeline: PipelineConfig) =>
+            pipeline.mode === 'has_image'
+              ? { ...pipeline, name: t('settings.pipelineDisplayName.image') }
+              : pipeline,
+        ),
+      );
     } catch {
       setPipelines([]);
       setLoadError((current) => current ?? t('settings.loadFailed'));
@@ -115,7 +127,9 @@ export function useRedactionPresets() {
 
   // Refresh when entity types are changed in the settings entity-type editor
   useEffect(() => {
-    const handler = () => { void fetchEntityTypes(); };
+    const handler = () => {
+      void fetchEntityTypes();
+    };
     window.addEventListener('entity-types-changed', handler);
     return () => window.removeEventListener('entity-types-changed', handler);
   }, [fetchEntityTypes]);
@@ -133,101 +147,125 @@ export function useRedactionPresets() {
     return () => window.removeEventListener('datainfra-redaction-active-preset', syncActivePreset);
   }, []);
 
-  const textPresets = useMemo(() => sortPresets(effectivePresets.filter(presetAppliesText)), [effectivePresets]);
-  const visionPresets = useMemo(() => sortPresets(effectivePresets.filter(presetAppliesVision)), [effectivePresets]);
+  const textPresets = useMemo(
+    () => sortPresets(effectivePresets.filter(presetAppliesText)),
+    [effectivePresets],
+  );
+  const visionPresets = useMemo(
+    () => sortPresets(effectivePresets.filter(presetAppliesVision)),
+    [effectivePresets],
+  );
   const regexTypes = useMemo(
-    () => effectiveEntityTypes.filter(type => type.enabled !== false && type.regex_pattern),
+    () => effectiveEntityTypes.filter((type) => type.enabled !== false && type.regex_pattern),
     [effectiveEntityTypes],
   );
   const semanticTypes = useMemo(
-    () => effectiveEntityTypes.filter(type => type.enabled !== false && type.use_llm && !type.regex_pattern),
+    () =>
+      effectiveEntityTypes.filter(
+        (type) => type.enabled !== false && type.use_llm && !type.regex_pattern,
+      ),
     [effectiveEntityTypes],
   );
 
-  const defaultTextPreset = useMemo<RecognitionPreset>(() => ({
-    id: '__default_text__',
-    name: t('settings.redaction.defaultNameText'),
-    kind: 'text',
-    selectedEntityTypeIds: buildDefaultTextTypeIds(effectiveEntityTypes),
-    ocrHasTypes: [],
-    hasImageTypes: [],
-    replacementMode: 'structured',
-    created_at: '',
-    updated_at: '',
-  }), [effectiveEntityTypes, t]);
+  const defaultTextPreset = useMemo<RecognitionPreset>(
+    () => ({
+      id: '__default_text__',
+      name: t('settings.redaction.defaultNameText'),
+      kind: 'text',
+      selectedEntityTypeIds: buildDefaultTextTypeIds(effectiveEntityTypes),
+      ocrHasTypes: [],
+      hasImageTypes: [],
+      replacementMode: 'structured',
+      created_at: '',
+      updated_at: '',
+    }),
+    [effectiveEntityTypes, t],
+  );
 
-  const defaultVisionPreset = useMemo<RecognitionPreset>(() => ({
-    id: '__default_vision__',
-    name: t('settings.redaction.defaultNameVision'),
-    kind: 'vision',
-    selectedEntityTypeIds: [],
-    ocrHasTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has'),
-    hasImageTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'has_image'),
-    replacementMode: 'structured',
-    created_at: '',
-    updated_at: '',
-  }), [effectivePipelines, t]);
+  const defaultVisionPreset = useMemo<RecognitionPreset>(
+    () => ({
+      id: '__default_vision__',
+      name: t('settings.redaction.defaultNameVision'),
+      kind: 'vision',
+      selectedEntityTypeIds: [],
+      ocrHasTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has'),
+      hasImageTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'has_image'),
+      replacementMode: 'structured',
+      created_at: '',
+      updated_at: '',
+    }),
+    [effectivePipelines, t],
+  );
 
   const summaryTextLabel = useMemo(() => {
     if (!bridgeText) return t('settings.redaction.defaultShort');
-    return textPresets.find(preset => preset.id === bridgeText)?.name ?? t('settings.redaction.defaultShort');
+    return (
+      textPresets.find((preset) => preset.id === bridgeText)?.name ??
+      t('settings.redaction.defaultShort')
+    );
   }, [bridgeText, textPresets, t]);
 
   const summaryVisionLabel = useMemo(() => {
     if (!bridgeVision) return t('settings.redaction.defaultShort');
-    return visionPresets.find(preset => preset.id === bridgeVision)?.name ?? t('settings.redaction.defaultShort');
+    return (
+      visionPresets.find((preset) => preset.id === bridgeVision)?.name ??
+      t('settings.redaction.defaultShort')
+    );
   }, [bridgeVision, t, visionPresets]);
 
   useEffect(() => {
-    if (bridgeText && !textPresets.some(preset => preset.id === bridgeText)) {
+    if (bridgeText && !textPresets.some((preset) => preset.id === bridgeText)) {
       setBridgeText('');
       setActivePresetTextId(null);
     }
   }, [bridgeText, textPresets]);
 
   useEffect(() => {
-    if (bridgeVision && !visionPresets.some(preset => preset.id === bridgeVision)) {
+    if (bridgeVision && !visionPresets.some((preset) => preset.id === bridgeVision)) {
       setBridgeVision('');
       setActivePresetVisionId(null);
     }
   }, [bridgeVision, visionPresets]);
 
-  const buildDefaultForm = useCallback((kind: PresetKind = 'full'): PresetPayload => {
-    const textIds = buildDefaultTextTypeIds(effectiveEntityTypes);
-    const ocrIds = buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has');
-    const imageIds = buildDefaultPipelineTypeIds(effectivePipelines, 'has_image');
+  const buildDefaultForm = useCallback(
+    (kind: PresetKind = 'full'): PresetPayload => {
+      const textIds = buildDefaultTextTypeIds(effectiveEntityTypes);
+      const ocrIds = buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has');
+      const imageIds = buildDefaultPipelineTypeIds(effectivePipelines, 'has_image');
 
-    if (kind === 'text') {
+      if (kind === 'text') {
+        return {
+          name: '',
+          kind: 'text',
+          selectedEntityTypeIds: textIds,
+          ocrHasTypes: [],
+          hasImageTypes: [],
+          replacementMode: 'structured',
+        };
+      }
+
+      if (kind === 'vision') {
+        return {
+          name: '',
+          kind: 'vision',
+          selectedEntityTypeIds: [],
+          ocrHasTypes: ocrIds,
+          hasImageTypes: imageIds,
+          replacementMode: 'structured',
+        };
+      }
+
       return {
         name: '',
-        kind: 'text',
+        kind: 'full',
         selectedEntityTypeIds: textIds,
-        ocrHasTypes: [],
-        hasImageTypes: [],
-        replacementMode: 'structured',
-      };
-    }
-
-    if (kind === 'vision') {
-      return {
-        name: '',
-        kind: 'vision',
-        selectedEntityTypeIds: [],
         ocrHasTypes: ocrIds,
         hasImageTypes: imageIds,
         replacementMode: 'structured',
       };
-    }
-
-    return {
-      name: '',
-      kind: 'full',
-      selectedEntityTypeIds: textIds,
-      ocrHasTypes: ocrIds,
-      hasImageTypes: imageIds,
-      replacementMode: 'structured',
-    };
-  }, [effectiveEntityTypes, effectivePipelines]);
+    },
+    [effectiveEntityTypes, effectivePipelines],
+  );
 
   const openNew = (kind: PresetKind) => {
     setExpanded(null);
@@ -256,11 +294,12 @@ export function useRedactionPresets() {
       return;
     }
 
-    const normalized: PresetPayload = presetForm.kind === 'text'
-      ? { ...presetForm, ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured' }
-      : presetForm.kind === 'vision'
-        ? { ...presetForm, selectedEntityTypeIds: [], replacementMode: 'structured' }
-        : presetForm;
+    const normalized: PresetPayload =
+      presetForm.kind === 'text'
+        ? { ...presetForm, ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured' }
+        : presetForm.kind === 'vision'
+          ? { ...presetForm, selectedEntityTypeIds: [], replacementMode: 'structured' }
+          : presetForm;
 
     setSaving(true);
     try {
@@ -289,7 +328,9 @@ export function useRedactionPresets() {
   const removePreset = async (id: string) => {
     try {
       await deletePreset(id);
-      setExpanded(current => (current === `text:${id}` || current === `vision:${id}` ? null : current));
+      setExpanded((current) =>
+        current === `text:${id}` || current === `vision:${id}` ? null : current,
+      );
       await reloadPresets();
       if (bridgeText === id) {
         setBridgeText('');

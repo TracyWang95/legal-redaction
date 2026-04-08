@@ -16,7 +16,7 @@ class ModelConfig(BaseModel):
 
     id: str = Field(..., description="配置ID")
     name: str = Field(..., description="配置名称")
-    provider: Literal["local", "zhipu", "openai", "custom"] = Field(..., description="提供商类型")
+    provider: Literal["local", "openai", "custom"] = Field(..., description="提供商类型")
     enabled: bool = Field(default=True, description="是否启用")
 
     # API 配置

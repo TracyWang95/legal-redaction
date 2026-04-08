@@ -30,14 +30,24 @@ export const PlaygroundUploadDropzone: FC<PlaygroundUploadDropzoneProps> = ({ dr
             {t('playground.upload.desc')}
           </p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-[10px] tracking-wide text-muted-foreground/45">
-            {t('playground.upload.standards').split(' · ').map((s, i, a) => (
-              <span key={s}>{s}{i < a.length - 1 && <span className="ml-1.5 text-border">·</span>}</span>
-            ))}
+            {t('playground.upload.standards')
+              .split(' · ')
+              .map((s, i, a) => (
+                <span key={s}>
+                  {s}
+                  {i < a.length - 1 && <span className="ml-1.5 text-border">·</span>}
+                </span>
+              ))}
           </div>
         </div>
 
         <div
-          {...getRootProps({ onClick: (e) => { e.stopPropagation(); open(); } })}
+          {...getRootProps({
+            onClick: (e) => {
+              e.stopPropagation();
+              open();
+            },
+          })}
           aria-label={t('playground.dropHere')}
           className={cn(
             'saas-hero group relative min-h-[18rem] flex-1 w-full cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-300 ease-out lg:px-12',
@@ -56,22 +66,33 @@ export const PlaygroundUploadDropzone: FC<PlaygroundUploadDropzoneProps> = ({ dr
               )}
             >
               <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
               </svg>
             </div>
             <p className="mb-1.5 text-lg font-semibold tracking-[-0.02em]">
               {t('playground.dropHere')}
             </p>
-            <p className="mb-5 text-sm text-muted-foreground">
-              {t('playground.supportedFormats')}
-            </p>
+            <p className="mb-5 text-sm text-muted-foreground">{t('playground.supportedFormats')}</p>
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); open(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                open();
+              }}
               className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card px-4 py-2 text-xs font-medium text-foreground hover:bg-accent/40 transition-colors"
             >
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               {t('playground.clickToUpload')}
             </button>

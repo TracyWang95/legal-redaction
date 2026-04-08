@@ -12,9 +12,7 @@ describe('EmptyState', () => {
   });
 
   it('renders title and description', () => {
-    render(
-      <EmptyState title="No results" description="Try a different search query" />,
-    );
+    render(<EmptyState title="No results" description="Try a different search query" />);
     expect(screen.getByText('No results')).toBeInTheDocument();
     expect(screen.getByText('Try a different search query')).toBeInTheDocument();
   });
@@ -29,10 +27,7 @@ describe('EmptyState', () => {
   it('renders action button that fires onClick', () => {
     const handleClick = vi.fn();
     render(
-      <EmptyState
-        title="Nothing here"
-        action={{ label: 'Create new', onClick: handleClick }}
-      />,
+      <EmptyState title="Nothing here" action={{ label: 'Create new', onClick: handleClick }} />,
     );
     const button = screen.getByRole('button', { name: 'Create new' });
     expect(button).toBeInTheDocument();
@@ -46,12 +41,7 @@ describe('EmptyState', () => {
   });
 
   it('renders custom icon when provided', () => {
-    render(
-      <EmptyState
-        title="Custom"
-        icon={<span data-testid="custom-icon">ICON</span>}
-      />,
-    );
+    render(<EmptyState title="Custom" icon={<span data-testid="custom-icon">ICON</span>} />);
     expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
   });
 

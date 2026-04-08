@@ -82,35 +82,25 @@ describe('inferWizardFloorFromBatchConfig', () => {
   });
 
   it('returns 2 for text_batch with entity_type_ids', () => {
-    expect(
-      inferWizardFloorFromBatchConfig({ entity_type_ids: ['PERSON'] }, 'text_batch'),
-    ).toBe(2);
+    expect(inferWizardFloorFromBatchConfig({ entity_type_ids: ['PERSON'] }, 'text_batch')).toBe(2);
   });
 
   it('returns null for text_batch with empty entity_type_ids', () => {
-    expect(
-      inferWizardFloorFromBatchConfig({ entity_type_ids: [] }, 'text_batch'),
-    ).toBeNull();
+    expect(inferWizardFloorFromBatchConfig({ entity_type_ids: [] }, 'text_batch')).toBeNull();
   });
 
   it('returns 2 for image_batch with ocr_has_types', () => {
-    expect(
-      inferWizardFloorFromBatchConfig({ ocr_has_types: ['ID'] }, 'image_batch'),
-    ).toBe(2);
+    expect(inferWizardFloorFromBatchConfig({ ocr_has_types: ['ID'] }, 'image_batch')).toBe(2);
   });
 
   it('returns 2 for smart_batch with entity_type_ids', () => {
-    expect(
-      inferWizardFloorFromBatchConfig({ entity_type_ids: ['ORG'] }, 'smart_batch'),
-    ).toBe(2);
+    expect(inferWizardFloorFromBatchConfig({ entity_type_ids: ['ORG'] }, 'smart_batch')).toBe(2);
   });
 });
 
 describe('effectiveWizardFurthestStep', () => {
   it('returns null when no hints or config', () => {
-    expect(
-      effectiveWizardFurthestStep({ jobType: 'text_batch' }),
-    ).toBeNull();
+    expect(effectiveWizardFurthestStep({ jobType: 'text_batch' })).toBeNull();
   });
 
   it('returns the maximum of all candidates', () => {

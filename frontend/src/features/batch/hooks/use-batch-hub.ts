@@ -3,15 +3,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  listJobs,
-  type JobSummary,
-} from '@/services/jobsApi';
+import { listJobs, type JobSummary } from '@/services/jobsApi';
 import { resolveJobPrimaryNavigation } from '@/utils/jobPrimaryNavigation';
 import { buildPreviewBatchRoute } from '../lib/batch-preview-fixtures';
 
 function isActiveJob(status: string): boolean {
-  return ['draft', 'queued', 'processing', 'running', 'awaiting_review', 'redacting'].includes(status);
+  return ['draft', 'queued', 'processing', 'running', 'awaiting_review', 'redacting'].includes(
+    status,
+  );
 }
 
 export function useBatchHub() {
@@ -47,7 +46,9 @@ export function useBatchHub() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const activeJobs = useMemo(() => recentJobs, [recentJobs]);
@@ -64,22 +65,25 @@ export function useBatchHub() {
     nav('/batch/smart');
   }, [jobsUnavailable, nav]);
 
-  const continueJob = useCallback((job: JobSummary) => {
-    const navTarget = resolveJobPrimaryNavigation({
-      jobId: job.id,
-      status: job.status,
-      jobType: job.job_type,
-      items: [],
-      currentPage: 'other',
-      navHints: job.nav_hints,
-      jobConfig: job.config,
-    });
-    if (navTarget.kind === 'link') {
-      nav(navTarget.to);
-    } else {
-      nav(`/jobs/${encodeURIComponent(job.id)}`);
-    }
-  }, [nav]);
+  const continueJob = useCallback(
+    (job: JobSummary) => {
+      const navTarget = resolveJobPrimaryNavigation({
+        jobId: job.id,
+        status: job.status,
+        jobType: job.job_type,
+        items: [],
+        currentPage: 'other',
+        navHints: job.nav_hints,
+        jobConfig: job.config,
+      });
+      if (navTarget.kind === 'link') {
+        nav(navTarget.to);
+      } else {
+        nav(`/jobs/${encodeURIComponent(job.id)}`);
+      }
+    },
+    [nav],
+  );
 
   return {
     loading,

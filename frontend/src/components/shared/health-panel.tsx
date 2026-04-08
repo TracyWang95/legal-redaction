@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
@@ -18,7 +17,10 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
   const t = useT();
 
   return (
-    <div className="rounded-[18px] border border-sidebar-border bg-sidebar-accent px-3 py-3 text-sidebar-foreground backdrop-blur-xl" data-testid="health-panel">
+    <div
+      className="rounded-[18px] border border-sidebar-border bg-sidebar-accent px-3 py-3 text-sidebar-foreground backdrop-blur-xl"
+      data-testid="health-panel"
+    >
       <div className="mb-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span
@@ -29,7 +31,9 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
               'bg-[var(--error-foreground)]': !checking && !health,
             })}
           />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/65">{t('health.title')}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/65">
+            {t('health.title')}
+          </span>
         </div>
         <button
           type="button"
@@ -44,22 +48,40 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
 
       {health ? (
         <div className="space-y-2.5 text-[11px]">
-          <ServiceRow name={health.services.paddle_ocr.name} status={health.services.paddle_ocr.status} t={t} />
-          <ServiceRow name={health.services.has_ner.name} status={health.services.has_ner.status} t={t} />
-          <ServiceRow name={health.services.has_image.name} status={health.services.has_image.status} t={t} />
+          <ServiceRow
+            name={health.services.paddle_ocr.name}
+            status={health.services.paddle_ocr.status}
+            t={t}
+          />
+          <ServiceRow
+            name={health.services.has_ner.name}
+            status={health.services.has_ner.status}
+            t={t}
+          />
+          <ServiceRow
+            name={health.services.has_image.name}
+            status={health.services.has_image.status}
+            t={t}
+          />
 
           <div className="mt-1 space-y-1 border-t border-sidebar-border pt-2 pl-0.5 text-[10px] leading-snug text-sidebar-foreground/50">
             {typeof health.probe_ms === 'number' && (
-              <p className="truncate">{t('health.backendProbe')} {health.probe_ms} ms</p>
+              <p className="truncate">
+                {t('health.backendProbe')} {health.probe_ms} ms
+              </p>
             )}
             {roundTripMs != null && (
-              <p className="truncate">{t('health.frontendRoundTrip')} {roundTripMs} ms</p>
+              <p className="truncate">
+                {t('health.frontendRoundTrip')} {roundTripMs} ms
+              </p>
             )}
             <p className="truncate">
               {t('health.gpuMemory')}{' '}
-              {health.gpu_memory
-                ? `${health.gpu_memory.used_mb} / ${health.gpu_memory.total_mb} MiB`
-                : <span className="text-sidebar-foreground/45">{t('health.gpuNotDetected')}</span>}
+              {health.gpu_memory ? (
+                `${health.gpu_memory.used_mb} / ${health.gpu_memory.total_mb} MiB`
+              ) : (
+                <span className="text-sidebar-foreground/45">{t('health.gpuNotDetected')}</span>
+              )}
             </p>
             {health.checked_at && (
               <p className="break-all text-sidebar-foreground/45">
@@ -77,10 +99,20 @@ export function HealthPanel({ health, checking, roundTripMs, onRefresh }: Health
   );
 }
 
-function ServiceRow({ name, status, t }: { name: string; status: string; t: (key: string) => string }) {
+function ServiceRow({
+  name,
+  status,
+  t,
+}: {
+  name: string;
+  status: string;
+  t: (key: string) => string;
+}) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="truncate text-sidebar-foreground/58" title={name}>{name}</span>
+      <span className="truncate text-sidebar-foreground/58" title={name}>
+        {name}
+      </span>
       <span
         className={cn(
           'shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium',

@@ -6,7 +6,10 @@
  */
 
 /** Calculate character offsets of a Range relative to a root element. */
-export function getSelectionOffsets(range: Range, root: HTMLElement): { start: number; end: number } | null {
+export function getSelectionOffsets(
+  range: Range,
+  root: HTMLElement,
+): { start: number; end: number } | null {
   let start = -1;
   let end = -1;
   let offset = 0;

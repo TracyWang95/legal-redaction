@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { get, post, put, del } from './api-client';
 
 export type JobTypeApi = 'text_batch' | 'image_batch' | 'smart_batch';
@@ -41,7 +40,6 @@ export type JobItemRow = {
 };
 
 export type JobItemReviewDraft = {
-
   exists?: boolean;
   entities: Array<Record<string, unknown>>;
   bounding_boxes: Array<Record<string, unknown>>;
@@ -91,7 +89,7 @@ export function createJob(body: {
 
 export function updateJobDraft(
   jobId: string,
-  body: { title?: string; config?: Record<string, unknown>; skip_item_review?: boolean }
+  body: { title?: string; config?: Record<string, unknown>; skip_item_review?: boolean },
 ): Promise<JobSummary> {
   return put<JobSummary>(`/jobs/${encodeURIComponent(jobId)}`, body);
 }
@@ -127,41 +125,47 @@ export function deleteJob(jobId: string): Promise<DeleteJobResult> {
 export function approveItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
   return post<JobItemRow>(
     `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/approve`,
-    {}
+    {},
   );
 }
 
 export function rejectItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
   return post<JobItemRow>(
     `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/reject`,
-    {}
+    {},
   );
 }
 
 export function getItemReviewDraft(jobId: string, itemId: string): Promise<JobItemReviewDraft> {
   return get<JobItemReviewDraft>(
-    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`
+    `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`,
   );
 }
 
 export function putItemReviewDraft(
   jobId: string,
   itemId: string,
-  body: { entities: Array<Record<string, unknown>>; bounding_boxes: Array<Record<string, unknown>> }
+  body: {
+    entities: Array<Record<string, unknown>>;
+    bounding_boxes: Array<Record<string, unknown>>;
+  },
 ): Promise<JobItemReviewDraft> {
   return put<JobItemReviewDraft>(
     `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review-draft`,
-    body
+    body,
   );
 }
 
 export function commitItemReview(
   jobId: string,
   itemId: string,
-  body: { entities: Array<Record<string, unknown>>; bounding_boxes: Array<Record<string, unknown>> }
+  body: {
+    entities: Array<Record<string, unknown>>;
+    bounding_boxes: Array<Record<string, unknown>>;
+  },
 ): Promise<JobItemRow> {
   return post<JobItemRow>(
     `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/commit`,
-    body
+    body,
   );
 }

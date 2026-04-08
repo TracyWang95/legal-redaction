@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { Link } from 'react-router-dom';
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,14 +12,8 @@ import { useBatchHub } from './hooks/use-batch-hub';
 
 export function BatchHub() {
   const t = useT();
-  const {
-    loading,
-    jobsUnavailable,
-    activeJobs,
-    openBatch,
-    continueJob,
-    openPreview,
-  } = useBatchHub();
+  const { loading, jobsUnavailable, activeJobs, openBatch, continueJob, openPreview } =
+    useBatchHub();
 
   return (
     <div className="saas-page flex h-full min-h-0 overflow-y-auto bg-background">
@@ -30,7 +23,10 @@ export function BatchHub() {
             <div className="flex flex-col gap-4">
               <span className="saas-kicker">{t('batchHub.kicker')}</span>
               <div className="page-section-heading gap-2">
-                <h2 className="text-2xl font-semibold tracking-[-0.04em]" data-testid="batch-hub-title">
+                <h2
+                  className="text-2xl font-semibold tracking-[-0.04em]"
+                  data-testid="batch-hub-title"
+                >
                   {t('batchHub.title')}
                 </h2>
                 <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
@@ -60,7 +56,10 @@ export function BatchHub() {
                       <CardTitle className="text-xl font-semibold tracking-[-0.03em]">
                         {t('batchHub.mode.smart.title')}
                       </CardTitle>
-                      <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-[10px] font-medium">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+                      >
                         {jobsUnavailable ? t('batchHub.previewBadge') : t('batchHub.liveBadge')}
                       </Badge>
                     </div>
@@ -98,7 +97,9 @@ export function BatchHub() {
                     <div className="surface-muted flex flex-col gap-2 px-4 py-4">
                       <div className="flex items-center gap-2">
                         <span className="size-2 rounded-full bg-[var(--selection-regex-accent)]" />
-                        <span className="text-sm font-semibold text-foreground">{t('batchHub.mode.text.title')}</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {t('batchHub.mode.text.title')}
+                        </span>
                       </div>
                       <p className="text-sm leading-6 text-muted-foreground">
                         {t('batchHub.mode.text.summaryValue')}
@@ -108,7 +109,9 @@ export function BatchHub() {
                     <div className="surface-muted flex flex-col gap-2 px-4 py-4">
                       <div className="flex items-center gap-2">
                         <span className="size-2 rounded-full bg-[var(--selection-visual-accent)]" />
-                        <span className="text-sm font-semibold text-foreground">{t('batchHub.mode.image.title')}</span>
+                        <span className="text-sm font-semibold text-foreground">
+                          {t('batchHub.mode.image.title')}
+                        </span>
                       </div>
                       <p className="text-sm leading-6 text-muted-foreground">
                         {t('batchHub.mode.image.summaryValue')}
@@ -137,7 +140,7 @@ export function BatchHub() {
               jobs={activeJobs}
               loading={loading}
               onContinue={continueJob}
-              footer={(
+              footer={
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
                     <Link to="/jobs">{t('batchHub.jobCenter')}</Link>
@@ -147,7 +150,7 @@ export function BatchHub() {
                     <Link to="/history">{t('batchHub.history')}</Link>
                   </Button>
                 </div>
-              )}
+              }
             />
           </div>
         </div>

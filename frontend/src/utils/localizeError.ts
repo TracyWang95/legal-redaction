@@ -67,16 +67,16 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
     raw.includes('请求失败')
   ) {
     if (status) {
-      return (Number(status) >= 500 ? t('common.serverErrorWithStatus') : t('common.requestFailedWithStatus'))
-        .replace('{status}', status);
+      return (
+        Number(status) >= 500
+          ? t('common.serverErrorWithStatus')
+          : t('common.requestFailedWithStatus')
+      ).replace('{status}', status);
     }
     return t('common.requestFailed');
   }
 
-  if (
-    lower.includes('download failed') ||
-    raw.includes('下载失败')
-  ) {
+  if (lower.includes('download failed') || raw.includes('下载失败')) {
     if (status) {
       return t('common.downloadFailedWithStatus').replace('{status}', status);
     }
@@ -96,14 +96,13 @@ export function localizeErrorMessage(error: unknown, fallbackKey = 'common.error
     return t('common.loadFailed');
   }
 
-  if (
-    lower === 'fetch failed' ||
-    lower === 'export failed' ||
-    lower === 'import failed'
-  ) {
+  if (lower === 'fetch failed' || lower === 'export failed' || lower === 'import failed') {
     if (status) {
-      return (Number(status) >= 500 ? t('common.serverErrorWithStatus') : t('common.requestFailedWithStatus'))
-        .replace('{status}', status);
+      return (
+        Number(status) >= 500
+          ? t('common.serverErrorWithStatus')
+          : t('common.requestFailedWithStatus')
+      ).replace('{status}', status);
     }
     return t(fallbackKey);
   }

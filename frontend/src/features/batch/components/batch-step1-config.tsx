@@ -123,11 +123,12 @@ function BatchStep1ConfigInner() {
 
   if (!configLoaded) {
     return (
-      <Card className="rounded-[24px] border-border/70 shadow-[var(--shadow-control)]" data-testid="batch-step1-loading">
+      <Card
+        className="rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
+        data-testid="batch-step1-loading"
+      >
         <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">
-            {t('batchWizard.step1.loadingConfig')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('batchWizard.step1.loadingConfig')}</p>
         </CardContent>
       </Card>
     );
@@ -139,10 +140,10 @@ function BatchStep1ConfigInner() {
       data-testid="batch-step1-config"
     >
       <CardHeader className="flex flex-col gap-0.5 border-b border-border/70 pb-2 pt-3">
-        <CardTitle className="text-base tracking-[-0.03em]">{t('batchWizard.step1.title')}</CardTitle>
-        <p className="text-sm text-muted-foreground leading-snug">
-          {t('batchWizard.step1.desc')}
-        </p>
+        <CardTitle className="text-base tracking-[-0.03em]">
+          {t('batchWizard.step1.title')}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground leading-snug">{t('batchWizard.step1.desc')}</p>
       </CardHeader>
 
       <CardContent className="page-surface-body flex-1 flex flex-col gap-2 pt-2">

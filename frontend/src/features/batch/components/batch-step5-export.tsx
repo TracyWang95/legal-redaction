@@ -8,10 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import {
-  getRedactionStateLabel,
-  resolveRedactionState,
-} from '@/utils/redactionState';
+import { getRedactionStateLabel, resolveRedactionState } from '@/utils/redactionState';
 
 import type { BatchRow, Step } from '../types';
 
@@ -40,18 +37,12 @@ function BatchStep5ExportInner({
     <Card className="flex min-h-0 flex-1 flex-col overflow-hidden" data-testid="batch-step5-export">
       <CardHeader className="shrink-0">
         <CardTitle className="text-sm">{t('batchWizard.step5.title')}</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          {t('batchWizard.step5.desc')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('batchWizard.step5.desc')}</p>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain">
         {}
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => goStep(4)}
-            data-testid="step5-back-review"
-          >
+          <Button variant="outline" onClick={() => goStep(4)} data-testid="step5-back-review">
             {t('batchWizard.step5.backReview')}
           </Button>
           <Button
@@ -59,7 +50,9 @@ function BatchStep5ExportInner({
             disabled={zipLoading || !selectedIds.length}
             data-testid="download-original"
           >
-            {zipLoading ? t('batchWizard.step5.downloading') : t('batchWizard.step5.downloadOriginal')}
+            {zipLoading
+              ? t('batchWizard.step5.downloading')
+              : t('batchWizard.step5.downloadOriginal')}
           </Button>
           <Button
             variant="outline"
@@ -67,19 +60,18 @@ function BatchStep5ExportInner({
             disabled={zipLoading || !selectedIds.length}
             data-testid="download-redacted"
           >
-            {zipLoading ? t('batchWizard.step5.downloading') : t('batchWizard.step5.downloadRedacted')}
+            {zipLoading
+              ? t('batchWizard.step5.downloading')
+              : t('batchWizard.step5.downloadRedacted')}
           </Button>
         </div>
 
         {}
         <div className="border rounded-lg divide-y max-h-72 overflow-y-auto">
-          {rows.map(r => {
+          {rows.map((r) => {
             const rs = resolveRedactionState(r.has_output, r.analyzeStatus);
             return (
-              <div
-                key={r.file_id}
-                className="px-4 py-2 flex items-center gap-3 text-sm"
-              >
+              <div key={r.file_id} className="px-4 py-2 flex items-center gap-3 text-sm">
                 <Checkbox
                   checked={selected.has(r.file_id)}
                   onCheckedChange={() => toggle(r.file_id)}
@@ -87,7 +79,9 @@ function BatchStep5ExportInner({
                 />
                 <span className="flex-1 truncate">{r.original_filename}</span>
                 <Badge
-                  variant={rs === 'redacted' ? 'default' : rs === 'unredacted' ? 'outline' : 'secondary'}
+                  variant={
+                    rs === 'redacted' ? 'default' : rs === 'unredacted' ? 'outline' : 'secondary'
+                  }
                   className="text-xs"
                 >
                   {getRedactionStateLabel(rs)}

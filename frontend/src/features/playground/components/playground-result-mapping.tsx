@@ -35,10 +35,19 @@ export const MappingColumn: FC<MappingColumnProps> = ({
   const t = useT();
 
   return (
-    <div className={cn('flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-background', mobileTab === 'mapping' ? '' : 'hidden', 'md:flex', className)}>
+    <div
+      className={cn(
+        'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border bg-background',
+        mobileTab === 'mapping' ? '' : 'hidden',
+        'md:flex',
+        className,
+      )}
+    >
       <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-4 py-3">
         <span className="text-xs font-semibold">{t('playground.mappingRecords')}</span>
-        <span className="text-[11px] tabular-nums text-muted-foreground">{Object.keys(entityMap).length}</span>
+        <span className="text-[11px] tabular-nums text-muted-foreground">
+          {Object.keys(entityMap).length}
+        </span>
       </div>
       <ScrollArea className="flex-1">
         {Object.entries(entityMap).map(([original, replacement], index) => {
@@ -54,20 +63,40 @@ export const MappingColumn: FC<MappingColumnProps> = ({
               data-testid={`playground-mapping-${index}`}
             >
               <div className="flex items-center gap-1.5">
-                <span className="flex-1 truncate text-[11px] font-medium" style={{ color: config.textColor }}>
+                <span
+                  className="flex-1 truncate text-[11px] font-medium"
+                  style={{ color: config.textColor }}
+                >
                   {original}
                 </span>
                 {count > 0 && (
-                  <span className="rounded px-1 text-[10px] tabular-nums" style={{ backgroundColor: `${config.color}22`, color: config.textColor }}>
+                  <span
+                    className="rounded px-1 text-[10px] tabular-nums"
+                    style={{ backgroundColor: `${config.color}22`, color: config.textColor }}
+                  >
                     {count}x
                   </span>
                 )}
               </div>
               <div className="mt-1 flex items-center gap-1.5">
-                <svg className="h-2.5 w-2.5 flex-shrink-0 opacity-40" style={{ color: config.color }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                <svg
+                  className="h-2.5 w-2.5 flex-shrink-0 opacity-40"
+                  style={{ color: config.color }}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 8l4 4m0 0l-4 4m4-4H3"
+                  />
                 </svg>
-                <span className="truncate text-[10px] opacity-90" style={{ color: config.textColor }}>
+                <span
+                  className="truncate text-[10px] opacity-90"
+                  style={{ color: config.textColor }}
+                >
                   {replacement}
                 </span>
               </div>
@@ -83,12 +112,28 @@ export const MappingColumn: FC<MappingColumnProps> = ({
 
       {versionHistory.length > 0 && (
         <div className="border-t border-border/60">
-          <Button variant="ghost" className="h-auto w-full justify-between px-4 py-3" onClick={() => setVersionHistoryOpen((open) => !open)}>
+          <Button
+            variant="ghost"
+            className="h-auto w-full justify-between px-4 py-3"
+            onClick={() => setVersionHistoryOpen((open) => !open)}
+          >
             <span className="text-xs font-semibold">{t('playground.versionHistory')}</span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] tabular-nums text-muted-foreground">{versionHistory.length}</span>
-              <svg className={cn('h-3 w-3 transition-transform', versionHistoryOpen && 'rotate-180')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <span className="text-[10px] tabular-nums text-muted-foreground">
+                {versionHistory.length}
+              </span>
+              <svg
+                className={cn('h-3 w-3 transition-transform', versionHistoryOpen && 'rotate-180')}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </div>
           </Button>
@@ -96,7 +141,10 @@ export const MappingColumn: FC<MappingColumnProps> = ({
           {versionHistoryOpen && (
             <div className="space-y-1.5 px-3 pb-3">
               {versionHistory.map((version, index) => (
-                <div key={index} className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2">
+                <div
+                  key={index}
+                  className="rounded-xl border border-border/60 bg-muted/25 px-3 py-2"
+                >
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs font-medium">v{index + 1}</span>
                     <span className="text-[10px] tabular-nums text-muted-foreground">
@@ -105,7 +153,10 @@ export const MappingColumn: FC<MappingColumnProps> = ({
                   </div>
                   <div className="mt-1 flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground">
-                      {t('playground.versionItems').replace('{count}', String(version.redacted_count))}
+                      {t('playground.versionItems').replace(
+                        '{count}',
+                        String(version.redacted_count),
+                      )}
                     </span>
                     <span className="text-[10px] text-muted-foreground">{version.mode}</span>
                   </div>

@@ -11,10 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  setActivePresetTextId,
-  setActivePresetVisionId,
-} from '@/services/activePresetBridge';
+import { setActivePresetTextId, setActivePresetVisionId } from '@/services/activePresetBridge';
 import type { RecognitionPreset } from '@/services/presetsApi';
 
 const DEFAULT_PRESET_OPTION = '__default__';
@@ -74,7 +71,9 @@ export function RedactionBridgeConfig({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value={DEFAULT_PRESET_OPTION}>{t('settings.redaction.defaultOption')}</SelectItem>
+                <SelectItem value={DEFAULT_PRESET_OPTION}>
+                  {t('settings.redaction.defaultOption')}
+                </SelectItem>
                 {textPresets.map((preset) => (
                   <SelectItem key={preset.id} value={preset.id}>
                     {preset.name}
@@ -101,7 +100,9 @@ export function RedactionBridgeConfig({
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                <SelectItem value={DEFAULT_PRESET_OPTION}>{t('settings.redaction.defaultOption')}</SelectItem>
+                <SelectItem value={DEFAULT_PRESET_OPTION}>
+                  {t('settings.redaction.defaultOption')}
+                </SelectItem>
                 {visionPresets.map((preset) => (
                   <SelectItem key={preset.id} value={preset.id}>
                     {preset.name}

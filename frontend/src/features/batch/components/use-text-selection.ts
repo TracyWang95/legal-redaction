@@ -13,7 +13,9 @@ interface UseTextSelectionOptions {
   cardRef: React.RefObject<HTMLDivElement | null>;
   textTypes: TextEntityType[];
   reviewFileReadOnly: boolean;
-  applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
+  applyReviewEntities: (
+    updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[]),
+  ) => void;
 }
 
 export function useTextSelection({
@@ -25,7 +27,11 @@ export function useTextSelection({
   reviewFileReadOnly,
   applyReviewEntities,
 }: UseTextSelectionOptions) {
-  const [selectedText, setSelectedText] = useState<{ text: string; start: number; end: number } | null>(null);
+  const [selectedText, setSelectedText] = useState<{
+    text: string;
+    start: number;
+    end: number;
+  } | null>(null);
   const [selectionPos, setSelectionPos] = useState<{ left: number; top: number } | null>(null);
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
   const selectionRangeRef = useRef<Range | null>(null);
@@ -64,7 +70,7 @@ export function useTextSelection({
 
     const offsets = getSelectionOffsets(range, reviewTextContentRef.current);
     const start = offsets?.start ?? reviewTextContent.indexOf(text);
-    const end = offsets?.end ?? (start + text.length);
+    const end = offsets?.end ?? start + text.length;
     if (start < 0 || end < 0) {
       clearTextSelection();
       return;
@@ -84,7 +90,16 @@ export function useTextSelection({
 
     setSelectionPos(null);
     setSelectedText({ text, start, end });
-  }, [clearTextSelection, reviewFileReadOnly, reviewTextContent, reviewTextContentRef, selectedText, selectedTypeId, selectionPos, textTypes]);
+  }, [
+    clearTextSelection,
+    reviewFileReadOnly,
+    reviewTextContent,
+    reviewTextContentRef,
+    selectedText,
+    selectedTypeId,
+    selectionPos,
+    textTypes,
+  ]);
 
   // Position the popover after selectedText changes
   useLayoutEffect(() => {
@@ -144,7 +159,7 @@ export function useTextSelection({
       page: 0,
       confidence: 1,
     };
-    applyReviewEntities(prev => [...prev, newEntity]);
+    applyReviewEntities((prev) => [...prev, newEntity]);
     clearTextSelection();
     window.getSelection()?.removeAllRanges();
   }, [selectedText, selectedTypeId, applyReviewEntities, clearTextSelection]);

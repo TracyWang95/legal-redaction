@@ -55,9 +55,9 @@ export function PipelineConfigPanel({
   const [form, setForm] = useState({ name: '', description: '' });
   const [page, setPage] = useState(1);
 
-  const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
-  const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
-  const activePipeline = pipelines.find(pipeline => pipeline.mode === activeSub);
+  const ocrPipeline = pipelines.find((pipeline) => pipeline.mode === 'ocr_has');
+  const imagePipeline = pipelines.find((pipeline) => pipeline.mode === 'has_image');
+  const activePipeline = pipelines.find((pipeline) => pipeline.mode === activeSub);
   const ocrLabel = t('settings.pipelineDisplayName.ocr');
   const imageLabel = t('settings.pipelineDisplayName.image');
 
@@ -109,7 +109,7 @@ export function PipelineConfigPanel({
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page to valid range when total changes
-    setPage(current => Math.min(current, totalPages));
+    setPage((current) => Math.min(current, totalPages));
   }, [totalPages]);
 
   const visibleTypes = useMemo(() => {
@@ -121,7 +121,10 @@ export function PipelineConfigPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="shrink-0 flex items-center gap-2">
-        <Tabs value={activeSub} onValueChange={(value) => setActiveSub(value as 'ocr_has' | 'has_image')}>
+        <Tabs
+          value={activeSub}
+          onValueChange={(value) => setActiveSub(value as 'ocr_has' | 'has_image')}
+        >
           <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1">
             <TabsTrigger value="ocr_has" data-testid="pipeline-tab-ocr">
               {ocrLabel}
@@ -129,7 +132,9 @@ export function PipelineConfigPanel({
             </TabsTrigger>
             <TabsTrigger value="has_image" data-testid="pipeline-tab-image">
               {imageLabel}
-              <span className="ml-1 text-muted-foreground">({imagePipeline?.types.length ?? 0})</span>
+              <span className="ml-1 text-muted-foreground">
+                ({imagePipeline?.types.length ?? 0})
+              </span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -143,7 +148,13 @@ export function PipelineConfigPanel({
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
             <span className="truncate text-sm font-semibold tracking-[-0.02em]">{displayName}</span>
-            <Badge variant="secondary" className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'border border-border/70 bg-background text-xs shadow-sm',
+                toneClasses.badgeText,
+              )}
+            >
               {activeCount}
             </Badge>
           </div>
@@ -160,19 +171,15 @@ export function PipelineConfigPanel({
         <div className="page-surface-body p-3">
           {loading ? (
             <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {t('settings.loadingPipeline')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('settings.loadingPipeline')}</p>
             </div>
           ) : !activePipeline || activePipeline.types.length === 0 ? (
             <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                {t('settings.noTypeConfig')}
-              </p>
+              <p className="text-sm text-muted-foreground">{t('settings.noTypeConfig')}</p>
             </div>
           ) : (
             <div className="grid w-full grid-cols-3 grid-rows-[repeat(3,1fr)] gap-3">
-              {visibleTypes.map(type => (
+              {visibleTypes.map((type) => (
                 <article
                   key={type.id}
                   className="flex h-[148px] overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
@@ -238,7 +245,7 @@ export function PipelineConfigPanel({
 
       <Dialog
         open={dialogMode !== null}
-        onOpenChange={nextOpen => {
+        onOpenChange={(nextOpen) => {
           if (!nextOpen) {
             setDialogMode(null);
             setEditing(null);
@@ -249,7 +256,9 @@ export function PipelineConfigPanel({
           <DialogHeader>
             <DialogTitle>{editing ? t('settings.editType') : t('settings.addType')}</DialogTitle>
             <DialogDescription>
-              {dialogMode === 'ocr_has' ? t('settings.pipelineTypeDescOcr') : t('settings.pipelineTypeDescImg')}
+              {dialogMode === 'ocr_has'
+                ? t('settings.pipelineTypeDescOcr')
+                : t('settings.pipelineTypeDescImg')}
             </DialogDescription>
           </DialogHeader>
 
@@ -258,10 +267,14 @@ export function PipelineConfigPanel({
               <Label>{t('settings.nameLabel')} *</Label>
               <Input
                 value={form.name}
-                onChange={event => setForm(current => ({ ...current, name: event.target.value }))}
-                placeholder={dialogMode === 'ocr_has'
-                  ? t('settings.pipelineNamePlaceholder.ocr')
-                  : t('settings.pipelineNamePlaceholder.image')}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, name: event.target.value }))
+                }
+                placeholder={
+                  dialogMode === 'ocr_has'
+                    ? t('settings.pipelineNamePlaceholder.ocr')
+                    : t('settings.pipelineNamePlaceholder.image')
+                }
                 data-testid="pipeline-type-name"
               />
             </div>
@@ -270,7 +283,9 @@ export function PipelineConfigPanel({
               <Label>{t('settings.descLabel')}</Label>
               <Textarea
                 value={form.description}
-                onChange={event => setForm(current => ({ ...current, description: event.target.value }))}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, description: event.target.value }))
+                }
                 rows={3}
                 data-testid="pipeline-type-desc"
               />
@@ -290,7 +305,11 @@ export function PipelineConfigPanel({
             >
               {t('settings.cancel')}
             </Button>
-            <Button disabled={!form.name.trim()} onClick={() => void handleSave()} data-testid="pipeline-type-save">
+            <Button
+              disabled={!form.name.trim()}
+              onClick={() => void handleSave()}
+              data-testid="pipeline-type-save"
+            >
               {editing ? t('settings.save') : t('settings.create')}
             </Button>
           </DialogFooter>

@@ -17,9 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  getRegexModalCheck,
-} from '../hooks/use-entity-types';
+import { getRegexModalCheck } from '../hooks/use-entity-types';
 
 interface EntityTypeForm {
   name: string;
@@ -109,9 +107,12 @@ export function EntityTypeDialog({
         regexCheck !== 'matches_empty')),
   );
 
-  const dialogTitle = mode === 'create'
-    ? (form.use_llm ? t('settings.addSemanticType') : t('settings.addRegexType'))
-    : t('settings.editType');
+  const dialogTitle =
+    mode === 'create'
+      ? form.use_llm
+        ? t('settings.addSemanticType')
+        : t('settings.addRegexType')
+      : t('settings.editType');
 
   const dialogDescription = form.use_llm
     ? t('settings.addSemanticDesc')
@@ -130,10 +131,12 @@ export function EntityTypeDialog({
             <Label>{t('settings.nameLabel')} *</Label>
             <Input
               value={form.name}
-              onChange={e => setForm(current => ({ ...current, name: e.target.value }))}
-              placeholder={form.use_llm
-                ? t('settings.typeNamePlaceholder.semantic')
-                : t('settings.typeNamePlaceholder.regex')}
+              onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+              placeholder={
+                form.use_llm
+                  ? t('settings.typeNamePlaceholder.semantic')
+                  : t('settings.typeNamePlaceholder.regex')
+              }
               data-testid="entity-type-name"
             />
           </div>
@@ -144,7 +147,9 @@ export function EntityTypeDialog({
                 <Label>{t('settings.regexLabel')} *</Label>
                 <Textarea
                   value={form.regex_pattern}
-                  onChange={e => setForm(current => ({ ...current, regex_pattern: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((current) => ({ ...current, regex_pattern: e.target.value }))
+                  }
                   rows={3}
                   className="font-mono"
                   placeholder={t('settings.regexPlaceholder')}
@@ -157,7 +162,7 @@ export function EntityTypeDialog({
                 <Label>{t('settings.testMatchLabel')}</Label>
                 <Textarea
                   value={sampleText}
-                  onChange={e => setSampleText(e.target.value)}
+                  onChange={(e) => setSampleText(e.target.value)}
                   rows={3}
                   placeholder={t('settings.testMatchPlaceholder')}
                   data-testid="entity-type-sample"
@@ -171,10 +176,14 @@ export function EntityTypeDialog({
                       {t('settings.regexValidation')}
                     </Badge>
                     {regexCheck === 'empty_pattern' && (
-                      <span className="text-sm text-muted-foreground">{t('settings.regexEmpty')}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {t('settings.regexEmpty')}
+                      </span>
                     )}
                     {regexCheck === 'invalid_pattern' && (
-                      <span className="text-sm font-medium text-destructive">{t('settings.regexInvalid')}</span>
+                      <span className="text-sm font-medium text-destructive">
+                        {t('settings.regexInvalid')}
+                      </span>
                     )}
                     {regexCheck === 'matches_empty' && (
                       <span className="text-sm font-medium text-[var(--warning-foreground)]">
@@ -182,7 +191,9 @@ export function EntityTypeDialog({
                       </span>
                     )}
                     {regexCheck === 'no_sample' && (
-                      <span className="text-sm text-muted-foreground">{t('settings.regexReady')}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {t('settings.regexReady')}
+                      </span>
                     )}
                     {regexCheck === 'pass' && (
                       <span className="text-sm font-medium text-[var(--success-foreground)]">
@@ -190,7 +201,9 @@ export function EntityTypeDialog({
                       </span>
                     )}
                     {regexCheck === 'fail' && (
-                      <span className="text-sm font-medium text-destructive">{t('settings.regexFail')}</span>
+                      <span className="text-sm font-medium text-destructive">
+                        {t('settings.regexFail')}
+                      </span>
                     )}
                   </div>
                   <Button
@@ -214,7 +227,10 @@ export function EntityTypeDialog({
                     {serverResult.valid ? (
                       <div>
                         <span className="font-medium text-[var(--success-foreground)]">
-                          {t('settings.matchCount').replace('{n}', String(serverResult.matches.length))}
+                          {t('settings.matchCount').replace(
+                            '{n}',
+                            String(serverResult.matches.length),
+                          )}
                         </span>
                         {serverResult.matches.length > 0 ? (
                           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -247,7 +263,9 @@ export function EntityTypeDialog({
               <Label>{t('settings.descLabel')}</Label>
               <Textarea
                 value={form.description}
-                onChange={e => setForm(current => ({ ...current, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((current) => ({ ...current, description: e.target.value }))
+                }
                 rows={4}
                 placeholder={t('settings.semanticDescriptionPlaceholder')}
                 data-testid="entity-type-description"
@@ -259,7 +277,7 @@ export function EntityTypeDialog({
             <Label>{t('settings.tagTemplateLabel')}</Label>
             <Input
               value={form.tag_template}
-              onChange={e => setForm(current => ({ ...current, tag_template: e.target.value }))}
+              onChange={(e) => setForm((current) => ({ ...current, tag_template: e.target.value }))}
               placeholder={t('settings.tagTemplatePlaceholder')}
               data-testid="entity-type-tag-template"
             />
@@ -279,7 +297,11 @@ export function EntityTypeDialog({
             onClick={() => onSave(form)}
             data-testid="entity-type-save"
           >
-            {saving ? t('settings.saving') : mode === 'create' ? t('settings.create') : t('settings.save')}
+            {saving
+              ? t('settings.saving')
+              : mode === 'create'
+                ? t('settings.create')
+                : t('settings.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

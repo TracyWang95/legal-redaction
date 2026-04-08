@@ -73,7 +73,7 @@ describe('ApiError', () => {
 
   it('accepts all valid error types', () => {
     const types: ApiErrorType[] = ['network', 'timeout', 'cancelled', 'server', 'auth', 'unknown'];
-    types.forEach(t => {
+    types.forEach((t) => {
       const err = new ApiError('msg', undefined, t);
       expect(err.errorType).toBe(t);
     });

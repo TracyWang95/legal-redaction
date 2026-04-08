@@ -37,7 +37,11 @@ vi.mock('@/services/presetsApi', async (importOriginal) => {
 
 vi.mock('@/i18n', () => ({ t: (k: string) => k }));
 
-import { fetchRecognitionEntityTypes, fetchRecognitionPipelines, fetchRecognitionPresets } from '@/services/recognition-config';
+import {
+  fetchRecognitionEntityTypes,
+  fetchRecognitionPipelines,
+  fetchRecognitionPresets,
+} from '@/services/recognition-config';
 import { loadBatchWizardConfig } from '@/services/batchPipeline';
 import { getActivePresetTextId } from '@/services/activePresetBridge';
 import type { RecognitionPreset } from '@/services/presetsApi';
@@ -73,9 +77,7 @@ function makePipelines(): PipelineCfg[] {
       name: 'Image',
       description: 'Image pipeline',
       enabled: true,
-      types: [
-        { id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 },
-      ],
+      types: [{ id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 }],
     },
   ];
 }
@@ -137,11 +139,13 @@ function setupMocks(
   (fetchRecognitionPresets as Mock).mockResolvedValue(presets);
 }
 
-function renderUseBatchConfig(overrides: {
-  mode?: 'text' | 'image' | 'smart';
-  activeJobId?: string | null;
-  isPreviewMode?: boolean;
-} = {}) {
+function renderUseBatchConfig(
+  overrides: {
+    mode?: 'text' | 'image' | 'smart';
+    activeJobId?: string | null;
+    isPreviewMode?: boolean;
+  } = {},
+) {
   const mode = overrides.mode ?? 'text';
   const setActiveJobId = vi.fn();
   const setMsg = vi.fn();
@@ -291,7 +295,9 @@ describe('useBatchConfig', () => {
       const types = makeTextTypes(5);
       setupMocks(types);
       const { result } = renderUseBatchConfig();
-      await waitFor(() => expect(result.current.cfg.selectedEntityTypeIds.length).toBeGreaterThan(0));
+      await waitFor(() =>
+        expect(result.current.cfg.selectedEntityTypeIds.length).toBeGreaterThan(0),
+      );
     });
 
     it('computes batchDefaultTextTypeIds from textTypes', async () => {
@@ -304,7 +310,9 @@ describe('useBatchConfig', () => {
     it('computes batchDefaultOcrHasTypeIds from pipelines', async () => {
       setupMocks();
       const { result } = renderUseBatchConfig();
-      await waitFor(() => expect(result.current.batchDefaultOcrHasTypeIds).toEqual(['ocr_1', 'ocr_2']));
+      await waitFor(() =>
+        expect(result.current.batchDefaultOcrHasTypeIds).toEqual(['ocr_1', 'ocr_2']),
+      );
     });
 
     it('computes batchDefaultHasImageTypeIds from pipelines', async () => {
@@ -349,7 +357,7 @@ describe('useBatchConfig', () => {
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       act(() => {
-        result.current.setCfg(c => ({
+        result.current.setCfg((c) => ({
           ...c,
           selectedEntityTypeIds: [],
           ocrHasTypes: ['ocr_1'],
@@ -364,7 +372,7 @@ describe('useBatchConfig', () => {
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       act(() => {
-        result.current.setCfg(c => ({
+        result.current.setCfg((c) => ({
           ...c,
           selectedEntityTypeIds: [],
           ocrHasTypes: [],
@@ -380,7 +388,7 @@ describe('useBatchConfig', () => {
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       act(() => {
-        result.current.setCfg(c => ({
+        result.current.setCfg((c) => ({
           ...c,
           selectedEntityTypeIds: [],
           ocrHasTypes: [],
@@ -569,7 +577,7 @@ describe('useBatchConfig', () => {
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
 
       act(() => {
-        result.current.setCfg(c => ({ ...c, replacementMode: 'mask' }));
+        result.current.setCfg((c) => ({ ...c, replacementMode: 'mask' }));
       });
 
       expect(result.current.cfg.replacementMode).toBe('mask');
@@ -611,10 +619,9 @@ describe('useBatchConfig', () => {
     it('setConfigLoadError calls setMsg with error tone', async () => {
       setupMocks();
       const setMsg = vi.fn();
-      const { result } = renderHook(
-        () => useBatchConfig('text', null, vi.fn(), false, setMsg),
-        { wrapper },
-      );
+      const { result } = renderHook(() => useBatchConfig('text', null, vi.fn(), false, setMsg), {
+        wrapper,
+      });
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
 
       act(() => result.current.setConfigLoadError('something failed'));

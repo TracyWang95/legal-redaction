@@ -10,7 +10,11 @@ import {
 } from '@/utils/jobStatusLabels';
 import type { JobTypeApi } from '@/services/jobsApi';
 import { t } from '@/i18n';
-import { getRedactionStateLabel, REDACTION_STATE_CLASS, type RedactionState } from '@/utils/redactionState';
+import {
+  getRedactionStateLabel,
+  REDACTION_STATE_CLASS,
+  type RedactionState,
+} from '@/utils/redactionState';
 import { toneBadgeClass } from '@/utils/toneClasses';
 
 export function toneClass(tone: JobStatusTone): string {
@@ -37,11 +41,7 @@ export function JobStatusBadge({ status }: { status: string }) {
 
 export function JobTypeBadge({ jobType: _jobType }: { jobType: JobTypeApi }) {
   return (
-    <Badge
-      variant="secondary"
-      className="text-2xs font-semibold"
-      data-testid="job-type-badge"
-    >
+    <Badge variant="secondary" className="text-2xs font-semibold" data-testid="job-type-badge">
       {t('jobs.batchTask')}
     </Badge>
   );

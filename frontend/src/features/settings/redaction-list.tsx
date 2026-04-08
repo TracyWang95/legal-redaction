@@ -61,10 +61,20 @@ export function RedactionList() {
                 </CardDescription>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                <Button size="sm" variant="outline" onClick={() => state.openNew('text')} data-testid="new-text-preset">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => state.openNew('text')}
+                  data-testid="new-text-preset"
+                >
                   {t('settings.redaction.newText')}
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => state.openNew('vision')} data-testid="new-vision-preset">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => state.openNew('vision')}
+                  data-testid="new-vision-preset"
+                >
                   {t('settings.redaction.newVision')}
                 </Button>
               </div>
@@ -94,12 +104,14 @@ export function RedactionList() {
                 setExpanded={state.setExpanded}
                 colPrefix="text"
                 onEdit={state.openEdit}
-                    onDelete={(id) => state.setConfirmState({
-                      title: t('common.delete'),
-                      message: t('settings.redaction.confirmDelete'),
-                      danger: true,
-                      onConfirm: () => void state.removePreset(id),
-                    })}
+                onDelete={(id) =>
+                  state.setConfirmState({
+                    title: t('common.delete'),
+                    message: t('settings.redaction.confirmDelete'),
+                    danger: true,
+                    onConfirm: () => void state.removePreset(id),
+                  })
+                }
               />
               <PresetColumn
                 title={t('settings.redaction.visionColumn')}
@@ -111,12 +123,14 @@ export function RedactionList() {
                 setExpanded={state.setExpanded}
                 colPrefix="vision"
                 onEdit={state.openEdit}
-                    onDelete={(id) => state.setConfirmState({
-                      title: t('common.delete'),
-                      message: t('settings.redaction.confirmDelete'),
-                      danger: true,
-                      onConfirm: () => void state.removePreset(id),
-                    })}
+                onDelete={(id) =>
+                  state.setConfirmState({
+                    title: t('common.delete'),
+                    message: t('settings.redaction.confirmDelete'),
+                    danger: true,
+                    onConfirm: () => void state.removePreset(id),
+                  })
+                }
               />
             </div>
           </CardContent>

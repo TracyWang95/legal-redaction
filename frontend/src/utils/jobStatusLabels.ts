@@ -3,7 +3,14 @@
 
 import { t } from '@/i18n';
 
-export type JobStatusTone = 'neutral' | 'brand' | 'warning' | 'review' | 'success' | 'danger' | 'muted';
+export type JobStatusTone =
+  | 'neutral'
+  | 'brand'
+  | 'warning'
+  | 'review'
+  | 'success'
+  | 'danger'
+  | 'muted';
 
 export type JobStatusMeta = {
   label: string;

@@ -31,7 +31,9 @@ export const ENTITY_FALLBACK_STYLE = {
   textColor: '#075985',
 } as const;
 
-function defineTypes(entries: Array<[id: string, name: string, description?: string]>): EntityTypeConfig[] {
+function defineTypes(
+  entries: Array<[id: string, name: string, description?: string]>,
+): EntityTypeConfig[] {
   return entries.map(([id, name, description]) => ({ id, name, description }));
 }
 
@@ -160,18 +162,18 @@ export const ENTITY_GROUPS: EntityGroup[] = [
   },
 ];
 
-export const ALL_ENTITY_TYPES: EntityTypeConfig[] = ENTITY_GROUPS.flatMap(group => group.types);
+export const ALL_ENTITY_TYPES: EntityTypeConfig[] = ENTITY_GROUPS.flatMap((group) => group.types);
 
 function prettifyTypeId(typeId: string) {
   return typeId
     .toLowerCase()
     .split('_')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
 export function getEntityGroup(typeId: string): EntityGroup | undefined {
-  return ENTITY_GROUPS.find(group => group.types.some(type => type.id === typeId));
+  return ENTITY_GROUPS.find((group) => group.types.some((type) => type.id === typeId));
 }
 
 export function getEntityGroupLabel(groupId: string): string {
@@ -179,12 +181,12 @@ export function getEntityGroupLabel(groupId: string): string {
   const translated = t(key);
   if (translated !== key) return translated;
 
-  const group = ENTITY_GROUPS.find(item => item.id === groupId);
+  const group = ENTITY_GROUPS.find((item) => item.id === groupId);
   return group?.label || groupId;
 }
 
 export function getEntityTypeConfig(typeId: string): EntityTypeConfig | undefined {
-  return ALL_ENTITY_TYPES.find(type => type.id === typeId);
+  return ALL_ENTITY_TYPES.find((type) => type.id === typeId);
 }
 
 export function getEntityColor(typeId: string): string {

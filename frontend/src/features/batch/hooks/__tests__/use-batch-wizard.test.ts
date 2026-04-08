@@ -119,18 +119,14 @@ function makePipelines(): PipelineCfg[] {
       name: 'OCR',
       description: 'OCR pipeline',
       enabled: true,
-      types: [
-        { id: 'ocr_1', name: 'OCR Type 1', color: '#0f766e', enabled: true, order: 1 },
-      ],
+      types: [{ id: 'ocr_1', name: 'OCR Type 1', color: '#0f766e', enabled: true, order: 1 }],
     },
     {
       mode: 'has_image',
       name: 'Image',
       description: 'Image pipeline',
       enabled: true,
-      types: [
-        { id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 },
-      ],
+      types: [{ id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 }],
     },
   ];
 }
@@ -152,10 +148,9 @@ function setupMocks(
  */
 function wrapperWithRoute(path: string) {
   return ({ children }: { children: React.ReactNode }) => {
-    const router = createMemoryRouter(
-      [{ path: '/batch/:batchMode', element: children }],
-      { initialEntries: [path] },
-    );
+    const router = createMemoryRouter([{ path: '/batch/:batchMode', element: children }], {
+      initialEntries: [path],
+    });
     return createElement(RouterProvider, { router });
   };
 }
@@ -304,7 +299,7 @@ describe('useBatchWizard', () => {
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
 
       act(() => {
-        result.current.setCfg(c => ({ ...c, replacementMode: 'mask' }));
+        result.current.setCfg((c) => ({ ...c, replacementMode: 'mask' }));
       });
 
       expect(result.current.cfg.replacementMode).toBe('mask');

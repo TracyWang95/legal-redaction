@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { t } from '@/i18n';
@@ -57,7 +56,9 @@ export function JobDetailPage() {
     }
   }, [jobId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   useEffect(() => {
     if (err || !data) return;
@@ -66,10 +67,15 @@ export function JobDetailPage() {
 
     const tick = () => {
       if (document.visibilityState === 'visible') {
-        load().catch((e) => { if (import.meta.env.DEV) console.error('Load failed:', e); });
+        load().catch((e) => {
+          if (import.meta.env.DEV) console.error('Load failed:', e);
+        });
       }
     };
-    const interval = data?.status === 'redacting' || data?.status === 'processing' ? JOB_DETAIL_POLL_ACTIVE_MS : JOB_DETAIL_POLL_IDLE_MS;
+    const interval =
+      data?.status === 'redacting' || data?.status === 'processing'
+        ? JOB_DETAIL_POLL_ACTIVE_MS
+        : JOB_DETAIL_POLL_IDLE_MS;
     const timer = window.setInterval(tick, interval);
     document.addEventListener('visibilitychange', tick);
     return () => {
@@ -132,11 +138,16 @@ export function JobDetailPage() {
   const items = useMemo(() => data?.items ?? [], [data]);
 
   const redactedCount = useMemo(
-    () => items.filter(it => resolveRedactionState(Boolean(it.has_output), it.status) === 'redacted').length,
+    () =>
+      items.filter((it) => resolveRedactionState(Boolean(it.has_output), it.status) === 'redacted')
+        .length,
     [items],
   );
   const awaitingCount = useMemo(
-    () => items.filter(it => resolveRedactionState(Boolean(it.has_output), it.status) === 'awaiting_review').length,
+    () =>
+      items.filter(
+        (it) => resolveRedactionState(Boolean(it.has_output), it.status) === 'awaiting_review',
+      ).length,
     [items],
   );
 
@@ -181,9 +192,11 @@ export function JobDetailPage() {
   });
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col bg-background overflow-y-auto" data-testid="job-detail-page">
+    <div
+      className="flex-1 min-h-0 flex flex-col bg-background overflow-y-auto"
+      data-testid="job-detail-page"
+    >
       <div className="px-3 py-3 sm:px-5 sm:py-4 max-w-5xl mx-auto w-full space-y-4">
-
         <nav className="flex items-center gap-2 text-sm">
           <Link to="/jobs" className="text-primary hover:underline">
             {t('jobDetail.jobCenter')}
@@ -201,18 +214,31 @@ export function JobDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-lg font-semibold truncate">{j.title || t('jobDetail.unnamedTask')}</h2>
+              <h2 className="text-lg font-semibold truncate">
+                {j.title || t('jobDetail.unnamedTask')}
+              </h2>
               <JobStatusBadge status={j.status} />
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              <span>{t('jobDetail.type')}{t('jobDetail.batchTask')}</span>
-              <span>{t('jobDetail.progressTotal').replace('{n}', String(j.progress.total_items))}</span>
-              <span className="text-[var(--success-foreground)]">{t('jobDetail.progressRedacted').replace('{n}', String(redactedCount))}</span>
-              <span className="text-[var(--warning-foreground)]">{t('jobDetail.progressAwaiting').replace('{n}', String(awaitingCount))}</span>
+              <span>
+                {t('jobDetail.type')}
+                {t('jobDetail.batchTask')}
+              </span>
+              <span>
+                {t('jobDetail.progressTotal').replace('{n}', String(j.progress.total_items))}
+              </span>
+              <span className="text-[var(--success-foreground)]">
+                {t('jobDetail.progressRedacted').replace('{n}', String(redactedCount))}
+              </span>
+              <span className="text-[var(--warning-foreground)]">
+                {t('jobDetail.progressAwaiting').replace('{n}', String(awaitingCount))}
+              </span>
               {j.progress.failed > 0 && (
-                <span className="text-destructive">{t('jobDetail.progressFailed').replace('{n}', String(j.progress.failed))}</span>
+                <span className="text-destructive">
+                  {t('jobDetail.progressFailed').replace('{n}', String(j.progress.failed))}
+                </span>
               )}
             </div>
 
@@ -238,7 +264,9 @@ export function JobDetailPage() {
                   {deleting ? t('jobDetail.deleting') : t('jobDetail.deleteTask')}
                 </Button>
               ) : (
-                <span className="text-xs text-muted-foreground self-center">{t('jobDetail.deleteHintRunning')}</span>
+                <span className="text-xs text-muted-foreground self-center">
+                  {t('jobDetail.deleteHintRunning')}
+                </span>
               )}
               {j.progress.failed > 0 && (
                 <Button
@@ -256,7 +284,9 @@ export function JobDetailPage() {
                 </Button>
               )}
               {primaryNav.kind === 'none' && primaryNav.reason && (
-                <span className="text-xs text-muted-foreground self-center">{primaryNav.reason}</span>
+                <span className="text-xs text-muted-foreground self-center">
+                  {primaryNav.reason}
+                </span>
               )}
             </div>
           </CardContent>
@@ -272,7 +302,9 @@ export function JobDetailPage() {
                 <thead className="bg-muted/40 text-muted-foreground border-b">
                   <tr>
                     <th className="px-4 py-2.5 font-medium">{t('jobDetail.col.file')}</th>
-                    <th className="px-4 py-2.5 font-medium text-right">{t('jobDetail.col.status')}</th>
+                    <th className="px-4 py-2.5 font-medium text-right">
+                      {t('jobDetail.col.status')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -283,7 +315,7 @@ export function JobDetailPage() {
                       </td>
                     </tr>
                   ) : (
-                    items.map(it => {
+                    items.map((it) => {
                       const rs = resolveRedactionState(Boolean(it.has_output), it.status);
                       return (
                         <tr key={it.id} className="border-b last:border-b-0">
@@ -292,13 +324,17 @@ export function JobDetailPage() {
                               {it.filename || it.file_id}
                             </div>
                             <div className="text-2xs text-muted-foreground mt-0.5">
-                              {it.file_type ? String(it.file_type).toUpperCase() : '-'} · {it.entity_count ?? 0} {t('jobDetail.items')}
+                              {it.file_type ? String(it.file_type).toUpperCase() : '-'} ·{' '}
+                              {it.entity_count ?? 0} {t('jobDetail.items')}
                             </div>
                           </td>
                           <td className="px-4 py-2.5 text-right">
                             <RedactionStateBadge state={rs} />
                             {it.error_message && !it.error_message.startsWith('auto-repaired') && (
-                              <div className="text-destructive text-2xs mt-0.5 max-w-xs truncate ml-auto" title={it.error_message}>
+                              <div
+                                className="text-destructive text-2xs mt-0.5 max-w-xs truncate ml-auto"
+                                title={it.error_message}
+                              >
                                 {it.error_message}
                               </div>
                             )}
@@ -317,7 +353,10 @@ export function JobDetailPage() {
       <ConfirmDialog
         open={deleteConfirmOpen}
         title={t('jobDetail.deleteTask')}
-        message={t('jobDetail.confirmDelete').replace('{title}', j.title?.trim() || t('jobDetail.unnamedTask'))}
+        message={t('jobDetail.confirmDelete').replace(
+          '{title}',
+          j.title?.trim() || t('jobDetail.unnamedTask'),
+        )}
         danger
         onConfirm={onDeleteConfirm}
         onCancel={() => setDeleteConfirmOpen(false)}

@@ -1,12 +1,15 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { type FC, useEffect, useRef, useState } from 'react';
 import ImageBBoxEditor, { type BoundingBox } from '@/components/ImageBBoxEditor';
 import { useT } from '@/i18n';
 
-interface TypeOption { id: string; name: string; color: string }
+interface TypeOption {
+  id: string;
+  name: string;
+  color: string;
+}
 
 const CHANNEL_NAME = 'playground-image-popout';
 
@@ -52,14 +55,18 @@ export const PlaygroundImagePopout: FC = () => {
     setBoxes(next);
     suppressRef.current = true;
     channelRef.current?.postMessage({ type: 'boxes-sync', boxes: next });
-    requestAnimationFrame(() => { suppressRef.current = false; });
+    requestAnimationFrame(() => {
+      suppressRef.current = false;
+    });
   };
 
   const handleBoxesCommit = (prev: BoundingBox[], next: BoundingBox[]) => {
     setBoxes(next);
     suppressRef.current = true;
     channelRef.current?.postMessage({ type: 'boxes-commit', prevBoxes: prev, nextBoxes: next });
-    requestAnimationFrame(() => { suppressRef.current = false; });
+    requestAnimationFrame(() => {
+      suppressRef.current = false;
+    });
   };
 
   if (!ready) {
@@ -74,7 +81,10 @@ export const PlaygroundImagePopout: FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-muted" data-testid="playground-popout">
+    <div
+      className="flex h-screen w-screen flex-col overflow-hidden bg-muted"
+      data-testid="playground-popout"
+    >
       <ImageBBoxEditor
         imageSrc={imageUrl}
         boxes={boxes}

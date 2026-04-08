@@ -56,8 +56,14 @@ export function RedactionPresetDialog({
         <DialogHeader>
           <DialogTitle>
             {editingPresetId
-              ? t('settings.redaction.editTitle').replace('{kind}', presetKindLabel(presetForm.kind))
-              : t('settings.redaction.createTitle').replace('{kind}', presetKindLabel(presetForm.kind))}
+              ? t('settings.redaction.editTitle').replace(
+                  '{kind}',
+                  presetKindLabel(presetForm.kind),
+                )
+              : t('settings.redaction.createTitle').replace(
+                  '{kind}',
+                  presetKindLabel(presetForm.kind),
+                )}
           </DialogTitle>
           <DialogDescription>{t('settings.redaction.dialogDesc')}</DialogDescription>
         </DialogHeader>
@@ -68,7 +74,7 @@ export function RedactionPresetDialog({
               <Label>{t('settings.redaction.nameLabel')} *</Label>
               <Input
                 value={presetForm.name}
-                onChange={e => setPresetForm(current => ({ ...current, name: e.target.value }))}
+                onChange={(e) => setPresetForm((current) => ({ ...current, name: e.target.value }))}
                 placeholder={t('settings.redaction.namePlaceholder')}
                 data-testid="preset-name"
               />
@@ -80,51 +86,59 @@ export function RedactionPresetDialog({
                   title={t('settings.redaction.regexGroup')}
                   types={regexTypes}
                   selectedIds={presetForm.selectedEntityTypeIds}
-                  onToggle={id => setPresetForm(current => ({
-                    ...current,
-                    selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
-                      ? current.selectedEntityTypeIds.filter(item => item !== id)
-                      : [...current.selectedEntityTypeIds, id],
-                  }))}
+                  onToggle={(id) =>
+                    setPresetForm((current) => ({
+                      ...current,
+                      selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
+                        ? current.selectedEntityTypeIds.filter((item) => item !== id)
+                        : [...current.selectedEntityTypeIds, id],
+                    }))
+                  }
                   variant="regex"
                 />
                 <TypeCheckboxGrid
                   title={t('settings.redaction.semanticGroup')}
                   types={semanticTypes}
                   selectedIds={presetForm.selectedEntityTypeIds}
-                  onToggle={id => setPresetForm(current => ({
-                    ...current,
-                    selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
-                      ? current.selectedEntityTypeIds.filter(item => item !== id)
-                      : [...current.selectedEntityTypeIds, id],
-                  }))}
+                  onToggle={(id) =>
+                    setPresetForm((current) => ({
+                      ...current,
+                      selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
+                        ? current.selectedEntityTypeIds.filter((item) => item !== id)
+                        : [...current.selectedEntityTypeIds, id],
+                    }))
+                  }
                   variant="semantic"
                 />
               </>
             )}
 
             {(presetForm.kind === 'vision' || presetForm.kind === 'full') &&
-              effectivePipelines.filter(pipeline => pipeline.enabled).map(pipeline => (
-                <PipelineCheckboxGrid
-                  key={pipeline.mode}
-                  pipeline={pipeline}
-                  selectedOcr={presetForm.ocrHasTypes}
-                  selectedImg={presetForm.hasImageTypes}
-                  onToggle={(mode, id) => setPresetForm(current => {
-                    if (mode === 'ocr_has') {
-                      const next = current.ocrHasTypes.includes(id)
-                        ? current.ocrHasTypes.filter(item => item !== id)
-                        : [...current.ocrHasTypes, id];
-                      return { ...current, ocrHasTypes: next };
-                    }
+              effectivePipelines
+                .filter((pipeline) => pipeline.enabled)
+                .map((pipeline) => (
+                  <PipelineCheckboxGrid
+                    key={pipeline.mode}
+                    pipeline={pipeline}
+                    selectedOcr={presetForm.ocrHasTypes}
+                    selectedImg={presetForm.hasImageTypes}
+                    onToggle={(mode, id) =>
+                      setPresetForm((current) => {
+                        if (mode === 'ocr_has') {
+                          const next = current.ocrHasTypes.includes(id)
+                            ? current.ocrHasTypes.filter((item) => item !== id)
+                            : [...current.ocrHasTypes, id];
+                          return { ...current, ocrHasTypes: next };
+                        }
 
-                    const next = current.hasImageTypes.includes(id)
-                      ? current.hasImageTypes.filter(item => item !== id)
-                      : [...current.hasImageTypes, id];
-                    return { ...current, hasImageTypes: next };
-                  })}
-                />
-              ))}
+                        const next = current.hasImageTypes.includes(id)
+                          ? current.hasImageTypes.filter((item) => item !== id)
+                          : [...current.hasImageTypes, id];
+                        return { ...current, hasImageTypes: next };
+                      })
+                    }
+                  />
+                ))}
           </div>
         </div>
 
@@ -133,7 +147,11 @@ export function RedactionPresetDialog({
             {t('settings.cancel')}
           </Button>
           <Button disabled={saving} onClick={() => void saveModal()} data-testid="preset-save">
-            {saving ? t('settings.redaction.processing') : (editingPresetId ? t('settings.save') : t('settings.create'))}
+            {saving
+              ? t('settings.redaction.processing')
+              : editingPresetId
+                ? t('settings.save')
+                : t('settings.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

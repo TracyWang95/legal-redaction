@@ -24,7 +24,7 @@ const BUILTIN_TEXT_ORDER_LIMIT = 200;
 const BUILTIN_PIPELINE_ORDER_LIMIT = 100;
 
 function enabledIds<T extends { id: string; enabled?: boolean }>(items: T[]): string[] {
-  return items.filter(item => item.enabled !== false).map(item => item.id);
+  return items.filter((item) => item.enabled !== false).map((item) => item.id);
 }
 
 export function isBuiltinDefaultTextType(type: DefaultTextTypeLike): boolean {
@@ -34,7 +34,7 @@ export function isBuiltinDefaultTextType(type: DefaultTextTypeLike): boolean {
 }
 
 export function buildDefaultTextTypeIds<T extends DefaultTextTypeLike>(types: T[]): string[] {
-  const builtinIds = types.filter(isBuiltinDefaultTextType).map(type => type.id);
+  const builtinIds = types.filter(isBuiltinDefaultTextType).map((type) => type.id);
   return builtinIds.length > 0 ? builtinIds : enabledIds(types);
 }
 
@@ -45,17 +45,17 @@ export function isBuiltinDefaultPipelineType(type: DefaultPipelineTypeLike): boo
 
 export function buildDefaultPipelineTypeIds<T extends DefaultPipelineTypeLike>(
   pipelines: DefaultPipelineLike<T>[],
-  mode: 'ocr_has' | 'has_image'
+  mode: 'ocr_has' | 'has_image',
 ): string[] {
   const builtinIds = pipelines
-    .filter(pipeline => pipeline.mode === mode && pipeline.enabled)
-    .flatMap(pipeline =>
-      pipeline.types.filter(isBuiltinDefaultPipelineType).map(type => type.id)
+    .filter((pipeline) => pipeline.mode === mode && pipeline.enabled)
+    .flatMap((pipeline) =>
+      pipeline.types.filter(isBuiltinDefaultPipelineType).map((type) => type.id),
     );
   if (builtinIds.length > 0) {
     return builtinIds;
   }
   return pipelines
-    .filter(pipeline => pipeline.mode === mode && pipeline.enabled)
-    .flatMap(pipeline => enabledIds(pipeline.types));
+    .filter((pipeline) => pipeline.mode === mode && pipeline.enabled)
+    .flatMap((pipeline) => enabledIds(pipeline.types));
 }

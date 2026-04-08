@@ -31,9 +31,12 @@ const toneClasses: Record<SelectionTone, ToneClasses> = {
     headerSurface: 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-soft)]',
     dot: 'bg-[var(--selection-regex-accent)]',
     badgeText: 'text-[var(--selection-regex-text)]',
-    cardSelected: 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)] shadow-sm',
-    cardSelectedCompact: 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)]',
-    cardNeutralSelected: 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)] shadow-sm',
+    cardSelected:
+      'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)] shadow-sm',
+    cardSelectedCompact:
+      'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)]',
+    cardNeutralSelected:
+      'border-[var(--selection-regex-border)] bg-[var(--selection-regex-surface)] text-[var(--selection-regex-text)] shadow-sm',
     tileSurface: 'border-[var(--selection-regex-border)] bg-[var(--selection-regex-soft)]',
     titleText: 'text-[var(--selection-regex-text)]',
     metaText: 'text-[var(--selection-regex-muted)]',
@@ -45,23 +48,30 @@ const toneClasses: Record<SelectionTone, ToneClasses> = {
     headerSurface: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-soft)]',
     dot: 'bg-[var(--selection-semantic-accent)]',
     badgeText: 'text-[var(--selection-semantic-text)]',
-    cardSelected: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
-    cardSelectedCompact: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)]',
-    cardNeutralSelected: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
+    cardSelected:
+      'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
+    cardSelectedCompact:
+      'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)]',
+    cardNeutralSelected:
+      'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-surface)] text-[var(--selection-semantic-text)] shadow-sm',
     tileSurface: 'border-[var(--selection-semantic-border)] bg-[var(--selection-semantic-soft)]',
     titleText: 'text-[var(--selection-semantic-text)]',
     metaText: 'text-[var(--selection-semantic-muted)]',
     descriptionText: 'text-[var(--selection-semantic-muted)]',
     hoverRing: 'hover:ring-[var(--selection-semantic-ring)]',
-    checkbox: 'accent-[var(--selection-semantic-accent)] focus:ring-[var(--selection-semantic-ring)]',
+    checkbox:
+      'accent-[var(--selection-semantic-accent)] focus:ring-[var(--selection-semantic-ring)]',
   },
   visual: {
     headerSurface: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-soft)]',
     dot: 'bg-[var(--selection-visual-accent)]',
     badgeText: 'text-[var(--selection-visual-text)]',
-    cardSelected: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
-    cardSelectedCompact: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)]',
-    cardNeutralSelected: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
+    cardSelected:
+      'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
+    cardSelectedCompact:
+      'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)]',
+    cardNeutralSelected:
+      'border-[var(--selection-visual-border)] bg-[var(--selection-visual-surface)] text-[var(--selection-visual-text)] shadow-sm',
     tileSurface: 'border-[var(--selection-visual-border)] bg-[var(--selection-visual-soft)]',
     titleText: 'text-[var(--selection-visual-text)]',
     metaText: 'text-[var(--selection-visual-muted)]',

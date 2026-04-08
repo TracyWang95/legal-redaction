@@ -12,10 +12,17 @@ import { resolveJobPrimaryNavigation, buildBatchWorkbenchUrl } from '@/utils/job
 import { resolveRedactionState } from '@/utils/redactionState';
 import { tonePanelClass } from '@/utils/toneClasses';
 import { JobStatusBadge, JobTypeBadge, RedactionStateBadge } from './jobs-status-badge';
-import { ACTIVE_STATUSES, buildProgressHeadline, buildProgressSummary, canDeleteJob } from '../hooks/use-jobs';
+import {
+  ACTIVE_STATUSES,
+  buildProgressHeadline,
+  buildProgressSummary,
+  canDeleteJob,
+} from '../hooks/use-jobs';
 
 function executionLabel(config: Record<string, unknown>): string {
-  return String(config.preferred_execution ?? 'queue') === 'local' ? t('jobs.localExec') : t('jobs.queueExec');
+  return String(config.preferred_execution ?? 'queue') === 'local'
+    ? t('jobs.localExec')
+    : t('jobs.queueExec');
 }
 
 function formatUpdatedAt(value: string): string {
@@ -45,13 +52,26 @@ type JobsTableProps = {
 };
 
 export function JobsTable({
-  rows, loading, refreshing, total, page, totalPages,
-  expandedJobIds, jobDetails, detailLoadingIds,
-  deletingJobId, requeueingJobId, tableBusy: _tableBusy,
-  onToggleExpand, onDelete, onRequeueFailed,
+  rows,
+  loading,
+  refreshing,
+  total,
+  page,
+  totalPages,
+  expandedJobIds,
+  jobDetails,
+  detailLoadingIds,
+  deletingJobId,
+  requeueingJobId,
+  tableBusy: _tableBusy,
+  onToggleExpand,
+  onDelete,
+  onRequeueFailed,
   footer,
 }: JobsTableProps) {
-  const stopEvent = (event: React.MouseEvent) => { event.stopPropagation(); };
+  const stopEvent = (event: React.MouseEvent) => {
+    event.stopPropagation();
+  };
 
   return (
     <div className="jobs-surface page-surface w-full rounded-[24px] border border-border/70 bg-background shadow-[var(--shadow-md)]">
@@ -59,7 +79,10 @@ export function JobsTable({
         <div className="page-section-heading">
           <h3 className="text-base font-semibold tracking-[-0.03em]">{t('jobs.taskRecords')}</h3>
           <p className="text-sm text-muted-foreground">
-            {t('jobs.totalAndPage').replace('{total}', String(total)).replace('{page}', String(page)).replace('{totalPages}', String(totalPages))}
+            {t('jobs.totalAndPage')
+              .replace('{total}', String(total))
+              .replace('{page}', String(page))
+              .replace('{totalPages}', String(totalPages))}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -94,13 +117,20 @@ export function JobsTable({
 
         {loading && rows.length === 0 ? (
           <div className="space-y-3 px-4 py-6 pb-10">
-            {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            ))}
           </div>
         ) : rows.length === 0 ? (
           <EmptyState
             title={t('jobs.noRecords')}
             description={t('jobs.noRecordsHint')}
-            action={{ label: t('jobs.gotoBatch'), onClick: () => { window.location.href = '/batch'; } }}
+            action={{
+              label: t('jobs.gotoBatch'),
+              onClick: () => {
+                window.location.href = '/batch';
+              },
+            }}
           />
         ) : (
           <ul className="flex w-full flex-col divide-y divide-border/70 pb-4">
@@ -124,11 +154,7 @@ export function JobsTable({
         )}
       </div>
 
-      {footer && (
-        <div className="page-surface-footer">
-          {footer}
-        </div>
-      )}
+      {footer && <div className="page-surface-footer">{footer}</div>}
     </div>
   );
 }
@@ -148,13 +174,26 @@ type JobRowProps = {
 };
 
 function JobRow({
-  job, index, expanded, detail, detailLoading,
-  deletingJobId, requeueingJobId,
-  onToggleExpand, onDelete, onRequeueFailed, stopEvent,
+  job,
+  index,
+  expanded,
+  detail,
+  detailLoading,
+  deletingJobId,
+  requeueingJobId,
+  onToggleExpand,
+  onDelete,
+  onRequeueFailed,
+  stopEvent,
 }: JobRowProps) {
   const primary = resolveJobPrimaryNavigation({
-    jobId: job.id, status: job.status, jobType: job.job_type,
-    items: [], currentPage: 'other', navHints: job.nav_hints, jobConfig: job.config,
+    jobId: job.id,
+    status: job.status,
+    jobType: job.job_type,
+    items: [],
+    currentPage: 'other',
+    navHints: job.nav_hints,
+    jobConfig: job.config,
   });
   const detailHref = `/jobs/${encodeURIComponent(job.id)}`;
   const showPrimaryAction = primary.kind === 'link' && primary.to !== detailHref;
@@ -162,58 +201,90 @@ function JobRow({
   const deleteBlocked = !canDeleteJob(job.status);
   const stripe = index % 2 === 1 ? 'bg-muted/30' : 'bg-background';
   const itemCount = job.nav_hints?.item_count ?? job.progress.total_items;
-  const finishedCount = job.progress.completed + job.progress.failed + (job.progress.cancelled ?? 0);
-  const progressPercent = itemCount > 0 ? Math.min(100, Math.round((finishedCount / itemCount) * 100)) : 0;
-  const liveHints = detail?.items ? (() => {
-    let r = 0, a = 0;
-    for (const it of detail.items) {
-      if (it.has_output) r++; else if (['awaiting_review', 'review_approved', 'completed'].includes(it.status)) a++;
-    }
-    return { redacted_count: r, awaiting_review_count: a };
-  })() : job.nav_hints;
+  const finishedCount =
+    job.progress.completed + job.progress.failed + (job.progress.cancelled ?? 0);
+  const progressPercent =
+    itemCount > 0 ? Math.min(100, Math.round((finishedCount / itemCount) * 100)) : 0;
+  const liveHints = detail?.items
+    ? (() => {
+        let r = 0,
+          a = 0;
+        for (const it of detail.items) {
+          if (it.has_output) r++;
+          else if (['awaiting_review', 'review_approved', 'completed'].includes(it.status)) a++;
+        }
+        return { redacted_count: r, awaiting_review_count: a };
+      })()
+    : job.nav_hints;
   const progressHeadline = buildProgressHeadline(job.progress, liveHints);
   const progressSummary = buildProgressSummary(job.progress, itemCount, finishedCount);
   const expandable = itemCount > 0;
 
-  const actionBtnBase = 'inline-flex h-9 min-w-0 items-center justify-center rounded-xl px-3 py-1.5 text-center text-xs font-medium transition-colors';
+  const actionBtnBase =
+    'inline-flex h-9 min-w-0 items-center justify-center rounded-xl px-3 py-1.5 text-center text-xs font-medium transition-colors';
 
   return (
     <li>
       <div
-        className={cn(stripe, 'transition-colors', expandable ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/30')}
+        className={cn(
+          stripe,
+          'transition-colors',
+          expandable ? 'cursor-pointer hover:bg-muted/50' : 'hover:bg-muted/30',
+        )}
         onClick={expandable ? () => void onToggleExpand(job) : undefined}
         data-testid={`job-row-${job.id}`}
       >
         <div className="jobs-row-main px-3 sm:px-4 py-3">
           <div className="jobs-tree-cell jobs-expand-cell">
             {itemCount > 0 ? (
-              <button type="button"
-                onClick={e => { e.stopPropagation(); void onToggleExpand(job); }}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onToggleExpand(job);
+                }}
                 className="w-6 h-6 rounded-md border bg-background text-muted-foreground hover:bg-muted transition-colors flex items-center justify-center"
                 title={expanded ? t('jobs.collapseFiles') : t('jobs.expandFiles')}
                 aria-expanded={expanded}
                 data-testid={`job-expand-${job.id}`}
               >
-                <svg className={cn('w-3.5 h-3.5 transition-transform', expanded && 'rotate-90')} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className={cn('w-3.5 h-3.5 transition-transform', expanded && 'rotate-90')}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </button>
             ) : (
-              <span className="w-6 h-6 rounded-md bg-muted text-muted-foreground/30 flex items-center justify-center text-xs">{'\u00b7'}</span>
+              <span className="w-6 h-6 rounded-md bg-muted text-muted-foreground/30 flex items-center justify-center text-xs">
+                {'\u00b7'}
+              </span>
             )}
           </div>
 
           <div className="jobs-task-cell min-w-0">
             <div className="flex flex-nowrap items-center gap-2 min-w-0">
               <JobTypeBadge jobType={job.job_type} />
-              <p className="text-sm font-medium truncate" title={job.title || t('jobs.unnamedTask')}>
+              <p
+                className="text-sm font-medium truncate"
+                title={job.title || t('jobs.unnamedTask')}
+              >
                 {job.title || t('jobs.unnamedTask')}
               </p>
             </div>
             <p className="text-caption text-muted-foreground mt-0.5">
               {t('jobs.itemCount').replace('{n}', String(itemCount))}
             </p>
-            <p className="text-caption text-muted-foreground mt-0.5 md:hidden">{t('jobs.updatedAtLabel').replace('{time}', formatUpdatedAt(job.updated_at))}</p>
+            <p className="text-caption text-muted-foreground mt-0.5 md:hidden">
+              {t('jobs.updatedAtLabel').replace('{time}', formatUpdatedAt(job.updated_at))}
+            </p>
           </div>
 
           <div className="jobs-exec-cell flex items-center gap-2">
@@ -226,8 +297,12 @@ function JobRow({
           <div className="jobs-progress-cell min-w-0">
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium tabular-nums truncate">{progressHeadline}</span>
-                <span className="text-caption text-muted-foreground tabular-nums shrink-0">{progressPercent}%</span>
+                <span className="text-xs font-medium tabular-nums truncate">
+                  {progressHeadline}
+                </span>
+                <span className="text-caption text-muted-foreground tabular-nums shrink-0">
+                  {progressPercent}%
+                </span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
@@ -247,7 +322,9 @@ function JobRow({
           </div>
 
           <div className="jobs-status-cell flex items-center gap-2">
-            <span className="text-xs text-muted-foreground md:hidden">{t('jobs.currentStatus')}</span>
+            <span className="text-xs text-muted-foreground md:hidden">
+              {t('jobs.currentStatus')}
+            </span>
             <JobStatusBadge status={job.status} />
           </div>
 
@@ -257,41 +334,73 @@ function JobRow({
 
           <div className="jobs-actions-cell" onClick={stopEvent}>
             {showPrimaryAction ? (
-              <Link to={primary.to} onClick={stopEvent}
+              <Link
+                to={primary.to}
+                onClick={stopEvent}
                 className={`${actionBtnBase} w-full whitespace-nowrap border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.14]`}
-                data-testid={`job-primary-action-${job.id}`}>
+                data-testid={`job-primary-action-${job.id}`}
+              >
                 {primary.label}
               </Link>
             ) : showWorkbenchShortcut ? (
-              <Link to={buildBatchWorkbenchUrl(job.id, job.job_type, 3)} onClick={stopEvent}
+              <Link
+                to={buildBatchWorkbenchUrl(job.id, job.job_type, 3)}
+                onClick={stopEvent}
                 className={`${actionBtnBase} w-full whitespace-nowrap border bg-background hover:bg-muted`}
-                data-testid={`job-workbench-${job.id}`}>
+                data-testid={`job-workbench-${job.id}`}
+              >
                 {t('jobs.openWorkbench')}
               </Link>
             ) : job.progress.failed > 0 ? (
-              <button type="button" disabled={requeueingJobId === job.id}
-                onClick={e => { e.stopPropagation(); void onRequeueFailed(job); }}
-                className={cn(actionBtnBase, 'w-full whitespace-nowrap', tonePanelClass.warning, 'hover:opacity-90 disabled:opacity-50')}
-                data-testid={`job-requeue-${job.id}`}>
-                {requeueingJobId === job.id ? t('jobs.processingEllipsis') : t('jobs.requeueBtn').replace('{n}', String(job.progress.failed))}
+              <button
+                type="button"
+                disabled={requeueingJobId === job.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onRequeueFailed(job);
+                }}
+                className={cn(
+                  actionBtnBase,
+                  'w-full whitespace-nowrap',
+                  tonePanelClass.warning,
+                  'hover:opacity-90 disabled:opacity-50',
+                )}
+                data-testid={`job-requeue-${job.id}`}
+              >
+                {requeueingJobId === job.id
+                  ? t('jobs.processingEllipsis')
+                  : t('jobs.requeueBtn').replace('{n}', String(job.progress.failed))}
               </button>
-            ) : <span className="jobs-action-placeholder" />}
-            <Link to={detailHref} onClick={stopEvent}
+            ) : (
+              <span className="jobs-action-placeholder" />
+            )}
+            <Link
+              to={detailHref}
+              onClick={stopEvent}
               className={`${actionBtnBase} w-full whitespace-nowrap border bg-background hover:bg-muted`}
-              data-testid={`job-detail-link-${job.id}`}>
+              data-testid={`job-detail-link-${job.id}`}
+            >
               {job.status === 'completed' ? t('jobs.detailAction') : t('jobs.viewDetail')}
             </Link>
             {!deleteBlocked ? (
-              <button type="button" disabled={deletingJobId === job.id}
-                onClick={e => { e.stopPropagation(); void onDelete(job); }}
+              <button
+                type="button"
+                disabled={deletingJobId === job.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void onDelete(job);
+                }}
                 className={cn(
                   actionBtnBase,
                   'w-full whitespace-nowrap border text-muted-foreground hover:border-[var(--error-border)] hover:bg-[var(--error-surface)] hover:text-[var(--error-foreground)] disabled:opacity-50',
                 )}
-                data-testid={`job-delete-${job.id}`}>
+                data-testid={`job-delete-${job.id}`}
+              >
                 {deletingJobId === job.id ? t('jobs.deletingEllipsis') : t('jobs.deleteTask')}
               </button>
-            ) : <span className="jobs-action-placeholder" />}
+            ) : (
+              <span className="jobs-action-placeholder" />
+            )}
           </div>
         </div>
 
@@ -304,7 +413,9 @@ function JobRow({
 }
 
 function ExpandedDetail({
-  detail, detailLoading, stopEvent,
+  detail,
+  detailLoading,
+  stopEvent,
 }: {
   detail: JobDetail | undefined;
   detailLoading: boolean;
@@ -323,9 +434,17 @@ function ExpandedDetail({
             const rs = resolveRedactionState(Boolean(item.has_output), item.status);
             const isLast = itemIndex === detail.items.length - 1;
             return (
-              <div key={item.id}
-                className={cn('jobs-row-main jobs-child-row px-3 sm:px-4 py-2', !isLast && 'border-b border-border/50')}>
-                <span className="text-muted-foreground/30 text-xs text-center select-none" aria-hidden>
+              <div
+                key={item.id}
+                className={cn(
+                  'jobs-row-main jobs-child-row px-3 sm:px-4 py-2',
+                  !isLast && 'border-b border-border/50',
+                )}
+              >
+                <span
+                  className="text-muted-foreground/30 text-xs text-center select-none"
+                  aria-hidden
+                >
                   {isLast ? '\u2514' : '\u251c'}
                 </span>
                 <div className="jobs-task-cell jobs-child-task min-w-0">
@@ -333,7 +452,8 @@ function ExpandedDetail({
                     {item.filename || item.file_id}
                   </p>
                   <p className="text-2xs text-muted-foreground">
-                    {item.file_type ? String(item.file_type).toUpperCase() : '\u2014'} {'\u00b7'} {t('jobs.recognize').replace('{n}', String(item.entity_count ?? 0))}
+                    {item.file_type ? String(item.file_type).toUpperCase() : '\u2014'} {'\u00b7'}{' '}
+                    {t('jobs.recognize').replace('{n}', String(item.entity_count ?? 0))}
                   </p>
                 </div>
                 <span />
@@ -350,7 +470,9 @@ function ExpandedDetail({
           })}
         </div>
       ) : (
-        <div className="px-3 sm:px-4 py-4 text-xs text-muted-foreground">{t('jobs.noFileDetail')}</div>
+        <div className="px-3 sm:px-4 py-4 text-xs text-muted-foreground">
+          {t('jobs.noFileDetail')}
+        </div>
       )}
     </div>
   );

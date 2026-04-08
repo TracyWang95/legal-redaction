@@ -7,7 +7,9 @@
 declare const process: { versions: { node: string } };
 const nodeVersion = parseInt(process.versions.node.split('.')[0], 10);
 if (nodeVersion >= 24) {
-  console.warn(`[SKIP] use-playground-recognition tests skipped on Node ${process.versions.node} (OOM). CI uses Node 20.`);
+  console.warn(
+    `[SKIP] use-playground-recognition tests skipped on Node ${process.versions.node} (OOM). CI uses Node 20.`,
+  );
 }
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
@@ -40,7 +42,6 @@ vi.mock('@/services/hooks/use-presets', () => ({
   useInvalidatePresets: vi.fn(() => vi.fn().mockResolvedValue(undefined)),
   PRESETS_QUERY_KEY: ['presets'],
 }));
-
 
 vi.mock('@/services/activePresetBridge', () => ({
   getActivePresetTextId: vi.fn(() => null),
@@ -300,7 +301,7 @@ describeOrSkip('usePlaygroundRecognition', () => {
       await waitFor(() => expect(result.current.sortedEntityTypes.length).toBe(5));
       // First two types have regex_pattern, so they should appear first
       const firstTwo = result.current.sortedEntityTypes.slice(0, 2);
-      expect(firstTwo.every(t => t.regex_pattern != null)).toBe(true);
+      expect(firstTwo.every((t) => t.regex_pattern != null)).toBe(true);
     });
   });
 

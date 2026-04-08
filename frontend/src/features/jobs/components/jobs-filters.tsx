@@ -47,18 +47,17 @@ export function JobsFilters({
             {t('jobs.filters.kicker')}
           </span>
           <div className="page-section-heading">
-            <h2 className="page-title text-lg">
-              {t('jobs.filters.title')}
-            </h2>
-            <p className="page-copy">
-              {t('jobs.filters.desc')}
-            </p>
+            <h2 className="page-title text-lg">{t('jobs.filters.title')}</h2>
+            <p className="page-copy">{t('jobs.filters.desc')}</p>
           </div>
         </div>
 
         <div className="control-cluster">
           <Tabs value={tab} onValueChange={(value) => onTabChange(value as JobTypeApi | 'all')}>
-            <TabsList className="h-auto rounded-xl border border-border/70 bg-muted/45 p-1" data-testid="jobs-tab-list">
+            <TabsList
+              className="h-auto rounded-xl border border-border/70 bg-muted/45 p-1"
+              data-testid="jobs-tab-list"
+            >
               <TabsTrigger value="all" className="px-3 py-1.5 text-xs" data-testid="jobs-tab-all">
                 {t('jobs.tab.all')}
               </TabsTrigger>
@@ -114,10 +113,14 @@ function MetricPill({
 }) {
   return (
     <div className="metric-card">
-      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
-      </div>
-      <div className={tone === 'alert' ? 'mt-1 text-lg font-semibold text-destructive' : 'mt-1 text-lg font-semibold text-foreground'}>
+      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
+      <div
+        className={
+          tone === 'alert'
+            ? 'mt-1 text-lg font-semibold text-destructive'
+            : 'mt-1 text-lg font-semibold text-foreground'
+        }
+      >
         {value}
       </div>
     </div>

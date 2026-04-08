@@ -63,23 +63,25 @@ function BatchStep1PresetCardsInner({
         <CardContent className="flex h-full flex-col gap-1.5 p-2.5">
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-            <span className="text-sm font-semibold">
-              {t('batchWizard.step1.textPreset')}
-            </span>
+            <span className="text-sm font-semibold">{t('batchWizard.step1.textPreset')}</span>
           </div>
-            <p className="text-xs text-muted-foreground leading-snug">
+          <p className="text-xs text-muted-foreground leading-snug">
             {t('batchWizard.step1.textPresetDesc')}
           </p>
           <Select
             value={cfg.presetTextId || DEFAULT_PRESET_VALUE}
-            onValueChange={value => onBatchTextPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
+            onValueChange={(value) =>
+              onBatchTextPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)
+            }
           >
             <SelectTrigger className="text-xs" data-testid="text-preset-select">
               <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
-              {textPresets.map(p => (
+              <SelectItem value={DEFAULT_PRESET_VALUE}>
+                {t('batchWizard.step1.defaultPreset')}
+              </SelectItem>
+              {textPresets.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
                   {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
@@ -135,23 +137,25 @@ function BatchStep1PresetCardsInner({
         <CardContent className="flex h-full flex-col gap-1.5 p-2.5">
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--selection-yolo-accent)]" />
-            <span className="text-sm font-semibold">
-              {t('batchWizard.step1.imagePreset')}
-            </span>
+            <span className="text-sm font-semibold">{t('batchWizard.step1.imagePreset')}</span>
           </div>
-            <p className="text-xs text-muted-foreground leading-snug">
+          <p className="text-xs text-muted-foreground leading-snug">
             {t('batchWizard.step1.imagePresetDesc')}
           </p>
           <Select
             value={cfg.presetVisionId || DEFAULT_PRESET_VALUE}
-            onValueChange={value => onBatchVisionPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)}
+            onValueChange={(value) =>
+              onBatchVisionPresetChange(value === DEFAULT_PRESET_VALUE ? '' : value)
+            }
           >
             <SelectTrigger className="text-xs" data-testid="vision-preset-select">
               <SelectValue placeholder={t('batchWizard.step1.defaultPreset')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={DEFAULT_PRESET_VALUE}>{t('batchWizard.step1.defaultPreset')}</SelectItem>
-              {visionPresets.map(p => (
+              <SelectItem value={DEFAULT_PRESET_VALUE}>
+                {t('batchWizard.step1.defaultPreset')}
+              </SelectItem>
+              {visionPresets.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
                   {p.kind === 'full' ? ` (${t('batchWizard.step1.comboPreset')})` : ''}
@@ -168,9 +172,7 @@ function BatchStep1PresetCardsInner({
                 {imageMethodLabel}
               </span>
             </div>
-            <p className="text-[11px] leading-4 text-muted-foreground">
-              {imageMethodHint}
-            </p>
+            <p className="text-[11px] leading-4 text-muted-foreground">{imageMethodHint}</p>
             <Select
               value={imageRedactionMethod}
               onValueChange={(value: 'mosaic' | 'blur' | 'fill') =>
@@ -197,11 +199,15 @@ function BatchStep1PresetCardsInner({
                     <input
                       type="color"
                       value={imageFillColor}
-                      onChange={(event) => setCfg((current) => ({ ...current, imageFillColor: event.target.value }))}
+                      onChange={(event) =>
+                        setCfg((current) => ({ ...current, imageFillColor: event.target.value }))
+                      }
                       className="h-6 w-6 rounded-md border-0 bg-transparent p-0"
                       data-testid="image-redaction-color"
                     />
-                    <span className="text-xs font-medium text-foreground">{imageFillColor.toUpperCase()}</span>
+                    <span className="text-xs font-medium text-foreground">
+                      {imageFillColor.toUpperCase()}
+                    </span>
                   </div>
                 </div>
                 <div className="space-y-0.5">
@@ -232,7 +238,10 @@ function BatchStep1PresetCardsInner({
                   step="5"
                   value={imageRedactionStrength}
                   onChange={(event) =>
-                    setCfg((current) => ({ ...current, imageRedactionStrength: Number(event.target.value) }))
+                    setCfg((current) => ({
+                      ...current,
+                      imageRedactionStrength: Number(event.target.value),
+                    }))
                   }
                   className="w-full accent-primary"
                   data-testid="image-redaction-strength"

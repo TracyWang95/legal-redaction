@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { ArrowLeftRight, Download, Trash2 } from 'lucide-react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -11,7 +10,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/EmptyState';
 import type { FileListItem } from '@/types';
-import { BADGE_BASE, getRedactionStateLabel, REDACTION_STATE_CLASS, resolveRedactionState } from '@/utils/redactionState';
+import {
+  BADGE_BASE,
+  getRedactionStateLabel,
+  REDACTION_STATE_CLASS,
+  resolveRedactionState,
+} from '@/utils/redactionState';
 
 interface HistoryTableProps {
   rows: FileListItem[];
@@ -64,7 +68,11 @@ export function HistoryTable({
         <thead>
           <tr className="border-b border-border/70 bg-muted/30 text-left text-xs font-medium text-muted-foreground">
             <th className="w-10 px-4 py-3">
-              <Checkbox checked={allSelected} onCheckedChange={(value) => onSelectAll(!!value)} data-testid="history-select-all" />
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={(value) => onSelectAll(!!value)}
+                data-testid="history-select-all"
+              />
             </th>
             <th className="px-4 py-3">{t('history.col.filename')}</th>
             <th className="hidden px-4 py-3 sm:table-cell">{t('history.fileType')}</th>
@@ -85,7 +93,10 @@ export function HistoryTable({
                 data-testid={`history-row-${row.file_id}`}
               >
                 <td className="px-4 py-3.5">
-                  <Checkbox checked={selected.has(row.file_id)} onCheckedChange={() => onToggle(row.file_id)} />
+                  <Checkbox
+                    checked={selected.has(row.file_id)}
+                    onCheckedChange={() => onToggle(row.file_id)}
+                  />
                 </td>
                 <td className="max-w-[260px] px-4 py-3.5 font-medium">
                   <div className="truncate">{row.original_filename}</div>
@@ -95,7 +106,9 @@ export function HistoryTable({
                     {getFileTypeLabel(row.file_type)}
                   </Badge>
                 </td>
-                <td className="hidden px-4 py-3.5 tabular-nums md:table-cell">{row.entity_count}</td>
+                <td className="hidden px-4 py-3.5 tabular-nums md:table-cell">
+                  {row.entity_count}
+                </td>
                 <td className="hidden px-4 py-3.5 md:table-cell">
                   <Badge className={cn(BADGE_BASE, REDACTION_STATE_CLASS[state])}>
                     {getRedactionStateLabel(state)}

@@ -19,8 +19,7 @@ export const queryKeys = {
   // ── Jobs ──────────────────────────────────────────────────────────────────
   jobs: {
     all: () => ['jobs'] as const,
-    list: (filters?: { status?: string; page?: number }) =>
-      ['jobs', 'list', filters] as const,
+    list: (filters?: { status?: string; page?: number }) => ['jobs', 'list', filters] as const,
     detail: (jobId: string) => ['jobs', jobId] as const,
   },
 
@@ -35,8 +34,7 @@ export const queryKeys = {
   // ── Entity types ──────────────────────────────────────────────────────────
   entityTypes: {
     all: () => ['entityTypes'] as const,
-    list: (opts?: { enabledOnly?: boolean }) =>
-      ['entityTypes', 'list', opts] as const,
+    list: (opts?: { enabledOnly?: boolean }) => ['entityTypes', 'list', opts] as const,
     detail: (typeId: string) => ['entityTypes', typeId] as const,
   },
 
@@ -56,7 +54,6 @@ export const queryKeys = {
   // ── Batch preview entity map ─────────────────────────────────────────────
   batchPreview: {
     /** Key for a specific entity-set + replacement-mode combination. */
-    entityMap: (contentHash: string) =>
-      ['batchPreview', 'entityMap', contentHash] as const,
+    entityMap: (contentHash: string) => ['batchPreview', 'entityMap', contentHash] as const,
   },
 } as const;

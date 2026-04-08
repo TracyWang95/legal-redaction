@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useCallback, useEffect } from 'react';
 import type { useUndoRedo } from '@/hooks/useUndoRedo';
 import type { Entity, BoundingBox } from '../types';
@@ -33,8 +32,8 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
   const canRedo = isImageMode ? imageHistory.canRedo : entityHistory.canRedo;
 
   const selectedCount = isImageMode
-    ? boundingBoxes.filter(b => b.selected).length
-    : entities.filter(e => e.selected).length;
+    ? boundingBoxes.filter((b) => b.selected).length
+    : entities.filter((e) => e.selected).length;
 
   const handleUndo = useCallback(() => {
     if (isImageMode) {
@@ -44,7 +43,15 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
       const prev = entityHistory.undo(entities);
       if (prev) setEntities(prev);
     }
-  }, [isImageMode, boundingBoxes, entities, imageHistory, entityHistory, setBoundingBoxes, setEntities]);
+  }, [
+    isImageMode,
+    boundingBoxes,
+    entities,
+    imageHistory,
+    entityHistory,
+    setBoundingBoxes,
+    setEntities,
+  ]);
 
   const handleRedo = useCallback(() => {
     if (isImageMode) {
@@ -54,24 +61,34 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
       const next = entityHistory.redo(entities);
       if (next) setEntities(next);
     }
-  }, [isImageMode, boundingBoxes, entities, imageHistory, entityHistory, setBoundingBoxes, setEntities]);
+  }, [
+    isImageMode,
+    boundingBoxes,
+    entities,
+    imageHistory,
+    entityHistory,
+    setBoundingBoxes,
+    setEntities,
+  ]);
 
   const selectAll = useCallback(() => {
     if (isImageMode) {
-      setBoundingBoxes(prev => prev.map(b => ({
-        ...b,
-        selected: allSelectedVisionTypes.includes(b.type),
-      })));
+      setBoundingBoxes((prev) =>
+        prev.map((b) => ({
+          ...b,
+          selected: allSelectedVisionTypes.includes(b.type),
+        })),
+      );
     } else {
-      setEntities(prev => prev.map(e => ({ ...e, selected: true })));
+      setEntities((prev) => prev.map((e) => ({ ...e, selected: true })));
     }
   }, [isImageMode, allSelectedVisionTypes, setBoundingBoxes, setEntities]);
 
   const deselectAll = useCallback(() => {
     if (isImageMode) {
-      setBoundingBoxes(prev => prev.map(b => ({ ...b, selected: false })));
+      setBoundingBoxes((prev) => prev.map((b) => ({ ...b, selected: false })));
     } else {
-      setEntities(prev => prev.map(e => ({ ...e, selected: false })));
+      setEntities((prev) => prev.map((e) => ({ ...e, selected: false })));
     }
   }, [isImageMode, setBoundingBoxes, setEntities]);
 
@@ -79,7 +96,11 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      )
+        return;
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const modKey = isMac ? e.metaKey : e.ctrlKey;
       if (!modKey) return;

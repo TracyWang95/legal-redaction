@@ -3,10 +3,9 @@
 
 import { authFetch } from '@/services/api-client';
 
-
 export function fetchWithTimeout(
   input: RequestInfo | URL,
-  init: RequestInit & { timeoutMs?: number } = {}
+  init: RequestInit & { timeoutMs?: number } = {},
 ): Promise<Response> {
   const { timeoutMs = 30000, signal: outerSignal, ...rest } = init;
   const ac = new AbortController();
@@ -69,7 +68,7 @@ export async function fetchWithRetry(
     // If we still have retries remaining, wait with exponential backoff
     if (attempt < maxRetries) {
       const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 

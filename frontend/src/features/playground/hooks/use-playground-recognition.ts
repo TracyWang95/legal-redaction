@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   createPreset,
@@ -36,11 +35,7 @@ import {
   normalizeVisionPipelines,
   sortEntityTypes,
 } from '../lib/recognition-config';
-import type {
-  EntityTypeConfig,
-  VisionTypeConfig,
-  PipelineConfig,
-} from '../types';
+import type { EntityTypeConfig, VisionTypeConfig, PipelineConfig } from '../types';
 
 export function usePlaygroundRecognition() {
   const presetsQuery = usePresets();
@@ -57,7 +52,9 @@ export function usePlaygroundRecognition() {
   const selectedHasImageTypesRef = useRef(selectedHasImageTypes);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [typeTab, setTypeTab] = useState<'text' | 'vision'>('text');
-  const [replacementMode, setReplacementMode] = useState<'structured' | 'smart' | 'mask'>('structured');
+  const [replacementMode, setReplacementMode] = useState<'structured' | 'smart' | 'mask'>(
+    'structured',
+  );
   const [playgroundPresets, setPlaygroundPresets] = useState<RecognitionPreset[]>([]);
   const [playgroundPresetTextId, setPlaygroundPresetTextId] = useState<string | null>(null);
   const [playgroundPresetVisionId, setPlaygroundPresetVisionId] = useState<string | null>(null);
@@ -66,20 +63,26 @@ export function usePlaygroundRecognition() {
   const [presetSaving, setPresetSaving] = useState(false);
   const [presetApplySeq, setPresetApplySeq] = useState(0);
 
-  const textPresetsPg = useMemo(() => playgroundPresets.filter(presetAppliesText), [playgroundPresets]);
-  const visionPresetsPg = useMemo(() => playgroundPresets.filter(presetAppliesVision), [playgroundPresets]);
+  const textPresetsPg = useMemo(
+    () => playgroundPresets.filter(presetAppliesText),
+    [playgroundPresets],
+  );
+  const visionPresetsPg = useMemo(
+    () => playgroundPresets.filter(presetAppliesVision),
+    [playgroundPresets],
+  );
 
   const playgroundDefaultTextTypeIds = useMemo(
     () => buildDefaultTextTypeIds(entityTypes),
-    [entityTypes]
+    [entityTypes],
   );
   const playgroundDefaultOcrHasTypeIds = useMemo(
     () => buildDefaultPipelineTypeIds(pipelines, 'ocr_has'),
-    [pipelines]
+    [pipelines],
   );
   const playgroundDefaultHasImageTypeIds = useMemo(
     () => buildDefaultPipelineTypeIds(pipelines, 'has_image'),
-    [pipelines]
+    [pipelines],
   );
 
   const updateOcrHasTypes = useCallback((types: string[]) => {
@@ -107,34 +110,36 @@ export function usePlaygroundRecognition() {
   const applyTextPresetToPlayground = useCallback(
     (preset: RecognitionPreset) => {
       if (!presetAppliesText(preset)) return;
-      const enabledTextIds = new Set(entityTypes.filter(type => type.enabled !== false).map(type => type.id));
-      setSelectedTypes(preset.selectedEntityTypeIds.filter(id => enabledTextIds.has(id)));
+      const enabledTextIds = new Set(
+        entityTypes.filter((type) => type.enabled !== false).map((type) => type.id),
+      );
+      setSelectedTypes(preset.selectedEntityTypeIds.filter((id) => enabledTextIds.has(id)));
       if ((preset.kind ?? 'full') !== 'text') {
         setReplacementMode(preset.replacementMode);
       }
       setPlaygroundPresetTextId(preset.id);
       setActivePresetTextId(preset.id);
-      setPresetApplySeq(s => s + 1);
+      setPresetApplySeq((s) => s + 1);
     },
-    [entityTypes]
+    [entityTypes],
   );
 
   const applyVisionPresetToPlayground = useCallback(
     (preset: RecognitionPreset) => {
       if (!presetAppliesVision(preset)) return;
       const ocrIds = pipelines
-        .filter(pipeline => pipeline.mode === 'ocr_has')
-        .flatMap(pipeline => pipeline.types.map(type => type.id));
+        .filter((pipeline) => pipeline.mode === 'ocr_has')
+        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
       const imageIds = pipelines
-        .filter(pipeline => pipeline.mode === 'has_image')
-        .flatMap(pipeline => pipeline.types.map(type => type.id));
+        .filter((pipeline) => pipeline.mode === 'has_image')
+        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
 
-      updateOcrHasTypes(preset.ocrHasTypes.filter(id => ocrIds.includes(id)));
-      updateHasImageTypes(preset.hasImageTypes.filter(id => imageIds.includes(id)));
+      updateOcrHasTypes(preset.ocrHasTypes.filter((id) => ocrIds.includes(id)));
+      updateHasImageTypes(preset.hasImageTypes.filter((id) => imageIds.includes(id)));
       setPlaygroundPresetVisionId(preset.id);
       setActivePresetVisionId(preset.id);
     },
-    [pipelines, updateOcrHasTypes, updateHasImageTypes]
+    [pipelines, updateOcrHasTypes, updateHasImageTypes],
   );
 
   const selectPlaygroundTextPresetById = useCallback(
@@ -144,14 +149,14 @@ export function usePlaygroundRecognition() {
         setActivePresetTextId(null);
         setSelectedTypes([...playgroundDefaultTextTypeIds]);
         setReplacementMode('structured');
-        setPresetApplySeq(s => s + 1);
+        setPresetApplySeq((s) => s + 1);
         return;
       }
 
-      const preset = playgroundPresets.find(item => item.id === id);
+      const preset = playgroundPresets.find((item) => item.id === id);
       if (preset) applyTextPresetToPlayground(preset);
     },
-    [playgroundDefaultTextTypeIds, playgroundPresets, applyTextPresetToPlayground]
+    [playgroundDefaultTextTypeIds, playgroundPresets, applyTextPresetToPlayground],
   );
 
   const selectPlaygroundVisionPresetById = useCallback(
@@ -164,7 +169,7 @@ export function usePlaygroundRecognition() {
         return;
       }
 
-      const preset = playgroundPresets.find(item => item.id === id);
+      const preset = playgroundPresets.find((item) => item.id === id);
       if (preset) applyVisionPresetToPlayground(preset);
     },
     [
@@ -174,7 +179,7 @@ export function usePlaygroundRecognition() {
       applyVisionPresetToPlayground,
       updateOcrHasTypes,
       updateHasImageTypes,
-    ]
+    ],
   );
 
   // Sync presets from react-query cache into local state
@@ -254,7 +259,13 @@ export function usePlaygroundRecognition() {
     } finally {
       setPresetSaving(false);
     }
-  }, [closePresetDialog, presetDialogName, selectedHasImageTypes, selectedOcrHasTypes, invalidatePresets]);
+  }, [
+    closePresetDialog,
+    presetDialogName,
+    selectedHasImageTypes,
+    selectedOcrHasTypes,
+    invalidatePresets,
+  ]);
 
   const fetchEntityTypes = useCallback(async () => {
     try {
@@ -273,7 +284,7 @@ export function usePlaygroundRecognition() {
   const fetchVisionTypes = useCallback(async () => {
     try {
       const normalizedPipelines = normalizeVisionPipelines(
-        await fetchRecognitionPipelines(1_200) as PipelineConfig[],
+        (await fetchRecognitionPipelines(1_200)) as PipelineConfig[],
       );
       const nextVisionTypes = flattenVisionTypes(normalizedPipelines);
 
@@ -282,8 +293,8 @@ export function usePlaygroundRecognition() {
       setVisionConfigState(normalizedPipelines.length > 0 ? 'ready' : 'empty');
 
       const ocrHasTypeIds = normalizedPipelines
-        .filter(pipeline => pipeline.mode === 'ocr_has')
-        .flatMap(pipeline => pipeline.types.map(type => type.id));
+        .filter((pipeline) => pipeline.mode === 'ocr_has')
+        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
       const defaultOcrHasTypeIds = buildDefaultPipelineTypeIds(normalizedPipelines, 'ocr_has');
       const savedOcrHasTypes = getStorageItem<string[] | null>(STORAGE_KEYS.OCR_HAS_TYPES, null);
       if (savedOcrHasTypes && Array.isArray(savedOcrHasTypes)) {
@@ -294,12 +305,13 @@ export function usePlaygroundRecognition() {
       }
 
       const hasImageTypeIds = normalizedPipelines
-        .filter(pipeline => pipeline.mode === 'has_image')
-        .flatMap(pipeline => pipeline.types.map(type => type.id));
+        .filter((pipeline) => pipeline.mode === 'has_image')
+        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
       const defaultHasImageTypeIds = buildDefaultPipelineTypeIds(normalizedPipelines, 'has_image');
-      const savedHasImageTypes =
-        getStorageItem<string[] | null>(STORAGE_KEYS.HAS_IMAGE_TYPES, null)
-        ?? getStorageItem<string[] | null>(STORAGE_KEYS.GLM_VISION_TYPES, null);
+      const savedHasImageTypes = getStorageItem<string[] | null>(
+        STORAGE_KEYS.HAS_IMAGE_TYPES,
+        null,
+      );
       if (savedHasImageTypes && Array.isArray(savedHasImageTypes)) {
         const filtered = savedHasImageTypes.filter((id: string) => hasImageTypeIds.includes(id));
         updateHasImageTypes(filtered);
@@ -342,13 +354,17 @@ export function usePlaygroundRecognition() {
 
     const textPresetId = getActivePresetTextId();
     if (textPresetId) {
-      const preset = playgroundPresets.find(item => item.id === textPresetId && presetAppliesText(item));
+      const preset = playgroundPresets.find(
+        (item) => item.id === textPresetId && presetAppliesText(item),
+      );
       if (preset) applyTextPresetToPlayground(preset);
     }
 
     const visionPresetId = getActivePresetVisionId();
     if (visionPresetId && pipelines.length) {
-      const preset = playgroundPresets.find(item => item.id === visionPresetId && presetAppliesVision(item));
+      const preset = playgroundPresets.find(
+        (item) => item.id === visionPresetId && presetAppliesVision(item),
+      );
       if (preset) applyVisionPresetToPlayground(preset);
     }
 
@@ -365,22 +381,22 @@ export function usePlaygroundRecognition() {
 
   const playgroundTextGroups = useMemo(
     () => buildPlaygroundTextGroups(sortedEntityTypes),
-    [sortedEntityTypes]
+    [sortedEntityTypes],
   );
 
   const setPlaygroundTextTypeGroupSelection = useCallback(
     (ids: string[], turnOn: boolean) => {
       clearPlaygroundTextPresetTracking();
-      setSelectedTypes(previous => {
+      setSelectedTypes((previous) => {
         if (turnOn) {
           const next = new Set(previous);
-          ids.forEach(id => next.add(id));
+          ids.forEach((id) => next.add(id));
           return [...next];
         }
-        return previous.filter(id => !ids.includes(id));
+        return previous.filter((id) => !ids.includes(id));
       });
     },
-    [clearPlaygroundTextPresetTracking]
+    [clearPlaygroundTextPresetTracking],
   );
 
   const toggleVisionType = useCallback(
@@ -389,7 +405,7 @@ export function usePlaygroundRecognition() {
       if (pipelineMode === 'ocr_has') {
         const isActive = selectedOcrHasTypes.includes(typeId);
         const next = isActive
-          ? selectedOcrHasTypes.filter(id => id !== typeId)
+          ? selectedOcrHasTypes.filter((id) => id !== typeId)
           : [...selectedOcrHasTypes, typeId];
         updateOcrHasTypes(next);
         return { typeId, wasActive: isActive };
@@ -397,7 +413,7 @@ export function usePlaygroundRecognition() {
 
       const isActive = selectedHasImageTypes.includes(typeId);
       const next = isActive
-        ? selectedHasImageTypes.filter(id => id !== typeId)
+        ? selectedHasImageTypes.filter((id) => id !== typeId)
         : [...selectedHasImageTypes, typeId];
       updateHasImageTypes(next);
       return { typeId, wasActive: isActive };
@@ -408,7 +424,7 @@ export function usePlaygroundRecognition() {
       updateOcrHasTypes,
       updateHasImageTypes,
       clearPlaygroundVisionPresetTracking,
-    ]
+    ],
   );
 
   return {
@@ -452,11 +468,11 @@ export function usePlaygroundRecognition() {
     updateHasImageTypes,
     presetApplySeq,
     getTypeConfig: (typeId: string): { name: string; color: string } => {
-      const config = entityTypes.find(type => type.id === typeId);
+      const config = entityTypes.find((type) => type.id === typeId);
       return config || { name: typeId, color: '#6366F1' };
     },
     getVisionTypeConfig: (typeId: string): { name: string; color: string } => {
-      const config = visionTypes.find(type => type.id === typeId);
+      const config = visionTypes.find((type) => type.id === typeId);
       return config || { name: typeId, color: '#6366F1' };
     },
   };

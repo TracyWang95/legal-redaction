@@ -1,7 +1,14 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { type CSSProperties, type Dispatch, type FC, type SetStateAction, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type Dispatch,
+  type FC,
+  type SetStateAction,
+  useRef,
+  useState,
+} from 'react';
 import { useT } from '@/i18n';
 import { RESULT_MARK_HIGHLIGHT_MS } from '@/constants/timing';
 import { cn } from '@/lib/utils';
@@ -64,7 +71,11 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   for (const entity of entities) {
     if (!entity.selected || entityMap[entity.text] === undefined) continue;
     origToTypeId.set(entity.text, String(entity.type));
-    if (typeof entity.start === 'number' && typeof entity.end === 'number' && entity.end <= (content || '').length) {
+    if (
+      typeof entity.start === 'number' &&
+      typeof entity.end === 'number' &&
+      entity.end <= (content || '').length
+    ) {
       const slice = (content || '').slice(entity.start, entity.end);
       if (slice && slice !== entity.text) origToTypeId.set(slice, String(entity.type));
     }
@@ -73,7 +84,10 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   const buildSegments = (text: string, map: Record<string, string>) => {
     if (!text || Object.keys(map).length === 0) return [{ text, isMatch: false as const }];
     const sortedKeys = Object.keys(map).sort((left, right) => right.length - left.length);
-    const regex = new RegExp(`(${sortedKeys.map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
+    const regex = new RegExp(
+      `(${sortedKeys.map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+      'g',
+    );
     const parts = text.split(regex);
     const counters: Record<string, number> = {};
 
@@ -102,8 +116,12 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
 
   const scrollToMatch = (original: string) => {
     const safeKey = original.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
-    const originalMarks = document.querySelectorAll(`.result-mark-orig[data-match-key="${safeKey}"]`);
-    const redactedMarks = document.querySelectorAll(`.result-mark-redacted[data-match-key="${safeKey}"]`);
+    const originalMarks = document.querySelectorAll(
+      `.result-mark-orig[data-match-key="${safeKey}"]`,
+    );
+    const redactedMarks = document.querySelectorAll(
+      `.result-mark-redacted[data-match-key="${safeKey}"]`,
+    );
     const total = Math.max(originalMarks.length, redactedMarks.length);
     if (total === 0) return;
 
@@ -111,27 +129,55 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
     clickCounterRef.current[safeKey] = index + 1;
 
     document.querySelectorAll('.result-mark-active').forEach((element) => {
-      element.classList.remove('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-blue-400/80', 'scale-105');
+      element.classList.remove(
+        'result-mark-active',
+        'ring-2',
+        'ring-offset-1',
+        'ring-blue-400/80',
+        'scale-105',
+      );
     });
 
-    const originalElement = originalMarks[Math.min(index, originalMarks.length - 1)] as HTMLElement | undefined;
+    const originalElement = originalMarks[Math.min(index, originalMarks.length - 1)] as
+      | HTMLElement
+      | undefined;
     originalElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    originalElement?.classList.add('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-blue-400/80', 'scale-105');
+    originalElement?.classList.add(
+      'result-mark-active',
+      'ring-2',
+      'ring-offset-1',
+      'ring-blue-400/80',
+      'scale-105',
+    );
 
-    const redactedElement = redactedMarks[Math.min(index, redactedMarks.length - 1)] as HTMLElement | undefined;
+    const redactedElement = redactedMarks[Math.min(index, redactedMarks.length - 1)] as
+      | HTMLElement
+      | undefined;
     redactedElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    redactedElement?.classList.add('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-blue-400/80', 'scale-105');
+    redactedElement?.classList.add(
+      'result-mark-active',
+      'ring-2',
+      'ring-offset-1',
+      'ring-blue-400/80',
+      'scale-105',
+    );
 
     setTimeout(() => {
       document.querySelectorAll('.result-mark-active').forEach((element) => {
-        element.classList.remove('result-mark-active', 'ring-2', 'ring-offset-1', 'ring-blue-400/80', 'scale-105');
+        element.classList.remove(
+          'result-mark-active',
+          'ring-2',
+          'ring-offset-1',
+          'ring-blue-400/80',
+          'scale-105',
+        );
       });
     }, RESULT_MARK_HIGHLIGHT_MS);
   };
 
-  const renderOriginal = () => segments.map((segment, index) =>
-    segment.isMatch
-      ? (
+  const renderOriginal = () =>
+    segments.map((segment, index) =>
+      segment.isMatch ? (
         <mark
           key={index}
           data-match-key={segment.safeKey}
@@ -141,13 +187,14 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
         >
           {segment.text}
         </mark>
-      )
-      : <span key={index}>{segment.text}</span>,
-  );
+      ) : (
+        <span key={index}>{segment.text}</span>
+      ),
+    );
 
-  const renderRedacted = () => segments.map((segment, index) =>
-    segment.isMatch
-      ? (
+  const renderRedacted = () =>
+    segments.map((segment, index) =>
+      segment.isMatch ? (
         <mark
           key={index}
           data-match-key={segment.safeKey}
@@ -157,12 +204,16 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
         >
           {entityMap[segment.origKey]}
         </mark>
-      )
-      : <span key={index}>{segment.text}</span>,
-  );
+      ) : (
+        <span key={index}>{segment.text}</span>
+      ),
+    );
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" data-testid="playground-result">
+    <div
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+      data-testid="playground-result"
+    >
       <PlaygroundResultActionBar
         fileInfo={fileInfo}
         redactedCount={redactedCount}
@@ -180,11 +231,13 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
       )}
 
       <div className="mx-3 flex shrink-0 gap-1 rounded-t-2xl border border-border/60 border-b-0 bg-background px-2 pt-2 md:hidden">
-        {([
-          ['original', t('playground.mobile.original')],
-          ['redacted', t('playground.mobile.redacted')],
-          ['mapping', t('playground.mobile.mapping')],
-        ] as const).map(([key, label]) => (
+        {(
+          [
+            ['original', t('playground.mobile.original')],
+            ['redacted', t('playground.mobile.redacted')],
+            ['mapping', t('playground.mobile.mapping')],
+          ] as const
+        ).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setMobileTab(key)}

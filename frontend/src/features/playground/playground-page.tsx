@@ -12,7 +12,11 @@ import { PlaygroundResult } from './components/playground-result';
 import { PlaygroundLoading } from './components/playground-loading';
 import { PlaygroundTextSelectionPopover } from './components/playground-text-selection-popover';
 import { PlaygroundEntityPopover } from './components/playground-entity-popover';
-import { PlaygroundProvider, usePlaygroundContext, usePlaygroundUIContext } from './playground-context';
+import {
+  PlaygroundProvider,
+  usePlaygroundContext,
+  usePlaygroundUIContext,
+} from './playground-context';
 import { previewEntityHoverRingClass, previewEntityMarkStyle } from './utils';
 
 /** Inner component that consumes the playground context. */
@@ -22,16 +26,44 @@ const PlaygroundInner: FC = () => {
   const ui = usePlaygroundUIContext();
 
   const {
-    stage, setStage, fileInfo, content, isImageMode,
-    entities, setBoundingBoxes, visibleBoxes,
-    isLoading, loadingMessage, loadingElapsedSec,
-    entityMap, redactedCount, redactionReport, reportOpen, setReportOpen,
-    versionHistory, versionHistoryOpen, setVersionHistoryOpen,
-    selectedCount, canUndo, canRedo, handleUndo, handleRedo,
-    selectAll, deselectAll, toggleBox, removeEntity,
-    handleRerunNer, handleRedact, handleReset, handleDownload,
-    imageUrl, redactedImageUrl, mergeVisibleBoxes, openPopout,
-    recognition, imageHistory,
+    stage,
+    setStage,
+    fileInfo,
+    content,
+    isImageMode,
+    entities,
+    setBoundingBoxes,
+    visibleBoxes,
+    isLoading,
+    loadingMessage,
+    loadingElapsedSec,
+    entityMap,
+    redactedCount,
+    redactionReport,
+    reportOpen,
+    setReportOpen,
+    versionHistory,
+    versionHistoryOpen,
+    setVersionHistoryOpen,
+    selectedCount,
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+    selectAll,
+    deselectAll,
+    toggleBox,
+    removeEntity,
+    handleRerunNer,
+    handleRedact,
+    handleReset,
+    handleDownload,
+    imageUrl,
+    redactedImageUrl,
+    mergeVisibleBoxes,
+    openPopout,
+    recognition,
+    imageHistory,
   } = ctx;
 
   const { entityTypes } = recognition;
@@ -53,11 +85,12 @@ const PlaygroundInner: FC = () => {
       }
 
       const typeName = getEntityTypeName(entity.type);
-      const sourceLabel = entity.source === 'regex'
-        ? t('playground.sourceRegex')
-        : entity.source === 'manual'
-          ? t('playground.sourceManual')
-          : t('playground.sourceAi');
+      const sourceLabel =
+        entity.source === 'regex'
+          ? t('playground.sourceRegex')
+          : entity.source === 'manual'
+            ? t('playground.sourceManual')
+            : t('playground.sourceAi');
 
       segments.push(
         <mark
@@ -83,7 +116,10 @@ const PlaygroundInner: FC = () => {
   };
 
   return (
-    <div className="playground-root saas-page flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background" data-testid="playground">
+    <div
+      className="playground-root saas-page flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background"
+      data-testid="playground"
+    >
       {stage === 'upload' && (
         <div className="page-shell !max-w-[min(100%,2048px)] !px-3 !pt-4 sm:!px-5 sm:!pt-5 2xl:!px-8">
           <PlaygroundUpload ctx={ctx} />
@@ -102,9 +138,7 @@ const PlaygroundInner: FC = () => {
               onRedo={handleRedo}
               onReset={handleReset}
               hintText={
-                isImageMode
-                  ? t('playground.previewHint.image')
-                  : t('playground.previewHint.text')
+                isImageMode ? t('playground.previewHint.image') : t('playground.previewHint.text')
               }
               onPopout={isImageMode ? openPopout : undefined}
             />

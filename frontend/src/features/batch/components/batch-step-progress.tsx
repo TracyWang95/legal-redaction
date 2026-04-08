@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n';
 import { type Step } from '../types';
@@ -11,10 +10,7 @@ interface BatchStepProgressProps {
   canGoStep: (s: Step) => boolean;
 }
 
-export function BatchStepProgress({
-  currentStep,
-  canGoStep,
-}: BatchStepProgressProps) {
+export function BatchStepProgress({ currentStep, canGoStep }: BatchStepProgressProps) {
   const t = useT();
   const stepOrder: Step[] = [1, 2, 3, 4, 5];
 

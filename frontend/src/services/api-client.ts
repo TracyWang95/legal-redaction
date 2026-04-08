@@ -121,7 +121,9 @@ export async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> 
     try {
       const err = await res.json();
       msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail ?? err);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     throw new ApiError(msg, res.status, 'server');
   }
   return res.blob();

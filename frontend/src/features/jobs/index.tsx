@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SkeletonCard } from '@/components/Skeleton';
@@ -18,7 +17,10 @@ export function Jobs() {
   const s = useJobs();
 
   return (
-    <div className="jobs-root saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background" data-testid="jobs-page">
+    <div
+      className="jobs-root saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      data-testid="jobs-page"
+    >
       <div className="page-shell !max-w-[min(100%,2048px)] !px-3 !pt-4 sm:!px-5 sm:!pt-5 2xl:!px-8">
         <JobsFilters
           tab={s.tab}
@@ -62,7 +64,7 @@ export function Jobs() {
               onToggleExpand={s.toggleExpand}
               onDelete={s.requestDelete}
               onRequeueFailed={s.onRequeueFailed}
-              footer={(
+              footer={
                 <JobsPagination
                   page={s.page}
                   pageSize={s.pageSize}
@@ -76,7 +78,7 @@ export function Jobs() {
                   onChangePageSize={s.changePageSize}
                   onJumpPageChange={s.setJumpPage}
                 />
-              )}
+              }
             />
           </>
         )}
@@ -94,7 +96,10 @@ export function Jobs() {
         <ConfirmDialog
           open
           title={t('jobs.deleteTask')}
-          message={t('jobs.confirmDelete').replace('{title}', s.deleteCandidate.title?.trim() || t('jobs.unnamedTask'))}
+          message={t('jobs.confirmDelete').replace(
+            '{title}',
+            s.deleteCandidate.title?.trim() || t('jobs.unnamedTask'),
+          )}
           confirmText={t('jobs.deleteAction')}
           danger
           onConfirm={s.confirmDelete}

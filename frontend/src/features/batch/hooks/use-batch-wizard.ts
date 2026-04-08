@@ -1,43 +1,20 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import {
-  useLocation,
-  useParams,
-  useBlocker,
-  useSearchParams,
-} from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useParams, useBlocker, useSearchParams } from 'react-router-dom';
 import { t } from '@/i18n';
 import { localizeErrorMessage } from '@/utils/localizeError';
 
 import { FileType } from '@/types';
-import {
-  batchGetFileRaw,
-  type BatchWizardMode,
-} from '@/services/batchPipeline';
-import {
-  createJob,
-  getJob,
-  updateJobDraft,
-} from '@/services/jobsApi';
+import { batchGetFileRaw, type BatchWizardMode } from '@/services/batchPipeline';
+import { createJob, getJob, updateJobDraft } from '@/services/jobsApi';
 import {
   buildPreviewBatchRows,
   isPreviewBatchJobId,
   PREVIEW_BATCH_JOB_ID,
 } from '../lib/batch-preview-fixtures';
-import {
-  RECOGNITION_DONE_STATUSES,
-  type BatchRow,
-  type Step,
-} from '../types';
+import { RECOGNITION_DONE_STATUSES, type BatchRow, type Step } from '../types';
 
 import {
   buildJobConfigForWorker,
@@ -91,55 +68,127 @@ export function useBatchWizard() {
   // ── Sub-hooks ──
   const files = useBatchFiles(step, activeJobId, isPreviewMode);
   const {
-    rows, setRows, selected, setSelected, selectedIds, loading,
-    msg, setMsg, toggle, getRootProps, getInputProps, isDragActive,
+    rows,
+    setRows,
+    selected,
+    setSelected,
+    selectedIds,
+    loading,
+    msg,
+    setMsg,
+    toggle,
+    getRootProps,
+    getInputProps,
+    isDragActive,
     failedRows,
-    batchGroupIdRef, itemIdByFileIdRef,
+    batchGroupIdRef,
+    itemIdByFileIdRef,
   } = files;
 
   const config = useBatchConfig(mode, activeJobId, setActiveJobId, isPreviewMode, setMsg);
   const {
-    cfg, setCfg, configLoaded, textTypes, pipelines, presets,
-    textPresets, visionPresets, confirmStep1, setConfirmStep1,
-    isStep1Complete, jobPriority, setJobPriority,
-    onBatchTextPresetChange, onBatchVisionPresetChange,
+    cfg,
+    setCfg,
+    configLoaded,
+    textTypes,
+    pipelines,
+    presets,
+    textPresets,
+    visionPresets,
+    confirmStep1,
+    setConfirmStep1,
+    isStep1Complete,
+    jobPriority,
+    setJobPriority,
+    onBatchTextPresetChange,
+    onBatchVisionPresetChange,
   } = config;
 
   const review = useBatchReview(
-    step, rows, activeJobId, itemIdByFileIdRef,
-    cfg, isPreviewMode, textTypes, setMsg,
+    step,
+    rows,
+    activeJobId,
+    itemIdByFileIdRef,
+    cfg,
+    isPreviewMode,
+    textTypes,
+    setMsg,
   );
   const {
-    reviewIndex, setReviewIndex, reviewEntities, reviewBoxes,
-    reviewLoading, reviewExecuteLoading, setReviewExecuteLoading,
-    reviewDraftSaving, reviewDraftError,
-    reviewImagePreviewLoading, reviewOrigImageBlobUrl,
-    reviewTextUndoStack, reviewTextRedoStack,
-    reviewImageUndoStack, reviewImageRedoStack,
-    reviewTextContent, reviewTextContentRef, reviewTextScrollRef,
+    reviewIndex,
+    setReviewIndex,
+    reviewEntities,
+    reviewBoxes,
+    reviewLoading,
+    reviewExecuteLoading,
+    setReviewExecuteLoading,
+    reviewDraftSaving,
+    reviewDraftError,
+    reviewImagePreviewLoading,
+    reviewOrigImageBlobUrl,
+    reviewTextUndoStack,
+    reviewTextRedoStack,
+    reviewImageUndoStack,
+    reviewImageRedoStack,
+    reviewTextContent,
+    reviewTextContentRef,
+    reviewTextScrollRef,
     reviewDraftDirtyRef,
     reviewLastSavedJsonRef,
-    reviewFile, doneRows, reviewFileReadOnly,
-    selectedReviewEntityCount, selectedReviewBoxCount,
-    reviewImagePreviewSrc, displayPreviewMap, textPreviewSegments,
-    reviewedOutputCount, allReviewConfirmed, pendingReviewCount,
-    applyReviewEntities, toggleReviewEntitySelected,
-    setReviewBoxes, handleReviewBoxesCommit, toggleReviewBoxSelected,
-    undoReviewText, redoReviewText, undoReviewImage, redoReviewImage,
+    reviewFile,
+    doneRows,
+    reviewFileReadOnly,
+    selectedReviewEntityCount,
+    selectedReviewBoxCount,
+    reviewImagePreviewSrc,
+    displayPreviewMap,
+    textPreviewSegments,
+    reviewedOutputCount,
+    allReviewConfirmed,
+    pendingReviewCount,
+    applyReviewEntities,
+    toggleReviewEntitySelected,
+    setReviewBoxes,
+    handleReviewBoxesCommit,
+    toggleReviewBoxSelected,
+    undoReviewText,
+    redoReviewText,
+    undoReviewImage,
+    redoReviewImage,
     flushCurrentReviewDraft,
-    navigateReviewIndex, rerunCurrentItemRecognition, rerunRecognitionLoading,
+    navigateReviewIndex,
+    rerunCurrentItemRecognition,
+    rerunRecognitionLoading,
   } = review;
 
   const submit = useBatchSubmit(
-    mode, activeJobId, isPreviewMode, cfg, furthestStep,
-    rows, setRows, selected, setMsg, setFurthestStep,
-    failedRows, reviewFile, reviewIndex, setReviewIndex,
-    doneRows, reviewEntities, reviewBoxes,
-    reviewDraftError, flushCurrentReviewDraft,
-    reviewLastSavedJsonRef, reviewDraftDirtyRef,
-    setReviewExecuteLoading, itemIdByFileIdRef, lastSavedJobConfigJson,
+    mode,
+    activeJobId,
+    isPreviewMode,
+    cfg,
+    furthestStep,
+    rows,
+    setRows,
+    selected,
+    setMsg,
+    setFurthestStep,
+    failedRows,
+    reviewFile,
+    reviewIndex,
+    setReviewIndex,
+    doneRows,
+    reviewEntities,
+    reviewBoxes,
+    reviewDraftError,
+    flushCurrentReviewDraft,
+    reviewLastSavedJsonRef,
+    reviewDraftDirtyRef,
+    setReviewExecuteLoading,
+    itemIdByFileIdRef,
+    lastSavedJobConfigJson,
   );
-  const { submitQueueToWorker, requeueFailedItems, confirmCurrentReview, downloadZip, zipLoading } = submit;
+  const { submitQueueToWorker, requeueFailedItems, confirmCurrentReview, downloadZip, zipLoading } =
+    submit;
 
   // ── Session persistence ──
   useEffect(() => {
@@ -149,7 +198,9 @@ export function useBatchWizard() {
       } else {
         sessionStorage.removeItem(sessionJobKey);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [activeJobId, isPreviewMode, sessionJobKey]);
 
   useEffect(() => {
@@ -161,11 +212,15 @@ export function useBatchWizard() {
   useEffect(() => {
     const jid = searchParams.get('jobId');
     if (!jid) return;
-    setActiveJobId(prev => (prev === jid ? prev : jid)); // eslint-disable-line react-hooks/set-state-in-effect -- syncing job id from URL search params
+    setActiveJobId((prev) => (prev === jid ? prev : jid)); // eslint-disable-line react-hooks/set-state-in-effect -- syncing job id from URL search params
   }, [searchParams]);
 
-  useEffect(() => { lastSavedJobConfigJson.current = ''; }, [activeJobId]);
-  useEffect(() => { prevFurthestForImmediateSaveRef.current = 1; }, [activeJobId]);
+  useEffect(() => {
+    lastSavedJobConfigJson.current = '';
+  }, [activeJobId]);
+  useEffect(() => {
+    prevFurthestForImmediateSaveRef.current = 1;
+  }, [activeJobId]);
 
   // ── Config auto-save to job draft ──
   useEffect(() => {
@@ -179,7 +234,9 @@ export function useBatchWizard() {
         try {
           await updateJobDraft(activeJobId, { config: payload });
           lastSavedJobConfigJson.current = j;
-        } catch { /* only draft writable */ }
+        } catch {
+          /* only draft writable */
+        }
       })();
     }, 900);
     return () => window.clearTimeout(timer);
@@ -189,14 +246,25 @@ export function useBatchWizard() {
     if (isPreviewMode) return;
     if (!configLoaded || !activeJobId) return;
     const prev = prevFurthestForImmediateSaveRef.current;
-    if (furthestStep < 2) { prevFurthestForImmediateSaveRef.current = furthestStep; return; }
-    if (furthestStep <= prev) { prevFurthestForImmediateSaveRef.current = furthestStep; return; }
+    if (furthestStep < 2) {
+      prevFurthestForImmediateSaveRef.current = furthestStep;
+      return;
+    }
+    if (furthestStep <= prev) {
+      prevFurthestForImmediateSaveRef.current = furthestStep;
+      return;
+    }
     prevFurthestForImmediateSaveRef.current = furthestStep;
     const payload = buildJobConfigForWorker(cfg, mode, furthestStep);
     const j = JSON.stringify(payload);
     if (j === lastSavedJobConfigJson.current) return;
     void (async () => {
-      try { await updateJobDraft(activeJobId, { config: payload }); lastSavedJobConfigJson.current = j; } catch { /* */ }
+      try {
+        await updateJobDraft(activeJobId, { config: payload });
+        lastSavedJobConfigJson.current = j;
+      } catch {
+        /* */
+      }
     })();
   }, [furthestStep, cfg, mode, activeJobId, configLoaded, isPreviewMode]);
 
@@ -222,7 +290,8 @@ export function useBatchWizard() {
     const jobId = searchParams.get('jobId');
     const itemId = searchParams.get('itemId');
     const stepRaw = searchParams.get('step');
-    const _isNew = searchParams.get('new') === '1'; void _isNew;
+    const _isNew = searchParams.get('new') === '1';
+    void _isNew;
     const jobItemKey = `${jobId ?? ''}|${itemId ?? ''}`;
     if (urlHydrateKeyRef.current !== jobItemKey) {
       urlHydrateKeyRef.current = jobItemKey;
@@ -278,20 +347,31 @@ export function useBatchWizard() {
         const mergedCfg = mergeJobConfigIntoWizardCfg(cfg, jc);
         setCfg(mergedCfg);
 
-        const jobTypeNav = (['smart_batch', 'text_batch', 'image_batch'].includes(detail.job_type) ? detail.job_type : 'smart_batch') as 'smart_batch' | 'text_batch' | 'image_batch';
-        const restoredFurthest: Step | null = effectiveWizardFurthestStep({ jobConfig: jc, navHints: detail.nav_hints, jobType: jobTypeNav });
+        const jobTypeNav = (
+          ['smart_batch', 'text_batch', 'image_batch'].includes(detail.job_type)
+            ? detail.job_type
+            : 'smart_batch'
+        ) as 'smart_batch' | 'text_batch' | 'image_batch';
+        const restoredFurthest: Step | null = effectiveWizardFurthestStep({
+          jobConfig: jc,
+          navHints: detail.nav_hints,
+          jobType: jobTypeNav,
+        });
 
         const persistDraftFingerprint = (furthest: Step) => {
-          lastSavedJobConfigJson.current = JSON.stringify(buildJobConfigForWorker(mergedCfg, mode, furthest));
+          lastSavedJobConfigJson.current = JSON.stringify(
+            buildJobConfigForWorker(mergedCfg, mode, furthest),
+          );
         };
 
         if (detail.items.length === 0) {
           const sn = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
           const urlStep = Number.isFinite(sn) ? (Math.min(5, Math.max(1, sn)) as Step) : null;
           const sessionMax = readLocalWizardMaxStep(jobId);
-          const baseEmpty = urlStep !== null && urlStep >= 2
-            ? Math.max(restoredFurthest ?? 1, urlStep)
-            : Math.max(restoredFurthest ?? 1, sessionMax ?? 1);
+          const baseEmpty =
+            urlStep !== null && urlStep >= 2
+              ? Math.max(restoredFurthest ?? 1, urlStep)
+              : Math.max(restoredFurthest ?? 1, sessionMax ?? 1);
           const rawNext = Math.max(urlStep ?? 1, baseEmpty) as Step;
           const nextStep: Step = rawNext > 3 ? 3 : rawNext;
           itemIdByFileIdRef.current = {};
@@ -302,95 +382,140 @@ export function useBatchWizard() {
           if (nextStep >= 2) setConfirmStep1(true);
           setStep(nextStep);
           const mergedFurthest = Math.max(restoredFurthest ?? 1, nextStep, sessionMax ?? 1) as Step;
-          setFurthestStep(prev => Math.max(prev, mergedFurthest) as Step);
+          setFurthestStep((prev) => Math.max(prev, mergedFurthest) as Step);
           persistDraftFingerprint(mergedFurthest);
           if (detail.status === 'draft') {
             const payload = buildJobConfigForWorker(mergedCfg, mode, mergedFurthest);
-            try { await updateJobDraft(jobId, { config: payload }); lastSavedJobConfigJson.current = JSON.stringify(payload); } catch { /* */ }
+            try {
+              await updateJobDraft(jobId, { config: payload });
+              lastSavedJobConfigJson.current = JSON.stringify(payload);
+            } catch {
+              /* */
+            }
           }
           if (hydrateGen !== batchHydrateGenRef.current) return;
           hydratedFromUrlRef.current = true;
           return;
         }
 
-        const badItemIdInUrl = Boolean(itemId && !detail.items.some(i => i.id === itemId));
-        const item = itemId && !badItemIdInUrl ? detail.items.find(i => i.id === itemId) : detail.items[0];
-        if (!item) { setMsg({ text: t('batchWizard.itemNotFound'), tone: 'warn' }); return; }
+        const badItemIdInUrl = Boolean(itemId && !detail.items.some((i) => i.id === itemId));
+        const item =
+          itemId && !badItemIdInUrl ? detail.items.find((i) => i.id === itemId) : detail.items[0];
+        if (!item) {
+          setMsg({ text: t('batchWizard.itemNotFound'), tone: 'warn' });
+          return;
+        }
 
         const sn0 = stepRaw ? Number.parseInt(stepRaw, 10) : NaN;
         const urlStepNum0 = Number.isFinite(sn0) ? (Math.min(5, Math.max(1, sn0)) as Step) : null;
         const sessionMaxItems0 = readLocalWizardMaxStep(jobId);
-        const basePersist0 = urlStepNum0 !== null && urlStepNum0 >= 2
-          ? Math.max(restoredFurthest ?? 1, urlStepNum0)
-          : Math.max(restoredFurthest ?? 1, sessionMaxItems0 ?? 1);
+        const basePersist0 =
+          urlStepNum0 !== null && urlStepNum0 >= 2
+            ? Math.max(restoredFurthest ?? 1, urlStepNum0)
+            : Math.max(restoredFurthest ?? 1, sessionMaxItems0 ?? 1);
         let resolvedNextStep: Step;
         if (urlStepNum0 !== null) resolvedNextStep = Math.max(urlStepNum0, basePersist0) as Step;
-        else if (detail.status === 'draft') resolvedNextStep = Math.min(5, Math.max(2, basePersist0)) as Step;
+        else if (detail.status === 'draft')
+          resolvedNextStep = Math.min(5, Math.max(2, basePersist0)) as Step;
         else if (detail.status === 'awaiting_review') resolvedNextStep = 4;
         else resolvedNextStep = Math.min(5, Math.max(3, basePersist0)) as Step;
 
         if (resolvedNextStep >= 2 && resolvedNextStep <= 3) {
           setConfirmStep1(true);
           setStep(resolvedNextStep);
-          setFurthestStep(prev => Math.max(prev, restoredFurthest ?? 1, resolvedNextStep) as Step);
+          setFurthestStep(
+            (prev) => Math.max(prev, restoredFurthest ?? 1, resolvedNextStep) as Step,
+          );
           persistDraftFingerprint(Math.max(restoredFurthest ?? 1, resolvedNextStep) as Step);
         }
 
         const hydratedItems = await Promise.all(
-          detail.items.map(async entry => {
+          detail.items.map(async (entry) => {
             const info = await batchGetFileRaw(entry.file_id);
             return { item: entry, info };
           }),
         );
         if (hydrateGen !== batchHydrateGenRef.current) return;
 
-        const urlMatchIndex = Math.max(0, hydratedItems.findIndex(entry => entry.item.id === item.id));
+        const urlMatchIndex = Math.max(
+          0,
+          hydratedItems.findIndex((entry) => entry.item.id === item.id),
+        );
         const urlMatchHasOutput = Boolean((hydratedItems[urlMatchIndex]?.info || {}).output_path);
         const firstPendingIdx = urlMatchHasOutput
-          ? hydratedItems.findIndex(e => !e.info?.output_path && RECOGNITION_DONE_STATUSES.has(mapBackendStatus(e.item.status)))
+          ? hydratedItems.findIndex(
+              (e) =>
+                !e.info?.output_path &&
+                RECOGNITION_DONE_STATUSES.has(mapBackendStatus(e.item.status)),
+            )
           : -1;
         const currentIndex = firstPendingIdx >= 0 ? firstPendingIdx : urlMatchIndex;
-        const fileIdToItemId = Object.fromEntries(hydratedItems.map(entry => [entry.item.file_id, entry.item.id]));
-        const rowsFromJob: BatchRow[] = hydratedItems.map(entry => {
+        const fileIdToItemId = Object.fromEntries(
+          hydratedItems.map((entry) => [entry.item.file_id, entry.item.id]),
+        );
+        const rowsFromJob: BatchRow[] = hydratedItems.map((entry) => {
           const rowInfo = entry.info;
-          const rowFileTypeRaw = String(rowInfo.file_type ?? entry.item.file_type ?? 'docx').toLowerCase();
+          const rowFileTypeRaw = String(
+            rowInfo.file_type ?? entry.item.file_type ?? 'docx',
+          ).toLowerCase();
           const isScanned = Boolean(rowInfo.is_scanned);
           const rowFileType: FileType =
-            rowFileTypeRaw === 'image' || rowFileTypeRaw === 'jpg' || rowFileTypeRaw === 'jpeg' || rowFileTypeRaw === 'png'
+            rowFileTypeRaw === 'image' ||
+            rowFileTypeRaw === 'jpg' ||
+            rowFileTypeRaw === 'jpeg' ||
+            rowFileTypeRaw === 'png'
               ? FileType.IMAGE
               : rowFileTypeRaw === 'pdf_scanned' || (rowFileTypeRaw === 'pdf' && isScanned)
                 ? FileType.PDF_SCANNED
-                : rowFileTypeRaw === 'pdf' ? FileType.PDF : FileType.DOCX;
+                : rowFileTypeRaw === 'pdf'
+                  ? FileType.PDF
+                  : FileType.DOCX;
           return {
             file_id: entry.item.file_id,
-            original_filename: String(rowInfo.original_filename ?? entry.item.filename ?? entry.item.file_id),
+            original_filename: String(
+              rowInfo.original_filename ?? entry.item.filename ?? entry.item.file_id,
+            ),
             file_size: Number(rowInfo.file_size ?? 0),
             file_type: rowFileType,
             created_at: String(rowInfo.created_at ?? entry.item.created_at ?? ''),
             has_output: Boolean(rowInfo.output_path ?? entry.item.has_output),
             reviewConfirmed: deriveReviewConfirmed(entry.item),
-            entity_count: typeof entry.item.entity_count === 'number' ? entry.item.entity_count : Array.isArray(rowInfo.entities) ? rowInfo.entities.length : 0,
+            entity_count:
+              typeof entry.item.entity_count === 'number'
+                ? entry.item.entity_count
+                : Array.isArray(rowInfo.entities)
+                  ? rowInfo.entities.length
+                  : 0,
             analyzeStatus: mapBackendStatus(entry.item.status),
-            analyzeError: entry.item.status === 'failed' || entry.item.status === 'cancelled' ? (entry.item.error_message || t('batchWizard.actionFailed')) : undefined,
+            analyzeError:
+              entry.item.status === 'failed' || entry.item.status === 'cancelled'
+                ? entry.item.error_message || t('batchWizard.actionFailed')
+                : undefined,
             isImageMode: rowFileType === FileType.IMAGE || rowFileType === FileType.PDF_SCANNED,
           };
         });
 
-        const allRowsReviewConfirmed = rowsFromJob.length > 0 && rowsFromJob.every(row => row.reviewConfirmed === true);
-        const anyRecognitionDone = rowsFromJob.some(row => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus));
+        const allRowsReviewConfirmed =
+          rowsFromJob.length > 0 && rowsFromJob.every((row) => row.reviewConfirmed === true);
+        const anyRecognitionDone = rowsFromJob.some((row) =>
+          RECOGNITION_DONE_STATUSES.has(row.analyzeStatus),
+        );
         let resolvedStepWithGates = resolvedNextStep;
         if (resolvedStepWithGates >= 4 && !anyRecognitionDone) resolvedStepWithGates = 3 as Step;
-        if (resolvedStepWithGates === 5 && !allRowsReviewConfirmed) resolvedStepWithGates = 4 as Step;
+        if (resolvedStepWithGates === 5 && !allRowsReviewConfirmed)
+          resolvedStepWithGates = 4 as Step;
 
         itemIdByFileIdRef.current = fileIdToItemId;
         setJobSkipItemReview(Boolean(detail.skip_item_review));
         setRows(rowsFromJob);
-        setSelected(new Set(rowsFromJob.map(row => row.file_id)));
+        setSelected(new Set(rowsFromJob.map((row) => row.file_id)));
         setReviewIndex(currentIndex);
         batchGroupIdRef.current = jobId;
         if (resolvedStepWithGates >= 2) setConfirmStep1(true);
         setStep(resolvedStepWithGates);
-        setFurthestStep(prev => Math.max(prev, restoredFurthest ?? 1, resolvedStepWithGates) as Step);
+        setFurthestStep(
+          (prev) => Math.max(prev, restoredFurthest ?? 1, resolvedStepWithGates) as Step,
+        );
         persistDraftFingerprint(Math.max(restoredFurthest ?? 1, resolvedStepWithGates) as Step);
         hydratedFromUrlRef.current = true;
       } catch (e) {
@@ -399,8 +524,26 @@ export function useBatchWizard() {
         }
       }
     })();
-    return () => { batchHydrateGenRef.current += 1; };
-  }, [configLoaded, location.search, mode, isPreviewMode, searchParams, batchGroupIdRef, itemIdByFileIdRef, setCfg, setConfirmStep1, setMsg, setReviewIndex, setRows, setSelected, cfg, step]);
+    return () => {
+      batchHydrateGenRef.current += 1;
+    };
+  }, [
+    configLoaded,
+    location.search,
+    mode,
+    isPreviewMode,
+    searchParams,
+    batchGroupIdRef,
+    itemIdByFileIdRef,
+    setCfg,
+    setConfirmStep1,
+    setMsg,
+    setReviewIndex,
+    setRows,
+    setSelected,
+    cfg,
+    step,
+  ]);
 
   // ── Sync step to URL ──
   useEffect(() => {
@@ -416,27 +559,33 @@ export function useBatchWizard() {
 
   // ── Derived ──
   const allAnalyzeDone = useMemo(
-    () => rows.length > 0 && rows.every(row => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus)),
+    () => rows.length > 0 && rows.every((row) => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus)),
     [rows],
   );
 
   // ── Step navigation ──
-  const canUnlockStep = useCallback((target: Step): boolean => {
-    if (target === 1) return true;
-    if (target === 2) return isStep1Complete;
-    if (target === 3) return rows.length > 0;
-    if (target === 4) return allAnalyzeDone;
-    if (jobSkipItemReview) return rows.length > 0 && rows.every(row => row.has_output);
-    return allReviewConfirmed;
-  }, [allAnalyzeDone, allReviewConfirmed, isStep1Complete, jobSkipItemReview, rows]);
+  const canUnlockStep = useCallback(
+    (target: Step): boolean => {
+      if (target === 1) return true;
+      if (target === 2) return isStep1Complete;
+      if (target === 3) return rows.length > 0;
+      if (target === 4) return allAnalyzeDone;
+      if (jobSkipItemReview) return rows.length > 0 && rows.every((row) => row.has_output);
+      return allReviewConfirmed;
+    },
+    [allAnalyzeDone, allReviewConfirmed, isStep1Complete, jobSkipItemReview, rows],
+  );
 
-  const canGoStep = useCallback((target: Step): boolean => {
-    if (target === step) return true;
-    if (isPreviewMode) return true;
-    if (target <= furthestStep) return canUnlockStep(target);
-    const nextAvailableStep = Math.min(5, furthestStep + 1) as Step;
-    return target === nextAvailableStep && canUnlockStep(target);
-  }, [canUnlockStep, furthestStep, isPreviewMode, step]);
+  const canGoStep = useCallback(
+    (target: Step): boolean => {
+      if (target === step) return true;
+      if (isPreviewMode) return true;
+      if (target <= furthestStep) return canUnlockStep(target);
+      const nextAvailableStep = Math.min(5, furthestStep + 1) as Step;
+      return target === nextAvailableStep && canUnlockStep(target);
+    },
+    [canUnlockStep, furthestStep, isPreviewMode, step],
+  );
 
   const flushJobDraftFromStep1 = useCallback(async () => {
     if (isPreviewMode || !activeJobId) return;
@@ -444,47 +593,104 @@ export function useBatchWizard() {
     const payload = buildJobConfigForWorker(cfg, mode, furthestStep);
     const j = JSON.stringify(payload);
     if (j === lastSavedJobConfigJson.current) return;
-    try { await updateJobDraft(activeJobId, { config: payload }); lastSavedJobConfigJson.current = j; } catch { /* */ }
+    try {
+      await updateJobDraft(activeJobId, { config: payload });
+      lastSavedJobConfigJson.current = j;
+    } catch {
+      /* */
+    }
   }, [activeJobId, cfg, furthestStep, isPreviewMode, mode]);
 
-  const applyStep = useCallback((s: Step) => {
-    if (s === step) return;
-    if (s >= 2 && !isStep1Complete) {
-      setMsg({ text: !configLoaded ? t('batchWizard.waitConfig') : !confirmStep1 ? t('batchWizard.confirmConfigFirst') : t('batchWizard.selectTypesFirst'), tone: 'warn' });
-      return;
-    }
-    if (!canGoStep(s)) { setMsg({ text: t('batchWizard.stepsOrder'), tone: 'warn' }); return; }
-    if (step === 1 && s >= 2 && activeJobId) void flushJobDraftFromStep1();
-    internalStepNavRef.current = true;
-    setStep(s);
-    setFurthestStep(prev => Math.max(prev, s) as Step);
-    setMsg(null);
-    if (s === 4) {
-      const firstPending = doneRows.findIndex(r => !r.has_output);
-      setReviewIndex(firstPending >= 0 ? firstPending : 0);
-    }
-    if (s === 5 && activeJobId && !isPreviewMode) {
-      void (async () => {
-        try {
-          const detail = await getJob(activeJobId);
-          const itemMap = new Map(detail.items.map(it => [it.file_id, it]));
-          setRows(prev => prev.map(r => { const item = itemMap.get(r.file_id); if (!item) return r; return { ...r, has_output: Boolean(item.has_output), analyzeStatus: mapBackendStatus(item.status), reviewConfirmed: deriveReviewConfirmed(item) }; }));
-        } catch { /* ignore */ }
-      })();
-    }
-  }, [activeJobId, canGoStep, configLoaded, confirmStep1, doneRows, flushJobDraftFromStep1, isPreviewMode, isStep1Complete, step, setMsg, setReviewIndex, setRows]);
+  const applyStep = useCallback(
+    (s: Step) => {
+      if (s === step) return;
+      if (s >= 2 && !isStep1Complete) {
+        setMsg({
+          text: !configLoaded
+            ? t('batchWizard.waitConfig')
+            : !confirmStep1
+              ? t('batchWizard.confirmConfigFirst')
+              : t('batchWizard.selectTypesFirst'),
+          tone: 'warn',
+        });
+        return;
+      }
+      if (!canGoStep(s)) {
+        setMsg({ text: t('batchWizard.stepsOrder'), tone: 'warn' });
+        return;
+      }
+      if (step === 1 && s >= 2 && activeJobId) void flushJobDraftFromStep1();
+      internalStepNavRef.current = true;
+      setStep(s);
+      setFurthestStep((prev) => Math.max(prev, s) as Step);
+      setMsg(null);
+      if (s === 4) {
+        const firstPending = doneRows.findIndex((r) => !r.has_output);
+        setReviewIndex(firstPending >= 0 ? firstPending : 0);
+      }
+      if (s === 5 && activeJobId && !isPreviewMode) {
+        void (async () => {
+          try {
+            const detail = await getJob(activeJobId);
+            const itemMap = new Map(detail.items.map((it) => [it.file_id, it]));
+            setRows((prev) =>
+              prev.map((r) => {
+                const item = itemMap.get(r.file_id);
+                if (!item) return r;
+                return {
+                  ...r,
+                  has_output: Boolean(item.has_output),
+                  analyzeStatus: mapBackendStatus(item.status),
+                  reviewConfirmed: deriveReviewConfirmed(item),
+                };
+              }),
+            );
+          } catch {
+            /* ignore */
+          }
+        })();
+      }
+    },
+    [
+      activeJobId,
+      canGoStep,
+      configLoaded,
+      confirmStep1,
+      doneRows,
+      flushJobDraftFromStep1,
+      isPreviewMode,
+      isStep1Complete,
+      step,
+      setMsg,
+      setReviewIndex,
+      setRows,
+    ],
+  );
 
-  const goStep = useCallback((s: Step) => {
-    if (step === 4 && s !== 5) {
-      void (async () => { const ok = await flushCurrentReviewDraft(); if (ok) applyStep(s); })();
-      return;
-    }
-    applyStep(s);
-  }, [applyStep, flushCurrentReviewDraft, step]);
+  const goStep = useCallback(
+    (s: Step) => {
+      if (step === 4 && s !== 5) {
+        void (async () => {
+          const ok = await flushCurrentReviewDraft();
+          if (ok) applyStep(s);
+        })();
+        return;
+      }
+      applyStep(s);
+    },
+    [applyStep, flushCurrentReviewDraft, step],
+  );
 
   const advanceToUploadStep = useCallback(async () => {
     if (!isStep1Complete) {
-      setMsg({ text: !configLoaded ? t('batchWizard.waitConfig') : !confirmStep1 ? t('batchWizard.confirmConfigFirst') : t('batchWizard.selectTypesFirst'), tone: 'warn' });
+      setMsg({
+        text: !configLoaded
+          ? t('batchWizard.waitConfig')
+          : !confirmStep1
+            ? t('batchWizard.confirmConfigFirst')
+            : t('batchWizard.selectTypesFirst'),
+        tone: 'warn',
+      });
       return;
     }
     try {
@@ -527,16 +733,38 @@ export function useBatchWizard() {
       lastSavedJobConfigJson.current = JSON.stringify(payload);
       internalStepNavRef.current = true;
       setStep(2);
-      setFurthestStep(prev => Math.max(prev, 2) as Step);
+      setFurthestStep((prev) => Math.max(prev, 2) as Step);
       setMsg(null);
-    } catch (e) { setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' }); }
-  }, [activeJobId, cfg, configLoaded, confirmStep1, furthestStep, isPreviewMode, isStep1Complete, jobPriority, mode, itemIdByFileIdRef, setMsg, setRows, setSelected]);
+    } catch (e) {
+      setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
+    }
+  }, [
+    activeJobId,
+    cfg,
+    configLoaded,
+    confirmStep1,
+    furthestStep,
+    isPreviewMode,
+    isStep1Complete,
+    jobPriority,
+    mode,
+    itemIdByFileIdRef,
+    setMsg,
+    setRows,
+    setSelected,
+  ]);
 
   const advanceToExportStep = useCallback(async () => {
-    if (!rows.length) { setMsg({ text: t('batchWizard.noFilesToExport'), tone: 'warn' }); return; }
+    if (!rows.length) {
+      setMsg({ text: t('batchWizard.noFilesToExport'), tone: 'warn' });
+      return;
+    }
     await flushCurrentReviewDraft();
     if (isPreviewMode) {
-      if (!allReviewConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
+      if (!allReviewConfirmed) {
+        setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' });
+        return;
+      }
       internalStepNavRef.current = true;
       setStep(5);
       setFurthestStep(5);
@@ -546,24 +774,53 @@ export function useBatchWizard() {
     if (activeJobId) {
       try {
         const detail = await getJob(activeJobId);
-        const itemMap = new Map(detail.items.map(it => [it.file_id, it]));
-        const backendFileIds = new Set(detail.items.map(it => it.file_id));
-        setRows(prev => prev.filter(r => backendFileIds.has(r.file_id)).map(r => { const item = itemMap.get(r.file_id); if (!item) return r; return { ...r, has_output: Boolean(item.has_output), analyzeStatus: mapBackendStatus(item.status), reviewConfirmed: deriveReviewConfirmed(item) }; }));
-        const freshConfirmed = detail.items.every(it => deriveReviewConfirmed(it));
-        if (!freshConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
+        const itemMap = new Map(detail.items.map((it) => [it.file_id, it]));
+        const backendFileIds = new Set(detail.items.map((it) => it.file_id));
+        setRows((prev) =>
+          prev
+            .filter((r) => backendFileIds.has(r.file_id))
+            .map((r) => {
+              const item = itemMap.get(r.file_id);
+              if (!item) return r;
+              return {
+                ...r,
+                has_output: Boolean(item.has_output),
+                analyzeStatus: mapBackendStatus(item.status),
+                reviewConfirmed: deriveReviewConfirmed(item),
+              };
+            }),
+        );
+        const freshConfirmed = detail.items.every((it) => deriveReviewConfirmed(it));
+        if (!freshConfirmed) {
+          setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' });
+          return;
+        }
         internalStepNavRef.current = true;
         setStep(5);
-        setFurthestStep(prev => Math.max(prev, 5) as Step);
+        setFurthestStep((prev) => Math.max(prev, 5) as Step);
         setMsg(null);
         return;
-      } catch { /* fallback */ }
+      } catch {
+        /* fallback */
+      }
     }
-    if (!allReviewConfirmed) { setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' }); return; }
+    if (!allReviewConfirmed) {
+      setMsg({ text: t('batchWizard.notAllFilesConfirmed'), tone: 'warn' });
+      return;
+    }
     internalStepNavRef.current = true;
     setStep(5);
-    setFurthestStep(prev => Math.max(prev, 5) as Step);
+    setFurthestStep((prev) => Math.max(prev, 5) as Step);
     setMsg(null);
-  }, [activeJobId, allReviewConfirmed, flushCurrentReviewDraft, isPreviewMode, rows.length, setMsg, setRows]);
+  }, [
+    activeJobId,
+    allReviewConfirmed,
+    flushCurrentReviewDraft,
+    isPreviewMode,
+    rows.length,
+    setMsg,
+    setRows,
+  ]);
 
   // ── Blocker effects ──
   const [leaveConfirmOpen, _setLeaveConfirmOpen] = useState(false);
@@ -571,18 +828,27 @@ export function useBatchWizard() {
 
   useEffect(() => {
     if (navigationBlocker.state !== 'blocked') return;
-    void (async () => { const ok = await flushCurrentReviewDraft(); if (ok && navigationBlocker.state === 'blocked') navigationBlocker.proceed(); })();
+    void (async () => {
+      const ok = await flushCurrentReviewDraft();
+      if (ok && navigationBlocker.state === 'blocked') navigationBlocker.proceed();
+    })();
   }, [flushCurrentReviewDraft, navigationBlocker]);
 
   useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => { if (step !== 4 || !reviewDraftDirtyRef.current) return; e.preventDefault(); e.returnValue = ''; };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (step !== 4 || !reviewDraftDirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [step, reviewDraftDirtyRef]);
 
   useEffect(() => {
     if (step !== 4) return;
-    const onPageHide = () => { void flushCurrentReviewDraft(); };
+    const onPageHide = () => {
+      void flushCurrentReviewDraft();
+    };
     window.addEventListener('pagehide', onPageHide);
     return () => window.removeEventListener('pagehide', onPageHide);
   }, [flushCurrentReviewDraft, step]);

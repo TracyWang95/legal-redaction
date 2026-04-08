@@ -48,13 +48,7 @@ export function PaginationRail({
   const rangeEnd = Math.min(totalItems, page * pageSize);
 
   return (
-    <div
-      className={cn(
-        'pagination-rail',
-        compact && 'pagination-rail--compact',
-        className,
-      )}
-    >
+    <div className={cn('pagination-rail', compact && 'pagination-rail--compact', className)}>
       <div className="pagination-rail__meta">
         <div className="pagination-rail__meta-group">
           <span className="truncate">
@@ -72,7 +66,10 @@ export function PaginationRail({
           <div className="pagination-rail__meta-group">
             <span className="pagination-rail__separator">|</span>
             <span>{perPageLabel ?? t('jobs.perPage')}</span>
-            <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange(Number(value))}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+            >
               <SelectTrigger
                 className={cn(
                   'pagination-rail__page-size h-9 rounded-xl text-xs',
@@ -105,7 +102,12 @@ export function PaginationRail({
           className={cn('h-8 rounded-xl px-2.5', compact && 'h-6.5 rounded-lg px-2')}
         >
           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+            />
           </svg>
         </Button>
         <Button
@@ -113,7 +115,10 @@ export function PaginationRail({
           size="sm"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className={cn('h-8 rounded-xl whitespace-nowrap', compact && 'h-6.5 rounded-lg px-2 text-[10px]')}
+          className={cn(
+            'h-8 rounded-xl whitespace-nowrap',
+            compact && 'h-6.5 rounded-lg px-2 text-[10px]',
+          )}
         >
           {t('jobs.prevPage')}
         </Button>
@@ -122,7 +127,10 @@ export function PaginationRail({
           size="sm"
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className={cn('h-8 rounded-xl whitespace-nowrap', compact && 'h-6.5 rounded-lg px-2 text-[10px]')}
+          className={cn(
+            'h-8 rounded-xl whitespace-nowrap',
+            compact && 'h-6.5 rounded-lg px-2 text-[10px]',
+          )}
         >
           {t('jobs.nextPage')}
         </Button>
@@ -135,7 +143,12 @@ export function PaginationRail({
           className={cn('h-8 rounded-xl px-2.5', compact && 'h-6.5 rounded-lg px-2')}
         >
           <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 5l7 7-7 7M5 5l7 7-7 7"
+            />
           </svg>
         </Button>
       </div>

@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { ReplacementMode } from '@/types';
 import {
   batchPreviewEntityMap,
@@ -17,13 +16,7 @@ import { buildFallbackPreviewEntityMap } from '@/utils/textRedactionSegments';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/lib/query-keys';
 
-import type {
-  BatchRow,
-  PipelineCfg,
-  ReviewEntity,
-  Step,
-  TextEntityType,
-} from '../types';
+import type { BatchRow, PipelineCfg, ReviewEntity, Step, TextEntityType } from '../types';
 
 // ── Pure helpers ──
 
@@ -31,7 +24,9 @@ export function isBatchWizardMode(value: string | null | undefined): value is Ba
   return value === 'text' || value === 'image' || value === 'smart';
 }
 
-export function toBatchJobType(mode: BatchWizardMode): 'text_batch' | 'image_batch' | 'smart_batch' {
+export function toBatchJobType(
+  mode: BatchWizardMode,
+): 'text_batch' | 'image_batch' | 'smart_batch' {
   if (mode === 'text') return 'text_batch';
   if (mode === 'image') return 'image_batch';
   return 'smart_batch';
@@ -60,7 +55,10 @@ export function mapBackendStatus(status: string): BatchRow['analyzeStatus'] {
   }
 }
 
-export function deriveReviewConfirmed(item: { status: string; has_output?: boolean | null }): boolean {
+export function deriveReviewConfirmed(item: {
+  status: string;
+  has_output?: boolean | null;
+}): boolean {
   if (item.status === 'completed') return item.has_output !== false;
   return item.status === 'review_approved' || item.status === 'redacting';
 }
@@ -201,7 +199,7 @@ export function applyTextPresetFields(
   textTypes: TextEntityType[],
 ): Pick<BatchWizardPersistedConfig, 'selectedEntityTypeIds' | 'presetTextId'> &
   Partial<Pick<BatchWizardPersistedConfig, 'replacementMode'>> {
-  const textIds = new Set(textTypes.map(tt => tt.id));
+  const textIds = new Set(textTypes.map((tt) => tt.id));
   const base = {
     selectedEntityTypeIds: p.selectedEntityTypeIds.filter((id: string) => textIds.has(id)),
     presetTextId: p.id,
@@ -215,11 +213,11 @@ export function applyVisionPresetFields(
   pipelines: PipelineCfg[],
 ): Pick<BatchWizardPersistedConfig, 'ocrHasTypes' | 'hasImageTypes' | 'presetVisionId'> {
   const ocrIds = pipelines
-    .filter(pl => pl.mode === 'ocr_has' && pl.enabled)
-    .flatMap(pl => pl.types.filter(tt => tt.enabled).map(tt => tt.id));
+    .filter((pl) => pl.mode === 'ocr_has' && pl.enabled)
+    .flatMap((pl) => pl.types.filter((tt) => tt.enabled).map((tt) => tt.id));
   const hiIds = pipelines
-    .filter(pl => pl.mode === 'has_image' && pl.enabled)
-    .flatMap(pl => pl.types.filter(tt => tt.enabled).map(tt => tt.id));
+    .filter((pl) => pl.mode === 'has_image' && pl.enabled)
+    .flatMap((pl) => pl.types.filter((tt) => tt.enabled).map((tt) => tt.id));
   return {
     ocrHasTypes: p.ocrHasTypes.filter((id: string) => ocrIds.includes(id)),
     hasImageTypes: p.hasImageTypes.filter((id: string) => hiIds.includes(id)),
@@ -233,14 +231,20 @@ export async function fetchBatchPreviewMap(
   entities: ReviewEntity[],
   replacementMode: BatchWizardPersistedConfig['replacementMode'],
 ): Promise<Record<string, string>> {
-  const visible = entities.filter(e => e.selected !== false);
-  const payload = visible.map(e => {
+  const visible = entities.filter((e) => e.selected !== false);
+  const payload = visible.map((e) => {
     const n = normalizeReviewEntity(e);
     return {
-      id: n.id, text: n.text, type: n.type,
-      start: n.start, end: n.end, page: n.page,
-      confidence: n.confidence, selected: n.selected,
-      source: n.source, coref_id: n.coref_id,
+      id: n.id,
+      text: n.text,
+      type: n.type,
+      start: n.start,
+      end: n.end,
+      page: n.page,
+      confidence: n.confidence,
+      selected: n.selected,
+      source: n.source,
+      coref_id: n.coref_id,
     };
   });
   if (payload.length === 0) return {};
@@ -265,7 +269,7 @@ export async function fetchBatchPreviewMap(
     );
   }
   return buildFallbackPreviewEntityMap(
-    payload.map(p => ({ text: p.text, type: p.type, selected: p.selected })),
+    payload.map((p) => ({ text: p.text, type: p.type, selected: p.selected })),
     modeKey,
   );
 }
@@ -300,9 +304,11 @@ export function fetchCachedBatchPreviewMap(
   const digest = shortHash(
     JSON.stringify(
       entities
-        .filter(e => e.selected !== false)
-        .map(e => `${e.id}|${e.text}|${e.type}|${e.selected}`),
-    ) + '|' + replacementMode,
+        .filter((e) => e.selected !== false)
+        .map((e) => `${e.id}|${e.text}|${e.type}|${e.selected}`),
+    ) +
+      '|' +
+      replacementMode,
   );
 
   return queryClient.fetchQuery({

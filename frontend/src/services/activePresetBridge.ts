@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 const K_TEXT = 'datainfraRedaction:activePresetTextId';
 const K_TEXT_LEGACY = 'legalRedaction:activePresetTextId';
 const K_VISION = 'datainfraRedaction:activePresetVisionId';

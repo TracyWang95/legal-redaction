@@ -8,17 +8,37 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useT } from './i18n';
 import { SUSPENSE_SPINNER_DELAY_MS, ROUTE_PREFETCH_DELAY_MS } from './constants/timing';
 
-const Playground = React.lazy(() => import('./features/playground').then(m => ({ default: m.Playground })));
-const Batch = React.lazy(() => import('./features/batch').then(m => ({ default: m.Batch })));
-const BatchHub = React.lazy(() => import('./features/batch').then(m => ({ default: m.BatchHub })));
-const History = React.lazy(() => import('./features/history').then(m => ({ default: m.History })));
-const Jobs = React.lazy(() => import('./features/jobs').then(m => ({ default: m.Jobs })));
-const JobDetailPage = React.lazy(() => import('./features/jobs').then(m => ({ default: m.JobDetailPage })));
-const Settings = React.lazy(() => import('./features/settings').then(m => ({ default: m.Settings })));
-const RedactionListSettings = React.lazy(() => import('./features/settings').then(m => ({ default: m.RedactionListSettings })));
-const TextModelSettings = React.lazy(() => import('./features/settings').then(m => ({ default: m.TextModelSettings })));
-const VisionModelSettings = React.lazy(() => import('./features/settings').then(m => ({ default: m.VisionModelSettings })));
-const PlaygroundImagePopout = React.lazy(() => import('./features/playground/components/playground-image-popout').then(m => ({ default: m.PlaygroundImagePopout })));
+const Playground = React.lazy(() =>
+  import('./features/playground').then((m) => ({ default: m.Playground })),
+);
+const Batch = React.lazy(() => import('./features/batch').then((m) => ({ default: m.Batch })));
+const BatchHub = React.lazy(() =>
+  import('./features/batch').then((m) => ({ default: m.BatchHub })),
+);
+const History = React.lazy(() =>
+  import('./features/history').then((m) => ({ default: m.History })),
+);
+const Jobs = React.lazy(() => import('./features/jobs').then((m) => ({ default: m.Jobs })));
+const JobDetailPage = React.lazy(() =>
+  import('./features/jobs').then((m) => ({ default: m.JobDetailPage })),
+);
+const Settings = React.lazy(() =>
+  import('./features/settings').then((m) => ({ default: m.Settings })),
+);
+const RedactionListSettings = React.lazy(() =>
+  import('./features/settings').then((m) => ({ default: m.RedactionListSettings })),
+);
+const TextModelSettings = React.lazy(() =>
+  import('./features/settings').then((m) => ({ default: m.TextModelSettings })),
+);
+const VisionModelSettings = React.lazy(() =>
+  import('./features/settings').then((m) => ({ default: m.VisionModelSettings })),
+);
+const PlaygroundImagePopout = React.lazy(() =>
+  import('./features/playground/components/playground-image-popout').then((m) => ({
+    default: m.PlaygroundImagePopout,
+  })),
+);
 
 function DelayedSpinner() {
   const [show, setShow] = React.useState(false);
@@ -47,7 +67,9 @@ const prefetchRoutes = () => {
 
 if (typeof window !== 'undefined') {
   if ('requestIdleCallback' in window) {
-    (window as Window & { requestIdleCallback: (callback: () => void) => void }).requestIdleCallback(prefetchRoutes);
+    (
+      window as Window & { requestIdleCallback: (callback: () => void) => void }
+    ).requestIdleCallback(prefetchRoutes);
   } else {
     setTimeout(prefetchRoutes, ROUTE_PREFETCH_DELAY_MS);
   }
@@ -68,26 +90,100 @@ function BatchRoute() {
   if (!batchMode || !VALID_BATCH_MODES.has(batchMode)) {
     return <Navigate to="/batch" replace />;
   }
-  return <LazyPage><Batch key={batchMode} /></LazyPage>;
+  return (
+    <LazyPage>
+      <Batch key={batchMode} />
+    </LazyPage>
+  );
 }
 
 export const router = createBrowserRouter([
-  { path: '/playground/image-editor', element: <LazyPage><PlaygroundImagePopout /></LazyPage> },
+  {
+    path: '/playground/image-editor',
+    element: (
+      <LazyPage>
+        <PlaygroundImagePopout />
+      </LazyPage>
+    ),
+  },
   {
     path: '/',
     element: <Layout />,
     children: [
-      { index: true, element: <LazyPage><Playground /></LazyPage> },
-      { path: 'batch', element: <LazyPage><BatchHub /></LazyPage> },
+      {
+        index: true,
+        element: (
+          <LazyPage>
+            <Playground />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'batch',
+        element: (
+          <LazyPage>
+            <BatchHub />
+          </LazyPage>
+        ),
+      },
       { path: 'batch/:batchMode', element: <BatchRoute /> },
-      { path: 'history', element: <LazyPage><History /></LazyPage> },
-      { path: 'jobs', element: <LazyPage><Jobs /></LazyPage> },
-      { path: 'jobs/:jobId', element: <LazyPage><JobDetailPage /></LazyPage> },
-      { path: 'settings/redaction', element: <LazyPage><RedactionListSettings /></LazyPage> },
-      { path: 'settings', element: <LazyPage><Settings /></LazyPage> },
+      {
+        path: 'history',
+        element: (
+          <LazyPage>
+            <History />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'jobs',
+        element: (
+          <LazyPage>
+            <Jobs />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'jobs/:jobId',
+        element: (
+          <LazyPage>
+            <JobDetailPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'settings/redaction',
+        element: (
+          <LazyPage>
+            <RedactionListSettings />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <LazyPage>
+            <Settings />
+          </LazyPage>
+        ),
+      },
       { path: 'model-settings', element: <Navigate to="/model-settings/text" replace /> },
-      { path: 'model-settings/text', element: <LazyPage><TextModelSettings /></LazyPage> },
-      { path: 'model-settings/vision', element: <LazyPage><VisionModelSettings /></LazyPage> },
+      {
+        path: 'model-settings/text',
+        element: (
+          <LazyPage>
+            <TextModelSettings />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'model-settings/vision',
+        element: (
+          <LazyPage>
+            <VisionModelSettings />
+          </LazyPage>
+        ),
+      },
       { path: '*', element: <NotFound /> },
     ],
   },

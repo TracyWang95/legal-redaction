@@ -25,9 +25,6 @@ httpx>=0.28.0,<0.29.0
 
 aiofiles>=24.1.0,<25.0.0
 
-# 智谱AI SDK
-zhipuai>=2.0.0,<3.0.0
-
 # 工具库
 PyJWT>=2.8.0,<2.9.0
 passlib[bcrypt]==1.7.4

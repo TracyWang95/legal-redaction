@@ -53,7 +53,7 @@ DEFAULT_CONFIGS = ModelConfigList(
 VISION_BUILTIN_IDS = frozenset({"paddle_ocr_service", "has_image_service"})
 
 # 旧版条目，加载时剔除
-_LEGACY_VISION_IDS = frozenset({"local_glm", "zhipu_glm4v", "zhipu_glm"})
+_LEGACY_VISION_IDS = frozenset({"local_glm", "zhipu_glm4v", "zhipu_glm"})  # kept for migration
 
 
 # ── 内部工具 ─────────────────────────────────────────────
@@ -297,18 +297,6 @@ async def test_config(config_id: str) -> tuple[dict | None, str]:
                         pass
                     return {"success": True, "message": "本地 HTTP 服务连接成功"}, ""
                 return {"success": False, "message": f"服务返回状态码: {resp.status_code}"}, ""
-
-        elif config.provider == "zhipu":
-            if not config.api_key:
-                return {"success": False, "message": "请先配置 API Key"}, ""
-            from zhipuai import ZhipuAI
-            client = ZhipuAI(api_key=config.api_key)
-            response = client.chat.completions.create(
-                model=config.model_name,
-                messages=[{"role": "user", "content": "你好"}],
-                max_tokens=10,
-            )
-            return {"success": True, "message": "智谱 API 连接成功"}, ""
 
         elif config.provider in ["openai", "custom"]:
             import httpx

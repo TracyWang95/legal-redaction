@@ -42,7 +42,7 @@ export function EntityTypeList({
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page to valid range when total changes
-    setPage(current => Math.min(current, totalPages));
+    setPage((current) => Math.min(current, totalPages));
   }, [totalPages]);
 
   const visibleTypes = useMemo(() => {
@@ -55,9 +55,7 @@ export function EntityTypeList({
       className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
       data-testid={`entity-type-list-${variant}`}
     >
-      <div
-        className="page-surface rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
-      >
+      <div className="page-surface rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
@@ -66,7 +64,10 @@ export function EntityTypeList({
             </span>
             <Badge
               variant="secondary"
-              className={cn('border border-border/70 bg-background text-xs shadow-sm', toneClasses.badgeText)}
+              className={cn(
+                'border border-border/70 bg-background text-xs shadow-sm',
+                toneClasses.badgeText,
+              )}
             >
               {types.length}
             </Badge>
@@ -80,11 +81,7 @@ export function EntityTypeList({
             >
               {t('settings.resetTextRules')}
             </Button>
-            <Button
-              size="sm"
-              onClick={onAdd}
-              data-testid={`add-${variant}-type`}
-            >
+            <Button size="sm" onClick={onAdd} data-testid={`add-${variant}-type`}>
               {t('settings.addNew')}
             </Button>
           </div>
@@ -97,7 +94,7 @@ export function EntityTypeList({
             </div>
           ) : (
             <div className="grid w-full grid-cols-3 grid-rows-[repeat(3,1fr)] gap-3">
-              {visibleTypes.map(type => (
+              {visibleTypes.map((type) => (
                 <article
                   key={type.id}
                   className="flex h-[148px] overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"

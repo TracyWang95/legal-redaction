@@ -70,7 +70,11 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
                 </TabsTrigger>
               </TabsList>
             </div>
-            <PresetSelectors rec={rec} disabledText={rec.textConfigState !== 'ready'} disabledVision={rec.visionConfigState !== 'ready'} />
+            <PresetSelectors
+              rec={rec}
+              disabledText={rec.textConfigState !== 'ready'}
+              disabledVision={rec.visionConfigState !== 'ready'}
+            />
             {backendUnavailable && (
               <div
                 className="rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-2 text-xs text-[var(--warning-foreground)]"
@@ -82,7 +86,10 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
           </div>
 
           <div className="page-surface-body flex min-h-0 flex-1 flex-col overflow-hidden">
-            <TabsContent value="text" className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0">
+            <TabsContent
+              value="text"
+              className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0"
+            >
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.text')}
@@ -93,23 +100,35 @@ export const PlaygroundUpload: FC<PlaygroundUploadProps> = ({ ctx }) => {
               </div>
               <TextTypeGroups rec={rec} />
             </TabsContent>
-            <TabsContent value="vision" className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0">
+            <TabsContent
+              value="vision"
+              className="mt-0 min-h-full flex-col gap-2 p-2 pb-0 data-[state=active]:flex 2xl:p-2.5 2xl:pb-0"
+            >
               <div className="rounded-[18px] border border-border/70 bg-muted/20 px-3 py-2">
                 <p className="text-sm font-semibold tracking-[-0.02em] text-foreground">
                   {t('playground.vision')}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {t('playground.ocrShort')} {rec.selectedOcrHasTypes.length} / {rec.pipelines.find((pipeline) => pipeline.mode === 'ocr_has')?.types.length ?? 0}
+                  {t('playground.ocrShort')} {rec.selectedOcrHasTypes.length} /{' '}
+                  {rec.pipelines.find((pipeline) => pipeline.mode === 'ocr_has')?.types.length ?? 0}
                   <span className="mx-2 text-border">·</span>
-                  {t('playground.imageShort')} {rec.selectedHasImageTypes.length} / {rec.pipelines.find((pipeline) => pipeline.mode === 'has_image')?.types.length ?? 0}
+                  {t('playground.imageShort')} {rec.selectedHasImageTypes.length} /{' '}
+                  {rec.pipelines.find((pipeline) => pipeline.mode === 'has_image')?.types.length ??
+                    0}
                 </p>
               </div>
               <VisionPipelines rec={rec} />
             </TabsContent>
           </div>
 
-          <div className="page-surface-footer !bg-transparent !backdrop-blur-none" style={{ padding: '0.125rem 1rem 0.25rem' }}>
-            <p className="text-center text-xs leading-none text-muted-foreground" data-testid="playground-type-summary">
+          <div
+            className="page-surface-footer !bg-transparent !backdrop-blur-none"
+            style={{ padding: '0.125rem 1rem 0.25rem' }}
+          >
+            <p
+              className="text-center text-xs leading-none text-muted-foreground"
+              data-testid="playground-type-summary"
+            >
               {rec.typeTab === 'vision'
                 ? `${t('playground.ocrShort')} ${rec.selectedOcrHasTypes.length} / ${t('playground.imageShort')} ${rec.selectedHasImageTypes.length}`
                 : `${rec.selectedTypes.length} / ${rec.entityTypes.length} ${t('playground.selected')}`}

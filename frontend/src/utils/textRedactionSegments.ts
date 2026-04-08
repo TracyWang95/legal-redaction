@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 export type TextSegment =
   | { text: string; isMatch: false }
   | {
@@ -12,7 +11,6 @@ export type TextSegment =
       matchIdx: number;
     };
 
-
 export function mergePreviewMapWithDocumentSlices(
   content: string,
   entities: Array<{
@@ -21,12 +19,17 @@ export function mergePreviewMapWithDocumentSlices(
     end: number;
     selected: boolean;
   }>,
-  apiMap: Record<string, string>
+  apiMap: Record<string, string>,
 ): Record<string, string> {
   const out = { ...apiMap };
   if (!content) return out;
   for (const e of entities) {
-    if (typeof e.start !== 'number' || typeof e.end !== 'number' || e.start < 0 || e.end > content.length) {
+    if (
+      typeof e.start !== 'number' ||
+      typeof e.end !== 'number' ||
+      e.start < 0 ||
+      e.end > content.length
+    ) {
       continue;
     }
     const slice = content.slice(e.start, e.end);
@@ -39,12 +42,11 @@ export function mergePreviewMapWithDocumentSlices(
   return out;
 }
 
-
 export function buildFallbackPreviewEntityMap(
   entities: Array<{ text: string; type: string; selected?: boolean }>,
-  mode: 'structured' | 'smart' | 'mask'
+  mode: 'structured' | 'smart' | 'mask',
 ): Record<string, string> {
-  const selected = entities.filter(e => e.selected !== false && e.text);
+  const selected = entities.filter((e) => e.selected !== false && e.text);
   const map: Record<string, string> = {};
   const typeCounters: Record<string, number> = {};
 
@@ -135,10 +137,13 @@ export function buildFallbackPreviewEntityMap(
 export function buildTextSegments(text: string, map: Record<string, string>): TextSegment[] {
   if (!text || Object.keys(map).length === 0) return [{ text, isMatch: false }];
   const sortedKeys = Object.keys(map).sort((a, b) => b.length - a.length);
-  const regex = new RegExp(`(${sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
+  const regex = new RegExp(
+    `(${sortedKeys.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+    'g',
+  );
   const parts = text.split(regex);
   const counters: Record<string, number> = {};
-  return parts.map(part => {
+  return parts.map((part) => {
     if (map[part] !== undefined) {
       const safeKey = part.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
       const idx = counters[safeKey] || 0;

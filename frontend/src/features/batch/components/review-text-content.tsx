@@ -23,7 +23,9 @@ export interface ReviewTextContentProps {
   selectedReviewEntityCount: number;
   displayPreviewMap: Record<string, string>;
   textPreviewSegments: TextSegment[];
-  applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
+  applyReviewEntities: (
+    updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[]),
+  ) => void;
   textTypes: TextEntityType[];
   reviewFileReadOnly: boolean;
 }
@@ -67,25 +69,30 @@ function ReviewTextContentInner({
     applyReviewEntities,
   });
 
-  const handleEntityClick = useCallback((entity: ReviewEntity) => {
-    if (reviewFileReadOnly) return;
-    clearTextSelection();
-    setClickedEntity(entity);
-    const el = reviewTextContentRef.current?.querySelector(`[data-review-entity-id="${CSS.escape(entity.id)}"]`) as HTMLElement | null;
-    const card = cardRef.current;
-    if (el && card) {
-      const elRect = el.getBoundingClientRect();
-      const cardRect = card.getBoundingClientRect();
-      setEntityPopupPos({
-        left: Math.min(Math.max(elRect.left - cardRect.left, 4), cardRect.width - 224),
-        top: elRect.bottom - cardRect.top + 4,
-      });
-    }
-  }, [reviewFileReadOnly, clearTextSelection, reviewTextContentRef]);
+  const handleEntityClick = useCallback(
+    (entity: ReviewEntity) => {
+      if (reviewFileReadOnly) return;
+      clearTextSelection();
+      setClickedEntity(entity);
+      const el = reviewTextContentRef.current?.querySelector(
+        `[data-review-entity-id="${CSS.escape(entity.id)}"]`,
+      ) as HTMLElement | null;
+      const card = cardRef.current;
+      if (el && card) {
+        const elRect = el.getBoundingClientRect();
+        const cardRect = card.getBoundingClientRect();
+        setEntityPopupPos({
+          left: Math.min(Math.max(elRect.left - cardRect.left, 4), cardRect.width - 224),
+          top: elRect.bottom - cardRect.top + 4,
+        });
+      }
+    },
+    [reviewFileReadOnly, clearTextSelection, reviewTextContentRef],
+  );
 
   const removeClickedEntity = useCallback(() => {
     if (!clickedEntity) return;
-    applyReviewEntities(prev => prev.filter(e => e.id !== clickedEntity.id));
+    applyReviewEntities((prev) => prev.filter((e) => e.id !== clickedEntity.id));
     setClickedEntity(null);
     setEntityPopupPos(null);
   }, [clickedEntity, applyReviewEntities]);
@@ -95,10 +102,12 @@ function ReviewTextContentInner({
     const sorted = [...reviewEntities].sort((a, b) => a.start - b.start);
     const nodes: React.ReactNode[] = [];
     let lastEnd = 0;
-    sorted.forEach(entity => {
+    sorted.forEach((entity) => {
       if (entity.start < lastEnd) return;
       if (entity.start > lastEnd) {
-        nodes.push(<span key={`txt-${lastEnd}`}>{reviewTextContent.slice(lastEnd, entity.start)}</span>);
+        nodes.push(
+          <span key={`txt-${lastEnd}`}>{reviewTextContent.slice(lastEnd, entity.start)}</span>,
+        );
       }
       const risk = getEntityRiskConfig(entity.type);
       nodes.push(
@@ -106,7 +115,11 @@ function ReviewTextContentInner({
           key={entity.id}
           data-review-entity-id={entity.id}
           className="inline cursor-pointer rounded-sm px-0.5 py-[1px] transition-all hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400/20 hover:shadow-sm"
-          style={{ backgroundColor: risk.bgColor, color: risk.textColor, opacity: entity.selected ? 1 : 0.45 }}
+          style={{
+            backgroundColor: risk.bgColor,
+            color: risk.textColor,
+            opacity: entity.selected ? 1 : 0.45,
+          }}
           title={`${getEntityTypeName(entity.type)}`}
           onClick={() => handleEntityClick(entity)}
         >
@@ -122,7 +135,7 @@ function ReviewTextContentInner({
   };
 
   const batchMarkStyle = (origKey: string): React.CSSProperties => {
-    const entity = reviewEntities.find(e => e.text === origKey);
+    const entity = reviewEntities.find((e) => e.text === origKey);
     const riskCfg = getEntityRiskConfig(entity?.type ?? 'CUSTOM');
     return { backgroundColor: riskCfg.bgColor, color: riskCfg.textColor };
   };
@@ -141,7 +154,10 @@ function ReviewTextContentInner({
           ref={reviewTextScrollRef}
           className="flex-1 overflow-auto p-4"
           onScroll={() => {
-            if (clickedEntity) { setClickedEntity(null); setEntityPopupPos(null); }
+            if (clickedEntity) {
+              setClickedEntity(null);
+              setEntityPopupPos(null);
+            }
             const orig = reviewTextScrollRef.current;
             const prev = previewScrollRef.current;
             if (orig && prev && orig.scrollHeight > orig.clientHeight) {
@@ -176,7 +192,10 @@ function ReviewTextContentInner({
             entity={clickedEntity}
             position={entityPopupPos}
             onRemove={removeClickedEntity}
-            onClose={() => { setClickedEntity(null); setEntityPopupPos(null); }}
+            onClose={() => {
+              setClickedEntity(null);
+              setEntityPopupPos(null);
+            }}
           />
         )}
       </Card>
@@ -190,7 +209,11 @@ function ReviewTextContentInner({
           <div className="text-sm leading-relaxed whitespace-pre-wrap font-[system-ui]">
             {textPreviewSegments.map((seg, i) =>
               seg.isMatch ? (
-                <mark key={i} style={batchMarkStyle(seg.origKey)} className="px-0.5 rounded-md transition-all duration-300">
+                <mark
+                  key={i}
+                  style={batchMarkStyle(seg.origKey)}
+                  className="px-0.5 rounded-md transition-all duration-300"
+                >
                   {displayPreviewMap[seg.origKey] ?? seg.origKey}
                 </mark>
               ) : (

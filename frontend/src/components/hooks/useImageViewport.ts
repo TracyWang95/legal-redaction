@@ -41,7 +41,7 @@ export function useImageViewport(imageSrc: string, readOnly: boolean): UseImageV
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(entries => {
+    const ro = new ResizeObserver((entries) => {
       const cr = entries[0]?.contentRect;
       if (!cr) return;
       setViewportSize({ width: cr.width, height: cr.height });

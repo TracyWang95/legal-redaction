@@ -28,7 +28,10 @@ export function selectableCardClassCompact(selected: boolean, variant: Selection
   return `${cardBase} ${getSelectionToneClasses(variant).cardSelectedCompact}`;
 }
 
-export function selectableCheckboxClass(variant: SelectionVariant, size: 'sm' | 'md' = 'sm'): string {
+export function selectableCheckboxClass(
+  variant: SelectionVariant,
+  size: 'sm' | 'md' = 'sm',
+): string {
   const dim = size === 'md' ? 'h-4 w-4' : 'h-3.5 w-3.5';
   return `${dim} shrink-0 rounded border-gray-300/70 focus:ring-2 focus:ring-offset-0 focus:outline-none ${getSelectionToneClasses(variant).checkbox}`;
 }

@@ -55,7 +55,9 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }, [rec.playgroundPresetTextId]);
 
   if (rec.textConfigState === 'loading') {
-    return <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>;
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>
+    );
   }
 
   if (rec.textConfigState === 'unavailable') {
@@ -92,15 +94,28 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
             className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-text-group-${group.key}`}
           >
-            <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
+            <div
+              className={cn(
+                'flex items-center justify-between gap-2 border-b px-3 py-2',
+                toneClasses.headerSurface,
+              )}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <span className={cn('size-2 rounded-full', toneClasses.dot)} />
-                <span className={cn('truncate text-xs font-semibold tracking-[0.02em]', toneClasses.titleText)}>
+                <span
+                  className={cn(
+                    'truncate text-xs font-semibold tracking-[0.02em]',
+                    toneClasses.titleText,
+                  )}
+                >
                   {group.label}
                 </span>
                 <Badge
                   variant="secondary"
-                  className={cn('rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none', toneClasses.badgeText)}
+                  className={cn(
+                    'rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none',
+                    toneClasses.badgeText,
+                  )}
                 >
                   {group.types.length}
                 </Badge>
@@ -134,7 +149,9 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                       onCheckedChange={() => {
                         rec.clearPlaygroundTextPresetTracking();
                         rec.setSelectedTypes((previous: string[]) =>
-                          checked ? previous.filter((id) => id !== type.id) : [...previous, type.id],
+                          checked
+                            ? previous.filter((id) => id !== type.id)
+                            : [...previous, type.id],
                         );
                       }}
                       className="h-3.5 w-3.5"
@@ -186,7 +203,9 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   }, [pageSize, rec.pipelines]);
 
   if (rec.visionConfigState === 'loading') {
-    return <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>;
+    return (
+      <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>
+    );
   }
 
   if (rec.visionConfigState === 'unavailable') {
@@ -212,7 +231,9 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
       {rec.pipelines.map((pipeline) => {
         const isHasImage = pipeline.mode === 'has_image';
         const selectedSet = isHasImage ? rec.selectedHasImageTypes : rec.selectedOcrHasTypes;
-        const allSelected = pipeline.types.length > 0 && pipeline.types.every((type) => selectedSet.includes(type.id));
+        const allSelected =
+          pipeline.types.length > 0 &&
+          pipeline.types.every((type) => selectedSet.includes(type.id));
         const tone: SelectionTone = isHasImage ? 'visual' : 'semantic';
         const toneClasses = getSelectionToneClasses(tone);
         const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
@@ -225,15 +246,28 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
             className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
-            <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2', toneClasses.headerSurface)}>
+            <div
+              className={cn(
+                'flex items-center justify-between gap-2 border-b px-3 py-2',
+                toneClasses.headerSurface,
+              )}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <span className={cn('size-2 rounded-full', toneClasses.dot)} />
-                <span className={cn('truncate text-xs font-semibold tracking-[0.02em]', toneClasses.titleText)}>
+                <span
+                  className={cn(
+                    'truncate text-xs font-semibold tracking-[0.02em]',
+                    toneClasses.titleText,
+                  )}
+                >
                   {isHasImage ? t('playground.imageFeatures') : t('playground.ocrText')}
                 </span>
                 <Badge
                   variant="secondary"
-                  className={cn('rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none', toneClasses.badgeText)}
+                  className={cn(
+                    'rounded-full border bg-background/85 px-2 py-0.5 text-[10px] shadow-none',
+                    toneClasses.badgeText,
+                  )}
                 >
                   {pipeline.types.length}
                 </Badge>
@@ -279,7 +313,9 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                   >
                     <Checkbox
                       checked={checked}
-                      onCheckedChange={() => rec.toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'has_image')}
+                      onCheckedChange={() =>
+                        rec.toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'has_image')
+                      }
                       className="h-3.5 w-3.5"
                     />
                     <span className="min-w-0 truncate font-medium">{type.name}</span>

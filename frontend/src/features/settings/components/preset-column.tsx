@@ -67,9 +67,11 @@ export function PresetColumn({
               size="sm"
               variant="outline"
               className={presetActionButtonClass}
-              onClick={() => setExpanded(current => current === defaultKey ? null : defaultKey)}
+              onClick={() => setExpanded((current) => (current === defaultKey ? null : defaultKey))}
             >
-              {expanded === defaultKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
+              {expanded === defaultKey
+                ? t('settings.redaction.collapse')
+                : t('settings.redaction.preview')}
             </Button>
           </div>
           {expanded === defaultKey && (
@@ -77,7 +79,7 @@ export function PresetColumn({
           )}
         </li>
 
-        {presets.map(preset => {
+        {presets.map((preset) => {
           const rowKey = `${colPrefix}:${preset.id}`;
           return (
             <li key={preset.id} className="bg-muted/30">
@@ -88,11 +90,18 @@ export function PresetColumn({
                     size="sm"
                     variant="outline"
                     className={presetActionButtonClass}
-                    onClick={() => setExpanded(current => current === rowKey ? null : rowKey)}
+                    onClick={() => setExpanded((current) => (current === rowKey ? null : rowKey))}
                   >
-                    {expanded === rowKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')}
+                    {expanded === rowKey
+                      ? t('settings.redaction.collapse')
+                      : t('settings.redaction.preview')}
                   </Button>
-                  <Button size="sm" variant="outline" className={presetActionButtonClass} onClick={() => onEdit(preset)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className={presetActionButtonClass}
+                    onClick={() => onEdit(preset)}
+                  >
                     {t('settings.redaction.edit')}
                   </Button>
                   <Button
@@ -126,18 +135,22 @@ function PresetPreview({
   pipelines: PipelineConfig[];
 }) {
   const t = useT();
-  const ocrPipeline = pipelines.find(pipeline => pipeline.mode === 'ocr_has');
-  const imagePipeline = pipelines.find(pipeline => pipeline.mode === 'has_image');
+  const ocrPipeline = pipelines.find((pipeline) => pipeline.mode === 'ocr_has');
+  const imagePipeline = pipelines.find((pipeline) => pipeline.mode === 'has_image');
 
   const selectedRegexTypes = useMemo(
-    () => preset.selectedEntityTypeIds.filter(id => entityTypes.find(type => type.id === id)?.regex_pattern),
+    () =>
+      preset.selectedEntityTypeIds.filter(
+        (id) => entityTypes.find((type) => type.id === id)?.regex_pattern,
+      ),
     [preset.selectedEntityTypeIds, entityTypes],
   );
   const selectedSemanticTypes = useMemo(
-    () => preset.selectedEntityTypeIds.filter(id => {
-      const et = entityTypes.find(type => type.id === id);
-      return et && et.use_llm && !et.regex_pattern;
-    }),
+    () =>
+      preset.selectedEntityTypeIds.filter((id) => {
+        const et = entityTypes.find((type) => type.id === id);
+        return et && et.use_llm && !et.regex_pattern;
+      }),
     [preset.selectedEntityTypeIds, entityTypes],
   );
 
@@ -149,13 +162,13 @@ function PresetPreview({
             {t('settings.redaction.regexGroup')} ({selectedRegexTypes.length})
           </p>
           <div className={presetPreviewChipGridClass}>
-            {selectedRegexTypes.map(id => (
+            {selectedRegexTypes.map((id) => (
               <span
                 key={id}
                 className={cn(presetPreviewChipClass, 'truncate')}
-                title={entityTypes.find(type => type.id === id)?.name ?? id}
+                title={entityTypes.find((type) => type.id === id)?.name ?? id}
               >
-                {entityTypes.find(type => type.id === id)?.name ?? id}
+                {entityTypes.find((type) => type.id === id)?.name ?? id}
               </span>
             ))}
           </div>
@@ -168,13 +181,13 @@ function PresetPreview({
             {t('settings.redaction.semanticGroup')} ({selectedSemanticTypes.length})
           </p>
           <div className={presetPreviewChipGridClass}>
-            {selectedSemanticTypes.map(id => (
+            {selectedSemanticTypes.map((id) => (
               <span
                 key={id}
                 className={cn(presetPreviewChipClass, 'truncate')}
-                title={entityTypes.find(type => type.id === id)?.name ?? id}
+                title={entityTypes.find((type) => type.id === id)?.name ?? id}
               >
-                {entityTypes.find(type => type.id === id)?.name ?? id}
+                {entityTypes.find((type) => type.id === id)?.name ?? id}
               </span>
             ))}
           </div>
@@ -189,13 +202,13 @@ function PresetPreview({
                 {t('settings.redaction.ocrGroup')} ({preset.ocrHasTypes.length})
               </p>
               <div className={presetPreviewChipGridClass}>
-                {preset.ocrHasTypes.map(id => (
+                {preset.ocrHasTypes.map((id) => (
                   <span
                     key={id}
                     className={cn(presetPreviewChipClass, 'truncate')}
-                    title={ocrPipeline?.types.find(type => type.id === id)?.name ?? id}
+                    title={ocrPipeline?.types.find((type) => type.id === id)?.name ?? id}
                   >
-                    {ocrPipeline?.types.find(type => type.id === id)?.name ?? id}
+                    {ocrPipeline?.types.find((type) => type.id === id)?.name ?? id}
                   </span>
                 ))}
               </div>
@@ -207,13 +220,13 @@ function PresetPreview({
                 {t('settings.redaction.imageGroup')} ({preset.hasImageTypes.length})
               </p>
               <div className={presetPreviewChipGridClass}>
-                {preset.hasImageTypes.map(id => (
+                {preset.hasImageTypes.map((id) => (
                   <span
                     key={id}
                     className={cn(presetPreviewChipClass, 'truncate')}
-                    title={imagePipeline?.types.find(type => type.id === id)?.name ?? id}
+                    title={imagePipeline?.types.find((type) => type.id === id)?.name ?? id}
                   >
-                    {imagePipeline?.types.find(type => type.id === id)?.name ?? id}
+                    {imagePipeline?.types.find((type) => type.id === id)?.name ?? id}
                   </span>
                 ))}
               </div>

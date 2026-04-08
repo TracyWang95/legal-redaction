@@ -3,7 +3,10 @@
 
 import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { fetchPresets, type RecognitionPreset } from './presetsApi';
-import type { EntityTypeConfig as PlaygroundEntityType, PipelineConfig as PlaygroundPipeline } from '@/features/playground/types';
+import type {
+  EntityTypeConfig as PlaygroundEntityType,
+  PipelineConfig as PlaygroundPipeline,
+} from '@/features/playground/types';
 
 export type RecognitionEntityType = PlaygroundEntityType;
 export type RecognitionPipeline = PlaygroundPipeline;
@@ -12,10 +15,9 @@ export async function fetchRecognitionEntityTypes(
   enabledOnly: boolean,
   timeoutMs = 3_500,
 ): Promise<RecognitionEntityType[]> {
-  const res = await fetchWithTimeout(
-    `/api/v1/custom-types?enabled_only=${enabledOnly}`,
-    { timeoutMs },
-  );
+  const res = await fetchWithTimeout(`/api/v1/custom-types?enabled_only=${enabledOnly}`, {
+    timeoutMs,
+  });
   if (!res.ok) {
     throw new Error('Failed to load entity types');
   }

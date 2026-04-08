@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const zhBase: Record<string, string> = {
-  
   'nav.playground': 'Playground',
   'nav.batch': '批量任务',
   'nav.batch.sub': '新建或继续向导',
@@ -17,7 +16,6 @@ const zhBase: Record<string, string> = {
   'nav.textModel': '文本模型配置',
   'nav.visionModel': '视觉服务配置',
 
-  
   'playground.title': 'DataInfra-RedactionEverything 工作台',
   'playground.upload.hint': '拖拽或点击上传文件',
   'playground.upload.formats': '支持 Word、PDF、图片文件',
@@ -33,7 +31,6 @@ const zhBase: Record<string, string> = {
   'playground.entities': '识别实体',
   'playground.boundingBoxes': '检测区域',
 
-  
   'common.confirm': '确认',
   'common.cancel': '取消',
   'common.delete': '删除',
@@ -47,12 +44,10 @@ const zhBase: Record<string, string> = {
   'common.error': '操作失败',
   'common.retry': '重试',
 
-  
   'file.word': 'Word 文档',
   'file.pdf': 'PDF 文档',
   'file.image': '图片',
 
-  
   'entity.PERSON': '姓名',
   'entity.ID_CARD': '身份证号',
   'entity.PHONE': '电话号码',
@@ -64,13 +59,11 @@ const zhBase: Record<string, string> = {
   'entity.DATE': '日期',
   'entity.AMOUNT': '金额',
 
-  
   'mode.smart': '智能替换',
   'mode.mask': '掩码替换',
   'mode.custom': '自定义替换',
   'mode.structured': '结构化标签',
 
-  
   'job.status.draft': '草稿',
   'job.status.queued': '排队中',
   'job.status.pending': '待执行',
@@ -104,13 +97,11 @@ const zhBase: Record<string, string> = {
   'redactionState.awaiting_review': '待审核',
   'redactionState.unredacted': '未处理',
 
-  
   'settings.title': '系统设置',
   'settings.presets': '预设管理',
   'settings.presets.export': '导出预设',
   'settings.presets.import': '导入预设',
 
-  
   'report.title': '处理质量报告',
   'report.totalEntities': '识别实体总数',
   'report.redactedEntities': '已处理数',
@@ -121,7 +112,6 @@ const zhBase: Record<string, string> = {
   'report.medium': '中',
   'report.low': '低',
 
-  
   'health.title': '服务状态',
   'health.allOnline': '全部服务正常',
   'health.someOffline': '部分服务异常',
@@ -137,32 +127,33 @@ const zhBase: Record<string, string> = {
   'health.probeTime': '探测时间',
   'health.refreshTitle': '立即刷新服务状态',
 
-  
   'offline.banner': '网络连接已断开，部分功能可能不可用',
 
-  
   'onboarding.skip': '跳过引导',
   'onboarding.prev': '上一步',
   'onboarding.next': '下一步',
   'onboarding.start': '开始使用',
   'onboarding.step1.title': '欢迎来到 DataInfra-RedactionEverything',
-  'onboarding.step1.desc': '上传、检查、导出都在同一个清晰界面里完成，整个流程保持在你的本地环境内。',
+  'onboarding.step1.desc':
+    '上传、检查、导出都在同一个清晰界面里完成，整个流程保持在你的本地环境内。',
   'onboarding.step2.title': '先把文件放进来',
   'onboarding.step2.desc': '支持 Word、PDF 和图片文件，入口尽量简单，打开就能开始。',
   'onboarding.step3.title': '先让系统跑第一遍识别',
-  'onboarding.step3.desc': '系统会先帮你找出姓名、证件号、电话、地址等敏感内容，减少你手动逐条检查的负担。',
+  'onboarding.step3.desc':
+    '系统会先帮你找出姓名、证件号、电话、地址等敏感内容，减少你手动逐条检查的负担。',
   'onboarding.step4.title': '确认后再输出',
-  'onboarding.step4.desc': '你可以调整识别结果、保留或删除标记，再选择合适的处理方式，确保交付前是可控的。',
+  'onboarding.step4.desc':
+    '你可以调整识别结果、保留或删除标记，再选择合适的处理方式，确保交付前是可控的。',
   'onboarding.step5.title': '文件一多就切到批量',
-  'onboarding.step5.desc': '当单文件变成多文件时，直接进入批量任务，用同一套标准把整批工作稳定做完。',
+  'onboarding.step5.desc':
+    '当单文件变成多文件时，直接进入批量任务，用同一套标准把整批工作稳定做完。',
 
-  
   'page.batch.title': '批量任务',
   'page.batch.sub': '选择类型并创建工单',
-'page.batchText.title': '文本批量',
-'page.batchText.sub': '文档与可选中文字 PDF',
-'page.batchImage.title': '图像批量',
-'page.batchImage.sub': '图片与扫描件识别',
+  'page.batchText.title': '文本批量',
+  'page.batchText.sub': '文档与可选中文字 PDF',
+  'page.batchImage.title': '图像批量',
+  'page.batchImage.sub': '图片与扫描件识别',
   'page.batchSmart.title': '智能批量',
   'page.batchSmart.sub': '混合文件自动识别',
   'page.redactionList.title': '配置清单',
@@ -180,14 +171,12 @@ const zhBase: Record<string, string> = {
   'page.visionModel.title': '视觉服务配置',
   'page.visionModel.sub': 'HaS Image · PaddleOCR-VL 登记与检测',
 
-  
   'preset.saveText.prompt': '另存为文本预设：请输入名称',
   'preset.saveText.success': '已另存为文本预设。',
   'preset.saveVision.prompt': '另存为图像预设：请输入名称',
   'preset.saveVision.success': '已另存为图像预设。',
   'preset.save.failed': '保存失败',
 
-  
   'error.network': '网络连接失败，请检查后端服务是否启动',
   'error.auth': '认证失败，请重新登录',
   'error.server': '服务器内部错误，请稍后重试',
@@ -202,7 +191,6 @@ const zhBase: Record<string, string> = {
   'action.redacting': '正在执行匿名化...',
   'action.downloading': '正在下载...',
 
-  
   'jobDetail.batchTask': '批量任务',
   'jobDetail.loadFailed': '加载失败',
   'jobDetail.submitted': '已提交队列',
@@ -210,7 +198,8 @@ const zhBase: Record<string, string> = {
   'jobDetail.cancelled': '已取消',
   'jobDetail.cancelFailed': '取消失败',
   'jobDetail.unnamedTask': '未命名任务',
-  'jobDetail.confirmDelete': '确定删除任务「{title}」吗？\n\n将删除任务中心中的工单与文件项记录，但保留已上传原件和匿名化结果，处理历史仍可查看。',
+  'jobDetail.confirmDelete':
+    '确定删除任务「{title}」吗？\n\n将删除任务中心中的工单与文件项记录，但保留已上传原件和匿名化结果，处理历史仍可查看。',
   'jobDetail.deleteFailed': '删除任务失败',
   'jobDetail.requeuedSuccess': '失败项已重新排队，等待后台处理',
   'jobDetail.requeueFailed': '重新排队失败',
@@ -235,7 +224,8 @@ const zhBase: Record<string, string> = {
   'jobDetail.deleteTask': '删除任务',
   'jobDetail.deleteHintRunning': '运行中任务请先取消，再删除',
   'jobDetail.requeueFailed.btn': '重新处理失败项（{n}）',
-  'jobDetail.reviewHint': '「快速确认」将本文件标为审阅通过并入队匿名化；完整划词/拉框修改请在主按钮进入的批量向导第 4 步中操作并保存草稿。',
+  'jobDetail.reviewHint':
+    '「快速确认」将本文件标为审阅通过并入队匿名化；完整划词/拉框修改请在主按钮进入的批量向导第 4 步中操作并保存草稿。',
   'jobDetail.fileDetail': '文件明细',
   'jobDetail.col.file': '文件',
   'jobDetail.col.status': '状态',
@@ -252,7 +242,6 @@ const zhBase: Record<string, string> = {
   'jobDetail.quickApprove': '快速确认',
   'jobDetail.reject': '打回',
 
-  
   'jobs.batchTask': '批量任务',
   'jobs.localExec': '本页闭环',
   'jobs.queueExec': '后台队列',
@@ -272,7 +261,8 @@ const zhBase: Record<string, string> = {
   'jobs.loadFailed': '加载失败',
   'jobs.expandFailed': '展开任务失败',
   'jobs.unnamedTask': '未命名任务',
-  'jobs.confirmDelete': '确定删除任务「{title}」吗？\n\n将删除任务中心中的工单与文件项记录，但保留已上传原件和匿名化结果，处理历史仍可查看。',
+  'jobs.confirmDelete':
+    '确定删除任务「{title}」吗？\n\n将删除任务中心中的工单与文件项记录，但保留已上传原件和匿名化结果，处理历史仍可查看。',
   'jobs.deletedNotice': '已删除任务「{title}」',
   'jobs.deleteFailed': '删除任务失败',
   'jobs.requeuedNotice': '已重新排队 {n} 个失败项',
@@ -330,12 +320,12 @@ const zhBase: Record<string, string> = {
   'jobs.nextPage': '下一页',
   'jobs.lastPage': '末页',
 
-  
   'history.loadPreviewFailed.redacted': '无法加载匿名化文件预览',
   'history.loadPreviewFailed.original': '无法加载原始文件预览',
   'history.loadFailed': '加载失败',
   'history.compareFailed': '加载对比失败',
-  'history.description': '切换 Tab 查看不同来源的处理记录；来自「批量处理」同一会话的文件会归为一组，Playground 按日期自动归并。翻页与勾选仅作用于本页。',
+  'history.description':
+    '切换 Tab 查看不同来源的处理记录；来自「批量处理」同一会话的文件会归为一组，Playground 按日期自动归并。翻页与勾选仅作用于本页。',
   'history.tab.all': '全部',
   'history.tab.batch': '批量处理',
   'history.refresh': '刷新',
@@ -414,7 +404,6 @@ const zhBase: Record<string, string> = {
   'history.col.count': '次数',
   'history.confirmDeleteText': '删除',
 
-  
   'settings.testLabel': '测试文本（服务端 Python 正则引擎）',
   'settings.testPlaceholder': '输入测试文本...',
   'settings.testing': '测试中...',
@@ -479,27 +468,25 @@ const zhBase: Record<string, string> = {
   'settings.saving': '保存中...',
   'settings.updateFailed': '更新失败',
 
-  
   'sidebar.subtitle': '匿名化数据基础设施',
   'sidebar.devInProgress': '开发中',
 
-  
   'jobDetail.progressTotal': '共 {n} 项',
   'jobDetail.progressRedacted': '已匿名化 {n}',
   'jobDetail.progressAwaiting': '待审核 {n}',
   'jobDetail.progressFailed': '失败 {n}',
 
-  
   'jobs.headlineRedacted': '已匿名化 {n}',
   'jobs.headlineAwaiting': '待审核 {n}',
   'jobs.itemCount': '{n} 项',
   'jobs.updatedAtLabel': '更新时间 {time}',
 
-  
   'batchHub.title': '开始或恢复批量任务',
-  'batchHub.desc': '先创建任务工单，再进入配置、上传、识别和审阅。最近活跃任务可以直接继续，不必重新创建。',
+  'batchHub.desc':
+    '先创建任务工单，再进入配置、上传、识别和审阅。最近活跃任务可以直接继续，不必重新创建。',
   'batchHub.newTask': '新建批量任务',
-  'batchHub.newTaskDesc': '支持 Word / PDF / 图片混合上传，系统自动识别文件类型并选择最佳处理方式。',
+  'batchHub.newTaskDesc':
+    '支持 Word / PDF / 图片混合上传，系统自动识别文件类型并选择最佳处理方式。',
   'batchHub.recentTitle': '继续最近任务',
   'batchHub.recentDesc': '按任务状态跳转到配置、上传、监控或审阅。',
   'batchHub.jobCenter': '任务中心',
@@ -517,7 +504,6 @@ const zhBase: Record<string, string> = {
   'batchHub.history': '处理历史',
   'batchHub.batchTaskTitle': '批量任务 {time}',
 
-  
   'batchWizard.stepsOverview': '五步：配置 → 上传 → 批量识别 → 审阅确认 → 导出',
   'batchWizard.step1': '任务与配置',
   'batchWizard.step2': '上传',
@@ -525,13 +511,15 @@ const zhBase: Record<string, string> = {
   'batchWizard.step4': '审阅确认',
   'batchWizard.step5': '导出',
   'batchWizard.step1.title': '① 任务与配置',
-  'batchWizard.step1.desc': '本步绑定当前批量任务的识别项与匿名化选项。修改会自动同步到任务草稿（约 1 秒内防抖保存）。',
+  'batchWizard.step1.desc':
+    '本步绑定当前批量任务的识别项与匿名化选项。修改会自动同步到任务草稿（约 1 秒内防抖保存）。',
   'batchWizard.step1.execQueue': '后台任务队列',
   'batchWizard.step1.execQueueDesc': '（推荐：可关窗由 Worker 继续跑）',
   'batchWizard.step1.execLocal': '仅本页完成',
   'batchWizard.step1.execLocalDesc': '（浏览器内识别→核对→导出，少依赖队列）',
   'batchWizard.step1.execPath': '默认处理路径',
-  'batchWizard.step1.execPathHint': '先定任务走后台还是本页完成，下面的文字和图像设置会按这条路径一起执行。',
+  'batchWizard.step1.execPathHint':
+    '先定任务走后台还是本页完成，下面的文字和图像设置会按这条路径一起执行。',
   'batchWizard.step1.textPreset': '文本匿名化',
   'batchWizard.step1.textPresetDesc': 'Word / PDF 文字实体识别',
   'batchWizard.step1.imagePreset': '图像匿名化',
@@ -541,16 +529,21 @@ const zhBase: Record<string, string> = {
   'batchWizard.step1.imageMethodMosaic': '马赛克',
   'batchWizard.step1.imageMethodBlur': '模糊',
   'batchWizard.step1.imageMethodFill': '纯色遮挡',
-  'batchWizard.step1.imageMethodMosaicHint': '适合证件照、签章和局部区域，既保留版式也能快速隐藏细节。',
-  'batchWizard.step1.imageMethodBlurHint': '适合想保留大致轮廓的场景，强度越高，细节越不容易被辨认。',
+  'batchWizard.step1.imageMethodMosaicHint':
+    '适合证件照、签章和局部区域，既保留版式也能快速隐藏细节。',
+  'batchWizard.step1.imageMethodBlurHint':
+    '适合想保留大致轮廓的场景，强度越高，细节越不容易被辨认。',
   'batchWizard.step1.imageMethodFillHint': '直接用纯色盖住选区，适合必须完全遮挡的交付场景。',
   'batchWizard.step1.imageStrengthLabel': '遮挡强度',
   'batchWizard.step1.imageFillColorLabel': '遮挡颜色',
   'batchWizard.step1.previewSwatch': '颜色预览',
   'batchWizard.step1.textModeHint': '文本会按这个方式统一替换，下面的预览会同步反映当前设置。',
-  'batchWizard.step1.textModeBulletStructured': '结构化标签 — 用 [姓名]、[身份证号] 等标签统一替换，输出规整，适合审计对账',
-  'batchWizard.step1.textModeBulletSmart': '智能替换 — 生成语义通顺的仿真文本，阅读自然，适合对外流转',
-  'batchWizard.step1.textModeBulletMask': '掩码替换 — 用 *** 直接遮盖原文，保留长度位置，快速匿名化',
+  'batchWizard.step1.textModeBulletStructured':
+    '结构化标签 — 用 [姓名]、[身份证号] 等标签统一替换，输出规整，适合审计对账',
+  'batchWizard.step1.textModeBulletSmart':
+    '智能替换 — 生成语义通顺的仿真文本，阅读自然，适合对外流转',
+  'batchWizard.step1.textModeBulletMask':
+    '掩码替换 — 用 *** 直接遮盖原文，保留长度位置，快速匿名化',
   'batchWizard.step1.summaryEtc': '等',
   'batchWizard.step1.currentTextMethod': '文本方式：',
   'batchWizard.step1.currentImageMethod': '图像方式：',
@@ -575,7 +568,8 @@ const zhBase: Record<string, string> = {
   'batchWizard.step1.nextUpload': '下一步：上传',
   'batchWizard.step1.loadingConfig': '加载类型配置中…',
   'batchWizard.step2.dropHint': '拖放多个文件，或点击选择',
-  'batchWizard.step2.dropHintSmart': '支持 Word (.docx)、PDF、图片 (.jpg .png)，系统自动识别文件类型',
+  'batchWizard.step2.dropHintSmart':
+    '支持 Word (.docx)、PDF、图片 (.jpg .png)，系统自动识别文件类型',
   'batchWizard.step2.dropHintImage': '支持图片 (.jpg .png) 和扫描件 PDF',
   'batchWizard.step2.dropHintText': '支持 Word (.docx .doc) 和 PDF 文档',
   'batchWizard.step2.jobLinked': '当前任务工单',
@@ -585,7 +579,8 @@ const zhBase: Record<string, string> = {
   'batchWizard.step2.prevStep': '上一步',
   'batchWizard.step2.nextRecognize': '下一步：批量识别',
   'batchWizard.step3.title': '③ 批量识别',
-  'batchWizard.step3.desc': '点击「提交后台队列」将所有文件交给后台 Worker 逐个处理。全部文件识别完成后才可进入核对。',
+  'batchWizard.step3.desc':
+    '点击「提交后台队列」将所有文件交给后台 Worker 逐个处理。全部文件识别完成后才可进入核对。',
   'batchWizard.step3.submitQueue': '提交后台队列',
   'batchWizard.step3.prevStep': '上一步',
   'batchWizard.step3.retryFailed': '重新处理失败项',
@@ -594,7 +589,8 @@ const zhBase: Record<string, string> = {
   'batchWizard.step3.pending': '个文件待提交',
   'batchWizard.step3.nextReview': '下一步：进入核对',
   'batchWizard.step4.textWorkbench': '文本审阅工作台',
-  'batchWizard.step4.textWorkbenchDesc': '划选添加标注、点击实体可改类型或删除；原文与匿名化预览联动；草稿约 900ms 自动保存到任务。',
+  'batchWizard.step4.textWorkbenchDesc':
+    '划选添加标注、点击实体可改类型或删除；原文与匿名化预览联动；草稿约 900ms 自动保存到任务。',
   'batchWizard.step4.originalText': '原文',
   'batchWizard.step4.redactedPreview': '匿名化预览',
   'batchWizard.step4.entityList': '实体列表',
@@ -605,7 +601,8 @@ const zhBase: Record<string, string> = {
   'batchWizard.step4.confirmRedact': '确认匿名化',
   'batchWizard.step4.submitting': '提交中…',
   'batchWizard.step4.completed': '已完成',
-  'batchWizard.step4.readOnlyHint': '该文件已完成匿名化，仅供查阅。如需重新匿名化请先在任务详情驳回。',
+  'batchWizard.step4.readOnlyHint':
+    '该文件已完成匿名化，仅供查阅。如需重新匿名化请先在任务详情驳回。',
   'batchWizard.step4.noRecognized': '暂无已完成识别的文件，请先完成第 3 步批量识别。',
   'batchWizard.step4.confirmed': '已确认',
   'batchWizard.step4.allConfirmHint': '全部确认后才能进入导出',
@@ -622,7 +619,8 @@ const zhBase: Record<string, string> = {
   'batchWizard.step4.rerunRecognition': '重新识别',
   'batchWizard.step4.rerunningRecognition': '重新识别中…',
   'batchWizard.step5.title': '⑤ 导出',
-  'batchWizard.step5.desc': '勾选文件后打包下载；匿名化 ZIP 仅包含已在第 4 步「审阅确认」中完成匿名化的文件。',
+  'batchWizard.step5.desc':
+    '勾选文件后打包下载；匿名化 ZIP 仅包含已在第 4 步「审阅确认」中完成匿名化的文件。',
   'batchWizard.step5.backReview': '返回审阅',
   'batchWizard.step5.downloadOriginal': '下载原始 ZIP',
   'batchWizard.step5.downloadRedacted': '下载匿名化 ZIP',
@@ -632,7 +630,6 @@ const zhBase: Record<string, string> = {
   'batchWizard.selectTypesFirst': '请先完成步骤 1：至少勾选一个文本实体类型或一类图像识别项。',
   'batchWizard.waitConfig': '请等待识别配置加载完成。',
 
-  
   'history.singleSession': '单次 · {id}',
   'history.batchLabel': '批量 {id}',
   'history.loadingEllipsis': '加载中…',
@@ -646,7 +643,6 @@ const zhBase: Record<string, string> = {
   'history.unredactedStatus': '未匿名化',
   'history.partiallyRedacted': '部分匿名化',
 
-  
   'layout.navLabel': '主导航',
   'layout.headerActions': '状态与设置',
   'layout.toggleSidebar': '展开/收起侧边栏',
@@ -655,7 +651,6 @@ const zhBase: Record<string, string> = {
   'health.status.someOffline': '部分离线',
   'health.status.backendDown': '后端未连接',
 
-  
   'entityTag.PERSON': '人名',
   'entityTag.ID_CARD': '身份证',
   'entityTag.PHONE': '电话',
@@ -667,17 +662,16 @@ const zhBase: Record<string, string> = {
   'entityTag.CUSTOM': '自定义',
   'entityTag.selected': '（已选中）',
 
-  
   'emptyState.history': '暂无处理记录',
   'emptyState.historyDesc': '上传并处理文件后，记录会显示在这里',
   'emptyState.noActiveJobs': '暂无可恢复的活跃任务',
   'emptyState.noActiveJobsDesc': '可以直接新建一个批量工单',
 
-  
   'safety.badge': '🔒 所有处理完全在本机完成，不上传任何数据',
   'safety.badge.short': '端侧处理',
   'safety.title': '数据安全',
-  'safety.desc': '所有文件解析、实体识别和匿名化操作均在本地设备完成，文件不会上传至任何外部服务器。',
+  'safety.desc':
+    '所有文件解析、实体识别和匿名化操作均在本地设备完成，文件不会上传至任何外部服务器。',
   'safety.storage.title': '数据存储位置',
   'safety.storage.uploads': '原始文件：{path}',
   'safety.storage.outputs': '匿名化产物：{path}',
@@ -714,14 +708,17 @@ const zhBase: Record<string, string> = {
   'batchWizard.downloadFailed': '下载打包文件失败。',
   'batchWizard.noFilesToExport': '当前没有可导出的文件。',
   'batchWizard.notAllFilesConfirmed': '请先确认完所有文件，再继续导出。',
-  'batchWizard.previewBanner': '当前是批量界面预览，页面里的数据是前端样例，不会创建真实任务或写入后端。',
+  'batchWizard.previewBanner':
+    '当前是批量界面预览，页面里的数据是前端样例，不会创建真实任务或写入后端。',
   'batchWizard.previewFilesAdded': '已加入 {count} 个预览文件。',
-  'batchWizard.previewRecognitionDone': '预览数据已推进到识别结果，接下来可以继续检查审阅和导出页面。',
+  'batchWizard.previewRecognitionDone':
+    '预览数据已推进到识别结果，接下来可以继续检查审阅和导出页面。',
   'batchWizard.previewReviewDone': '当前预览文件已确认，可以继续检查下一份文件或导出页。',
   'batchWizard.previewDownloadReady': '已生成预览导出文件，用来检查下载入口和状态展示。',
   'batchWizard.previewJobLabel': '预览任务',
 
-  'error.visionTimeout': '图像识别超时（超过 3 分钟）。若 Paddle 在 CPU 上跑会很慢，可换更小图片或安装 paddle GPU 版加速。',
+  'error.visionTimeout':
+    '图像识别超时（超过 3 分钟）。若 Paddle 在 CPU 上跑会很慢，可换更小图片或安装 paddle GPU 版加速。',
   'error.visionDetectionFailed': '图像识别失败',
   'error.reRecognizeFailed': '重新识别失败',
 };
@@ -834,7 +831,8 @@ const zhOverrides: Record<string, string> = {
   'jobs.lastPage': '末页',
   'jobs.cleanupTitle': '清理已结束任务',
   'jobs.cleanupMessage': '要把已完成、失败和已取消的任务从列表中清掉吗？',
-  'jobs.previewBanner': '后端暂时不可用，当前展示的是任务中心预览数据，方便继续检查列表、展开明细和分页。',
+  'jobs.previewBanner':
+    '后端暂时不可用，当前展示的是任务中心预览数据，方便继续检查列表、展开明细和分页。',
   'history.filters.kicker': '筛选',
   'history.filters.title': '交付历史',
   'history.filters.desc': '查看已处理文件、对比结果，并在同一页导出打包文件。',
@@ -871,7 +869,8 @@ const zhOverrides: Record<string, string> = {
   'history.afterRedaction': '匿名化后',
   'history.cleanupTitle': '清理历史',
   'history.cleanupMsg': '要从历史中移除已完成的文件记录吗？',
-  'history.previewBanner': '后端暂时不可用，当前展示的是处理历史预览数据，方便继续检查筛选、列表密度和翻页。',
+  'history.previewBanner':
+    '后端暂时不可用，当前展示的是处理历史预览数据，方便继续检查筛选、列表密度和翻页。',
   'history.unnamedContent': '未命名内容',
   'entityGroup.identity': '个人身份',
   'entityGroup.contact': '联系通信',
@@ -886,9 +885,11 @@ const zhOverrides: Record<string, string> = {
   'playground.upload.kicker': '工作区入口',
   'playground.upload.title': '上传非结构化数据，即时匿名化',
   'playground.upload.desc': '上传文件，选择识别范围，预览匿名化效果后导出。',
-  'playground.upload.standards': '参考标准：GDPR · 《个人信息保护法》 · GB/T 37964-2019 · 《面向数据流通的匿名化处理实施指南》 · 《面向数据流通的匿名化效果评估方法》',
+  'playground.upload.standards':
+    '参考标准：GDPR · 《个人信息保护法》 · GB/T 37964-2019 · 《面向数据流通的匿名化处理实施指南》 · 《面向数据流通的匿名化效果评估方法》',
   'playground.upload.configDesc': '预设、文本规则和图像规则都在这里统一选择。',
-  'playground.upload.offlineHint': '当前后端未连接，这里展示的是界面预览数据，方便继续检查文本、图像配置和整体排版。',
+  'playground.upload.offlineHint':
+    '当前后端未连接，这里展示的是界面预览数据，方便继续检查文本、图像配置和整体排版。',
   'playground.dropHere': '把文件拖到这里上传',
   'playground.supportedFormats': '支持 .doc、.docx、.pdf、.jpg 和 .png',
   'playground.clickToUpload': '或点击选择文件',
@@ -1041,15 +1042,16 @@ const zhOverrides: Record<string, string> = {
   'settings.pipelineDisplayName.ocr': '文字检测通道',
   'settings.pipelineDisplayName.image': '图像特征通道',
   'settings.pipelineDescription.image': '使用视觉语言服务识别签名、印章、手写内容等视觉信息。',
-  'settings.provider.legacyZhipu': '智谱（旧版）',
   'settings.textModel.infoTitle': '文本 NER 服务',
-  'settings.textModel.infoDesc': '在这里配置产品使用的文本识别接口。保存后立即生效，也可以先用当前地址做连通性测试。',
+  'settings.textModel.infoDesc':
+    '在这里配置产品使用的文本识别接口。保存后立即生效，也可以先用当前地址做连通性测试。',
   'settings.textModel.tag.openai': 'OpenAI 兼容',
   'settings.textModel.tag.local': '本地 HTTP',
   'settings.textModel.tag.server': 'llama-server',
   'settings.textModel.tag.builtin': '内置',
   'settings.textModel.cardTitle': 'HaS 文本 NER',
-  'settings.textModel.cardDescription': '当前产品只使用一个文本 NER 接口。填入兼容地址后，可以直接在这里测试并保存。',
+  'settings.textModel.cardDescription':
+    '当前产品只使用一个文本 NER 接口。填入兼容地址后，可以直接在这里测试并保存。',
   'settings.textModel.endpointLabel': 'OpenAI 兼容 API 根地址',
   'settings.textModel.endpointHint': '测试会直接使用当前输入的地址，不需要先保存。',
   'settings.textModel.reset': '恢复为环境默认值',
@@ -1059,10 +1061,12 @@ const zhOverrides: Record<string, string> = {
   'settings.textModel.connectSuccess': '连接成功。',
   'settings.textModel.connectFailed': '连接失败，请检查后端日志或保存配置后再试。',
   'settings.textModel.testRequestFailed': '测试请求失败，可能是网络或跨域问题。',
-  'settings.textModel.confirmClearOverride': '确定清除前端保存的配置，并恢复为服务端环境变量默认值吗？',
+  'settings.textModel.confirmClearOverride':
+    '确定清除前端保存的配置，并恢复为服务端环境变量默认值吗？',
   'settings.textModel.resetSuccess': '已恢复为环境变量默认值。',
   'settings.visionModel.infoTitle': '视觉推理服务',
-  'settings.visionModel.infoDesc': '在这里统一管理图像侧推理接口。内置服务和外部服务都可以在同一页里测试和查看状态。',
+  'settings.visionModel.infoDesc':
+    '在这里统一管理图像侧推理接口。内置服务和外部服务都可以在同一页里测试和查看状态。',
   'settings.visionModel.tag.local': '本地 HTTP',
   'settings.visionModel.tag.openai': 'OpenAI 兼容',
   'settings.visionModel.tag.custom': '自定义 HTTP',
@@ -1099,7 +1103,8 @@ const zhOverrides: Record<string, string> = {
   'settings.redaction.kind.vision': '图像',
   'settings.redaction.kind.full': '组合',
   'settings.redaction.configTitle': '匿名化清单配置',
-  'settings.redaction.configDesc': '统一使用同一套预设服务，让 Playground 和批量任务在新会话里都从一致的默认范围开始。',
+  'settings.redaction.configDesc':
+    '统一使用同一套预设服务，让 Playground 和批量任务在新会话里都从一致的默认范围开始。',
   'settings.redaction.newText': '+ 新建文本清单',
   'settings.redaction.newVision': '+ 新建图像清单',
   'settings.redaction.currentSelection': '当前选用',
@@ -1126,7 +1131,8 @@ const zhOverrides: Record<string, string> = {
   'settings.redaction.defaultNameVision': '默认图像匿名化清单',
   'settings.redaction.defaultShort': '默认',
   'settings.redaction.confirmDelete': '确定删除这条预设吗？',
-  'settings.redaction.previewBanner': '后端暂时不可用，当前展示的是界面预览数据，方便检查排版和交互；恢复服务后会自动切回真实配置。',
+  'settings.redaction.previewBanner':
+    '后端暂时不可用，当前展示的是界面预览数据，方便检查排版和交互；恢复服务后会自动切回真实配置。',
   'settings.redaction.nameRequired': '请先填写预设名称。',
   'settings.redaction.saveFailed': '保存预设失败。',
   'settings.redaction.processing': '处理中...',
@@ -1134,7 +1140,8 @@ const zhOverrides: Record<string, string> = {
   'settings.redaction.editPreset': '编辑',
   'settings.redaction.createTitle': '新建{kind}预设',
   'settings.redaction.editTitle': '编辑{kind}预设',
-  'settings.pipelineDescription.ocr': '使用 OCR 与文本识别服务，处理扫描件、公章文字和手写内容中的文字信息。',
+  'settings.pipelineDescription.ocr':
+    '使用 OCR 与文本识别服务，处理扫描件、公章文字和手写内容中的文字信息。',
   'settings.preview.personName': '姓名',
   'settings.preview.idCard': '身份证号',
   'settings.preview.bankCard': '银行卡号',

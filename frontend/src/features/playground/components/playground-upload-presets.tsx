@@ -115,7 +115,12 @@ export const PresetSaveDialog: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const isText = rec.presetDialogKind === 'text';
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) rec.closePresetDialog(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) rec.closePresetDialog();
+      }}
+    >
       <DialogContent className="sm:max-w-[28rem]">
         <DialogHeader>
           <DialogTitle>
@@ -136,7 +141,11 @@ export const PresetSaveDialog: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
             {t('common.cancel')}
           </Button>
           <Button
-            onClick={() => void (isText ? rec.saveTextPresetFromPlayground() : rec.saveVisionPresetFromPlayground())}
+            onClick={() =>
+              void (isText
+                ? rec.saveTextPresetFromPlayground()
+                : rec.saveVisionPresetFromPlayground())
+            }
             disabled={rec.presetSaving}
           >
             {rec.presetSaving ? t('settings.redaction.processing') : t('settings.save')}

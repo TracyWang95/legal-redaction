@@ -21,9 +21,6 @@ httpx>=0.28.0
 nvidia-ml-py>=12.535.133
 aiofiles>=24.1.0
 
-# 智谱AI SDK
-zhipuai>=2.0.0
-
 # HaS Image（YOLO11 微服务 has_image_server.py，端口 8081）
 ultralytics>=8.3.0
 
@@ -35,7 +32,7 @@ ultralytics>=8.3.0
 paddleocr[doc-parser]>=2.7.0
 
 # 工具库
-PyJWT>=2.12.0
+PyJWT>=2.8.0
 passlib[bcrypt]==1.7.4
 
 # 可观测性

@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { authFetch } from '@/services/api-client';
@@ -9,7 +8,15 @@ import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import { safeJson, runVisionDetection } from '../utils';
-import type { FileInfo, Entity, BoundingBox, Stage, UploadResponse, ParseResponse, NerResponse } from '../types';
+import type {
+  FileInfo,
+  Entity,
+  BoundingBox,
+  Stage,
+  UploadResponse,
+  ParseResponse,
+  NerResponse,
+} from '../types';
 
 export interface PendingFile {
   fileId: string;
@@ -54,9 +61,12 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
   // --- Loading elapsed timer ---
   const [loadingElapsedSec, setLoadingElapsedSec] = useState(0);
   useEffect(() => {
-    if (!isLoading) { setLoadingElapsedSec(0); return; }
+    if (!isLoading) {
+      setLoadingElapsedSec(0);
+      return;
+    }
     setLoadingElapsedSec(0);
-    const id = window.setInterval(() => setLoadingElapsedSec(s => s + 1), 1000);
+    const id = window.setInterval(() => setLoadingElapsedSec((s) => s + 1), 1000);
     return () => window.clearInterval(id);
   }, [isLoading]);
 
@@ -136,13 +146,14 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
         if (isImage) {
           const ocrTypes = opts.latestOcrHasTypesRef.current;
           const hiTypes = opts.latestHasImageTypesRef.current;
-          const vLabel = ocrTypes.length > 0 && hiTypes.length > 0
-            ? t('playground.loading.visionHybrid')
-            : ocrTypes.length > 0
-              ? t('playground.loading.visionOcr')
-              : hiTypes.length > 0
-                ? t('playground.loading.visionImage')
-                : t('playground.loading.vision');
+          const vLabel =
+            ocrTypes.length > 0 && hiTypes.length > 0
+              ? t('playground.loading.visionHybrid')
+              : ocrTypes.length > 0
+                ? t('playground.loading.visionOcr')
+                : hiTypes.length > 0
+                  ? t('playground.loading.visionImage')
+                  : t('playground.loading.vision');
           setLoadingMessage(vLabel);
 
           const result = await runVisionDetection(fileId, ocrTypes, hiTypes, signal);
@@ -150,7 +161,10 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
 
           opts.setBoundingBoxes(result.boxes);
           opts.resetImageHistory();
-          showToast(t('playground.toast.detectedRegions').replace('{count}', String(result.boxes.length)), 'success');
+          showToast(
+            t('playground.toast.detectedRegions').replace('{count}', String(result.boxes.length)),
+            'success',
+          );
         } else if (parsedContent) {
           setLoadingMessage(t('playground.loading.text'));
           const nerRes = await authFetch(`/api/v1/files/${fileId}/ner/hybrid`, {
@@ -164,16 +178,23 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
           if (nerRes.ok) {
             const nerData = await safeJson<NerResponse>(nerRes);
             const entitiesWithSource = (nerData.entities || []).map(
-              (e: Record<string, unknown>, idx: number) => ({
-                ...e,
-                id: e.id || `entity_${idx}`,
-                selected: true,
-                source: e.source || 'llm',
-              } as Entity),
+              (e: Record<string, unknown>, idx: number) =>
+                ({
+                  ...e,
+                  id: e.id || `entity_${idx}`,
+                  selected: true,
+                  source: e.source || 'llm',
+                }) as Entity,
             );
             opts.setEntities(entitiesWithSource);
             opts.resetEntityHistory();
-            showToast(t('playground.toast.detectedEntities').replace('{count}', String(entitiesWithSource.length)), 'success');
+            showToast(
+              t('playground.toast.detectedEntities').replace(
+                '{count}',
+                String(entitiesWithSource.length),
+              ),
+              'success',
+            );
           }
         }
         if (signal.aborted) return;

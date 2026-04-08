@@ -16,11 +16,20 @@ export function BatchStep4Review() {
   const w = useBatchWizardContext();
 
   const {
-    doneRows, reviewIndex, reviewFile, reviewLoading, reviewExecuteLoading,
-    reviewFileReadOnly, navigateReviewIndex,
-    reviewDraftSaving, reviewDraftError,
-    reviewedOutputCount, rows, allReviewConfirmed,
-    confirmCurrentReview, advanceToExportStep,
+    doneRows,
+    reviewIndex,
+    reviewFile,
+    reviewLoading,
+    reviewExecuteLoading,
+    reviewFileReadOnly,
+    navigateReviewIndex,
+    reviewDraftSaving,
+    reviewDraftError,
+    reviewedOutputCount,
+    rows,
+    allReviewConfirmed,
+    confirmCurrentReview,
+    advanceToExportStep,
     rerunCurrentItemRecognition: onRerunRecognition,
     rerunRecognitionLoading,
   } = w;
@@ -29,9 +38,7 @@ export function BatchStep4Review() {
     return (
       <Card data-testid="batch-step4-empty">
         <CardContent className="p-6">
-          <p className="text-sm text-muted-foreground">
-            {t('batchWizard.step4.noRecognized')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('batchWizard.step4.noRecognized')}</p>
         </CardContent>
       </Card>
     );
@@ -50,10 +57,7 @@ export function BatchStep4Review() {
   const isImage = reviewFile.isImageMode === true;
 
   return (
-    <Card
-      className="flex-1 flex flex-col min-h-0 overflow-hidden"
-      data-testid="batch-step4-review"
-    >
+    <Card className="flex-1 flex flex-col min-h-0 overflow-hidden" data-testid="batch-step4-review">
       {reviewFileReadOnly && (
         <div className={`shrink-0 border-b px-4 py-2 text-sm ${tonePanelClass.success}`}>
           {t('batchWizard.step4.readOnlyHint')}
@@ -62,7 +66,10 @@ export function BatchStep4Review() {
 
       {/* Toolbar */}
       <div className="shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b bg-muted/30">
-        <span className="text-xs font-semibold truncate max-w-[20rem]" title={reviewFile.original_filename}>
+        <span
+          className="text-xs font-semibold truncate max-w-[20rem]"
+          title={reviewFile.original_filename}
+        >
           {reviewFile.original_filename}
         </span>
 
@@ -132,13 +139,19 @@ export function BatchStep4Review() {
 
         {/* Draft status */}
         {reviewDraftSaving && (
-          <span className="text-xs text-muted-foreground">{t('batchWizard.step4.savingDraft')}</span>
+          <span className="text-xs text-muted-foreground">
+            {t('batchWizard.step4.savingDraft')}
+          </span>
         )}
         {!reviewDraftSaving && reviewDraftError && (
-          <span className="text-xs text-destructive truncate max-w-[10rem]">{reviewDraftError}</span>
+          <span className="text-xs text-destructive truncate max-w-[10rem]">
+            {reviewDraftError}
+          </span>
         )}
         {!reviewDraftSaving && !reviewDraftError && (
-          <span className="text-xs text-[var(--success-foreground)]">{t('batchWizard.step4.draftSynced')}</span>
+          <span className="text-xs text-[var(--success-foreground)]">
+            {t('batchWizard.step4.draftSynced')}
+          </span>
         )}
 
         {/* Right actions */}

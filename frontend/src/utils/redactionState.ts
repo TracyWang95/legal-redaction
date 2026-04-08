@@ -33,7 +33,8 @@ export const REDACTION_STATE_CLASS: Record<RedactionState, string> = {
   unredacted: 'tone-badge-muted',
 };
 
-export const BADGE_BASE = 'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium whitespace-nowrap';
+export const BADGE_BASE =
+  'inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-medium whitespace-nowrap';
 
 export const REDACTION_STATE_RING: Record<RedactionState, string> = {
   redacted: 'ring-[var(--success-border)]',

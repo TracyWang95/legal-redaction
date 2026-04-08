@@ -9,7 +9,17 @@ import { clampPopoverInCanvas } from '../domSelection';
 // which is pure math and can be thoroughly covered.
 
 function rect(x: number, y: number, w: number, h: number): DOMRect {
-  return { x, y, width: w, height: h, left: x, top: y, right: x + w, bottom: y + h, toJSON: () => ({}) } as DOMRect;
+  return {
+    x,
+    y,
+    width: w,
+    height: h,
+    left: x,
+    top: y,
+    right: x + w,
+    bottom: y + h,
+    toJSON: () => ({}),
+  } as DOMRect;
 }
 
 describe('clampPopoverInCanvas', () => {

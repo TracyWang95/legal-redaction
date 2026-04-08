@@ -13,9 +13,7 @@ export function VisionModelTestResult({ testResult }: VisionModelTestResultProps
     <div
       className={cn(
         'mx-5 mb-4 rounded-lg border p-3 text-sm',
-        testResult.success
-          ? tonePanelClass.success
-          : tonePanelClass.danger,
+        testResult.success ? tonePanelClass.success : tonePanelClass.danger,
       )}
     >
       {testResult.success ? '\u2713 ' : '\u2717 '}

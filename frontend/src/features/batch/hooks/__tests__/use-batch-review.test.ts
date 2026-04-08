@@ -68,9 +68,7 @@ const baseCfg: BatchWizardPersistedConfig = {
   executionDefault: 'queue',
 };
 
-const textTypes: TextEntityType[] = [
-  { id: 'TYPE_1', name: 'Name', color: '#0f766e' },
-];
+const textTypes: TextEntityType[] = [{ id: 'TYPE_1', name: 'Name', color: '#0f766e' }];
 
 function makeEntity(id: string, text: string): ReviewEntity {
   return {
@@ -104,12 +102,14 @@ function makeDoneRow(fileId: string): BatchRow {
 const wrapper = ({ children }: { children: React.ReactNode }) =>
   createElement(MemoryRouter, null, children);
 
-function renderUseBatchReview(overrides: {
-  step?: Step;
-  rows?: BatchRow[];
-  activeJobId?: string | null;
-  isPreviewMode?: boolean;
-} = {}) {
+function renderUseBatchReview(
+  overrides: {
+    step?: Step;
+    rows?: BatchRow[];
+    activeJobId?: string | null;
+    isPreviewMode?: boolean;
+  } = {},
+) {
   const itemIdByFileIdRef: MutableRefObject<Record<string, string>> = {
     current: { 'file-1': 'item-1', 'file-2': 'item-2' },
   };
@@ -275,7 +275,7 @@ describe('useBatchReview', () => {
       const { result } = renderUseBatchReview();
 
       act(() => result.current.applyReviewEntities([makeEntity('e1', 'Alice')]));
-      act(() => result.current.applyReviewEntities(prev => [...prev, makeEntity('e2', 'Bob')]));
+      act(() => result.current.applyReviewEntities((prev) => [...prev, makeEntity('e2', 'Bob')]));
 
       expect(result.current.reviewEntities.length).toBe(2);
     });
@@ -322,7 +322,7 @@ describe('useBatchReview', () => {
       // Now undo should restore e1
       act(() => result.current.undoReviewText());
 
-      expect(result.current.reviewEntities.map(e => e.id)).toEqual(['e1']);
+      expect(result.current.reviewEntities.map((e) => e.id)).toEqual(['e1']);
     });
 
     it('redo restores the undone state', () => {
@@ -335,7 +335,7 @@ describe('useBatchReview', () => {
       act(() => result.current.undoReviewText());
       act(() => result.current.redoReviewText());
 
-      expect(result.current.reviewEntities.map(e => e.id)).toEqual(['e2']);
+      expect(result.current.reviewEntities.map((e) => e.id)).toEqual(['e2']);
     });
 
     it('undo with empty stack is a no-op', () => {
@@ -451,7 +451,17 @@ describe('useBatchReview', () => {
   // ── Image bounding box undo / redo ──
 
   describe('image bounding box undo / redo', () => {
-    const makeBox = (id: string): { id: string; x: number; y: number; width: number; height: number; type: string; selected: boolean } => ({
+    const makeBox = (
+      id: string,
+    ): {
+      id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      type: string;
+      selected: boolean;
+    } => ({
       id,
       x: 10,
       y: 20,

@@ -6,7 +6,13 @@ import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { DateFilter, FileTypeFilter, SourceTab, StatusFilter } from '../hooks/use-history';
 
 interface HistoryFiltersProps {
@@ -61,12 +67,8 @@ export function HistoryFilters({
             {t('history.filters.kicker')}
           </span>
           <div className="page-section-heading">
-            <h2 className="page-title text-lg">
-              {t('history.filters.title')}
-            </h2>
-            <p className="page-copy">
-              {t('history.filters.desc')}
-            </p>
+            <h2 className="page-title text-lg">{t('history.filters.title')}</h2>
+            <p className="page-copy">{t('history.filters.desc')}</p>
           </div>
         </div>
 
@@ -102,7 +104,9 @@ export function HistoryFilters({
             className="h-9 rounded-xl px-3"
           >
             <Download data-icon="inline-start" />
-            {zipLoading ? t('history.packing') || 'Preparing...' : t('history.downloadOriginalZip') || 'Original ZIP'}
+            {zipLoading
+              ? t('history.packing') || 'Preparing...'
+              : t('history.downloadOriginalZip') || 'Original ZIP'}
           </Button>
 
           <Button
@@ -114,36 +118,66 @@ export function HistoryFilters({
             className="h-9 rounded-xl px-3"
           >
             <Download data-icon="inline-start" />
-            {zipLoading ? t('history.packing') || 'Preparing...' : t('history.downloadRedactedZip') || 'Redacted ZIP'}
+            {zipLoading
+              ? t('history.packing') || 'Preparing...'
+              : t('history.downloadRedactedZip') || 'Redacted ZIP'}
           </Button>
         </div>
       </div>
 
       <div className="control-cluster">
-        <Tabs value={sourceTab} onValueChange={(value) => onSourceTabChange(value as SourceTab)} data-testid="history-source-tabs">
+        <Tabs
+          value={sourceTab}
+          onValueChange={(value) => onSourceTabChange(value as SourceTab)}
+          data-testid="history-source-tabs"
+        >
           <TabsList className="h-auto rounded-xl border border-border/70 bg-muted/45 p-1">
             <TabsTrigger value="all" className="px-3 py-1.5 text-xs" data-testid="source-tab-all">
               {t('history.tab.all')}
             </TabsTrigger>
-            <TabsTrigger value="playground" className="px-3 py-1.5 text-xs" data-testid="source-tab-playground">
+            <TabsTrigger
+              value="playground"
+              className="px-3 py-1.5 text-xs"
+              data-testid="source-tab-playground"
+            >
               {t('history.tab.playground')}
             </TabsTrigger>
-            <TabsTrigger value="batch" className="px-3 py-1.5 text-xs" data-testid="source-tab-batch">
+            <TabsTrigger
+              value="batch"
+              className="px-3 py-1.5 text-xs"
+              data-testid="source-tab-batch"
+            >
               {t('history.tab.batch')}
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <Tabs value={dateFilter} onValueChange={(value) => onDateFilterChange(value as DateFilter)} data-testid="history-date-filter">
+        <Tabs
+          value={dateFilter}
+          onValueChange={(value) => onDateFilterChange(value as DateFilter)}
+          data-testid="history-date-filter"
+        >
           <TabsList className="h-auto rounded-xl border border-border/70 bg-muted/45 p-1">
-            <TabsTrigger value="all" className="px-3 py-1.5 text-xs">{t('history.filter.all')}</TabsTrigger>
-            <TabsTrigger value="7d" className="px-3 py-1.5 text-xs">{t('history.filter.last7d')}</TabsTrigger>
-            <TabsTrigger value="30d" className="px-3 py-1.5 text-xs">{t('history.filter.last30d')}</TabsTrigger>
+            <TabsTrigger value="all" className="px-3 py-1.5 text-xs">
+              {t('history.filter.all')}
+            </TabsTrigger>
+            <TabsTrigger value="7d" className="px-3 py-1.5 text-xs">
+              {t('history.filter.last7d')}
+            </TabsTrigger>
+            <TabsTrigger value="30d" className="px-3 py-1.5 text-xs">
+              {t('history.filter.last30d')}
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <Select value={fileTypeFilter} onValueChange={(value) => onFileTypeFilterChange(value as FileTypeFilter)}>
-          <SelectTrigger className="h-10 min-w-[118px] rounded-xl text-xs" data-testid="history-type-filter">
+        <Select
+          value={fileTypeFilter}
+          onValueChange={(value) => onFileTypeFilterChange(value as FileTypeFilter)}
+        >
+          <SelectTrigger
+            className="h-10 min-w-[118px] rounded-xl text-xs"
+            data-testid="history-type-filter"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -154,8 +188,14 @@ export function HistoryFilters({
           </SelectContent>
         </Select>
 
-        <Select value={statusFilter} onValueChange={(value) => onStatusFilterChange(value as StatusFilter)}>
-          <SelectTrigger className="h-10 min-w-[138px] rounded-xl text-xs" data-testid="history-status-filter">
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => onStatusFilterChange(value as StatusFilter)}
+        >
+          <SelectTrigger
+            className="h-10 min-w-[138px] rounded-xl text-xs"
+            data-testid="history-status-filter"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -167,7 +207,13 @@ export function HistoryFilters({
         </Select>
 
         {hasActiveFilter && (
-          <Button variant="ghost" size="sm" className="h-10 rounded-xl px-3 text-xs" onClick={onClearFilters} data-testid="clear-filters">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-10 rounded-xl px-3 text-xs"
+            onClick={onClearFilters}
+            data-testid="clear-filters"
+          >
             {t('history.clearFilter')}
           </Button>
         )}

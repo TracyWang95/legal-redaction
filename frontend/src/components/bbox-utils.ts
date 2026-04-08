@@ -21,20 +21,12 @@ export interface DisplaySize {
 }
 
 /** Convert a normalised [0,1] value to pixel distance. */
-export function toPixel(
-  normalized: number,
-  dimension: 'x' | 'y',
-  display: DisplaySize,
-): number {
+export function toPixel(normalized: number, dimension: 'x' | 'y', display: DisplaySize): number {
   return normalized * (dimension === 'x' ? display.width : display.height);
 }
 
 /** Convert a pixel distance to normalised [0,1] value. */
-export function toNormalized(
-  pixel: number,
-  dimension: 'x' | 'y',
-  display: DisplaySize,
-): number {
+export function toNormalized(pixel: number, dimension: 'x' | 'y', display: DisplaySize): number {
   const size = dimension === 'x' ? display.width : display.height;
   return size > 0 ? pixel / size : 0;
 }
@@ -127,10 +119,7 @@ export function computeResize(
 /* ------------------------------------------------------------------ */
 
 /** Compute the scale that makes `natural` fit inside `viewport` (contain). */
-export function computeFitScale(
-  natural: DisplaySize,
-  viewport: DisplaySize,
-): number {
+export function computeFitScale(natural: DisplaySize, viewport: DisplaySize): number {
   if (natural.width <= 0 || natural.height <= 0) return 0;
   if (viewport.width <= 0 || viewport.height <= 0) return 0;
   return Math.min(viewport.width / natural.width, viewport.height / natural.height);

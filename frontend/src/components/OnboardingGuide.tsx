@@ -26,7 +26,11 @@ export function OnboardingGuide() {
     { title: t('onboarding.step1.title'), description: t('onboarding.step1.desc'), icon: Sparkles },
     { title: t('onboarding.step2.title'), description: t('onboarding.step2.desc'), icon: Upload },
     { title: t('onboarding.step3.title'), description: t('onboarding.step3.desc'), icon: ScanText },
-    { title: t('onboarding.step4.title'), description: t('onboarding.step4.desc'), icon: ShieldCheck },
+    {
+      title: t('onboarding.step4.title'),
+      description: t('onboarding.step4.desc'),
+      icon: ShieldCheck,
+    },
     { title: t('onboarding.step5.title'), description: t('onboarding.step5.desc'), icon: Layers3 },
   ];
 
@@ -49,7 +53,12 @@ export function OnboardingGuide() {
   const Icon = current.icon;
 
   return (
-    <Dialog open={show} onOpenChange={(nextOpen) => { if (!nextOpen) finish(); }}>
+    <Dialog
+      open={show}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) finish();
+      }}
+    >
       <DialogContent
         className="w-full max-w-lg overflow-hidden rounded-[28px] p-0 [&>button]:hidden"
         aria-labelledby="onboarding-title"
@@ -82,12 +91,13 @@ export function OnboardingGuide() {
               <Icon className="h-5 w-5" />
             </div>
             <div className="space-y-3">
-              <h2 id="onboarding-title" className="text-xl font-semibold tracking-[-0.03em] text-foreground">
+              <h2
+                id="onboarding-title"
+                className="text-xl font-semibold tracking-[-0.03em] text-foreground"
+              >
                 {current.title}
               </h2>
-              <p className="text-sm leading-7 text-muted-foreground">
-                {current.description}
-              </p>
+              <p className="text-sm leading-7 text-muted-foreground">{current.description}</p>
             </div>
           </div>
 

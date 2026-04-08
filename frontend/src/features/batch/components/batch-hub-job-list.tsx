@@ -25,18 +25,11 @@ export function BatchHubJobList({ jobs, loading, onContinue, footer }: BatchHubJ
   const t = useT();
 
   return (
-    <Card
-      className={cn('page-surface min-h-[12.5rem] flex-1')}
-      data-testid="recent-jobs-card"
-    >
+    <Card className={cn('page-surface min-h-[12.5rem] flex-1')} data-testid="recent-jobs-card">
       <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
         <div>
-          <CardTitle className="text-sm font-semibold">
-            {t('batchHub.recentTitle')}
-          </CardTitle>
-          <CardDescription className="text-xs mt-0.5">
-            {t('batchHub.recentDesc')}
-          </CardDescription>
+          <CardTitle className="text-sm font-semibold">{t('batchHub.recentTitle')}</CardTitle>
+          <CardDescription className="text-xs mt-0.5">{t('batchHub.recentDesc')}</CardDescription>
         </div>
         <Button variant="link" size="sm" asChild className="text-xs px-0">
           <Link to="/jobs">{t('batchHub.jobCenter')}</Link>
@@ -59,12 +52,7 @@ export function BatchHubJobList({ jobs, loading, onContinue, footer }: BatchHubJ
         ) : (
           <ul className="flex min-h-0 flex-1 flex-col divide-y pb-3" data-testid="recent-jobs-list">
             {jobs.map((job) => (
-              <JobRow
-                key={job.id}
-                job={job}
-                onContinue={onContinue}
-                t={t}
-              />
+              <JobRow key={job.id} job={job} onContinue={onContinue} t={t} />
             ))}
           </ul>
         )}
@@ -74,7 +62,15 @@ export function BatchHubJobList({ jobs, loading, onContinue, footer }: BatchHubJ
   );
 }
 
-function JobRow({ job, onContinue, t }: { job: JobSummary; onContinue: (job: JobSummary) => void; t: (key: string) => string }) {
+function JobRow({
+  job,
+  onContinue,
+  t,
+}: {
+  job: JobSummary;
+  onContinue: (job: JobSummary) => void;
+  t: (key: string) => string;
+}) {
   const primary = resolveJobPrimaryNavigation({
     jobId: job.id,
     status: job.status,

@@ -46,14 +46,16 @@ export function VisionModelDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={nextOpen => {
+      onOpenChange={(nextOpen) => {
         if (!nextOpen) onClose();
       }}
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {editingId ? t('settings.visionModel.dialog.editTitle') : t('settings.visionModel.dialog.createTitle')}
+            {editingId
+              ? t('settings.visionModel.dialog.editTitle')
+              : t('settings.visionModel.dialog.createTitle')}
           </DialogTitle>
           <DialogDescription>{t('settings.visionModel.dialog.desc')}</DialogDescription>
         </DialogHeader>
@@ -63,7 +65,7 @@ export function VisionModelDialog({
             <Label>{t('settings.visionModel.nameLabel')} *</Label>
             <Input
               value={form.name ?? ''}
-              onChange={e => onUpdateForm({ name: e.target.value })}
+              onChange={(e) => onUpdateForm({ name: e.target.value })}
               placeholder={t('settings.visionModel.namePlaceholder')}
               data-testid="vision-model-name"
             />
@@ -73,7 +75,9 @@ export function VisionModelDialog({
             <Label>{t('settings.visionModel.providerLabel')} *</Label>
             <Select
               value={form.provider ?? 'local'}
-              onValueChange={value => onUpdateForm({ provider: value as ModelConfig['provider'] })}
+              onValueChange={(value) =>
+                onUpdateForm({ provider: value as ModelConfig['provider'] })
+              }
             >
               <SelectTrigger data-testid="vision-model-provider">
                 <SelectValue />
@@ -90,21 +94,25 @@ export function VisionModelDialog({
             <Label>{t('settings.visionModel.modelLabel')} *</Label>
             <Input
               value={form.model_name ?? ''}
-              onChange={e => onUpdateForm({ model_name: e.target.value })}
+              onChange={(e) => onUpdateForm({ model_name: e.target.value })}
               className="font-mono text-sm"
               placeholder={form.provider === 'local' ? 'HaS-Image-YOLO11' : 'gpt-4-vision-preview'}
               data-testid="vision-model-model-name"
             />
           </div>
 
-          {(form.provider === 'local' || form.provider === 'openai' || form.provider === 'custom') && (
+          {(form.provider === 'local' ||
+            form.provider === 'openai' ||
+            form.provider === 'custom') && (
             <div className="space-y-1.5">
               <Label>{t('settings.visionModel.baseUrlLabel')}</Label>
               <Input
                 value={form.base_url ?? ''}
-                onChange={e => onUpdateForm({ base_url: e.target.value })}
+                onChange={(e) => onUpdateForm({ base_url: e.target.value })}
                 className="font-mono text-sm"
-                placeholder={form.provider === 'local' ? 'http://127.0.0.1:8081' : 'https://api.openai.com'}
+                placeholder={
+                  form.provider === 'local' ? 'http://127.0.0.1:8081' : 'https://api.openai.com'
+                }
                 data-testid="vision-model-base-url"
               />
             </div>
@@ -116,7 +124,7 @@ export function VisionModelDialog({
               <Input
                 type="password"
                 value={form.api_key ?? ''}
-                onChange={e => onUpdateForm({ api_key: e.target.value })}
+                onChange={(e) => onUpdateForm({ api_key: e.target.value })}
                 className="font-mono text-sm"
                 placeholder="sk-..."
                 data-testid="vision-model-api-key"
@@ -135,7 +143,7 @@ export function VisionModelDialog({
                   min={0}
                   max={2}
                   value={form.temperature ?? 0.8}
-                  onChange={e => onUpdateForm({ temperature: parseFloat(e.target.value) })}
+                  onChange={(e) => onUpdateForm({ temperature: parseFloat(e.target.value) })}
                   data-testid="vision-model-temp"
                 />
               </div>
@@ -147,7 +155,7 @@ export function VisionModelDialog({
                   min={0}
                   max={1}
                   value={form.top_p ?? 0.6}
-                  onChange={e => onUpdateForm({ top_p: parseFloat(e.target.value) })}
+                  onChange={(e) => onUpdateForm({ top_p: parseFloat(e.target.value) })}
                   data-testid="vision-model-top-p"
                 />
               </div>
@@ -159,7 +167,7 @@ export function VisionModelDialog({
                   min={1}
                   max={32768}
                   value={form.max_tokens ?? 4096}
-                  onChange={e => onUpdateForm({ max_tokens: parseInt(e.target.value, 10) })}
+                  onChange={(e) => onUpdateForm({ max_tokens: parseInt(e.target.value, 10) })}
                   data-testid="vision-model-max-tokens"
                 />
               </div>
@@ -168,15 +176,20 @@ export function VisionModelDialog({
 
           <div className="flex items-center gap-3">
             <Switch
-              checked={editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (form.enabled ?? true)}
+              checked={
+                editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (form.enabled ?? true)
+              }
               disabled={Boolean(editingId && BUILTIN_VISION_IDS.has(editingId))}
-              onCheckedChange={checked => onUpdateForm({ enabled: checked })}
+              onCheckedChange={(checked) => onUpdateForm({ enabled: checked })}
               data-testid="vision-model-enabled"
             />
             <Label>
               {t('settings.visionModel.enabledLabel')}
               {editingId && BUILTIN_VISION_IDS.has(editingId) && (
-                <span className="text-muted-foreground"> {t('settings.visionModel.enabledBuiltinHint')}</span>
+                <span className="text-muted-foreground">
+                  {' '}
+                  {t('settings.visionModel.enabledBuiltinHint')}
+                </span>
               )}
             </Label>
           </div>
@@ -185,7 +198,7 @@ export function VisionModelDialog({
             <Label>{t('settings.visionModel.notesLabel')}</Label>
             <Textarea
               value={form.description ?? ''}
-              onChange={e => onUpdateForm({ description: e.target.value })}
+              onChange={(e) => onUpdateForm({ description: e.target.value })}
               rows={2}
               placeholder={t('settings.visionModel.notesPlaceholder')}
               data-testid="vision-model-desc"
@@ -194,11 +207,7 @@ export function VisionModelDialog({
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            data-testid="vision-model-cancel"
-          >
+          <Button variant="outline" onClick={onClose} data-testid="vision-model-cancel">
             {t('settings.cancel')}
           </Button>
           <Button

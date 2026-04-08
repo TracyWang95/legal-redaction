@@ -19,7 +19,13 @@ import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
-const DELETABLE_STATUSES = new Set(['draft', 'awaiting_review', 'completed', 'failed', 'cancelled']);
+const DELETABLE_STATUSES = new Set([
+  'draft',
+  'awaiting_review',
+  'completed',
+  'failed',
+  'cancelled',
+]);
 const ACTIVE_STATUSES = new Set(['queued', 'running', 'redacting', 'processing']);
 
 export { PAGE_SIZE_OPTIONS, ACTIVE_STATUSES };
@@ -30,17 +36,23 @@ export function canDeleteJob(status: string): boolean {
 
 function jobsPollSignature(jobs: JobSummary[]): string {
   return jobs
-    .map(job => {
+    .map((job) => {
       const ids = job.config?.entity_type_ids;
       const entityTypes =
         Array.isArray(ids) && ids.every((x): x is string => typeof x === 'string')
           ? [...ids].sort().join(',')
           : '';
       return [
-        job.id, job.status, job.updated_at, job.title ?? '',
-        job.progress.total_items, job.progress.awaiting_review,
-        job.progress.completed, job.progress.failed,
-        job.nav_hints?.item_count ?? '', job.nav_hints?.wizard_furthest_step ?? '',
+        job.id,
+        job.status,
+        job.updated_at,
+        job.title ?? '',
+        job.progress.total_items,
+        job.progress.awaiting_review,
+        job.progress.completed,
+        job.progress.failed,
+        job.nav_hints?.item_count ?? '',
+        job.nav_hints?.wizard_furthest_step ?? '',
         job.nav_hints?.batch_step1_configured === true ? '1' : '0',
         job.nav_hints?.first_awaiting_review_item_id ?? '',
         entityTypes,
@@ -88,7 +100,9 @@ export function buildProgressSummary(
   ].filter((part): part is string => Boolean(part));
 
   if (parts.length === 0) {
-    return finishedCount > 0 ? t('jobs.completedCount').replace('{n}', String(finishedCount)) : t('jobs.waitingProcessing');
+    return finishedCount > 0
+      ? t('jobs.completedCount').replace('{n}', String(finishedCount))
+      : t('jobs.waitingProcessing');
   }
   return parts.slice(0, 3).join(' \u00b7');
 }
@@ -124,7 +138,11 @@ export function useJobs() {
       setErr(null);
       try {
         const jobType = tab === 'all' ? undefined : tab;
-        let result = await listJobs({ job_type: jobType, page: targetPage, page_size: targetPageSize });
+        let result = await listJobs({
+          job_type: jobType,
+          page: targetPage,
+          page_size: targetPageSize,
+        });
         result = {
           ...result,
           jobs: Array.isArray(result?.jobs) ? result.jobs : [],
@@ -134,7 +152,11 @@ export function useJobs() {
         };
         const resolvedTotalPages = Math.max(1, Math.ceil(result.total / result.page_size));
         if (targetPage > resolvedTotalPages && result.total > 0) {
-          result = await listJobs({ job_type: jobType, page: resolvedTotalPages, page_size: targetPageSize });
+          result = await listJobs({
+            job_type: jobType,
+            page: resolvedTotalPages,
+            page_size: targetPageSize,
+          });
           result = {
             ...result,
             jobs: Array.isArray(result?.jobs) ? result.jobs : [],
@@ -143,10 +165,12 @@ export function useJobs() {
             page_size: typeof result?.page_size === 'number' ? result.page_size : targetPageSize,
           };
         }
-        setRows(prev => (jobsPollSignature(prev) === jobsPollSignature(result.jobs) ? prev : result.jobs));
-        setTotal(prev => (prev === result.total ? prev : result.total));
-        setPage(prev => (prev === result.page ? prev : result.page));
-        setPageSize(prev => (prev === result.page_size ? prev : result.page_size));
+        setRows((prev) =>
+          jobsPollSignature(prev) === jobsPollSignature(result.jobs) ? prev : result.jobs,
+        );
+        setTotal((prev) => (prev === result.total ? prev : result.total));
+        setPage((prev) => (prev === result.page ? prev : result.page));
+        setPageSize((prev) => (prev === result.page_size ? prev : result.page_size));
         return result;
       } catch (error) {
         setErr(localizeErrorMessage(error, 'jobs.loadFailed'));
@@ -168,59 +192,77 @@ export function useJobs() {
   const fetchJobDetails = useCallback(async (jobIds: string[]) => {
     const ids = [...new Set(jobIds)].filter(Boolean);
     if (ids.length === 0) return;
-    setDetailLoadingIds(prev => {
+    setDetailLoadingIds((prev) => {
       const next = new Set(prev);
-      ids.forEach(id => next.add(id));
+      ids.forEach((id) => next.add(id));
       return next;
     });
-    const results = await Promise.allSettled(ids.map(async id => ({ id, detail: await getJob(id) })));
+    const results = await Promise.allSettled(
+      ids.map(async (id) => ({ id, detail: await getJob(id) })),
+    );
     const patch: Record<string, JobDetail> = {};
     let firstError: string | null = null;
-    results.forEach(result => {
+    results.forEach((result) => {
       if (result.status === 'fulfilled') patch[result.value.id] = result.value.detail;
       else if (!firstError) firstError = localizeErrorMessage(result.reason, 'jobs.expandFailed');
     });
     if (Object.keys(patch).length > 0) {
-      setJobDetails(prev => ({ ...prev, ...patch }));
-      setRows(prev =>
+      setJobDetails((prev) => ({ ...prev, ...patch }));
+      setRows((prev) =>
         prev.map((job): JobSummary => {
           const detail = patch[job.id];
           if (!detail?.items) return job;
-          let r = 0, a = 0;
+          let r = 0,
+            a = 0;
           for (const it of detail.items) {
             if (it.has_output) r++;
             else if (['awaiting_review', 'review_approved', 'completed'].includes(it.status)) a++;
           }
           return {
             ...job,
-            nav_hints: { ...job.nav_hints, redacted_count: r, awaiting_review_count: a } as JobSummary['nav_hints'],
+            nav_hints: {
+              ...job.nav_hints,
+              redacted_count: r,
+              awaiting_review_count: a,
+            } as JobSummary['nav_hints'],
           };
         }),
       );
     }
     if (firstError) setErr(firstError);
-    setDetailLoadingIds(prev => {
+    setDetailLoadingIds((prev) => {
       const next = new Set(prev);
-      ids.forEach(id => next.delete(id));
+      ids.forEach((id) => next.delete(id));
       return next;
     });
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useEffect(() => {
-    const hasActiveJobs = rows.some(j => !['completed', 'failed', 'cancelled', 'draft'].includes(j.status));
+    const hasActiveJobs = rows.some(
+      (j) => !['completed', 'failed', 'cancelled', 'draft'].includes(j.status),
+    );
     if (!hasActiveJobs) return;
-    const tick = () => { if (document.visibilityState === 'visible') void load(); };
+    const tick = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
     const timer = setInterval(tick, JOBS_LIST_POLL_MS);
     document.addEventListener('visibilitychange', tick);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [rows, load]);
 
   const refreshList = useCallback(async () => {
     const result = await load({ targetPage: page });
     if (!result) return;
-    const expandedVisibleIds = [...expandedJobIds].filter(id => result.jobs.some(job => job.id === id));
+    const expandedVisibleIds = [...expandedJobIds].filter((id) =>
+      result.jobs.some((job) => job.id === id),
+    );
     if (expandedVisibleIds.length > 0) await fetchJobDetails(expandedVisibleIds);
   }, [expandedJobIds, fetchJobDetails, load, page]);
 
@@ -250,51 +292,60 @@ export function useJobs() {
       const itemCount = job.nav_hints?.item_count ?? job.progress.total_items;
       if (itemCount <= 0) return;
       const opening = !expandedJobIds.has(job.id);
-      setExpandedJobIds(prev => {
+      setExpandedJobIds((prev) => {
         const next = new Set(prev);
         if (opening) next.add(job.id);
         else next.delete(job.id);
         return next;
       });
-      if (opening && !jobDetails[job.id] && !detailLoadingIds.has(job.id)) await fetchJobDetails([job.id]);
+      if (opening && !jobDetails[job.id] && !detailLoadingIds.has(job.id))
+        await fetchJobDetails([job.id]);
     },
     [detailLoadingIds, expandedJobIds, fetchJobDetails, jobDetails],
   );
 
-  const requestDelete = useCallback((job: JobSummary) => {
-    if (!canDeleteJob(job.status) || deletingJobId) return;
-    setDeleteCandidate(job);
-  }, [deletingJobId]);
+  const requestDelete = useCallback(
+    (job: JobSummary) => {
+      if (!canDeleteJob(job.status) || deletingJobId) return;
+      setDeleteCandidate(job);
+    },
+    [deletingJobId],
+  );
 
   const cancelDelete = useCallback(() => {
     setDeleteCandidate(null);
   }, []);
 
-  const confirmDelete = useCallback(
-    async () => {
-      if (!deleteCandidate || deletingJobId) return;
-      const job = deleteCandidate;
-      const title = job.title?.trim() || t('jobs.unnamedTask');
-      setDeleteCandidate(null);
-      setDeletingJobId(job.id);
-      setNotice(null);
-      setErr(null);
-      try {
-        await deleteJob(job.id);
-        setExpandedJobIds(prev => { const next = new Set(prev); next.delete(job.id); return next; });
-        setJobDetails(prev => { const next = { ...prev }; delete next[job.id]; return next; });
-        setNotice(t('jobs.deletedNotice').replace('{title}', title));
-        const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
-        if (nextPage !== page) setPage(nextPage);
-        else await refreshList();
-      } catch (e) {
-        setErr(localizeErrorMessage(e, 'jobs.deleteFailed'));
-      } finally {
-        setDeletingJobId(null);
-      }
-    },
-    [deleteCandidate, deletingJobId, page, refreshList, rows.length],
-  );
+  const confirmDelete = useCallback(async () => {
+    if (!deleteCandidate || deletingJobId) return;
+    const job = deleteCandidate;
+    const title = job.title?.trim() || t('jobs.unnamedTask');
+    setDeleteCandidate(null);
+    setDeletingJobId(job.id);
+    setNotice(null);
+    setErr(null);
+    try {
+      await deleteJob(job.id);
+      setExpandedJobIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+      setJobDetails((prev) => {
+        const next = { ...prev };
+        delete next[job.id];
+        return next;
+      });
+      setNotice(t('jobs.deletedNotice').replace('{title}', title));
+      const nextPage = rows.length === 1 && page > 1 ? page - 1 : page;
+      if (nextPage !== page) setPage(nextPage);
+      else await refreshList();
+    } catch (e) {
+      setErr(localizeErrorMessage(e, 'jobs.deleteFailed'));
+    } finally {
+      setDeletingJobId(null);
+    }
+  }, [deleteCandidate, deletingJobId, page, refreshList, rows.length]);
 
   const onRequeueFailed = useCallback(
     async (job: JobSummary) => {
@@ -355,13 +406,40 @@ export function useJobs() {
   );
 
   return {
+    tab,
+    rows: visibleRows,
+    total,
+    page,
+    pageSize,
+    jumpPage,
+    loading,
+    refreshing,
+    cleanupConfirmOpen,
+    err,
+    notice,
+    deletingJobId,
+    deleteCandidate,
+    expandedJobIds,
+    jobDetails,
+    detailLoadingIds,
+    requeueingJobId,
+    totalPages,
+    tableBusy,
+    rangeStart,
+    rangeEnd,
+    pageMetrics,
 
-    tab, rows: visibleRows, total, page, pageSize, jumpPage, loading, refreshing,
-    cleanupConfirmOpen, err, notice, deletingJobId, deleteCandidate, expandedJobIds, jobDetails,
-    detailLoadingIds, requeueingJobId, totalPages, tableBusy, rangeStart, rangeEnd, pageMetrics,
-
-    changeTab, refreshList, goPage, changePageSize, setJumpPage,
-    toggleExpand, requestDelete, cancelDelete, confirmDelete, onRequeueFailed, onCleanup,
+    changeTab,
+    refreshList,
+    goPage,
+    changePageSize,
+    setJumpPage,
+    toggleExpand,
+    requestDelete,
+    cancelDelete,
+    confirmDelete,
+    onRequeueFailed,
+    onCleanup,
     setCleanupConfirmOpen,
   };
 }

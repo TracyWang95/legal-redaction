@@ -1,8 +1,13 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
-import type { ParseResult, NERResult, VisionResult, RedactionResult, RedactionRequest } from '../types';
+import type {
+  ParseResult,
+  NERResult,
+  VisionResult,
+  RedactionResult,
+  RedactionRequest,
+} from '../types';
 import { get, post, BATCH_TIMEOUT } from './api-client';
 
 export async function batchParse(fileId: string, signal?: AbortSignal): Promise<ParseResult> {
@@ -12,7 +17,7 @@ export async function batchParse(fileId: string, signal?: AbortSignal): Promise<
 export async function batchHybridNer(
   fileId: string,
   body: { entity_type_ids: string[] },
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<NERResult> {
   return post<NERResult>(`/files/${fileId}/ner/hybrid`, body, { signal, timeout: BATCH_TIMEOUT });
 }
@@ -22,13 +27,16 @@ export async function batchVision(
   page: number,
   selectedOcrHasTypes: string[],
   selectedHasImageTypes: string[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<VisionResult> {
   const data = {
     selected_ocr_has_types: selectedOcrHasTypes,
     selected_has_image_types: selectedHasImageTypes,
   };
-  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, { signal, timeout: BATCH_TIMEOUT });
+  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, {
+    signal,
+    timeout: BATCH_TIMEOUT,
+  });
 }
 
 export async function batchGetFileRaw(fileId: string): Promise<Record<string, unknown>> {
@@ -60,7 +68,7 @@ export async function batchPreviewImage(body: {
     {
       bounding_boxes: body.bounding_boxes,
       config: body.config,
-    }
+    },
   );
   return data.image_base64 ?? '';
 }
@@ -99,7 +107,6 @@ export function batchWizardStorageKey(mode: BatchWizardMode): string {
   return `batchWizard:config:v1:${mode}`;
 }
 
-
 export interface BatchWizardPersistedConfig {
   selectedEntityTypeIds: string[];
   ocrHasTypes: string[];
@@ -119,7 +126,9 @@ export interface BatchWizardPersistedConfig {
   executionDefault?: 'queue' | 'local';
 }
 
-export function loadBatchWizardConfig(mode: BatchWizardMode = 'text'): BatchWizardPersistedConfig | null {
+export function loadBatchWizardConfig(
+  mode: BatchWizardMode = 'text',
+): BatchWizardPersistedConfig | null {
   try {
     const key = batchWizardStorageKey(mode);
     let s = sessionStorage.getItem(key);
@@ -136,22 +145,29 @@ export function loadBatchWizardConfig(mode: BatchWizardMode = 'text'): BatchWiza
     }
     if (!s) return null;
     const raw = JSON.parse(s) as Record<string, unknown>;
-    const legacy = raw.glmVisionTypes as string[] | undefined;
-    const hasImageTypes = (raw.hasImageTypes as string[] | undefined) ?? legacy ?? [];
+    const hasImageTypes = (raw.hasImageTypes as string[] | undefined) ?? [];
     const base = raw as unknown as BatchWizardPersistedConfig;
     const legacyPid = (raw.presetId as string | null | undefined) ?? null;
     return {
       ...base,
       hasImageTypes,
-      presetTextId: (raw.presetTextId as string | null | undefined) ?? (legacyPid ?? base.presetTextId ?? null),
-      presetVisionId: (raw.presetVisionId as string | null | undefined) ?? (legacyPid ?? base.presetVisionId ?? null),
+      presetTextId:
+        (raw.presetTextId as string | null | undefined) ?? legacyPid ?? base.presetTextId ?? null,
+      presetVisionId:
+        (raw.presetVisionId as string | null | undefined) ??
+        legacyPid ??
+        base.presetVisionId ??
+        null,
     };
   } catch {
     return null;
   }
 }
 
-export function saveBatchWizardConfig(c: BatchWizardPersistedConfig, mode: BatchWizardMode = 'text'): void {
+export function saveBatchWizardConfig(
+  c: BatchWizardPersistedConfig,
+  mode: BatchWizardMode = 'text',
+): void {
   try {
     sessionStorage.setItem(batchWizardStorageKey(mode), JSON.stringify(c));
   } catch {

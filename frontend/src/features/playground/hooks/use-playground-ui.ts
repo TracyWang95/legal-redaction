@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
@@ -40,7 +39,11 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   const t = useT();
 
   // --- Selection state ---
-  const [selectedText, setSelectedText] = useState<{ text: string; start: number; end: number } | null>(null);
+  const [selectedText, setSelectedText] = useState<{
+    text: string;
+    start: number;
+    end: number;
+  } | null>(null);
   const [selectionPos, setSelectionPos] = useState<{ left: number; top: number } | null>(null);
   const [selectedTypeId, setSelectedTypeId] = useState('');
   const [selectedOverlapIds, setSelectedOverlapIds] = useState<string[]>([]);
@@ -99,14 +102,15 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
 
     const offsets = getSelectionOffsets(range, contentRef.current);
     const start = offsets?.start ?? content.indexOf(text);
-    const end = offsets?.end ?? (start + text.length);
+    const end = offsets?.end ?? start + text.length;
     if (start < 0 || end < 0) {
       clearTextSelection();
       return;
     }
 
-    const overlaps = entities.filter((entity) =>
-      (entity.start <= start && entity.end > start) || (entity.start < end && entity.end >= end),
+    const overlaps = entities.filter(
+      (entity) =>
+        (entity.start <= start && entity.end > start) || (entity.start < end && entity.end >= end),
     );
 
     try {
@@ -120,13 +124,26 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
     if (overlaps.length > 0) {
       setSelectedTypeId(overlaps[0].type);
     } else if (!selectedTypeId) {
-      const fallbackType = entityTypes.find((entityType) => selectedTypes.includes(entityType.id))?.id || entityTypes[0]?.id;
+      const fallbackType =
+        entityTypes.find((entityType) => selectedTypes.includes(entityType.id))?.id ||
+        entityTypes[0]?.id;
       if (fallbackType) setSelectedTypeId(fallbackType);
     }
 
     setSelectionPos(null);
     setSelectedText({ text, start, end });
-  }, [clearTextSelection, clickedEntity, content, entities, entityTypes, isImageMode, selectedText, selectedTypeId, selectedTypes, selectionPos]);
+  }, [
+    clearTextSelection,
+    clickedEntity,
+    content,
+    entities,
+    entityTypes,
+    isImageMode,
+    selectedText,
+    selectedTypeId,
+    selectedTypes,
+    selectionPos,
+  ]);
 
   // --- Selection popover position tracking ---
   useLayoutEffect(() => {
@@ -190,7 +207,14 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
       }
 
       if (!element) return;
-      setEntityPopupPos(clampPopoverInCanvas(element.getBoundingClientRect(), root.getBoundingClientRect(), 240, 120));
+      setEntityPopupPos(
+        clampPopoverInCanvas(
+          element.getBoundingClientRect(),
+          root.getBoundingClientRect(),
+          240,
+          120,
+        ),
+      );
     };
 
     update();
@@ -205,34 +229,45 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   }, [clickedEntity]);
 
   // --- Manual entity add ---
-  const addManualEntity = useCallback((typeId: string) => {
-    if (!selectedText) return;
+  const addManualEntity = useCallback(
+    (typeId: string) => {
+      if (!selectedText) return;
 
-    const newEntity: Entity = {
-      id: `manual_${Date.now()}`,
-      text: selectedText.text,
-      type: typeId,
-      start: selectedText.start,
-      end: selectedText.end,
-      selected: true,
-      source: 'manual',
-    };
+      const newEntity: Entity = {
+        id: `manual_${Date.now()}`,
+        text: selectedText.text,
+        type: typeId,
+        start: selectedText.start,
+        end: selectedText.end,
+        selected: true,
+        source: 'manual',
+      };
 
-    const nextEntities = entities
-      .filter((entity) => !selectedOverlapIds.includes(entity.id))
-      .concat(newEntity)
-      .sort((left, right) => left.start - right.start);
+      const nextEntities = entities
+        .filter((entity) => !selectedOverlapIds.includes(entity.id))
+        .concat(newEntity)
+        .sort((left, right) => left.start - right.start);
 
-    applyEntities(nextEntities);
-    showToast(
-      selectedOverlapIds.length > 0
-        ? t('playground.toast.updated')
-        : t('playground.toast.added').replace('{name}', getTypeConfig(typeId).name),
-      'success',
-    );
-    clearTextSelection();
-    window.getSelection()?.removeAllRanges();
-  }, [applyEntities, clearTextSelection, entities, getTypeConfig, selectedOverlapIds, selectedText, t]);
+      applyEntities(nextEntities);
+      showToast(
+        selectedOverlapIds.length > 0
+          ? t('playground.toast.updated')
+          : t('playground.toast.added').replace('{name}', getTypeConfig(typeId).name),
+        'success',
+      );
+      clearTextSelection();
+      window.getSelection()?.removeAllRanges();
+    },
+    [
+      applyEntities,
+      clearTextSelection,
+      entities,
+      getTypeConfig,
+      selectedOverlapIds,
+      selectedText,
+      t,
+    ],
+  );
 
   // --- Remove selected entities ---
   const removeSelectedEntities = useCallback(() => {
@@ -244,12 +279,15 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
   }, [applyEntities, clearTextSelection, entities, selectedOverlapIds, t]);
 
   // --- Handle entity click ---
-  const handleEntityClick = useCallback((entity: Entity, event: ReactMouseEvent) => {
-    event.stopPropagation();
-    clearTextSelection();
-    setClickedEntity(entity);
-    setSelectedTypeId(entity.type);
-  }, [clearTextSelection]);
+  const handleEntityClick = useCallback(
+    (entity: Entity, event: ReactMouseEvent) => {
+      event.stopPropagation();
+      clearTextSelection();
+      setClickedEntity(entity);
+      setSelectedTypeId(entity.type);
+    },
+    [clearTextSelection],
+  );
 
   // --- Confirm remove entity ---
   const confirmRemoveEntity = useCallback(() => {

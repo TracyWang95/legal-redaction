@@ -94,14 +94,19 @@ function BatchStep1PreviewCardsInner({
         />
       </div>
 
-      <Dialog open={previewDialog !== null} onOpenChange={(open) => !open && setPreviewDialog(null)}>
+      <Dialog
+        open={previewDialog !== null}
+        onOpenChange={(open) => !open && setPreviewDialog(null)}
+      >
         {previewDialogConfig ? (
           <DialogContent className="max-w-5xl gap-0 overflow-hidden border-border/70 bg-[var(--surface-overlay)] p-0">
             <DialogHeader className="border-b border-border/70 px-6 pb-4 pt-6">
               <DialogTitle>{previewDialogConfig.title}</DialogTitle>
               <DialogDescription className="text-sm leading-relaxed">
                 {previewDialogConfig.presetLabel}
-                <span className="ml-1 font-medium text-foreground">{previewDialogConfig.presetName}</span>
+                <span className="ml-1 font-medium text-foreground">
+                  {previewDialogConfig.presetName}
+                </span>
               </DialogDescription>
             </DialogHeader>
 
@@ -129,7 +134,10 @@ function BatchStep1PreviewCardsInner({
                       <div className="space-y-1">
                         <p className="text-sm font-semibold text-foreground">{group.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t('batchWizard.step1.selectedTotal').replace('{n}', String(group.items.length))}
+                          {t('batchWizard.step1.selectedTotal').replace(
+                            '{n}',
+                            String(group.items.length),
+                          )}
                         </p>
                       </div>
                     </div>
@@ -228,7 +236,10 @@ function SelectionPreviewSummaryCard({
 
         <div className="grid flex-1 gap-2 sm:grid-cols-2">
           {[firstGroup, secondGroup].filter(Boolean).map((group) => (
-            <div key={group!.title} className="surface-subtle flex items-center justify-between gap-2 px-2.5 py-2">
+            <div
+              key={group!.title}
+              className="surface-subtle flex items-center justify-between gap-2 px-2.5 py-2"
+            >
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   {group!.title}

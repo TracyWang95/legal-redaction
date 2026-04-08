@@ -40,7 +40,9 @@ export function TextModel() {
         <div className="page-stack">
           <Card className="rounded-[24px] border-border/70 bg-muted/30 shadow-[var(--shadow-control)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base tracking-[-0.03em]">{t('settings.textModel.infoTitle')}</CardTitle>
+              <CardTitle className="text-base tracking-[-0.03em]">
+                {t('settings.textModel.infoTitle')}
+              </CardTitle>
               <CardDescription className="mt-2 text-sm leading-relaxed">
                 {t('settings.textModel.infoDesc')}
               </CardDescription>
@@ -66,16 +68,17 @@ export function TextModel() {
             testResult={testResult}
             liveStatus={nerLive}
             placeholder="http://127.0.0.1:8080/v1"
-            tags={[
-              t('settings.textModel.tag.openai'),
-              t('settings.textModel.tag.builtin'),
-            ]}
+            tags={[t('settings.textModel.tag.openai'), t('settings.textModel.tag.builtin')]}
             endpointLabel={t('settings.textModel.endpointLabel')}
             endpointHint={t('settings.textModel.endpointHint')}
           />
 
           <div className="flex justify-end">
-            <Button variant="outline" onClick={() => setConfirmResetOpen(true)} data-testid="reset-ner-default">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmResetOpen(true)}
+              data-testid="reset-ner-default"
+            >
               {t('settings.textModel.reset')}
             </Button>
           </div>

@@ -66,9 +66,7 @@ export function ModelEndpointCard({
             {t('common.enabled')}
           </Badge>
           {liveStatus === 'online' && (
-            <Badge className={`text-xs ${tonePanelClass.success}`}>
-              {t('common.online')}
-            </Badge>
+            <Badge className={`text-xs ${tonePanelClass.success}`}>{t('common.online')}</Badge>
           )}
           {liveStatus === 'offline' && (
             <Badge variant="destructive" className="text-xs">
@@ -80,7 +78,7 @@ export function ModelEndpointCard({
               {t('common.checking')}
             </Badge>
           )}
-          {tags?.map(tag => (
+          {tags?.map((tag) => (
             <Badge key={tag} variant="outline" className="text-xs">
               {tag}
             </Badge>
@@ -92,12 +90,18 @@ export function ModelEndpointCard({
           <div className="flex items-center gap-2">
             <Input
               value={endpointUrl}
-              onChange={e => onEndpointChange(e.target.value)}
+              onChange={(e) => onEndpointChange(e.target.value)}
               placeholder={placeholder ?? 'http://127.0.0.1:8080/v1'}
               className="flex-1 font-mono text-sm"
               data-testid="endpoint-url"
             />
-            <Button size="sm" variant="outline" onClick={onTest} disabled={testing} data-testid="test-endpoint">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onTest}
+              disabled={testing}
+              data-testid="test-endpoint"
+            >
               {testing ? t('common.testing') : t('common.test')}
             </Button>
           </div>
@@ -108,9 +112,7 @@ export function ModelEndpointCard({
           <div
             className={cn(
               'rounded-lg border p-3 text-sm',
-              testResult.success
-                ? tonePanelClass.success
-                : tonePanelClass.danger,
+              testResult.success ? tonePanelClass.success : tonePanelClass.danger,
             )}
           >
             {testResult.success ? '\u2713 ' : '\u2717 '}

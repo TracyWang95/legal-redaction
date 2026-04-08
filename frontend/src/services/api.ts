@@ -103,19 +103,19 @@ export const redactionApi = {
   getEntityTypes: async (): Promise<{ entity_types: EntityTypeConfigSimple[] }> =>
     api.get('/redaction/entity-types'),
 
-  getReport: async (fileId: string): Promise<unknown> =>
-    api.get(`/redaction/${fileId}/report`),
+  getReport: async (fileId: string): Promise<unknown> => api.get(`/redaction/${fileId}/report`),
 
   getReplacementModes: async (): Promise<{ replacement_modes: ReplacementModeConfig[] }> =>
     api.get('/redaction/replacement-modes'),
 };
 
 export const entityTypesApi = {
-  getAll: async (enabledOnly = false): Promise<{ custom_types: EntityTypeConfig[]; total: number }> =>
+  getAll: async (
+    enabledOnly = false,
+  ): Promise<{ custom_types: EntityTypeConfig[]; total: number }> =>
     api.get(`/custom-types?enabled_only=${enabledOnly}`),
 
-  getById: async (typeId: string): Promise<EntityTypeConfig> =>
-    api.get(`/custom-types/${typeId}`),
+  getById: async (typeId: string): Promise<EntityTypeConfig> => api.get(`/custom-types/${typeId}`),
 
   create: async (data: Partial<EntityTypeConfig>): Promise<EntityTypeConfig> =>
     api.post('/custom-types', data),
@@ -123,14 +123,12 @@ export const entityTypesApi = {
   update: async (typeId: string, data: Partial<EntityTypeConfig>): Promise<EntityTypeConfig> =>
     api.put(`/custom-types/${typeId}`, data),
 
-  delete: async (typeId: string): Promise<void> =>
-    api.delete(`/custom-types/${typeId}`),
+  delete: async (typeId: string): Promise<void> => api.delete(`/custom-types/${typeId}`),
 
   toggle: async (typeId: string): Promise<{ enabled: boolean }> =>
     api.post(`/custom-types/${typeId}/toggle`),
 
-  reset: async (): Promise<{ message: string }> =>
-    api.post('/custom-types/reset'),
+  reset: async (): Promise<{ message: string }> => api.post('/custom-types/reset'),
 };
 
 export default api;

@@ -9,12 +9,10 @@ interface Snapshot<T> {
   data: T;
 }
 
-
 export function useUndoRedo<T>() {
   const undoStack = useRef<Snapshot<T>[]>([]);
   const redoStack = useRef<Snapshot<T>[]>([]);
 
-  
   const save = useCallback((current: T) => {
     undoStack.current.push({ data: current });
     if (undoStack.current.length > MAX_HISTORY) {
@@ -23,7 +21,6 @@ export function useUndoRedo<T>() {
     redoStack.current = [];
   }, []);
 
-  
   const undo = useCallback((current: T): T | null => {
     const prev = undoStack.current.pop();
     if (!prev) return null;
@@ -31,7 +28,6 @@ export function useUndoRedo<T>() {
     return prev.data;
   }, []);
 
-  
   const redo = useCallback((current: T): T | null => {
     const next = redoStack.current.pop();
     if (!next) return null;
@@ -39,7 +35,6 @@ export function useUndoRedo<T>() {
     return next.data;
   }, []);
 
-  
   const reset = useCallback(() => {
     undoStack.current = [];
     redoStack.current = [];

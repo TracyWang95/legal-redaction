@@ -25,9 +25,11 @@ export function BatchWizard() {
   }
 
   const msgVariant =
-    w.msg?.tone === 'ok' ? 'default' as const
-    : w.msg?.tone === 'err' || w.msg?.tone === 'warn' ? 'destructive' as const
-    : 'default' as const;
+    w.msg?.tone === 'ok'
+      ? ('default' as const)
+      : w.msg?.tone === 'err' || w.msg?.tone === 'warn'
+        ? ('destructive' as const)
+        : ('default' as const);
 
   return (
     <BatchWizardProvider value={w}>
@@ -57,10 +59,7 @@ export function BatchWizard() {
             </p>
           )}
 
-          <BatchStepProgress
-            currentStep={w.step}
-            canGoStep={w.canGoStep}
-          />
+          <BatchStepProgress currentStep={w.step} canGoStep={w.canGoStep} />
 
           {w.msg && (
             <Alert variant={msgVariant} className="mb-2">

@@ -1,7 +1,13 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import type { JobDetail, JobItemRow, JobProgress, JobSummary, JobTypeApi } from '@/services/jobsApi';
+import type {
+  JobDetail,
+  JobItemRow,
+  JobProgress,
+  JobSummary,
+  JobTypeApi,
+} from '@/services/jobsApi';
 
 const PREVIEW_JOB_COUNT = 42;
 
@@ -127,7 +133,8 @@ function buildPreviewJobs(): JobSummary[] {
       progress,
       nav_hints: {
         item_count: totalItems,
-        first_awaiting_review_item_id: status === 'awaiting_review' ? `preview-job-${index + 1}-item-1` : null,
+        first_awaiting_review_item_id:
+          status === 'awaiting_review' ? `preview-job-${index + 1}-item-1` : null,
         wizard_furthest_step: status === 'completed' ? 5 : 4,
         batch_step1_configured: true,
         redacted_count: progress.completed,
@@ -144,16 +151,20 @@ function buildPreviewItems(jobId: string): JobItemRow[] {
     file_id: `${jobId}-file-${index + 1}`,
     sort_order: index + 1,
     status:
-      index === 0 ? 'awaiting_review' :
-      index === 6 ? 'completed' :
-      index % 3 === 0 ? 'review_approved' :
-      'completed',
+      index === 0
+        ? 'awaiting_review'
+        : index === 6
+          ? 'completed'
+          : index % 3 === 0
+            ? 'review_approved'
+            : 'completed',
     filename: `批量文件-${String(index + 1).padStart(2, '0')}${index % 2 === 0 ? '.pdf' : '.docx'}`,
     file_type: index % 2 === 0 ? 'pdf' : 'docx',
     has_output: index >= 3,
     entity_count: 4 + index,
     has_review_draft: index === 0,
-    review_draft_updated_at: index === 0 ? new Date('2026-04-05T17:00:00+08:00').toISOString() : null,
+    review_draft_updated_at:
+      index === 0 ? new Date('2026-04-05T17:00:00+08:00').toISOString() : null,
     error_message: null,
     reviewed_at: index >= 3 ? new Date('2026-04-05T17:30:00+08:00').toISOString() : null,
     reviewer: index >= 3 ? 'preview' : null,
@@ -167,7 +178,9 @@ export function buildJobsPreviewPage(opts: {
   pageSize: number;
   jobType?: JobTypeApi;
 }): { jobs: JobSummary[]; total: number; page: number; page_size: number } {
-  const jobs = buildPreviewJobs().filter((job) => (opts.jobType ? job.job_type === opts.jobType : true));
+  const jobs = buildPreviewJobs().filter((job) =>
+    opts.jobType ? job.job_type === opts.jobType : true,
+  );
   const start = Math.max(0, (opts.page - 1) * opts.pageSize);
   return {
     jobs: jobs.slice(start, start + opts.pageSize),

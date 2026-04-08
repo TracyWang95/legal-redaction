@@ -16,7 +16,9 @@ interface ReviewEntityListProps {
   reviewEntities: ReviewEntity[];
   selectedReviewEntityCount: number;
   textTypes: TextEntityType[];
-  applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
+  applyReviewEntities: (
+    updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[]),
+  ) => void;
   reviewTextContentRef: React.RefObject<HTMLDivElement | null>;
   reviewTextScrollRef: React.RefObject<HTMLDivElement | null>;
   previewScrollRef: React.RefObject<HTMLDivElement | null>;
@@ -34,8 +36,11 @@ export function ReviewEntityList({
   const t = useT();
 
   const entityGroups = useMemo(() => {
-    const map = new Map<string, { type: string; text: string; ids: string[]; selected: number; total: number }>();
-    reviewEntities.forEach(e => {
+    const map = new Map<
+      string,
+      { type: string; text: string; ids: string[]; selected: number; total: number }
+    >();
+    reviewEntities.forEach((e) => {
       const key = `${e.type}::${e.text}`;
       const g = map.get(key) || { type: e.type, text: e.text, ids: [], selected: 0, total: 0 };
       g.ids.push(e.id);
@@ -48,30 +53,39 @@ export function ReviewEntityList({
 
   const scrollIndexRef = useRef<Map<string, number>>(new Map());
 
-  const scrollToEntityGroup = useCallback((ids: string[]) => {
-    if (!ids.length) return;
-    const key = ids.join(',');
-    const prevIdx = scrollIndexRef.current.get(key) ?? -1;
-    const nextIdx = (prevIdx + 1) % ids.length;
-    scrollIndexRef.current.set(key, nextIdx);
+  const scrollToEntityGroup = useCallback(
+    (ids: string[]) => {
+      if (!ids.length) return;
+      const key = ids.join(',');
+      const prevIdx = scrollIndexRef.current.get(key) ?? -1;
+      const nextIdx = (prevIdx + 1) % ids.length;
+      scrollIndexRef.current.set(key, nextIdx);
 
-    const targetId = ids[nextIdx];
-    const el = reviewTextContentRef.current?.querySelector(`[data-review-entity-id="${CSS.escape(targetId)}"]`) as HTMLElement | null;
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('ring-2', 'ring-primary');
-      setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), ENTITY_HIGHLIGHT_DURATION_MS);
+      const targetId = ids[nextIdx];
+      const el = reviewTextContentRef.current?.querySelector(
+        `[data-review-entity-id="${CSS.escape(targetId)}"]`,
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-primary');
+        setTimeout(
+          () => el.classList.remove('ring-2', 'ring-primary'),
+          ENTITY_HIGHLIGHT_DURATION_MS,
+        );
 
-      const origScroll = reviewTextScrollRef.current;
-      const prevScroll = previewScrollRef.current;
-      if (origScroll && prevScroll) {
-        const ratio = origScroll.scrollHeight > origScroll.clientHeight
-          ? origScroll.scrollTop / (origScroll.scrollHeight - origScroll.clientHeight)
-          : 0;
-        prevScroll.scrollTop = ratio * (prevScroll.scrollHeight - prevScroll.clientHeight);
+        const origScroll = reviewTextScrollRef.current;
+        const prevScroll = previewScrollRef.current;
+        if (origScroll && prevScroll) {
+          const ratio =
+            origScroll.scrollHeight > origScroll.clientHeight
+              ? origScroll.scrollTop / (origScroll.scrollHeight - origScroll.clientHeight)
+              : 0;
+          prevScroll.scrollTop = ratio * (prevScroll.scrollHeight - prevScroll.clientHeight);
+        }
       }
-    }
-  }, [reviewTextContentRef, reviewTextScrollRef, previewScrollRef]);
+    },
+    [reviewTextContentRef, reviewTextScrollRef, previewScrollRef],
+  );
 
   return (
     <Card className="min-h-0 flex flex-col overflow-hidden">
@@ -82,15 +96,23 @@ export function ReviewEntityList({
             {selectedReviewEntityCount}/{reviewEntities.length}
           </span>
           <Button
-            variant="outline" size="sm" className="text-xs h-6"
-            onClick={() => applyReviewEntities(prev => prev.map(e => ({ ...e, selected: true })))}
+            variant="outline"
+            size="sm"
+            className="text-xs h-6"
+            onClick={() =>
+              applyReviewEntities((prev) => prev.map((e) => ({ ...e, selected: true })))
+            }
             data-testid="select-all-entities"
           >
             {t('batchWizard.step4.selectAll')}
           </Button>
           <Button
-            variant="outline" size="sm" className="text-xs h-6"
-            onClick={() => applyReviewEntities(prev => prev.map(e => ({ ...e, selected: false })))}
+            variant="outline"
+            size="sm"
+            className="text-xs h-6"
+            onClick={() =>
+              applyReviewEntities((prev) => prev.map((e) => ({ ...e, selected: false })))
+            }
             data-testid="deselect-all-entities"
           >
             {t('batchWizard.step4.deselectAll')}
@@ -98,7 +120,7 @@ export function ReviewEntityList({
         </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-        {entityGroups.map(g => {
+        {entityGroups.map((g) => {
           const risk = getEntityRiskConfig(g.type);
           const allSelected = g.selected === g.total;
           const noneSelected = g.selected === 0;
@@ -106,7 +128,10 @@ export function ReviewEntityList({
             <div
               key={`${g.type}::${g.text}`}
               className="rounded-xl border shadow-sm px-3 py-2 cursor-pointer transition-colors hover:bg-accent/30"
-              style={{ backgroundColor: noneSelected ? undefined : risk.bgColor, borderLeft: `3px solid ${risk.color}` }}
+              style={{
+                backgroundColor: noneSelected ? undefined : risk.bgColor,
+                borderLeft: `3px solid ${risk.color}`,
+              }}
               onClick={() => scrollToEntityGroup(g.ids)}
             >
               <div className="flex items-start gap-2">
@@ -114,8 +139,8 @@ export function ReviewEntityList({
                   checked={allSelected ? true : noneSelected ? false : 'indeterminate'}
                   onCheckedChange={() => {
                     const newSelected = !allSelected;
-                    applyReviewEntities(prev =>
-                      prev.map(e => g.ids.includes(e.id) ? { ...e, selected: newSelected } : e),
+                    applyReviewEntities((prev) =>
+                      prev.map((e) => (g.ids.includes(e.id) ? { ...e, selected: newSelected } : e)),
                     );
                   }}
                   className="mt-0.5"
@@ -124,15 +149,21 @@ export function ReviewEntityList({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-medium" style={{ color: risk.textColor }}>
-                      {textTypes.find(tt => tt.id === g.type)?.name ?? getEntityTypeName(g.type)}
+                      {textTypes.find((tt) => tt.id === g.type)?.name ?? getEntityTypeName(g.type)}
                     </span>
                     {g.total > 1 && (
-                      <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px] leading-4">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-1.5 py-0 text-[10px] leading-4"
+                      >
                         &times;{g.total}
                       </Badge>
                     )}
                   </div>
-                  <span className="block text-xs break-all mt-0.5" style={{ color: risk.textColor }}>
+                  <span
+                    className="block text-xs break-all mt-0.5"
+                    style={{ color: risk.textColor }}
+                  >
                     {g.text}
                   </span>
                 </div>

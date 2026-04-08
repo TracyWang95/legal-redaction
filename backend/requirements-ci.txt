@@ -32,14 +32,11 @@ httpx>=0.28.0
 # nvidia-ml-py — excluded: requires NVIDIA drivers
 aiofiles>=24.1.0
 
-# 智谱AI SDK
-zhipuai>=2.0.0
-
 # ultralytics — excluded: heavy ML, requires torch
 # paddleocr — excluded: heavy ML, requires paddlepaddle
 
 # 工具库
-PyJWT>=2.12.0
+PyJWT>=2.8.0
 passlib[bcrypt]==1.7.4
 
 # 可观测性

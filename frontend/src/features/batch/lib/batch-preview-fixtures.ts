@@ -56,18 +56,102 @@ const previewImageRedactedSvg = encodeURIComponent(`
 `);
 
 const previewFileDefs = [
-  { id: 'preview-file-contract', name: '合同审阅-样例-A.docx', size: 184320, type: FileType.DOCX, entityCount: 4, image: false },
-  { id: 'preview-file-contract-2', name: '补充协议-样例-E.docx', size: 246784, type: FileType.DOCX, entityCount: 5, image: false },
-  { id: 'preview-file-contract-3', name: '财务函件-样例-F.docx', size: 203648, type: FileType.DOCX, entityCount: 4, image: false },
-  { id: 'preview-file-case', name: '案件材料-样例-B.pdf', size: 912384, type: FileType.PDF, entityCount: 3, image: false },
-  { id: 'preview-file-case-2', name: '证据目录-样例-G.pdf', size: 864256, type: FileType.PDF, entityCount: 6, image: false },
-  { id: 'preview-file-case-3', name: '出庭笔录-样例-H.pdf', size: 1024512, type: FileType.PDF, entityCount: 5, image: false },
-  { id: 'preview-file-scan', name: '扫描签章-样例-C.pdf', size: 1264032, type: FileType.PDF_SCANNED, entityCount: 3, image: true },
-  { id: 'preview-file-scan-2', name: '盖章申请-样例-I.pdf', size: 1116928, type: FileType.PDF_SCANNED, entityCount: 4, image: true },
-  { id: 'preview-file-scan-3', name: '档案扫描-样例-J.pdf', size: 1380352, type: FileType.PDF_SCANNED, entityCount: 6, image: true },
-  { id: 'preview-file-photo', name: '现场照片-样例-D.png', size: 742112, type: FileType.IMAGE, entityCount: 2, image: true },
-  { id: 'preview-file-photo-2', name: '证件照片-样例-K.png', size: 682144, type: FileType.IMAGE, entityCount: 3, image: true },
-  { id: 'preview-file-photo-3', name: '门牌影像-样例-L.png', size: 755904, type: FileType.IMAGE, entityCount: 3, image: true },
+  {
+    id: 'preview-file-contract',
+    name: '合同审阅-样例-A.docx',
+    size: 184320,
+    type: FileType.DOCX,
+    entityCount: 4,
+    image: false,
+  },
+  {
+    id: 'preview-file-contract-2',
+    name: '补充协议-样例-E.docx',
+    size: 246784,
+    type: FileType.DOCX,
+    entityCount: 5,
+    image: false,
+  },
+  {
+    id: 'preview-file-contract-3',
+    name: '财务函件-样例-F.docx',
+    size: 203648,
+    type: FileType.DOCX,
+    entityCount: 4,
+    image: false,
+  },
+  {
+    id: 'preview-file-case',
+    name: '案件材料-样例-B.pdf',
+    size: 912384,
+    type: FileType.PDF,
+    entityCount: 3,
+    image: false,
+  },
+  {
+    id: 'preview-file-case-2',
+    name: '证据目录-样例-G.pdf',
+    size: 864256,
+    type: FileType.PDF,
+    entityCount: 6,
+    image: false,
+  },
+  {
+    id: 'preview-file-case-3',
+    name: '出庭笔录-样例-H.pdf',
+    size: 1024512,
+    type: FileType.PDF,
+    entityCount: 5,
+    image: false,
+  },
+  {
+    id: 'preview-file-scan',
+    name: '扫描签章-样例-C.pdf',
+    size: 1264032,
+    type: FileType.PDF_SCANNED,
+    entityCount: 3,
+    image: true,
+  },
+  {
+    id: 'preview-file-scan-2',
+    name: '盖章申请-样例-I.pdf',
+    size: 1116928,
+    type: FileType.PDF_SCANNED,
+    entityCount: 4,
+    image: true,
+  },
+  {
+    id: 'preview-file-scan-3',
+    name: '档案扫描-样例-J.pdf',
+    size: 1380352,
+    type: FileType.PDF_SCANNED,
+    entityCount: 6,
+    image: true,
+  },
+  {
+    id: 'preview-file-photo',
+    name: '现场照片-样例-D.png',
+    size: 742112,
+    type: FileType.IMAGE,
+    entityCount: 2,
+    image: true,
+  },
+  {
+    id: 'preview-file-photo-2',
+    name: '证件照片-样例-K.png',
+    size: 682144,
+    type: FileType.IMAGE,
+    entityCount: 3,
+    image: true,
+  },
+  {
+    id: 'preview-file-photo-3',
+    name: '门牌影像-样例-L.png',
+    size: 755904,
+    type: FileType.IMAGE,
+    entityCount: 3,
+    image: true,
+  },
 ] as const;
 
 const previewRowsBase: BatchRow[] = previewFileDefs.map((file) => ({
@@ -88,7 +172,11 @@ const regexPreviewTemplates = [
   { id: 'BANK_CARD', name: '银行卡号', pattern: '\\b\\d{12,19}\\b' },
   { id: 'PHONE', name: '手机号码', pattern: '\\b1[3-9]\\d{9}\\b' },
   { id: 'EMAIL', name: '电子邮箱', pattern: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}' },
-  { id: 'CASE_CODE', name: '案件编号', pattern: '[（(]?20\\d{2}[）)]?[\\u4e00-\\u9fa5A-Za-z]{1,8}\\d{2,6}号' },
+  {
+    id: 'CASE_CODE',
+    name: '案件编号',
+    pattern: '[（(]?20\\d{2}[）)]?[\\u4e00-\\u9fa5A-Za-z]{1,8}\\d{2,6}号',
+  },
   { id: 'PASSPORT', name: '护照号码', pattern: '[A-Z0-9]{8,17}' },
   { id: 'PLATE', name: '车牌号码', pattern: '[\\u4e00-\\u9fa5][A-Z][A-Z0-9]{5,6}' },
   { id: 'CREDIT_CODE', name: '统一社会信用代码', pattern: '[0-9A-Z]{18}' },
@@ -149,7 +237,9 @@ export const previewPipelines: PipelineCfg[] = [
       id: `ocr_type_${index + 1}`,
       name:
         previewOcrNames[index % previewOcrNames.length] +
-        (index >= previewOcrNames.length ? ` ${String(Math.floor(index / previewOcrNames.length) + 1).padStart(2, '0')}` : ''),
+        (index >= previewOcrNames.length
+          ? ` ${String(Math.floor(index / previewOcrNames.length) + 1).padStart(2, '0')}`
+          : ''),
       color: '#0f766e',
       enabled: true,
       order: index + 1,
@@ -164,7 +254,9 @@ export const previewPipelines: PipelineCfg[] = [
       id: `image_type_${index + 1}`,
       name:
         previewImageNames[index % previewImageNames.length] +
-        (index >= previewImageNames.length ? ` ${String(Math.floor(index / previewImageNames.length) + 1).padStart(2, '0')}` : ''),
+        (index >= previewImageNames.length
+          ? ` ${String(Math.floor(index / previewImageNames.length) + 1).padStart(2, '0')}`
+          : ''),
       color: '#b45309',
       enabled: true,
       order: index + 1,
@@ -173,8 +265,13 @@ export const previewPipelines: PipelineCfg[] = [
 ];
 
 const allPreviewTextIds = previewTextTypes.map((type) => type.id);
-const allPreviewOcrIds = previewPipelines.find((pipeline) => pipeline.mode === 'ocr_has')?.types.map((type) => type.id) ?? [];
-const allPreviewImageIds = previewPipelines.find((pipeline) => pipeline.mode === 'has_image')?.types.map((type) => type.id) ?? [];
+const allPreviewOcrIds =
+  previewPipelines.find((pipeline) => pipeline.mode === 'ocr_has')?.types.map((type) => type.id) ??
+  [];
+const allPreviewImageIds =
+  previewPipelines
+    .find((pipeline) => pipeline.mode === 'has_image')
+    ?.types.map((type) => type.id) ?? [];
 
 export const previewPresets: RecognitionPreset[] = [
   {
@@ -362,7 +459,8 @@ export function getPreviewReviewPayload(fileId: string): {
 } {
   if (fileId === 'preview-file-contract') {
     return {
-      content: '合同主体张宁，身份证号为310101199201013422，关联案件编号为（2026）民终083号，需在导出前统一处理。',
+      content:
+        '合同主体张宁，身份证号为310101199201013422，关联案件编号为（2026）民终083号，需在导出前统一处理。',
       entities: previewTextEntities,
       boxes: [],
       imageSrc: '',

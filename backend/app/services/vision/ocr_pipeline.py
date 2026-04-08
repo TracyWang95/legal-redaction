@@ -323,7 +323,6 @@ async def run_has_text_analysis(
         VISUAL_ONLY_TYPES = {
             "SEAL", "SIGNATURE", "FINGERPRINT", "PHOTO",
             "QR_CODE", "HANDWRITING", "WATERMARK",
-            "GLM_ID_CARD", "GLM_BANK_CARD",
         }
 
         if vision_types:

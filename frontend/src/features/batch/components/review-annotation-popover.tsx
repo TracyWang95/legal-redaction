@@ -51,7 +51,12 @@ export const ReviewAnnotationPopover: FC<ReviewAnnotationPopoverProps> = ({
           className="ml-2 shrink-0 rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
           aria-label="Close"
         >
-          <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z" fill="currentColor"/></svg>
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+            <path
+              d="M11.782 4.032a.575.575 0 10-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 00-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 00.814.814L7.5 8.313l3.469 3.469a.575.575 0 00.813-.814L8.313 7.5l3.469-3.468z"
+              fill="currentColor"
+            />
+          </svg>
         </button>
       </div>
 
@@ -72,7 +77,15 @@ export const ReviewAnnotationPopover: FC<ReviewAnnotationPopoverProps> = ({
                   'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
                   active ? 'font-medium shadow-sm ring-1 ring-inset' : 'hover:bg-accent',
                 )}
-                style={active ? { backgroundColor: risk.bgColor, color: risk.textColor, '--tw-ring-color': risk.color } as React.CSSProperties : undefined}
+                style={
+                  active
+                    ? ({
+                        backgroundColor: risk.bgColor,
+                        color: risk.textColor,
+                        '--tw-ring-color': risk.color,
+                      } as React.CSSProperties)
+                    : undefined
+                }
               >
                 {et.name ?? getEntityTypeName(et.id)}
               </button>
@@ -85,7 +98,9 @@ export const ReviewAnnotationPopover: FC<ReviewAnnotationPopoverProps> = ({
             onClick={() => onTypeSelect('CUSTOM')}
             className={cn(
               'truncate rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors',
-              selectedTypeId === 'CUSTOM' ? 'bg-muted font-medium shadow-sm ring-1 ring-inset ring-border' : 'hover:bg-accent',
+              selectedTypeId === 'CUSTOM'
+                ? 'bg-muted font-medium shadow-sm ring-1 ring-inset ring-border'
+                : 'hover:bg-accent',
             )}
           >
             {t('playground.customType')}
@@ -95,12 +110,7 @@ export const ReviewAnnotationPopover: FC<ReviewAnnotationPopoverProps> = ({
 
       {/* Add button */}
       <div className="flex items-center gap-1.5 border-t border-border/60 px-3 py-2">
-        <Button
-          size="sm"
-          onClick={onAdd}
-          disabled={!selectedTypeId}
-          className="h-7 flex-1 text-xs"
-        >
+        <Button size="sm" onClick={onAdd} disabled={!selectedTypeId} className="h-7 flex-1 text-xs">
           {t('playground.addAnnotation')}
         </Button>
       </div>

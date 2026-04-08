@@ -1,10 +1,13 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { t } from '@/i18n';
 import { authFetch, VISION_TIMEOUT } from '@/services/api-client';
-import { getSelectionMarkStyle, getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
+import {
+  getSelectionMarkStyle,
+  getSelectionToneClasses,
+  type SelectionTone,
+} from '@/ui/selectionPalette';
 import type { Entity, BoundingBox, VisionDetectionResponse } from './types';
 
 // Re-export from shared module so existing `import { clampPopoverInCanvas } from './utils'` still works.
@@ -109,18 +112,23 @@ export async function runVisionDetection(
   }
 
   const data = await safeJson<VisionDetectionResponse>(res);
-  const boxes = (data.bounding_boxes || []).map((b: Record<string, unknown>, idx: number) => ({
-    ...b,
-    id: b.id || `bbox_${idx}`,
-    selected: true,
-  } as BoundingBox));
+  const boxes = (data.bounding_boxes || []).map(
+    (b: Record<string, unknown>, idx: number) =>
+      ({
+        ...b,
+        id: b.id || `bbox_${idx}`,
+        selected: true,
+      }) as BoundingBox,
+  );
   return { boxes, resultImage: data.result_image };
 }
 
 /** Compute entity type statistics */
-export function computeEntityStats(entities: Entity[]): Record<string, { total: number; selected: number }> {
+export function computeEntityStats(
+  entities: Entity[],
+): Record<string, { total: number; selected: number }> {
   const stats: Record<string, { total: number; selected: number }> = {};
-  entities.forEach(e => {
+  entities.forEach((e) => {
     if (!stats[e.type]) stats[e.type] = { total: 0, selected: 0 };
     stats[e.type].total++;
     if (e.selected) stats[e.type].selected++;

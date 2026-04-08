@@ -77,7 +77,9 @@ function resolvedWizardFurthest(
       ? parseWizardFurthestFromUnknown(jobConfig.wizard_furthest_step)
       : null;
   const fromHints = parseWizardFurthestFromUnknown(navHints?.wizard_furthest_step);
-  const candidates = [fromConfig, fromHints].filter((value): value is 1 | 2 | 3 | 4 | 5 => value != null);
+  const candidates = [fromConfig, fromHints].filter(
+    (value): value is 1 | 2 | 3 | 4 | 5 => value != null,
+  );
   if (!candidates.length) return null;
   return Math.max(...candidates) as 1 | 2 | 3 | 4 | 5;
 }
@@ -88,7 +90,9 @@ export function inferWizardFloorFromBatchConfig(
 ): 2 | null {
   if (!jobConfig || typeof jobConfig !== 'object') return null;
   if (jobType === 'text_batch') {
-    return Array.isArray(jobConfig.entity_type_ids) && jobConfig.entity_type_ids.length > 0 ? 2 : null;
+    return Array.isArray(jobConfig.entity_type_ids) && jobConfig.entity_type_ids.length > 0
+      ? 2
+      : null;
   }
   if (jobType === 'smart_batch') {
     if (Array.isArray(jobConfig.entity_type_ids) && jobConfig.entity_type_ids.length > 0) return 2;

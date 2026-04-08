@@ -1,12 +1,8 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useState, useCallback, useRef, useMemo } from 'react';
-import {
-  authFetch,
-  downloadFile,
-} from '@/services/api-client';
+import { authFetch, downloadFile } from '@/services/api-client';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { localizeErrorMessage } from '@/utils/localizeError';
@@ -21,7 +17,6 @@ import type { VersionHistoryEntry } from '@/types';
 import { useEffect } from 'react';
 
 export function usePlayground() {
-
   const recognition = usePlaygroundRecognition();
 
   // --- Refs for latest recognition state (used in async callbacks) ---
@@ -119,7 +114,13 @@ export function usePlayground() {
     if (!fileCtx.fileInfo || fileCtx.isLoading) return;
     if (fileCtx.stage !== 'preview') return;
     void handleRerunNer();
-  }, [recognition.presetApplySeq, fileCtx.fileInfo, fileCtx.isLoading, fileCtx.stage, handleRerunNer]);
+  }, [
+    recognition.presetApplySeq,
+    fileCtx.fileInfo,
+    fileCtx.isLoading,
+    fileCtx.stage,
+    handleRerunNer,
+  ]);
 
   // --- Execute redaction ---
   const handleRedact = useCallback(async () => {
@@ -128,8 +129,8 @@ export function usePlayground() {
     fileCtx.setLoadingMessage(t('playground.redacting'));
 
     try {
-      const selectedEntities = entityCtx.entities.filter(e => e.selected);
-      const selectedBoxes = imageCtx.boundingBoxes.filter(b => b.selected);
+      const selectedEntities = entityCtx.entities.filter((e) => e.selected);
+      const selectedBoxes = imageCtx.boundingBoxes.filter((b) => b.selected);
 
       const res = await authFetch('/api/v1/redaction/execute', {
         method: 'POST',
@@ -153,13 +154,13 @@ export function usePlayground() {
       fileCtx.setStage('result');
 
       authFetch(`/api/v1/redaction/${fileCtx.fileInfo.file_id}/report`)
-        .then(r => r.json())
-        .then(data => setRedactionReport(data))
+        .then((r) => r.json())
+        .then((data) => setRedactionReport(data))
         .catch(() => setRedactionReport(null));
 
       authFetch(`/api/v1/redaction/${fileCtx.fileInfo.file_id}/versions`)
-        .then(r => r.json())
-        .then(data => setVersionHistory(data.versions || []))
+        .then((r) => r.json())
+        .then((data) => setVersionHistory(data.versions || []))
         .catch(() => setVersionHistory([]));
 
       showToast(`完成，共处理 ${result.redacted_count} 处`, 'success');

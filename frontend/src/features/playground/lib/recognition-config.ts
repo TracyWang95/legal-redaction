@@ -30,8 +30,8 @@ export function sortEntityTypes(types: EntityTypeConfig[]): EntityTypeConfig[] {
 }
 
 export function buildPlaygroundTextGroups(types: EntityTypeConfig[]): PlaygroundTextGroup[] {
-  const regexTypes = types.filter(type => Boolean(type.regex_pattern));
-  const semanticTypes = types.filter(type => !type.regex_pattern);
+  const regexTypes = types.filter((type) => Boolean(type.regex_pattern));
+  const semanticTypes = types.filter((type) => !type.regex_pattern);
 
   const groups: PlaygroundTextGroup[] = [
     {
@@ -48,25 +48,24 @@ export function buildPlaygroundTextGroups(types: EntityTypeConfig[]): Playground
     },
   ];
 
-  return groups.filter(group => group.types.length > 0);
+  return groups.filter((group) => group.types.length > 0);
 }
 
 export function normalizeVisionPipelines(pipelines: PipelineConfig[]): PipelineConfig[] {
   return pipelines
-    .filter(pipeline => pipeline.enabled)
-    .map(pipeline => ({
+    .filter((pipeline) => pipeline.enabled)
+    .map((pipeline) => ({
       ...pipeline,
-      name: pipeline.mode === 'has_image'
-        ? t('settings.pipelineDisplayName.image')
-        : pipeline.name,
-      description: pipeline.mode === 'has_image'
-        ? t('settings.pipelineDescription.image')
-        : pipeline.description,
-      types: pipeline.types.filter(type => type.enabled),
+      name: pipeline.mode === 'has_image' ? t('settings.pipelineDisplayName.image') : pipeline.name,
+      description:
+        pipeline.mode === 'has_image'
+          ? t('settings.pipelineDescription.image')
+          : pipeline.description,
+      types: pipeline.types.filter((type) => type.enabled),
     }))
-    .filter(pipeline => pipeline.types.length > 0);
+    .filter((pipeline) => pipeline.types.length > 0);
 }
 
 export function flattenVisionTypes(pipelines: PipelineConfig[]): VisionTypeConfig[] {
-  return pipelines.flatMap(pipeline => pipeline.types);
+  return pipelines.flatMap((pipeline) => pipeline.types);
 }

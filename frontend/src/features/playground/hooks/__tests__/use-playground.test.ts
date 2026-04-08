@@ -251,7 +251,15 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
       });
 
@@ -264,7 +272,15 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.applyEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
       });
 
@@ -277,7 +293,15 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.applyEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
       });
 
@@ -291,7 +315,15 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.applyEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
       });
 
@@ -306,8 +338,24 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
-          { id: 'e2', text: 'Bob', type: 'PERSON', start: 10, end: 13, selected: true, source: 'llm' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
+          {
+            id: 'e2',
+            text: 'Bob',
+            type: 'PERSON',
+            start: 10,
+            end: 13,
+            selected: true,
+            source: 'llm',
+          },
         ]);
       });
 
@@ -326,8 +374,24 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
-          { id: 'e2', text: 'Bob', type: 'PERSON', start: 10, end: 13, selected: false, source: 'llm' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
+          {
+            id: 'e2',
+            text: 'Bob',
+            type: 'PERSON',
+            start: 10,
+            end: 13,
+            selected: false,
+            source: 'llm',
+          },
         ]);
       });
 
@@ -339,14 +403,30 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: false, source: 'regex' },
-          { id: 'e2', text: 'Bob', type: 'PERSON', start: 10, end: 13, selected: false, source: 'llm' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: false,
+            source: 'regex',
+          },
+          {
+            id: 'e2',
+            text: 'Bob',
+            type: 'PERSON',
+            start: 10,
+            end: 13,
+            selected: false,
+            source: 'llm',
+          },
         ]);
       });
 
       act(() => result.current.selectAll());
 
-      expect(result.current.entities.every(e => e.selected)).toBe(true);
+      expect(result.current.entities.every((e) => e.selected)).toBe(true);
     });
 
     it('deselectAll deselects all entities', () => {
@@ -354,14 +434,30 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
-          { id: 'e2', text: 'Bob', type: 'PERSON', start: 10, end: 13, selected: true, source: 'llm' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
+          {
+            id: 'e2',
+            text: 'Bob',
+            type: 'PERSON',
+            start: 10,
+            end: 13,
+            selected: true,
+            source: 'llm',
+          },
         ]);
       });
 
       act(() => result.current.deselectAll());
 
-      expect(result.current.entities.every(e => !e.selected)).toBe(true);
+      expect(result.current.entities.every((e) => !e.selected)).toBe(true);
     });
   });
 
@@ -374,7 +470,15 @@ describe('usePlayground', () => {
       // Set some state
       act(() => {
         result.current.setEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
         result.current.setReportOpen(true);
       });
@@ -435,7 +539,15 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.applyEntities([
-          { id: 'e1', text: 'Alice', type: 'PERSON', start: 0, end: 5, selected: true, source: 'regex' },
+          {
+            id: 'e1',
+            text: 'Alice',
+            type: 'PERSON',
+            start: 0,
+            end: 5,
+            selected: true,
+            source: 'regex',
+          },
         ]);
       });
       act(() => result.current.handleUndo());
@@ -497,7 +609,13 @@ describe('usePlayground', () => {
       (usePlaygroundFile as Mock).mockReturnValue({
         stage: 'preview',
         setStage: vi.fn(),
-        fileInfo: { file_id: 'f1', filename: 'test.jpg', file_size: 1024, file_type: 'image', is_scanned: false },
+        fileInfo: {
+          file_id: 'f1',
+          filename: 'test.jpg',
+          file_size: 1024,
+          file_type: 'image',
+          is_scanned: false,
+        },
         setFileInfo: vi.fn(),
         content: '',
         setContent: vi.fn(),

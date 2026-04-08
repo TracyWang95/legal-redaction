@@ -1,13 +1,7 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import type { BatchWizardPersistedConfig } from '@/services/batchPipeline';
@@ -57,7 +51,9 @@ export interface BatchReviewState {
   pendingReviewCount: number;
 
   // Actions
-  applyReviewEntities: (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => void;
+  applyReviewEntities: (
+    updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[]),
+  ) => void;
   toggleReviewEntitySelected: (entityId: string) => void;
   setReviewBoxes: React.Dispatch<React.SetStateAction<EditorBox[]>>;
   handleReviewBoxesCommit: (prevBoxes: EditorBox[], nextBoxes: EditorBox[]) => void;
@@ -111,100 +107,133 @@ export function useBatchReview(
   const reviewDraftDirtyRef = useRef(false);
 
   // ── Derived ──
-  const doneRows = useMemo(() => rows.filter(r => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus)), [rows]);
+  const doneRows = useMemo(
+    () => rows.filter((r) => RECOGNITION_DONE_STATUSES.has(r.analyzeStatus)),
+    [rows],
+  );
   const reviewFile = doneRows[reviewIndex] ?? null;
-  const reviewedOutputCount = useMemo(() => rows.filter(r => r.reviewConfirmed === true).length, [rows]);
+  const reviewedOutputCount = useMemo(
+    () => rows.filter((r) => r.reviewConfirmed === true).length,
+    [rows],
+  );
   const pendingReviewCount = Math.max(0, rows.length - reviewedOutputCount);
   const allReviewConfirmed = rows.length > 0 && pendingReviewCount === 0;
   const reviewItemId = reviewFile ? itemIdByFileIdRef.current[reviewFile.file_id] : undefined;
-  const reviewFileReadOnly = reviewFile?.analyzeStatus === 'completed' || reviewFile?.analyzeStatus === 'redacting';
+  const reviewFileReadOnly =
+    reviewFile?.analyzeStatus === 'completed' || reviewFile?.analyzeStatus === 'redacting';
 
   // ── Undo / Redo ──
   const pushReviewTextHistory = useCallback((prev: ReviewEntity[]) => {
-    setReviewTextUndoStack(stack => [...stack, prev.map(e => ({ ...e }))]);
+    setReviewTextUndoStack((stack) => [...stack, prev.map((e) => ({ ...e }))]);
     setReviewTextRedoStack([]);
   }, []);
 
-  const applyReviewEntities = useCallback((updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => {
-    setReviewEntities(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      pushReviewTextHistory(prev);
-      reviewDraftDirtyRef.current = true;
-      return next;
-    });
-  }, [pushReviewTextHistory]);
+  const applyReviewEntities = useCallback(
+    (updater: ReviewEntity[] | ((prev: ReviewEntity[]) => ReviewEntity[])) => {
+      setReviewEntities((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        pushReviewTextHistory(prev);
+        reviewDraftDirtyRef.current = true;
+        return next;
+      });
+    },
+    [pushReviewTextHistory],
+  );
 
   const undoReviewText = useCallback(() => {
-    setReviewTextUndoStack(stack => {
+    setReviewTextUndoStack((stack) => {
       if (!stack.length) return stack;
       const prev = stack[stack.length - 1];
-      setReviewTextRedoStack(redo => [...redo, reviewEntities.map(e => ({ ...e }))]);
-      setReviewEntities(prev.map(e => ({ ...e })));
+      setReviewTextRedoStack((redo) => [...redo, reviewEntities.map((e) => ({ ...e }))]);
+      setReviewEntities(prev.map((e) => ({ ...e })));
       reviewDraftDirtyRef.current = true;
       return stack.slice(0, -1);
     });
   }, [reviewEntities]);
 
   const redoReviewText = useCallback(() => {
-    setReviewTextRedoStack(stack => {
+    setReviewTextRedoStack((stack) => {
       if (!stack.length) return stack;
       const next = stack[stack.length - 1];
-      setReviewTextUndoStack(undo => [...undo, reviewEntities.map(e => ({ ...e }))]);
-      setReviewEntities(next.map(e => ({ ...e })));
+      setReviewTextUndoStack((undo) => [...undo, reviewEntities.map((e) => ({ ...e }))]);
+      setReviewEntities(next.map((e) => ({ ...e })));
       reviewDraftDirtyRef.current = true;
       return stack.slice(0, -1);
     });
   }, [reviewEntities]);
 
   const undoReviewImage = useCallback(() => {
-    setReviewImageUndoStack(stack => {
+    setReviewImageUndoStack((stack) => {
       if (!stack.length) return stack;
       const prev = stack[stack.length - 1];
-      setReviewImageRedoStack(redo => [...redo, reviewBoxes.map(b => ({ ...b }))]);
-      setReviewBoxes(prev.map(b => ({ ...b })));
+      setReviewImageRedoStack((redo) => [...redo, reviewBoxes.map((b) => ({ ...b }))]);
+      setReviewBoxes(prev.map((b) => ({ ...b })));
       reviewDraftDirtyRef.current = true;
       return stack.slice(0, -1);
     });
   }, [reviewBoxes]);
 
   const redoReviewImage = useCallback(() => {
-    setReviewImageRedoStack(stack => {
+    setReviewImageRedoStack((stack) => {
       if (!stack.length) return stack;
       const next = stack[stack.length - 1];
-      setReviewImageUndoStack(undo => [...undo, reviewBoxes.map(b => ({ ...b }))]);
-      setReviewBoxes(next.map(b => ({ ...b })));
+      setReviewImageUndoStack((undo) => [...undo, reviewBoxes.map((b) => ({ ...b }))]);
+      setReviewBoxes(next.map((b) => ({ ...b })));
       reviewDraftDirtyRef.current = true;
       return stack.slice(0, -1);
     });
   }, [reviewBoxes]);
 
-  const toggleReviewEntitySelected = useCallback((entityId: string) => {
-    applyReviewEntities(prev => prev.map(e => (e.id === entityId ? { ...e, selected: !e.selected } : e)));
-  }, [applyReviewEntities]);
+  const toggleReviewEntitySelected = useCallback(
+    (entityId: string) => {
+      applyReviewEntities((prev) =>
+        prev.map((e) => (e.id === entityId ? { ...e, selected: !e.selected } : e)),
+      );
+    },
+    [applyReviewEntities],
+  );
 
   const handleReviewBoxesCommit = useCallback((prevBoxes: EditorBox[], nextBoxes: EditorBox[]) => {
-    setReviewImageUndoStack(stack => [...stack, prevBoxes.map(b => ({ ...b }))]);
+    setReviewImageUndoStack((stack) => [...stack, prevBoxes.map((b) => ({ ...b }))]);
     setReviewImageRedoStack([]);
-    setReviewBoxes(nextBoxes.map(b => ({ ...b })));
+    setReviewBoxes(nextBoxes.map((b) => ({ ...b })));
     reviewDraftDirtyRef.current = true;
   }, []);
 
   const toggleReviewBoxSelected = useCallback((boxId: string) => {
-    setReviewBoxes(prev => prev.map(b => (b.id === boxId ? { ...b, selected: !b.selected } : b)));
+    setReviewBoxes((prev) =>
+      prev.map((b) => (b.id === boxId ? { ...b, selected: !b.selected } : b)),
+    );
     reviewDraftDirtyRef.current = true;
   }, []);
 
   // ── Draft management ──
   const buildCurrentReviewDraftPayload = useCallback(() => {
-    const entities = reviewEntities.map(e => ({
-      id: e.id, text: e.text, type: e.type, start: e.start, end: e.end,
-      page: e.page ?? 1, confidence: e.confidence ?? 1, selected: e.selected,
-      source: e.source, coref_id: e.coref_id, replacement: e.replacement,
+    const entities = reviewEntities.map((e) => ({
+      id: e.id,
+      text: e.text,
+      type: e.type,
+      start: e.start,
+      end: e.end,
+      page: e.page ?? 1,
+      confidence: e.confidence ?? 1,
+      selected: e.selected,
+      source: e.source,
+      coref_id: e.coref_id,
+      replacement: e.replacement,
     }));
-    const bounding_boxes = reviewBoxes.map(b => ({
-      id: b.id, x: b.x, y: b.y, width: b.width, height: b.height,
-      page: 1, type: b.type, text: b.text, selected: b.selected,
-      source: b.source, confidence: b.confidence,
+    const bounding_boxes = reviewBoxes.map((b) => ({
+      id: b.id,
+      x: b.x,
+      y: b.y,
+      width: b.width,
+      height: b.height,
+      page: 1,
+      type: b.type,
+      text: b.text,
+      selected: b.selected,
+      source: b.source,
+      confidence: b.confidence,
     }));
     return { entities, bounding_boxes };
   }, [reviewEntities, reviewBoxes]);
@@ -233,36 +262,74 @@ export function useBatchReview(
   }, [activeJobId, buildCurrentReviewDraftPayload, isPreviewMode, reviewFile, itemIdByFileIdRef]);
 
   // ── Navigate review index ──
-  const navigateReviewIndex = useCallback(async (nextIndex: number) => {
-    if (nextIndex < 0 || nextIndex >= doneRows.length || nextIndex === reviewIndex) return;
-    if (reviewLoading) return;
-    await flushCurrentReviewDraft();
-    setReviewIndex(nextIndex);
-  }, [doneRows.length, flushCurrentReviewDraft, reviewIndex, reviewLoading]);
+  const navigateReviewIndex = useCallback(
+    async (nextIndex: number) => {
+      if (nextIndex < 0 || nextIndex >= doneRows.length || nextIndex === reviewIndex) return;
+      if (reviewLoading) return;
+      await flushCurrentReviewDraft();
+      setReviewIndex(nextIndex);
+    },
+    [doneRows.length, flushCurrentReviewDraft, reviewIndex, reviewLoading],
+  );
 
   // ── Derived display values ──
-  const displayPreviewMap = useMemo(() => mergePreviewMapWithDocumentSlices(reviewTextContent, reviewEntities, previewEntityMap), [reviewTextContent, reviewEntities, previewEntityMap]);
-  const textPreviewSegments = useMemo(() => buildTextSegments(reviewTextContent, displayPreviewMap), [reviewTextContent, displayPreviewMap]);
-  const selectedReviewEntityCount = useMemo(() => reviewEntities.filter(e => e.selected !== false).length, [reviewEntities]);
-  const selectedReviewBoxCount = useMemo(() => reviewBoxes.filter(b => b.selected !== false).length, [reviewBoxes]);
+  const displayPreviewMap = useMemo(
+    () => mergePreviewMapWithDocumentSlices(reviewTextContent, reviewEntities, previewEntityMap),
+    [reviewTextContent, reviewEntities, previewEntityMap],
+  );
+  const textPreviewSegments = useMemo(
+    () => buildTextSegments(reviewTextContent, displayPreviewMap),
+    [reviewTextContent, displayPreviewMap],
+  );
+  const selectedReviewEntityCount = useMemo(
+    () => reviewEntities.filter((e) => e.selected !== false).length,
+    [reviewEntities],
+  );
+  const selectedReviewBoxCount = useMemo(
+    () => reviewBoxes.filter((b) => b.selected !== false).length,
+    [reviewBoxes],
+  );
   const reviewImagePreviewSrc = useMemo(() => {
     if (!reviewImagePreview) return '';
-    return reviewImagePreview.startsWith('data:') ? reviewImagePreview : `data:image/png;base64,${reviewImagePreview}`;
+    return reviewImagePreview.startsWith('data:')
+      ? reviewImagePreview
+      : `data:image/png;base64,${reviewImagePreview}`;
   }, [reviewImagePreview]);
 
   // ── Data loading (effects + callbacks delegated to sub-hook) ──
   const reviewData = useBatchReviewData({
-    step, reviewFile, activeJobId, itemIdByFileIdRef, cfg, isPreviewMode,
-    textTypes, reviewEntities, reviewBoxes, reviewItemId,
-    reviewLoading, reviewTextContent, previewEntityMap,
-    reviewDraftInitializedRef, reviewDraftDirtyRef,
-    reviewLastSavedJsonRef, reviewAutosaveTimerRef,
-    setReviewLoading, setPreviewEntityMap, setReviewImagePreview,
-    setReviewDraftError, setReviewEntities, setReviewBoxes,
-    setReviewTextContent, setReviewOrigImageBlobUrl,
-    setReviewTextUndoStack, setReviewTextRedoStack,
-    setReviewImageUndoStack, setReviewImageRedoStack,
-    buildCurrentReviewDraftPayload, flushCurrentReviewDraft, setMsg,
+    step,
+    reviewFile,
+    activeJobId,
+    itemIdByFileIdRef,
+    cfg,
+    isPreviewMode,
+    textTypes,
+    reviewEntities,
+    reviewBoxes,
+    reviewItemId,
+    reviewLoading,
+    reviewTextContent,
+    previewEntityMap,
+    reviewDraftInitializedRef,
+    reviewDraftDirtyRef,
+    reviewLastSavedJsonRef,
+    reviewAutosaveTimerRef,
+    setReviewLoading,
+    setPreviewEntityMap,
+    setReviewImagePreview,
+    setReviewDraftError,
+    setReviewEntities,
+    setReviewBoxes,
+    setReviewTextContent,
+    setReviewOrigImageBlobUrl,
+    setReviewTextUndoStack,
+    setReviewTextRedoStack,
+    setReviewImageUndoStack,
+    setReviewImageRedoStack,
+    buildCurrentReviewDraftPayload,
+    flushCurrentReviewDraft,
+    setMsg,
   });
 
   return {

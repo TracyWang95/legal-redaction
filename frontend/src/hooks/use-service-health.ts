@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 interface ServiceInfo {
@@ -118,7 +117,11 @@ export function useServiceHealth() {
     ensureHealthPolling();
   }, []);
 
-  const state = useSyncExternalStore(subscribe, () => snapshot, () => initialSnapshot);
+  const state = useSyncExternalStore(
+    subscribe,
+    () => snapshot,
+    () => initialSnapshot,
+  );
   const refresh = useCallback(() => {
     void runHealthCheck(true);
   }, []);

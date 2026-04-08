@@ -16,7 +16,6 @@ import { resolveRedactionState } from '@/utils/redactionState';
 import type { CompareData, FileListItem } from '@/types';
 import { useSearchParams } from 'react-router-dom';
 
-
 export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 export type SourceTab = 'all' | 'playground' | 'batch';
@@ -35,8 +34,6 @@ export type HistoryPreviewItem = {
   value: string;
   meta: string;
 };
-
-
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -64,7 +61,9 @@ export function isBinaryPreviewRow(row: FileListItem | null): boolean {
   return ft === 'image' || ft === 'pdf' || ft === 'pdf_scanned';
 }
 
-function normalizeHistoryPreviewItems(fileInfo: Record<string, unknown> | null): HistoryPreviewItem[] {
+function normalizeHistoryPreviewItems(
+  fileInfo: Record<string, unknown> | null,
+): HistoryPreviewItem[] {
   if (!fileInfo) return [];
   const items: HistoryPreviewItem[] = [];
   const entities = Array.isArray(fileInfo.entities) ? fileInfo.entities : [];
@@ -72,7 +71,7 @@ function normalizeHistoryPreviewItems(fileInfo: Record<string, unknown> | null):
   const boxes = Array.isArray(rawBoxes)
     ? rawBoxes
     : rawBoxes && typeof rawBoxes === 'object'
-      ? Object.values(rawBoxes).flatMap(v => (Array.isArray(v) ? v : []))
+      ? Object.values(rawBoxes).flatMap((v) => (Array.isArray(v) ? v : []))
       : [];
 
   for (const entity of entities) {
@@ -80,8 +79,16 @@ function normalizeHistoryPreviewItems(fileInfo: Record<string, unknown> | null):
     const entry = entity as Record<string, unknown>;
     if (entry.selected === false) continue;
     const type = typeof entry.type === 'string' && entry.type.trim() ? entry.type.trim() : 'TEXT';
-    const text = typeof entry.text === 'string' && entry.text.trim() ? entry.text.trim() : t('history.unnamedContent');
-    items.push({ id: String(entry.id ?? `entity-${items.length}`), label: type, value: text, meta: t('history.previewItemText') });
+    const text =
+      typeof entry.text === 'string' && entry.text.trim()
+        ? entry.text.trim()
+        : t('history.unnamedContent');
+    items.push({
+      id: String(entry.id ?? `entity-${items.length}`),
+      label: type,
+      value: text,
+      meta: t('history.previewItemText'),
+    });
   }
 
   for (const box of boxes) {
@@ -89,21 +96,37 @@ function normalizeHistoryPreviewItems(fileInfo: Record<string, unknown> | null):
     const entry = box as Record<string, unknown>;
     if (entry.selected === false) continue;
     const type = typeof entry.type === 'string' && entry.type.trim() ? entry.type.trim() : 'IMAGE';
-    const text = typeof entry.text === 'string' && entry.text.trim() ? entry.text.trim() : t('history.previewImageRegion');
+    const text =
+      typeof entry.text === 'string' && entry.text.trim()
+        ? entry.text.trim()
+        : t('history.previewImageRegion');
     const page = typeof entry.page === 'number' ? entry.page : 1;
-    items.push({ id: String(entry.id ?? `box-${items.length}`), label: type, value: text, meta: t('history.previewItemPage').replace('{page}', String(page)) });
+    items.push({
+      id: String(entry.id ?? `box-${items.length}`),
+      label: type,
+      value: text,
+      meta: t('history.previewItemPage').replace('{page}', String(page)),
+    });
   }
   return items;
 }
 
-export async function blobUrlFromFileDownload(fileId: string, redacted: boolean, mime: string): Promise<string> {
+export async function blobUrlFromFileDownload(
+  fileId: string,
+  redacted: boolean,
+  mime: string,
+): Promise<string> {
   const url = fileApi.getDownloadUrl(fileId, redacted);
   return authenticatedBlobUrl(url, mime);
 }
 
 export function buildHistoryGroups(rows: FileListItem[], sourceTab: SourceTab): HistoryGroup[] {
   if (sourceTab === 'playground') {
-    return rows.map(r => ({ kind: 'date_group' as const, label: t('history.singleSession').replace('{id}', r.file_id.slice(0, 8)), rows: [r] }));
+    return rows.map((r) => ({
+      kind: 'date_group' as const,
+      label: t('history.singleSession').replace('{id}', r.file_id.slice(0, 8)),
+      rows: [r],
+    }));
   }
   const out: HistoryGroup[] = [];
   let i = 0;
@@ -111,14 +134,26 @@ export function buildHistoryGroups(rows: FileListItem[], sourceTab: SourceTab): 
     const r = rows[i];
     const bg = r.batch_group_id;
     if (!bg) {
-      out.push({ kind: 'date_group', label: t('history.singleSession').replace('{id}', r.file_id.slice(0, 8)), rows: [r] });
+      out.push({
+        kind: 'date_group',
+        label: t('history.singleSession').replace('{id}', r.file_id.slice(0, 8)),
+        rows: [r],
+      });
       i++;
       continue;
     }
     const block: FileListItem[] = [r];
     let j = i + 1;
-    while (j < rows.length && rows[j].batch_group_id === bg) { block.push(rows[j]); j++; }
-    out.push({ kind: 'batch', batch_group_id: bg, batch_group_count: r.batch_group_count ?? block.length, rows: block });
+    while (j < rows.length && rows[j].batch_group_id === bg) {
+      block.push(rows[j]);
+      j++;
+    }
+    out.push({
+      kind: 'batch',
+      batch_group_id: bg,
+      batch_group_count: r.batch_group_count ?? block.length,
+      rows: block,
+    });
     i = j;
   }
   return out;
@@ -157,17 +192,24 @@ export function useHistory() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareErr, setCompareErr] = useState<string | null>(null);
   const [compareData, setCompareData] = useState<CompareData | null>(null);
-  const [compareBlobUrls, setCompareBlobUrls] = useState<{ original: string; redacted: string } | null>(null);
+  const [compareBlobUrls, setCompareBlobUrls] = useState<{
+    original: string;
+    redacted: string;
+  } | null>(null);
   const [compareTab, setCompareTab] = useState<'preview' | 'text' | 'changes'>('preview');
   const [comparePreviewItems, setComparePreviewItems] = useState<HistoryPreviewItem[]>([]);
 
   /* Confirm dialog */
-  const [confirmDlg, setConfirmDlg] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [confirmDlg, setConfirmDlg] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   /* Compare helpers */
 
   const revokeCompareBlobs = useCallback(() => {
-    setCompareBlobUrls(prev => {
+    setCompareBlobUrls((prev) => {
       if (prev) {
         revokeObjectUrl(prev.original);
         revokeObjectUrl(prev.redacted);
@@ -187,41 +229,48 @@ export function useHistory() {
     setComparePreviewItems([]);
   }, [revokeCompareBlobs]);
 
-  const openCompareModal = useCallback(async (row: FileListItem) => {
-    revokeCompareBlobs();
-    setCompareOpen(true);
-    setCompareTarget(row);
-    setCompareData(null);
-    setCompareErr(null);
-    setCompareLoading(true);
-    setComparePreviewItems([]);
-    const useBinaryPreview = isBinaryPreviewRow(row);
-    setCompareTab(useBinaryPreview ? 'preview' : 'text');
-    try {
-      const [data, fileInfo] = await Promise.all([
-        redactionApi.getComparison(row.file_id),
-        fileApi.getInfo(row.file_id).catch(() => null),
-      ]);
-      setCompareData(data);
-      setComparePreviewItems(normalizeHistoryPreviewItems(fileInfo as Record<string, unknown> | null));
-      if (useBinaryPreview) {
-        const mime = previewMimeForRow(row);
-        const [original, redacted] = await Promise.all([
-          blobUrlFromFileDownload(row.file_id, false, mime),
-          blobUrlFromFileDownload(row.file_id, true, mime),
+  const openCompareModal = useCallback(
+    async (row: FileListItem) => {
+      revokeCompareBlobs();
+      setCompareOpen(true);
+      setCompareTarget(row);
+      setCompareData(null);
+      setCompareErr(null);
+      setCompareLoading(true);
+      setComparePreviewItems([]);
+      const useBinaryPreview = isBinaryPreviewRow(row);
+      setCompareTab(useBinaryPreview ? 'preview' : 'text');
+      try {
+        const [data, fileInfo] = await Promise.all([
+          redactionApi.getComparison(row.file_id),
+          fileApi.getInfo(row.file_id).catch(() => null),
         ]);
-        setCompareBlobUrls({ original, redacted });
+        setCompareData(data);
+        setComparePreviewItems(
+          normalizeHistoryPreviewItems(fileInfo as Record<string, unknown> | null),
+        );
+        if (useBinaryPreview) {
+          const mime = previewMimeForRow(row);
+          const [original, redacted] = await Promise.all([
+            blobUrlFromFileDownload(row.file_id, false, mime),
+            blobUrlFromFileDownload(row.file_id, true, mime),
+          ]);
+          setCompareBlobUrls({ original, redacted });
+        }
+      } catch (e) {
+        setCompareErr(localizeErrorMessage(e, 'history.compareFailed'));
+      } finally {
+        setCompareLoading(false);
       }
-    } catch (e) {
-      setCompareErr(localizeErrorMessage(e, 'history.compareFailed'));
-    } finally {
-      setCompareLoading(false);
-    }
-  }, [revokeCompareBlobs]);
+    },
+    [revokeCompareBlobs],
+  );
 
   useEffect(() => {
     if (!compareOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCompareModal(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCompareModal();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [compareOpen, closeCompareModal]);
@@ -231,7 +280,12 @@ export function useHistory() {
   /* Data loading */
 
   const load = useCallback(
-    async (isRefresh = false, targetPage?: number, targetSize?: number, targetSource?: SourceTab) => {
+    async (
+      isRefresh = false,
+      targetPage?: number,
+      targetSize?: number,
+      targetSource?: SourceTab,
+    ) => {
       const p = targetPage ?? page;
       const ps = targetSize ?? pageSize;
       const src = targetSource ?? sourceTab;
@@ -241,7 +295,11 @@ export function useHistory() {
       setMsg(null);
       try {
         const source = src === 'all' ? undefined : src;
-        const res = await fileApi.list(p, ps, { source, embed_job: src !== 'playground', job_id: urlJobId || undefined });
+        const res = await fileApi.list(p, ps, {
+          source,
+          embed_job: src !== 'playground',
+          job_id: urlJobId || undefined,
+        });
         setRows(Array.isArray(res?.files) ? res.files : []);
         setTotal(typeof res?.total === 'number' ? res.total : 0);
         setPage(typeof res?.page === 'number' ? res.page : p);
@@ -274,35 +332,45 @@ export function useHistory() {
 
   /* Filter / page actions */
 
-  const changeSourceTab = useCallback((tab: SourceTab) => {
-    setSourceTab(tab);
-    setPage(1);
-    setCollapsedBatchIds(new Set());
-    const nextParams = new URLSearchParams(searchParams);
-    if (tab === 'all') nextParams.delete('source');
-    else nextParams.set('source', tab);
-    setSearchParams(nextParams, { replace: true });
-    load(false, 1, pageSize, tab);
-  }, [load, pageSize, searchParams, setSearchParams]);
+  const changeSourceTab = useCallback(
+    (tab: SourceTab) => {
+      setSourceTab(tab);
+      setPage(1);
+      setCollapsedBatchIds(new Set());
+      const nextParams = new URLSearchParams(searchParams);
+      if (tab === 'all') nextParams.delete('source');
+      else nextParams.set('source', tab);
+      setSearchParams(nextParams, { replace: true });
+      load(false, 1, pageSize, tab);
+    },
+    [load, pageSize, searchParams, setSearchParams],
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const goPage = useCallback((next: number) => {
-    const clamped = Math.min(Math.max(1, next), totalPages);
-    setPage(clamped);
-    load(false, clamped, pageSize);
-  }, [load, pageSize, totalPages]);
+  const goPage = useCallback(
+    (next: number) => {
+      const clamped = Math.min(Math.max(1, next), totalPages);
+      setPage(clamped);
+      load(false, clamped, pageSize);
+    },
+    [load, pageSize, totalPages],
+  );
 
-  const changePageSize = useCallback((ps: number) => {
-    setPageSize(ps);
-    setPage(1);
-    load(false, 1, ps);
-  }, [load]);
+  const changePageSize = useCallback(
+    (ps: number) => {
+      setPageSize(ps);
+      setPage(1);
+      load(false, 1, ps);
+    },
+    [load],
+  );
 
   const toggle = useCallback((id: string) => {
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -313,10 +381,10 @@ export function useHistory() {
       const now = Date.now();
       const days = dateFilter === '7d' ? 7 : 30;
       const cutoff = now - days * 24 * 60 * 60 * 1000;
-      result = result.filter(r => r.created_at && new Date(r.created_at).getTime() >= cutoff);
+      result = result.filter((r) => r.created_at && new Date(r.created_at).getTime() >= cutoff);
     }
     if (fileTypeFilter !== 'all') {
-      result = result.filter(r => {
+      result = result.filter((r) => {
         const ft = String(r.file_type).toLowerCase();
         if (fileTypeFilter === 'word') return ft === 'docx' || ft === 'doc';
         if (fileTypeFilter === 'pdf') return ft === 'pdf' || ft === 'pdf_scanned';
@@ -325,16 +393,21 @@ export function useHistory() {
       });
     }
     if (statusFilter !== 'all') {
-      result = result.filter(r => resolveRedactionState(r.has_output, r.item_status) === statusFilter);
+      result = result.filter(
+        (r) => resolveRedactionState(r.has_output, r.item_status) === statusFilter,
+      );
     }
     return result;
   }, [rows, dateFilter, fileTypeFilter, statusFilter]);
 
-  const selectedIds = filteredRows.filter(r => selected.has(r.file_id)).map(r => r.file_id);
-  const historyGroups = useMemo(() => buildHistoryGroups(filteredRows, sourceTab), [filteredRows, sourceTab]);
+  const selectedIds = filteredRows.filter((r) => selected.has(r.file_id)).map((r) => r.file_id);
+  const historyGroups = useMemo(
+    () => buildHistoryGroups(filteredRows, sourceTab),
+    [filteredRows, sourceTab],
+  );
 
   const statsData = useMemo(() => {
-    const redactedFiles = rows.filter(r => r.has_output).length;
+    const redactedFiles = rows.filter((r) => r.has_output).length;
     const entitySum = rows.reduce((s, r) => s + (r.entity_count || 0), 0);
     const sizeSum = rows.reduce((s, r) => s + (r.file_size || 0), 0);
     let sizeLabel: string;
@@ -344,76 +417,116 @@ export function useHistory() {
     return { totalFiles: total, redactedFiles, entitySum, sizeLabel };
   }, [rows, total]);
 
-  const hasActiveFilter = dateFilter !== 'all' || fileTypeFilter !== 'all' || statusFilter !== 'all';
-  const clearFilters = useCallback(() => { setDateFilter('all'); setFileTypeFilter('all'); setStatusFilter('all'); }, []);
+  const hasActiveFilter =
+    dateFilter !== 'all' || fileTypeFilter !== 'all' || statusFilter !== 'all';
+  const clearFilters = useCallback(() => {
+    setDateFilter('all');
+    setFileTypeFilter('all');
+    setStatusFilter('all');
+  }, []);
   const allSelected = filteredRows.length > 0 && selectedIds.length === filteredRows.length;
 
   /* Batch zip download */
 
-  const downloadZipByIds = useCallback(async (ids: string[], redacted: boolean, filename: string) => {
-    if (!ids.length) { setMsg({ text: t('history.noDownloadable'), tone: 'warn' }); return; }
-    if (redacted) {
-      const noOut = rows.filter(r => ids.includes(r.file_id) && !r.has_output);
-      if (noOut.length) { setMsg({ text: t('history.hasUnredacted'), tone: 'warn' }); return; }
-    }
-    setZipLoading(true);
-    try {
-      const blob = await fileApi.batchDownloadZip(ids, redacted);
-      triggerDownload(blob, filename);
-      showToast(t('history.zipStarted'), 'success');
-      setMsg({ text: t('history.zipStarted'), tone: 'ok' });
-    } catch (e) {
-      setMsg({ text: localizeErrorMessage(e, 'history.downloadFailed'), tone: 'err' });
-    } finally { setZipLoading(false); }
-  }, [rows]);
+  const downloadZipByIds = useCallback(
+    async (ids: string[], redacted: boolean, filename: string) => {
+      if (!ids.length) {
+        setMsg({ text: t('history.noDownloadable'), tone: 'warn' });
+        return;
+      }
+      if (redacted) {
+        const noOut = rows.filter((r) => ids.includes(r.file_id) && !r.has_output);
+        if (noOut.length) {
+          setMsg({ text: t('history.hasUnredacted'), tone: 'warn' });
+          return;
+        }
+      }
+      setZipLoading(true);
+      try {
+        const blob = await fileApi.batchDownloadZip(ids, redacted);
+        triggerDownload(blob, filename);
+        showToast(t('history.zipStarted'), 'success');
+        setMsg({ text: t('history.zipStarted'), tone: 'ok' });
+      } catch (e) {
+        setMsg({ text: localizeErrorMessage(e, 'history.downloadFailed'), tone: 'err' });
+      } finally {
+        setZipLoading(false);
+      }
+    },
+    [rows],
+  );
 
-  const downloadZip = useCallback(async (redacted: boolean) => {
-    if (!selectedIds.length) { setMsg({ text: t('history.selectFirst'), tone: 'warn' }); return; }
-    await downloadZipByIds(selectedIds, redacted, redacted ? 'history_redacted.zip' : 'history_original.zip');
-  }, [selectedIds, downloadZipByIds]);
+  const downloadZip = useCallback(
+    async (redacted: boolean) => {
+      if (!selectedIds.length) {
+        setMsg({ text: t('history.selectFirst'), tone: 'warn' });
+        return;
+      }
+      await downloadZipByIds(
+        selectedIds,
+        redacted,
+        redacted ? 'history_redacted.zip' : 'history_original.zip',
+      );
+    },
+    [selectedIds, downloadZipByIds],
+  );
 
   /* Tree collapse */
 
   const toggleBatchCollapse = useCallback((batchGroupId: string) => {
-    setCollapsedBatchIds(prev => {
+    setCollapsedBatchIds((prev) => {
       const n = new Set(prev);
-      if (n.has(batchGroupId)) n.delete(batchGroupId); else n.add(batchGroupId);
+      if (n.has(batchGroupId)) n.delete(batchGroupId);
+      else n.add(batchGroupId);
       return n;
     });
   }, []);
 
   /* Delete */
 
-  const remove = useCallback((id: string) => {
-    setConfirmDlg({
-      title: t('history.deleteFileTitle'),
-      message: t('history.deleteFileMsg'),
-      onConfirm: async () => {
-        setConfirmDlg(null);
-        try {
-          await fileApi.delete(id);
-          await load(true, page, pageSize);
-          setMsg({ text: t('history.deleted'), tone: 'ok' });
-        } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
-      },
-    });
-  }, [load, page, pageSize]);
+  const remove = useCallback(
+    (id: string) => {
+      setConfirmDlg({
+        title: t('history.deleteFileTitle'),
+        message: t('history.deleteFileMsg'),
+        onConfirm: async () => {
+          setConfirmDlg(null);
+          try {
+            await fileApi.delete(id);
+            await load(true, page, pageSize);
+            setMsg({ text: t('history.deleted'), tone: 'ok' });
+          } catch (e) {
+            setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' });
+          }
+        },
+      });
+    },
+    [load, page, pageSize],
+  );
 
-  const removeGroup = useCallback((fileIds: string[]) => {
-    if (!fileIds.length) return;
-    setConfirmDlg({
-      title: t('history.deleteGroup'),
-      message: t('history.deleteGroupMsg').replace('{n}', String(fileIds.length)),
-      onConfirm: async () => {
-        setConfirmDlg(null);
-        try {
-          for (const id of fileIds) await fileApi.delete(id);
-          await load(true, page, pageSize);
-          setMsg({ text: t('history.deletedGroup').replace('{n}', String(fileIds.length)), tone: 'ok' });
-        } catch (e) { setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' }); }
-      },
-    });
-  }, [load, page, pageSize]);
+  const removeGroup = useCallback(
+    (fileIds: string[]) => {
+      if (!fileIds.length) return;
+      setConfirmDlg({
+        title: t('history.deleteGroup'),
+        message: t('history.deleteGroupMsg').replace('{n}', String(fileIds.length)),
+        onConfirm: async () => {
+          setConfirmDlg(null);
+          try {
+            for (const id of fileIds) await fileApi.delete(id);
+            await load(true, page, pageSize);
+            setMsg({
+              text: t('history.deletedGroup').replace('{n}', String(fileIds.length)),
+              tone: 'ok',
+            });
+          } catch (e) {
+            setMsg({ text: localizeErrorMessage(e, 'history.deleteFailed'), tone: 'err' });
+          }
+        },
+      });
+    },
+    [load, page, pageSize],
+  );
 
   /* Cleanup */
 
@@ -436,32 +549,75 @@ export function useHistory() {
   }, [load, pageSize]);
 
   const downloadRow = useCallback(async (row: FileListItem) => {
-    await downloadAuthenticatedFile(fileApi.getDownloadUrl(row.file_id, row.has_output), row.original_filename);
+    await downloadAuthenticatedFile(
+      fileApi.getDownloadUrl(row.file_id, row.has_output),
+      row.original_filename,
+    );
   }, []);
 
   return {
     /* list data */
-    rows, filteredRows, total, page, pageSize, totalPages, historyGroups, statsData,
+    rows,
+    filteredRows,
+    total,
+    page,
+    pageSize,
+    totalPages,
+    historyGroups,
+    statsData,
     /* loading */
-    initialLoading, tableLoading, refreshing, zipLoading,
+    initialLoading,
+    tableLoading,
+    refreshing,
+    zipLoading,
     /* selection */
-    selected, setSelected, selectedIds, allSelected, toggle,
+    selected,
+    setSelected,
+    selectedIds,
+    allSelected,
+    toggle,
     /* filters */
-    sourceTab, changeSourceTab, dateFilter, setDateFilter, fileTypeFilter, setFileTypeFilter,
-    statusFilter, setStatusFilter, hasActiveFilter, clearFilters,
+    sourceTab,
+    changeSourceTab,
+    dateFilter,
+    setDateFilter,
+    fileTypeFilter,
+    setFileTypeFilter,
+    statusFilter,
+    setStatusFilter,
+    hasActiveFilter,
+    clearFilters,
     /* pagination */
-    goPage, changePageSize,
+    goPage,
+    changePageSize,
     /* actions */
-    load, downloadZip, downloadRow, remove, removeGroup, toggleBatchCollapse, collapsedBatchIds,
+    load,
+    downloadZip,
+    downloadRow,
+    remove,
+    removeGroup,
+    toggleBatchCollapse,
+    collapsedBatchIds,
     /* cleanup */
-    cleanupConfirmOpen, setCleanupConfirmOpen, handleCleanup,
+    cleanupConfirmOpen,
+    setCleanupConfirmOpen,
+    handleCleanup,
     /* messages */
     msg,
     /* compare */
-    compareOpen, compareTarget, compareLoading, compareErr, compareData,
-    compareBlobUrls, compareTab, setCompareTab, comparePreviewItems,
-    openCompareModal, closeCompareModal,
+    compareOpen,
+    compareTarget,
+    compareLoading,
+    compareErr,
+    compareData,
+    compareBlobUrls,
+    compareTab,
+    setCompareTab,
+    comparePreviewItems,
+    openCompareModal,
+    closeCompareModal,
     /* confirm dialog */
-    confirmDlg, setConfirmDlg,
+    confirmDlg,
+    setConfirmDlg,
   };
 }

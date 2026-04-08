@@ -1,7 +1,6 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-
 import { Globe } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useI18n, useT } from '@/i18n';
@@ -27,12 +26,17 @@ export function AppHeader() {
             {title}
           </h1>
           {sub && (
-            <p className="mt-1 truncate text-xs leading-snug text-muted-foreground sm:text-sm">{sub}</p>
+            <p className="mt-1 truncate text-xs leading-snug text-muted-foreground sm:text-sm">
+              {sub}
+            </p>
           )}
         </div>
       </div>
 
-      <nav aria-label={t('layout.headerActions')} className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1.5 shadow-[var(--shadow-control)]">
+      <nav
+        aria-label={t('layout.headerActions')}
+        className="flex shrink-0 items-center gap-2 rounded-full border border-border/70 bg-[var(--surface-control)] px-2 py-1.5 shadow-[var(--shadow-control)]"
+      >
         <div
           role="status"
           aria-label={
@@ -84,21 +88,33 @@ export function AppHeader() {
   );
 }
 
-function getPageHeader(pathname: string, t: (key: string) => string): { title: string; sub?: string } {
+function getPageHeader(
+  pathname: string,
+  t: (key: string) => string,
+): { title: string; sub?: string } {
   if (pathname === '/batch') return { title: t('page.batch.title'), sub: t('page.batch.sub') };
-  if (pathname.startsWith('/batch/text')) return { title: t('page.batchText.title'), sub: t('page.batchText.sub') };
-  if (pathname.startsWith('/batch/image')) return { title: t('page.batchImage.title'), sub: t('page.batchImage.sub') };
-  if (pathname.startsWith('/batch/smart')) return { title: t('page.batchSmart.title'), sub: t('page.batchSmart.sub') };
-  if (pathname.startsWith('/settings/redaction')) return { title: t('page.redactionList.title'), sub: t('page.redactionList.sub') };
-  if (pathname === '/settings') return { title: t('page.recognitionSettings.title'), sub: t('page.recognitionSettings.sub') };
-  if (pathname.startsWith('/jobs/')) return { title: t('page.jobDetail.title'), sub: t('page.jobDetail.sub') };
+  if (pathname.startsWith('/batch/text'))
+    return { title: t('page.batchText.title'), sub: t('page.batchText.sub') };
+  if (pathname.startsWith('/batch/image'))
+    return { title: t('page.batchImage.title'), sub: t('page.batchImage.sub') };
+  if (pathname.startsWith('/batch/smart'))
+    return { title: t('page.batchSmart.title'), sub: t('page.batchSmart.sub') };
+  if (pathname.startsWith('/settings/redaction'))
+    return { title: t('page.redactionList.title'), sub: t('page.redactionList.sub') };
+  if (pathname === '/settings')
+    return { title: t('page.recognitionSettings.title'), sub: t('page.recognitionSettings.sub') };
+  if (pathname.startsWith('/jobs/'))
+    return { title: t('page.jobDetail.title'), sub: t('page.jobDetail.sub') };
   if (pathname === '/jobs') return { title: t('page.jobs.title'), sub: t('page.jobs.sub') };
 
   const map: Record<string, { title: string; sub?: string }> = {
     '/': { title: t('nav.playground') },
     '/history': { title: t('page.history.title'), sub: t('page.history.sub') },
     '/model-settings/text': { title: t('page.textModel.title'), sub: t('page.textModel.sub') },
-    '/model-settings/vision': { title: t('page.visionModel.title'), sub: t('page.visionModel.sub') },
+    '/model-settings/vision': {
+      title: t('page.visionModel.title'),
+      sub: t('page.visionModel.sub'),
+    },
   };
 
   return map[pathname] || { title: t('nav.playground') };

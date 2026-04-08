@@ -45,7 +45,7 @@ export function useVisionModelForm(
   }, []);
 
   const updateForm = useCallback((patch: Partial<ModelConfig>) => {
-    setForm(current => ({ ...current, ...patch }));
+    setForm((current) => ({ ...current, ...patch }));
   }, []);
 
   const requestConfirm = useCallback((state: ConfirmState) => {
