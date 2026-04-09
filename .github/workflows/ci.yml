@@ -42,7 +42,9 @@ jobs:
         run: npx prettier --check src/
 
       - name: Unit tests (vitest)
-        run: npm run test -- --passWithNoTests
+        # use-playground-recognition.test.ts is excluded because it OOMs in CI
+        # even at 8GB heap (see 11c433d). Run it locally if you touch the hook.
+        run: npm run test -- --passWithNoTests --exclude='**/use-playground-recognition*'
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
