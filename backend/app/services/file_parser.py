@@ -376,6 +376,7 @@ class FileParser:
 
     async def get_pdf_page_image(self, file_path: str, page: int, dpi: int = 150) -> bytes:
         """获取 PDF 指定页的图片"""
+        _validate_path(file_path)
         doc = fitz.open(file_path)
 
         if page < 1 or page > len(doc):
@@ -393,10 +394,12 @@ class FileParser:
 
     async def read_image(self, file_path: str) -> bytes:
         """读取图片文件"""
+        _validate_path(file_path)
         with open(file_path, "rb") as f:
             return f.read()
 
     async def get_image_size(self, file_path: str) -> tuple[int, int]:
         """获取图片尺寸"""
+        _validate_path(file_path)
         with Image.open(file_path) as img:
             return img.size

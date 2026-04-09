@@ -152,7 +152,17 @@ async def run_default_ner(file_id: str, entity_type_ids: list[str] | None = None
         entity_types = [entity_types_db[tid] for tid in entity_type_ids if tid in entity_types_db]
     else:
         entity_types = get_enabled_types()
-    entities = await perform_hybrid_ner(snapshot["content"], entity_types)
+    try:
+        entities = await perform_hybrid_ner(snapshot["content"], entity_types)
+    except Exception as e:
+        logger.exception("默认识别失败: %s", e)
+        return {
+            "entities": [],
+            "entity_count": 0,
+            "entity_summary": {},
+            "recognition_failed": True,
+            "error": str(e),
+        }
 
     entity_summary = {}
     for ent in entities:
