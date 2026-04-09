@@ -39,14 +39,14 @@ class FileStoreDB:
     def __init__(self, db_path: str) -> None:
         self._path = db_path
         self._lock = threading.Lock()
-
-    @property
-    def db_path(self) -> str:
-        return self._path
         d = os.path.dirname(db_path)
         if d:
             os.makedirs(d, exist_ok=True)
         self._init_db()
+
+    @property
+    def db_path(self) -> str:
+        return self._path
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._path, check_same_thread=False, timeout=10.0)

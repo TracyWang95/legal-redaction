@@ -327,9 +327,8 @@ app.include_router(safety_api.router, prefix=settings.API_PREFIX, tags=["数据�
 logger.info("presets API: GET/POST %s/presets (若前端仍 404，请重启本进程以加载最新路由)", settings.API_PREFIX)
 
 # Prometheus metrics endpoint
-from datetime import UTC
-
-from app.core.metrics import metrics_endpoint
+from datetime import UTC  # noqa: E402, I001
+from app.core.metrics import metrics_endpoint  # noqa: E402
 
 @app.get("/metrics", tags=["监控"], dependencies=[Depends(require_auth)])
 async def metrics_view(request: Request):

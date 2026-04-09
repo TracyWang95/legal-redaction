@@ -27,11 +27,8 @@ httpx==0.28.1
 nvidia-ml-py==12.535.133
 aiofiles==24.1.0
 
-# HaS Image
-ultralytics==8.3.0
-
-# OCR
-paddleocr==2.7.0
+# HaS Image / OCR — 已拆分为独立微服务（Dockerfile.ocr / Dockerfile.vision）
+# 主后端不再直接依赖 ultralytics / paddleocr
 
 # 工具库
 PyJWT==2.11.0
@@ -44,6 +41,5 @@ prometheus-client==0.21.1
 # 安全
 cryptography==46.0.1
 
-# 开发工具
+# 运行时工具
 python-dotenv==1.1.1
-pytest==8.3.4

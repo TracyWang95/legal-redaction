@@ -72,13 +72,13 @@ def _read_key_file(key_path: str) -> tuple[str, bool]:
         import ctypes
         import ctypes.wintypes
 
-        class DATA_BLOB(ctypes.Structure):
+        class DpapiBlob(ctypes.Structure):
             _fields_ = [("cbData", ctypes.wintypes.DWORD),
                          ("pbData", ctypes.POINTER(ctypes.c_char))]
 
         encrypted = base64.b64decode(data["dpapi"])
-        blob_in = DATA_BLOB(len(encrypted), ctypes.create_string_buffer(encrypted, len(encrypted)))
-        blob_out = DATA_BLOB()
+        blob_in = DpapiBlob(len(encrypted), ctypes.create_string_buffer(encrypted, len(encrypted)))
+        blob_out = DpapiBlob()
 
         try:
             if ctypes.windll.crypt32.CryptUnprotectData(
@@ -104,13 +104,13 @@ def _write_key_file(key_path: str, hex_key: str) -> None:
             import ctypes
             import ctypes.wintypes
 
-            class DATA_BLOB(ctypes.Structure):
+            class DpapiBlob(ctypes.Structure):
                 _fields_ = [("cbData", ctypes.wintypes.DWORD),
                              ("pbData", ctypes.POINTER(ctypes.c_char))]
 
             raw = hex_key.encode()
-            blob_in = DATA_BLOB(len(raw), ctypes.create_string_buffer(raw, len(raw)))
-            blob_out = DATA_BLOB()
+            blob_in = DpapiBlob(len(raw), ctypes.create_string_buffer(raw, len(raw)))
+            blob_out = DpapiBlob()
 
             if ctypes.windll.crypt32.CryptProtectData(
                 ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out)
