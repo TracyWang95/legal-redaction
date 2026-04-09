@@ -112,6 +112,16 @@ async def lifespan(app: FastAPI):
     from app.core.db_backup import backup_sqlite, ensure_db_healthy
     ensure_db_healthy(settings.JOB_DB_PATH)
 
+    # Also check file_store and token_blacklist databases
+    from app.services.file_management_service import get_file_store
+    _fs = get_file_store()
+    if hasattr(_fs, 'db_path'):
+        ensure_db_healthy(_fs.db_path)
+    from app.core.token_blacklist import get_blacklist
+    _bl = get_blacklist()
+    if hasattr(_bl, 'db_path'):
+        ensure_db_healthy(_bl.db_path)
+
     # 0b. Run file-store migrations (JSON→SQLite, path normalization)
     from app.services.file_management_service import run_startup_migrations
     run_startup_migrations()
@@ -181,14 +191,28 @@ async def lifespan(app: FastAPI):
     # 4. Start periodic orphan cleanup
     _cleanup_task = asyncio.create_task(_periodic_cleanup())
 
-    # 5. Start periodic database backup (every hour)
+    # 5. Start periodic database backup (every hour) — all SQLite databases
     async def _periodic_backup():
         while True:
             await asyncio.sleep(3600)
             try:
                 backup_sqlite(settings.JOB_DB_PATH)
             except Exception:
-                logger.exception("periodic database backup failed")
+                logger.exception("periodic database backup failed: jobs")
+            try:
+                from app.services.file_management_service import get_file_store
+                fs = get_file_store()
+                if hasattr(fs, 'db_path'):
+                    backup_sqlite(fs.db_path)
+            except Exception:
+                logger.exception("periodic database backup failed: file_store")
+            try:
+                from app.core.token_blacklist import get_blacklist
+                bl = get_blacklist()
+                if hasattr(bl, 'db_path'):
+                    backup_sqlite(bl.db_path)
+            except Exception:
+                logger.exception("periodic database backup failed: token_blacklist")
 
     _backup_task = asyncio.create_task(_periodic_backup())
 
@@ -196,10 +220,10 @@ async def lifespan(app: FastAPI):
 
     # === Shutdown (graceful: wait up to 30s for in-progress work) ===
     logger.info("Shutting down: stopping task queue and background tasks...")
-    _task_queue.stop()
+    _worker_tasks = _task_queue.stop()
     _cleanup_task.cancel()
     _backup_task.cancel()
-    tasks_to_wait = [_cleanup_task, _backup_task]
+    tasks_to_wait = [_cleanup_task, _backup_task] + _worker_tasks
     done, pending = await asyncio.wait(tasks_to_wait, timeout=30.0)
     for t in pending:
         t.cancel()
@@ -307,7 +331,9 @@ from datetime import UTC
 
 from app.core.metrics import metrics_endpoint
 
-app.add_route("/metrics", metrics_endpoint, methods=["GET"])
+@app.get("/metrics", tags=["监控"], dependencies=[Depends(require_auth)])
+async def metrics_view(request: Request):
+    return await metrics_endpoint(request)
 
 
 @app.get("/", tags=["根路径"])

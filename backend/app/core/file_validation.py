@@ -80,7 +80,16 @@ def get_file_type(filename: str) -> FileType | None:
 
 
 def safe_path_in_dir(file_path: str, allowed_dir: str) -> bool:
-    """Path-traversal guard: ensure *file_path* is inside *allowed_dir*."""
-    real_file = os.path.realpath(file_path)
-    real_dir = os.path.realpath(allowed_dir)
-    return real_file == real_dir or real_file.startswith(real_dir + os.sep)
+    """Path-traversal guard: ensure *file_path* is inside *allowed_dir*.
+
+    Uses pathlib.Path.resolve() for symlink resolution and
+    is_relative_to() for safe containment check.
+    """
+    from pathlib import Path
+
+    try:
+        resolved_file = Path(file_path).resolve(strict=False)
+        resolved_dir = Path(allowed_dir).resolve(strict=False)
+        return resolved_file == resolved_dir or resolved_file.is_relative_to(resolved_dir)
+    except (OSError, ValueError):
+        return False

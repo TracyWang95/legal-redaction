@@ -201,7 +201,12 @@ export function useVisionModelConfig() {
       const res = await fetchWithTimeout('/api/v1/model-config', { timeoutMs: 25000 });
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json().catch(() => ({}));
-      const configs = Array.isArray(data?.configs) ? data.configs : [];
+      const rawConfigs: ModelConfig[] = Array.isArray(data?.configs) ? data.configs : [];
+      // After fetching models from API, redact keys
+      const configs = rawConfigs.map(m => ({
+        ...m,
+        api_key: m.api_key ? '__REDACTED__' : undefined,
+      }));
       setModelConfigs({
         configs,
         active_id: typeof data?.active_id === 'string' ? data.active_id : undefined,
@@ -228,10 +233,15 @@ export function useVisionModelConfig() {
     async (form: Partial<ModelConfig>, editingId: string | null) => {
       if (!form.name || !form.model_name) return false;
       const configId = editingId || `custom_${Date.now()}`;
+      // In save payload, omit redacted/empty keys so the backend keeps the existing key
+      const sanitizedForm = { ...form };
+      if (sanitizedForm.api_key === '__REDACTED__' || sanitizedForm.api_key === '') {
+        delete sanitizedForm.api_key;
+      }
       const payload = {
-        ...form,
+        ...sanitizedForm,
         id: configId,
-        enabled: editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (form.enabled ?? true),
+        enabled: editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (sanitizedForm.enabled ?? true),
       };
       const url = editingId ? `/api/v1/model-config/${editingId}` : '/api/v1/model-config';
       const method = editingId ? 'PUT' : 'POST';

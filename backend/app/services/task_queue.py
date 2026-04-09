@@ -38,12 +38,13 @@ class SimpleTaskQueue:
     内部维护一个 asyncio.Queue，一个后台 worker coroutine 逐个消费。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, concurrency: int = 1) -> None:
         self._queue: asyncio.Queue[TaskItem] = asyncio.Queue()
-        self._worker_task: asyncio.Task | None = None
+        self._worker_tasks: list[asyncio.Task] = []
         self._running = False
-        self._current: TaskItem | None = None
+        self._current: dict[int, TaskItem | None] = {}  # worker_id → current task
         self._pending_items: set[str] = set()  # item_id 去重
+        self._concurrency = max(1, concurrency)
 
     # ------------------------------------------------------------------
     # 生命周期
@@ -54,15 +55,23 @@ class SimpleTaskQueue:
         if self._running:
             return
         self._running = True
-        self._worker_task = asyncio.get_event_loop().create_task(self._worker_loop())
-        logger.info("SimpleTaskQueue started (in-process, sequential)")
+        loop = asyncio.get_event_loop()
+        for i in range(self._concurrency):
+            task = loop.create_task(self._worker_loop(worker_id=i))
+            self._worker_tasks.append(task)
+        logger.info("SimpleTaskQueue started (%d worker(s))", self._concurrency)
 
-    def stop(self) -> None:
-        """在 FastAPI shutdown 事件中调用。"""
+    def stop(self) -> list[asyncio.Task]:
+        """在 FastAPI shutdown 事件中调用。返回 worker tasks 供调用方 await。"""
         self._running = False
-        if self._worker_task and not self._worker_task.done():
-            self._worker_task.cancel()
+        tasks = []
+        for t in self._worker_tasks:
+            if not t.done():
+                t.cancel()
+                tasks.append(t)
+        self._worker_tasks.clear()
         logger.info("SimpleTaskQueue stopped")
+        return tasks
 
     # ------------------------------------------------------------------
     # 入队
@@ -89,14 +98,17 @@ class SimpleTaskQueue:
 
     @property
     def current_task(self) -> TaskItem | None:
-        return self._current
+        for t in self._current.values():
+            if t is not None:
+                return t
+        return None
 
     # ------------------------------------------------------------------
     # 后台 worker
     # ------------------------------------------------------------------
 
-    async def _worker_loop(self) -> None:
-        logger.info("worker loop started (strict sequential, 1 item at a time)")
+    async def _worker_loop(self, worker_id: int = 0) -> None:
+        logger.info("worker-%d loop started", worker_id)
         while self._running:
             try:
                 task = await asyncio.wait_for(self._queue.get(), timeout=2.0)
@@ -105,10 +117,10 @@ class SimpleTaskQueue:
             except asyncio.CancelledError:
                 break
 
-            self._current = task
+            self._current[worker_id] = task
             logger.info(
-                "▶ processing %s  job=%s item=%s file=%s  (remaining=%d)",
-                task.task_type, task.job_id[:8], task.item_id[:8],
+                "▶ worker-%d processing %s  job=%s item=%s file=%s  (remaining=%d)",
+                worker_id, task.task_type, task.job_id[:8], task.item_id[:8],
                 task.file_id[:8], self._queue.qsize(),
             )
             try:
@@ -147,7 +159,7 @@ class SimpleTaskQueue:
                 except Exception:
                     pass
             finally:
-                self._current = None
+                self._current[worker_id] = None
                 self._pending_items.discard(task.item_id)
                 self._queue.task_done()
                 logger.info(
@@ -156,7 +168,7 @@ class SimpleTaskQueue:
                     self._queue.qsize(),
                 )
 
-        logger.info("worker loop exited")
+        logger.info("worker-%d loop exited", worker_id)
 
     # ------------------------------------------------------------------
     # 识别流水线
@@ -281,12 +293,12 @@ class SimpleTaskQueue:
 
         if skip_review:
             # skip_item_review=true: 直接入队匿名化，不等人工审阅
+            # 使用 enqueue() 而非直接 put_nowait()，确保去重逻辑一致
             logger.info("[queue] item=%s → skip review, enqueue redaction", task.item_id[:8])
-            self._queue.put_nowait(TaskItem(
+            self.enqueue(TaskItem(
                 job_id=task.job_id, item_id=task.item_id,
                 file_id=task.file_id, task_type="redaction",
             ))
-            self._pending_items.add(task.item_id)
         else:
             logger.info("[queue] item=%s → awaiting_review ✓", task.item_id[:8])
 
@@ -447,5 +459,6 @@ _instance: SimpleTaskQueue | None = None
 def get_task_queue() -> SimpleTaskQueue:
     global _instance
     if _instance is None:
-        _instance = SimpleTaskQueue()
+        from app.core.config import settings
+        _instance = SimpleTaskQueue(concurrency=settings.JOB_CONCURRENCY)
     return _instance

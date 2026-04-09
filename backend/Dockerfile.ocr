@@ -6,13 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PaddlePaddle GPU and PaddleOCR
-RUN pip install --no-cache-dir \
-    paddlepaddle-gpu \
-    paddleocr \
-    fastapi \
-    uvicorn \
-    httpx
+COPY requirements-ocr.lock .
+RUN pip install --no-cache-dir -r requirements-ocr.lock
 
 COPY scripts/ocr_server.py .
 

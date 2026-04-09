@@ -76,3 +76,23 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/frontend:${{ steps.version.outputs.version }}
             ghcr.io/${{ github.repository }}/frontend:latest
+
+      - name: Build and push OCR
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile.ocr
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/ocr:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}/ocr:latest
+
+      - name: Build and push Vision
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile.vision
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/vision:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository }}/vision:latest

@@ -123,11 +123,12 @@ export function VisionModelDialog({
               <Label>{t('settings.visionModel.apiKeyLabel')}</Label>
               <Input
                 type="password"
-                value={form.api_key ?? ''}
+                value={form.api_key === '__REDACTED__' ? '' : (form.api_key ?? '')}
                 onChange={(e) => onUpdateForm({ api_key: e.target.value })}
                 className="font-mono text-sm"
-                placeholder="sk-..."
+                placeholder={form.api_key === '__REDACTED__' ? t('settings.visionModel.apiKeyRedacted', { defaultValue: '(已设置，输入新值可替换)' }) : 'sk-...'}
                 data-testid="vision-model-api-key"
+                autoComplete="off"
               />
             </div>
           )}

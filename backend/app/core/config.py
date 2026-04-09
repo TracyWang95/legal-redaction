@@ -162,6 +162,11 @@ class Settings(BaseSettings):
     # 批量任务并发配置
     JOB_CONCURRENCY: int = 1  # Number of concurrent job items to process
 
+    @field_validator("JOB_CONCURRENCY")
+    @classmethod
+    def _validate_job_concurrency(cls, v: int) -> int:
+        return max(1, min(16, v))
+
     # 后台工作循环 / 清理
     WORKER_LOOP_INTERVAL_SEC: float = 2.0
     ORPHAN_CLEANUP_AGE_SEC: int = 3600

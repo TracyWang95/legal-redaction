@@ -20,7 +20,7 @@ services:
       - DATA_DIR=/app/data
       - UPLOAD_DIR=/app/uploads
       - OUTPUT_DIR=/app/outputs
-      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
       - OCR_BASE_URL=http://ocr:8082
       - HAS_LLAMACPP_BASE_URL=http://ner:8080/v1
       - HAS_IMAGE_BASE_URL=http://vision:8081
