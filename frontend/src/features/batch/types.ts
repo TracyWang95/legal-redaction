@@ -51,6 +51,7 @@ export interface BatchRow extends FileListItem {
   analyzeError?: string;
   isImageMode?: boolean;
   reviewConfirmed?: boolean;
+  page_count?: number;
 }
 
 export type ReviewEntity = {

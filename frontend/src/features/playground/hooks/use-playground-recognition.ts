@@ -127,17 +127,31 @@ export function usePlaygroundRecognition() {
   const applyVisionPresetToPlayground = useCallback(
     (preset: RecognitionPreset) => {
       if (!presetAppliesVision(preset)) return;
-      const ocrIds = pipelines
-        .filter((pipeline) => pipeline.mode === 'ocr_has')
-        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
-      const imageIds = pipelines
-        .filter((pipeline) => pipeline.mode === 'has_image')
-        .flatMap((pipeline) => pipeline.types.map((type) => type.id));
+      const hasLoadedPipelines = pipelines.length > 0;
+      const ocrIds = hasLoadedPipelines
+        ? pipelines
+            .filter((pipeline) => pipeline.mode === 'ocr_has')
+            .flatMap((pipeline) => pipeline.types.map((type) => type.id))
+        : null;
+      const imageIds = hasLoadedPipelines
+        ? pipelines
+            .filter((pipeline) => pipeline.mode === 'has_image')
+            .flatMap((pipeline) => pipeline.types.map((type) => type.id))
+        : null;
 
-      updateOcrHasTypes(preset.ocrHasTypes.filter((id) => ocrIds.includes(id)));
-      updateHasImageTypes(preset.hasImageTypes.filter((id) => imageIds.includes(id)));
+      updateOcrHasTypes(
+        hasLoadedPipelines
+          ? preset.ocrHasTypes.filter((id) => ocrIds?.includes(id))
+          : [...preset.ocrHasTypes],
+      );
+      updateHasImageTypes(
+        hasLoadedPipelines
+          ? preset.hasImageTypes.filter((id) => imageIds?.includes(id))
+          : [...preset.hasImageTypes],
+      );
       setPlaygroundPresetVisionId(preset.id);
       setActivePresetVisionId(preset.id);
+      setPresetApplySeq((s) => s + 1);
     },
     [pipelines, updateOcrHasTypes, updateHasImageTypes],
   );
@@ -166,6 +180,7 @@ export function usePlaygroundRecognition() {
         setActivePresetVisionId(null);
         updateOcrHasTypes([...playgroundDefaultOcrHasTypeIds]);
         updateHasImageTypes([...playgroundDefaultHasImageTypeIds]);
+        setPresetApplySeq((s) => s + 1);
         return;
       }
 
@@ -296,25 +311,43 @@ export function usePlaygroundRecognition() {
         .filter((pipeline) => pipeline.mode === 'ocr_has')
         .flatMap((pipeline) => pipeline.types.map((type) => type.id));
       const defaultOcrHasTypeIds = buildDefaultPipelineTypeIds(normalizedPipelines, 'ocr_has');
-      const savedOcrHasTypes = getStorageItem<string[] | null>(STORAGE_KEYS.OCR_HAS_TYPES, null);
-      if (savedOcrHasTypes && Array.isArray(savedOcrHasTypes)) {
-        const filtered = savedOcrHasTypes.filter((id: string) => ocrHasTypeIds.includes(id));
-        updateOcrHasTypes(filtered);
-      } else {
-        updateOcrHasTypes(defaultOcrHasTypeIds);
-      }
-
       const hasImageTypeIds = normalizedPipelines
         .filter((pipeline) => pipeline.mode === 'has_image')
         .flatMap((pipeline) => pipeline.types.map((type) => type.id));
       const defaultHasImageTypeIds = buildDefaultPipelineTypeIds(normalizedPipelines, 'has_image');
+      const savedOcrHasTypes = getStorageItem<string[] | null>(STORAGE_KEYS.OCR_HAS_TYPES, null);
       const savedHasImageTypes = getStorageItem<string[] | null>(
         STORAGE_KEYS.HAS_IMAGE_TYPES,
         null,
       );
+
+      // Recover from stale cache where both vision lists were persisted as empty arrays.
+      if (
+        Array.isArray(savedOcrHasTypes) &&
+        Array.isArray(savedHasImageTypes) &&
+        savedOcrHasTypes.length === 0 &&
+        savedHasImageTypes.length === 0
+      ) {
+        updateOcrHasTypes(defaultOcrHasTypeIds);
+        updateHasImageTypes(defaultHasImageTypeIds);
+        return;
+      }
+
+      if (savedOcrHasTypes && Array.isArray(savedOcrHasTypes)) {
+        const filtered = savedOcrHasTypes.filter((id: string) => ocrHasTypeIds.includes(id));
+        updateOcrHasTypes(
+          filtered.length > 0 || savedOcrHasTypes.length === 0 ? filtered : defaultOcrHasTypeIds,
+        );
+      } else {
+        updateOcrHasTypes(defaultOcrHasTypeIds);
+      }
       if (savedHasImageTypes && Array.isArray(savedHasImageTypes)) {
         const filtered = savedHasImageTypes.filter((id: string) => hasImageTypeIds.includes(id));
-        updateHasImageTypes(filtered);
+        updateHasImageTypes(
+          filtered.length > 0 || savedHasImageTypes.length === 0
+            ? filtered
+            : defaultHasImageTypeIds,
+        );
       } else {
         updateHasImageTypes(defaultHasImageTypeIds);
       }

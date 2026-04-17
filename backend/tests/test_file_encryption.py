@@ -11,12 +11,11 @@ import secrets
 import pytest
 
 from app.core.file_encryption import (
+    _KEY_LENGTH,
     FileEncryptor,
     _load_or_create_key,
     _read_key_file,
-    _KEY_LENGTH,
 )
-
 
 # ── _load_or_create_key ─────────────────────────────────────
 

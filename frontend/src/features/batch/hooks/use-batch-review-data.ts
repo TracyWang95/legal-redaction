@@ -6,7 +6,7 @@ import { t } from '@/i18n';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 import { fileApi, authenticatedBlobUrl } from '@/services/api';
-import { authFetch } from '@/services/api-client';
+import { authFetch, VISION_TIMEOUT } from '@/services/api-client';
 import { ReplacementMode } from '@/types';
 import {
   batchGetFileRaw,
@@ -29,6 +29,9 @@ export interface ReviewDataDeps {
   textTypes: TextEntityType[];
   reviewEntities: ReviewEntity[];
   reviewBoxes: EditorBox[];
+  visibleReviewBoxes: EditorBox[];
+  reviewCurrentPage: number;
+  reviewTotalPages: number;
   reviewItemId: string | undefined;
   reviewLoading: boolean;
   reviewTextContent: string;
@@ -43,6 +46,9 @@ export interface ReviewDataDeps {
   setReviewDraftError: React.Dispatch<React.SetStateAction<string | null>>;
   setReviewEntities: React.Dispatch<React.SetStateAction<ReviewEntity[]>>;
   setReviewBoxes: React.Dispatch<React.SetStateAction<EditorBox[]>>;
+  setReviewCurrentPage: React.Dispatch<React.SetStateAction<number>>;
+  setReviewTotalPages: React.Dispatch<React.SetStateAction<number>>;
+  setReviewPages: React.Dispatch<React.SetStateAction<string[]>>;
   setReviewTextContent: React.Dispatch<React.SetStateAction<string>>;
   setReviewOrigImageBlobUrl: React.Dispatch<React.SetStateAction<string>>;
   setReviewTextUndoStack: React.Dispatch<React.SetStateAction<ReviewEntity[][]>>;
@@ -64,6 +70,52 @@ export interface ReviewDataState {
   reviewImagePreviewLoading: boolean;
 }
 
+interface PreviewImageResponse {
+  image_base64?: string;
+}
+
+function toDataImageUrl(imageBase64: string | undefined): string {
+  if (!imageBase64) return '';
+  return imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`;
+}
+
+function normalizePage(page: unknown, fallback = 1): number {
+  const n = Number(page);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : fallback;
+}
+
+function normalizeReviewBox(raw: Record<string, unknown>, index: number, pageFallback = 1): EditorBox {
+  return {
+    id: String(raw.id ?? `bbox_${index}`),
+    x: Number(raw.x),
+    y: Number(raw.y),
+    width: Number(raw.width),
+    height: Number(raw.height),
+    page: normalizePage(raw.page, pageFallback),
+    type: String(raw.type ?? 'CUSTOM'),
+    text: raw.text ? String(raw.text) : undefined,
+    selected: raw.selected !== false,
+    confidence: typeof raw.confidence === 'number' ? raw.confidence : undefined,
+    source: (raw.source as EditorBox['source']) || undefined,
+  };
+}
+
+function boxesToDraftPayload(boxes: EditorBox[]): Array<Record<string, unknown>> {
+  return boxes.map((box) => ({
+    id: box.id,
+    x: box.x,
+    y: box.y,
+    width: box.width,
+    height: box.height,
+    page: normalizePage(box.page, 1),
+    type: box.type,
+    text: box.text,
+    selected: box.selected,
+    source: box.source,
+    confidence: box.confidence,
+  }));
+}
+
 export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   const {
     step,
@@ -74,10 +126,14 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     isPreviewMode,
     textTypes: _textTypes,
     reviewEntities,
-    reviewBoxes,
+    reviewBoxes: _reviewBoxes,
+    visibleReviewBoxes,
+    reviewCurrentPage,
+    reviewTotalPages,
     reviewItemId,
     reviewLoading,
     reviewTextContent,
+    previewEntityMap: _previewEntityMap,
     reviewDraftInitializedRef,
     reviewDraftDirtyRef,
     reviewLastSavedJsonRef,
@@ -88,6 +144,9 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setReviewDraftError,
     setReviewEntities,
     setReviewBoxes,
+    setReviewCurrentPage,
+    setReviewTotalPages,
+    setReviewPages,
     setReviewTextContent,
     setReviewOrigImageBlobUrl,
     setReviewTextUndoStack,
@@ -98,15 +157,23 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     flushCurrentReviewDraft,
     setMsg,
   } = deps;
+  void _textTypes;
+  void _reviewBoxes;
+  void _previewEntityMap;
 
   const reviewLoadSeqRef = useRef(0);
-  const batchScrollCountersRef = useRef<Record<string, number>>({});
   const rerunAbortRef = useRef<AbortController | null>(null);
   const loadDataAbortRef = useRef<AbortController | null>(null);
+  // Per-page cached scanned-PDF preview image to eliminate blank-flash on page
+  // switch. Key = `${file_id}:${page}`. Cleared when the active file changes.
+  const pageImageCacheRef = useRef<Map<string, string>>(new Map());
   const [rerunRecognitionLoading, setRerunRecognitionLoading] = useState(false);
   const [reviewImagePreviewLoading, setReviewImagePreviewLoading] = useState(false);
 
-  // Abort in-flight operations on unmount
+  useEffect(() => {
+    pageImageCacheRef.current.clear();
+  }, [reviewFile?.file_id]);
+
   useEffect(
     () => () => {
       rerunAbortRef.current?.abort();
@@ -115,52 +182,126 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     [],
   );
 
-  // ── Reset scroll counters ──
-  useEffect(() => {
-    batchScrollCountersRef.current = {};
-  }, [reviewFile?.file_id]);
-
-  // ── Load original image blob ──
   useEffect(() => {
     let cancelled = false;
     let currentBlobUrl = '';
+
     if (!reviewFile || !reviewFile.isImageMode) {
       setReviewOrigImageBlobUrl('');
       return;
     }
-    const raw = fileApi.getDownloadUrl(reviewFile.file_id, false);
-    authenticatedBlobUrl(raw)
-      .then((u) => {
-        if (!cancelled) {
-          currentBlobUrl = u;
-          setReviewOrigImageBlobUrl(u);
-        } else if (u.startsWith('blob:')) URL.revokeObjectURL(u);
-      })
-      .catch(() => {
-        if (!cancelled) setReviewOrigImageBlobUrl(raw);
-      });
+
+    const rawFileType = String(reviewFile.file_type ?? '').toLowerCase();
+    const isScannedPdf = rawFileType === 'pdf_scanned';
+    const rawDownloadUrl = fileApi.getDownloadUrl(reviewFile.file_id, false);
+
+    const loadFromRawDownload = () => {
+      authenticatedBlobUrl(rawDownloadUrl)
+        .then((blobUrl) => {
+          if (!cancelled) {
+            currentBlobUrl = blobUrl;
+            setReviewOrigImageBlobUrl(blobUrl);
+          } else if (blobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(blobUrl);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setReviewOrigImageBlobUrl(rawDownloadUrl);
+        });
+    };
+
+    if (isScannedPdf) {
+      const cacheKey = `${reviewFile.file_id}:${reviewCurrentPage}`;
+      const cached = pageImageCacheRef.current.get(cacheKey);
+      const prefetch = (page: number) => {
+        if (page < 1 || page > reviewTotalPages) return;
+        const key = `${reviewFile.file_id}:${page}`;
+        if (pageImageCacheRef.current.has(key)) return;
+        authFetch(`/api/v1/redaction/${reviewFile.file_id}/preview-image?page=${page}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bounding_boxes: [],
+            config: {
+              replacement_mode: 'structured',
+              entity_types: [],
+              custom_replacements: {},
+            },
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) return;
+            const data = (await res.json()) as PreviewImageResponse;
+            const url = toDataImageUrl(data.image_base64);
+            if (url) pageImageCacheRef.current.set(key, url);
+          })
+          .catch(() => {
+            /* silent */
+          });
+      };
+      const scheduleNeighbors = () => {
+        const defer =
+          (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
+            .requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
+        defer(() => prefetch(reviewCurrentPage - 1));
+        defer(() => prefetch(reviewCurrentPage + 1));
+      };
+
+      if (cached) {
+        setReviewOrigImageBlobUrl(cached);
+        scheduleNeighbors();
+      } else {
+        authFetch(`/api/v1/redaction/${reviewFile.file_id}/preview-image?page=${reviewCurrentPage}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bounding_boxes: [],
+            config: {
+              replacement_mode: 'structured',
+              entity_types: [],
+              custom_replacements: {},
+            },
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = (await res.json()) as PreviewImageResponse;
+            const imageUrl = toDataImageUrl(data.image_base64);
+            if (!imageUrl) throw new Error('Missing image_base64');
+            if (!cancelled) {
+              pageImageCacheRef.current.set(cacheKey, imageUrl);
+              setReviewOrigImageBlobUrl(imageUrl);
+              scheduleNeighbors();
+            }
+          })
+          .catch(() => {
+            // Scanned PDF download URL can't render in <img>; keep previous image
+          });
+      }
+    } else {
+      loadFromRawDownload();
+    }
+
     return () => {
       cancelled = true;
       if (currentBlobUrl.startsWith('blob:')) URL.revokeObjectURL(currentBlobUrl);
     };
-  }, [reviewFile, setReviewOrigImageBlobUrl]);
+  }, [reviewFile, reviewCurrentPage, setReviewOrigImageBlobUrl]);
 
-  // ── Set loading on step/file change ──
   useLayoutEffect(() => {
     if (step !== 4 || !reviewFile) return;
     setReviewLoading(true);
   }, [step, reviewFile, setReviewLoading]);
 
-  // ── Load review data ──
   const loadReviewData = useCallback(
     async (fileId: string, isImage: boolean) => {
-      // Abort any in-flight load before starting a new one
       loadDataAbortRef.current?.abort();
       const controller = new AbortController();
       loadDataAbortRef.current = controller;
 
       const loadSeq = reviewLoadSeqRef.current + 1;
       reviewLoadSeqRef.current = loadSeq;
+
       setReviewLoading(true);
       setPreviewEntityMap({});
       setReviewImagePreview('');
@@ -168,37 +309,47 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       setReviewEntities([]);
       setReviewBoxes([]);
       setReviewTextContent('');
+      setReviewCurrentPage(1);
+      setReviewTotalPages(1);
+      setReviewPages([]);
       reviewDraftInitializedRef.current = false;
       reviewDraftDirtyRef.current = false;
       if (reviewAutosaveTimerRef.current !== null) {
         window.clearTimeout(reviewAutosaveTimerRef.current);
         reviewAutosaveTimerRef.current = null;
       }
+
       if (isPreviewMode) {
         const previewPayload = getPreviewReviewPayload(fileId);
         if (isImage) {
+          const boxes = previewPayload.boxes.map((box) => ({
+            ...box,
+            page: normalizePage(box.page, 1),
+          }));
+          const maxPage = boxes.reduce((max, box) => Math.max(max, normalizePage(box.page, 1)), 1);
           setReviewTextContent('');
           setReviewEntities([]);
-          setReviewBoxes(previewPayload.boxes.map((box) => ({ ...box })));
+          setReviewBoxes(boxes);
+          setReviewCurrentPage(1);
+          setReviewTotalPages(maxPage);
           setReviewOrigImageBlobUrl(previewPayload.imageSrc);
           setReviewImagePreview(previewPayload.previewSrc);
           setReviewImageUndoStack([]);
           setReviewImageRedoStack([]);
           reviewLastSavedJsonRef.current = JSON.stringify({
             entities: [],
-            bounding_boxes: previewPayload.boxes,
+            bounding_boxes: boxesToDraftPayload(boxes),
           });
         } else {
           setReviewBoxes([]);
+          setReviewCurrentPage(1);
+          setReviewTotalPages(1);
           setReviewEntities(previewPayload.entities.map((entity) => ({ ...entity })));
           setReviewTextContent(previewPayload.content);
           setReviewTextUndoStack([]);
           setReviewTextRedoStack([]);
-          const map = await fetchCachedBatchPreviewMap(
-            previewPayload.entities,
-            cfg.replacementMode,
-          );
-          if (loadSeq !== reviewLoadSeqRef.current) return;
+          const map = await fetchCachedBatchPreviewMap(previewPayload.entities, cfg.replacementMode);
+          if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
           setPreviewEntityMap(map);
           reviewLastSavedJsonRef.current = JSON.stringify({
             entities: previewPayload.entities,
@@ -209,9 +360,11 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         setReviewLoading(false);
         return;
       }
+
       try {
         const info = await batchGetFileRaw(fileId);
-        if (loadSeq !== reviewLoadSeqRef.current) return;
+        if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
+
         const linkedItemId = itemIdByFileIdRef.current[fileId];
         let draft: {
           exists?: boolean;
@@ -221,101 +374,95 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         if (activeJobId && linkedItemId) {
           try {
             const loadedDraft = await getItemReviewDraft(activeJobId, linkedItemId);
-            if (loadSeq !== reviewLoadSeqRef.current) return;
+            if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
             if (loadedDraft.exists) draft = loadedDraft;
           } catch {
             /* ignore */
           }
         }
+
         if (isImage) {
-          setReviewTextContent('');
           const raw =
             draft?.bounding_boxes && draft.bounding_boxes.length > 0
               ? draft.bounding_boxes
               : flattenBoundingBoxesFromStore(info.bounding_boxes);
-          const boxes: EditorBox[] = raw.map((b, idx) => ({
-            id: String(b.id ?? `bbox_${idx}`),
-            x: Number(b.x),
-            y: Number(b.y),
-            width: Number(b.width),
-            height: Number(b.height),
-            type: String(b.type ?? 'CUSTOM'),
-            text: b.text ? String(b.text) : undefined,
-            selected: b.selected !== false,
-            confidence: typeof b.confidence === 'number' ? b.confidence : undefined,
-            source: (b.source as EditorBox['source']) || undefined,
-          }));
-          setReviewBoxes(boxes);
+          const pageCountFromInfo = normalizePage(info.page_count, 1);
+          const boxes = raw.map((box, index) => normalizeReviewBox(box, index, 1));
+          const maxBoxPage = boxes.reduce((max, box) => Math.max(max, normalizePage(box.page, 1)), 1);
+          const totalPages = Math.max(1, pageCountFromInfo, maxBoxPage);
+
+          setReviewTextContent('');
           setReviewEntities([]);
+          setReviewBoxes(boxes);
+          setReviewCurrentPage(1);
+          setReviewTotalPages(totalPages);
           setReviewImageUndoStack([]);
           setReviewImageRedoStack([]);
           reviewLastSavedJsonRef.current = JSON.stringify({
             entities: [],
-            bounding_boxes: boxes.map((b) => ({
-              id: b.id,
-              x: b.x,
-              y: b.y,
-              width: b.width,
-              height: b.height,
-              page: 1,
-              type: b.type,
-              text: b.text,
-              selected: b.selected,
-              source: b.source,
-              confidence: b.confidence,
-            })),
+            bounding_boxes: boxesToDraftPayload(boxes),
           });
         } else {
-          setReviewEntities([]);
-          setReviewTextContent('');
-          const ents =
+          const entities =
             (draft?.entities as ReviewEntity[] | undefined) ??
             (info.entities as ReviewEntity[]) ??
             [];
-          const mapped = ents.map((e, i) =>
+          const mapped = entities.map((entity, index) =>
             normalizeReviewEntity({
-              id: e.id || `ent_${i}`,
-              text: e.text,
-              type: typeof e.type === 'string' ? e.type : String(e.type ?? 'CUSTOM'),
-              start: typeof e.start === 'number' ? e.start : Number(e.start),
-              end: typeof e.end === 'number' ? e.end : Number(e.end),
-              selected: e.selected !== false,
-              page: e.page ?? 1,
-              confidence: e.confidence,
-              source: e.source,
-              coref_id: e.coref_id,
-              replacement: e.replacement,
+              id: entity.id || `ent_${index}`,
+              text: entity.text,
+              type: typeof entity.type === 'string' ? entity.type : String(entity.type ?? 'CUSTOM'),
+              start: typeof entity.start === 'number' ? entity.start : Number(entity.start),
+              end: typeof entity.end === 'number' ? entity.end : Number(entity.end),
+              selected: entity.selected !== false,
+              page: entity.page ?? 1,
+              confidence: entity.confidence,
+              source: entity.source,
+              coref_id: entity.coref_id,
+              replacement: entity.replacement,
             }),
           );
           setReviewBoxes([]);
           const contentStr = typeof info.content === 'string' ? info.content : '';
+          const rawPages = Array.isArray(info.pages) ? (info.pages as unknown[]) : [];
+          const pagesArr = rawPages.filter(
+            (page): page is string => typeof page === 'string',
+          );
+          const pageCountFromInfo = normalizePage(info.page_count, 1);
+          const textTotalPages = Math.max(1, pageCountFromInfo, pagesArr.length);
+          setReviewCurrentPage(1);
+          setReviewTotalPages(textTotalPages);
+          setReviewPages(pagesArr);
           setReviewEntities(mapped);
           setReviewTextContent(contentStr);
           setReviewTextUndoStack([]);
           setReviewTextRedoStack([]);
           const map = await fetchCachedBatchPreviewMap(mapped, cfg.replacementMode);
-          if (loadSeq !== reviewLoadSeqRef.current) return;
+          if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
           setPreviewEntityMap(map);
           reviewLastSavedJsonRef.current = JSON.stringify({
-            entities: mapped.map((e) => ({
-              id: e.id,
-              text: e.text,
-              type: e.type,
-              start: e.start,
-              end: e.end,
-              page: e.page ?? 1,
-              confidence: e.confidence ?? 1,
-              selected: e.selected,
-              source: e.source,
-              coref_id: e.coref_id,
-              replacement: e.replacement,
+            entities: mapped.map((entity) => ({
+              id: entity.id,
+              text: entity.text,
+              type: entity.type,
+              start: entity.start,
+              end: entity.end,
+              page: entity.page ?? 1,
+              confidence: entity.confidence ?? 1,
+              selected: entity.selected,
+              source: entity.source,
+              coref_id: entity.coref_id,
+              replacement: entity.replacement,
             })),
             bounding_boxes: [],
           });
         }
+
         reviewDraftInitializedRef.current = true;
       } finally {
-        if (loadSeq === reviewLoadSeqRef.current) setReviewLoading(false);
+        if (loadSeq === reviewLoadSeqRef.current && !controller.signal.aborted) {
+          setReviewLoading(false);
+        }
       }
     },
     [
@@ -329,6 +476,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       reviewLastSavedJsonRef,
       setPreviewEntityMap,
       setReviewBoxes,
+      setReviewCurrentPage,
       setReviewDraftError,
       setReviewEntities,
       setReviewImagePreview,
@@ -336,25 +484,23 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       setReviewImageUndoStack,
       setReviewLoading,
       setReviewOrigImageBlobUrl,
+      setReviewPages,
       setReviewTextContent,
       setReviewTextRedoStack,
       setReviewTextUndoStack,
+      setReviewTotalPages,
     ],
   );
 
-  // Auto-load review data when step 4 and reviewFile changes
   useEffect(() => {
     if (step !== 4 || !reviewFile) return;
-    const isImg = reviewFile.isImageMode === true;
-    void loadReviewData(reviewFile.file_id, isImg);
+    void loadReviewData(reviewFile.file_id, reviewFile.isImageMode === true);
   }, [step, reviewFile, loadReviewData]);
 
-  // ── Re-run recognition ──
   const rerunCurrentItemRecognition = useCallback(async () => {
     if (!reviewFile) return;
     const isImage = reviewFile.isImageMode === true;
 
-    // Abort any in-flight re-recognition before starting a new one
     rerunAbortRef.current?.abort();
     const controller = new AbortController();
     rerunAbortRef.current = controller;
@@ -362,42 +508,61 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setRerunRecognitionLoading(true);
     try {
       if (isImage) {
-        const timer = window.setTimeout(() => controller.abort(), 400_000);
-        let res: Response;
+        let pages = Math.max(1, reviewTotalPages);
         try {
-          res = await authFetch(`/api/v1/redaction/${reviewFile.file_id}/vision?page=1`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              selected_ocr_has_types: cfg.ocrHasTypes,
-              selected_has_image_types: cfg.hasImageTypes,
-            }),
-            signal: controller.signal,
-          });
-        } finally {
-          window.clearTimeout(timer);
+          const info = await batchGetFileRaw(reviewFile.file_id);
+          pages = Math.max(1, normalizePage(info.page_count, pages));
+        } catch {
+          /* fallback to current known total pages */
         }
-        if (controller.signal.aborted) return;
-        if (!res.ok) throw new Error(t('error.visionDetectionFailed'));
-        const data = await res.json();
-        if (controller.signal.aborted) return;
-        const boxes: EditorBox[] = ((data.bounding_boxes || []) as Record<string, unknown>[]).map(
-          (b, idx) => ({
-            id: String(b.id ?? `bbox_${idx}`),
-            x: Number(b.x),
-            y: Number(b.y),
-            width: Number(b.width),
-            height: Number(b.height),
-            type: String(b.type ?? 'CUSTOM'),
-            text: b.text ? String(b.text) : undefined,
-            selected: true,
-            confidence: typeof b.confidence === 'number' ? b.confidence : undefined,
-            source: (b.source as EditorBox['source']) || undefined,
-          }),
-        );
-        setReviewBoxes(boxes);
+
+        setReviewBoxes([]);
         setReviewImageUndoStack([]);
         setReviewImageRedoStack([]);
+        setReviewTotalPages(pages);
+        let maxBoxPage = 1;
+        for (let page = 1; page <= pages; page += 1) {
+          let res: Response | null = null;
+          for (let attempt = 1; attempt <= 2; attempt += 1) {
+            const timer = window.setTimeout(() => controller.abort(), VISION_TIMEOUT);
+            try {
+              res = await authFetch(`/api/v1/redaction/${reviewFile.file_id}/vision?page=${page}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  selected_ocr_has_types: cfg.ocrHasTypes,
+                  selected_has_image_types: cfg.hasImageTypes,
+                }),
+                signal: controller.signal,
+              });
+            } finally {
+              window.clearTimeout(timer);
+            }
+
+            if (controller.signal.aborted) return;
+            if (res.ok) break;
+            if (attempt >= 2) throw new Error(t('error.visionDetectionFailed'));
+          }
+
+          if (controller.signal.aborted) return;
+          if (!res || !res.ok) throw new Error(t('error.visionDetectionFailed'));
+          const data = (await res.json()) as { bounding_boxes?: Array<Record<string, unknown>> };
+          if (controller.signal.aborted) return;
+
+          const pageBoxes = (data.bounding_boxes || []).map((box, index) =>
+            normalizeReviewBox(box, index, page),
+          );
+          maxBoxPage = pageBoxes.reduce(
+            (max, box) => Math.max(max, normalizePage(box.page, 1)),
+            maxBoxPage,
+          );
+          const currentTotalPages = Math.max(pages, maxBoxPage);
+          setReviewBoxes((prev) => [...prev, ...pageBoxes]);
+          setReviewTotalPages(currentTotalPages);
+          setReviewCurrentPage((prev) => Math.min(Math.max(1, prev), currentTotalPages));
+        }
+
+        if (controller.signal.aborted) return;
       } else {
         const nerRes = await authFetch(`/api/v1/files/${reviewFile.file_id}/ner/hybrid`, {
           method: 'POST',
@@ -411,19 +576,19 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         if (controller.signal.aborted) return;
         const entities: ReviewEntity[] = (
           (nerData.entities || []) as Record<string, unknown>[]
-        ).map((e, idx) =>
+        ).map((entity, index) =>
           normalizeReviewEntity({
-            id: String(e.id || `ent_${idx}`),
-            text: String(e.text ?? ''),
-            type: String(e.type ?? 'CUSTOM'),
-            start: Number(e.start ?? 0),
-            end: Number(e.end ?? 0),
+            id: String(entity.id || `ent_${index}`),
+            text: String(entity.text ?? ''),
+            type: String(entity.type ?? 'CUSTOM'),
+            start: Number(entity.start ?? 0),
+            end: Number(entity.end ?? 0),
             selected: true,
-            source: (e.source as ReviewEntity['source']) || 'llm',
-            page: Number(e.page ?? 1),
-            confidence: typeof e.confidence === 'number' ? e.confidence : 1,
-            coref_id: e.coref_id as string | undefined,
-            replacement: e.replacement as string | undefined,
+            source: (entity.source as ReviewEntity['source']) || 'llm',
+            page: Number(entity.page ?? 1),
+            confidence: typeof entity.confidence === 'number' ? entity.confidence : 1,
+            coref_id: entity.coref_id as string | undefined,
+            replacement: entity.replacement as string | undefined,
           }),
         );
         setReviewEntities(entities);
@@ -434,16 +599,15 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         setPreviewEntityMap(map);
       }
       reviewDraftDirtyRef.current = true;
-    } catch (e) {
+    } catch (error) {
       if (controller.signal.aborted) return;
-      setMsg({ text: localizeErrorMessage(e, 'batchWizard.actionFailed'), tone: 'err' });
+      setMsg({ text: localizeErrorMessage(error, 'batchWizard.actionFailed'), tone: 'err' });
     } finally {
-      if (!controller.signal.aborted) {
-        setRerunRecognitionLoading(false);
-      }
+      if (!controller.signal.aborted) setRerunRecognitionLoading(false);
     }
   }, [
     reviewFile,
+    reviewTotalPages,
     cfg.selectedEntityTypeIds,
     cfg.ocrHasTypes,
     cfg.hasImageTypes,
@@ -452,27 +616,32 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setMsg,
     setPreviewEntityMap,
     setReviewBoxes,
+    setReviewCurrentPage,
     setReviewEntities,
     setReviewImageRedoStack,
     setReviewImageUndoStack,
     setReviewTextRedoStack,
     setReviewTextUndoStack,
+    setReviewTotalPages,
   ]);
 
-  // ── Autosave ──
   useEffect(() => {
     if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || !reviewDraftInitializedRef.current) return;
     if (!activeJobId || !reviewItemId) return;
+
     const payload = buildCurrentReviewDraftPayload();
     const json = JSON.stringify(payload);
     if (json === reviewLastSavedJsonRef.current) return;
     reviewDraftDirtyRef.current = true;
-    if (reviewAutosaveTimerRef.current !== null)
+
+    if (reviewAutosaveTimerRef.current !== null) {
       window.clearTimeout(reviewAutosaveTimerRef.current);
+    }
     reviewAutosaveTimerRef.current = window.setTimeout(() => {
       void flushCurrentReviewDraft();
     }, 900);
+
     return () => {
       if (reviewAutosaveTimerRef.current !== null) {
         window.clearTimeout(reviewAutosaveTimerRef.current);
@@ -493,7 +662,6 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     reviewLastSavedJsonRef,
   ]);
 
-  // ── Preview map refresh ──
   useEffect(() => {
     if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || reviewLoading || reviewFile.isImageMode) return;
@@ -525,31 +693,31 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setPreviewEntityMap,
   ]);
 
-  // ── Image preview ──
   useEffect(() => {
     if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || reviewLoading || !reviewFile.isImageMode) return;
+
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
         setReviewImagePreviewLoading(true);
         const imageBase64 = await batchPreviewImage({
           file_id: reviewFile.file_id,
-          page: 1,
-          bounding_boxes: reviewBoxes
-            .filter((b) => b.selected !== false)
-            .map((b) => ({
-              id: b.id,
-              x: b.x,
-              y: b.y,
-              width: b.width,
-              height: b.height,
-              page: 1,
-              type: b.type,
-              text: b.text,
-              selected: b.selected,
-              source: b.source,
-              confidence: b.confidence,
+          page: reviewCurrentPage,
+          bounding_boxes: visibleReviewBoxes
+            .filter((box) => box.selected !== false)
+            .map((box) => ({
+              id: box.id,
+              x: box.x,
+              y: box.y,
+              width: box.width,
+              height: box.height,
+              page: normalizePage(box.page, reviewCurrentPage),
+              type: box.type,
+              text: box.text,
+              selected: box.selected,
+              source: box.source,
+              confidence: box.confidence,
             })),
           config: {
             replacement_mode: ReplacementMode.STRUCTURED,
@@ -567,6 +735,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         if (!controller.signal.aborted) setReviewImagePreviewLoading(false);
       }
     }, 250);
+
     return () => {
       controller.abort();
       window.clearTimeout(timer);
@@ -574,7 +743,8 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   }, [
     step,
     reviewFile,
-    reviewBoxes,
+    visibleReviewBoxes,
+    reviewCurrentPage,
     reviewLoading,
     cfg.imageRedactionMethod,
     cfg.imageRedactionStrength,

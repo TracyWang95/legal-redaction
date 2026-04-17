@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "DataInfra-RedactionEverything 前端：本地匿名化与脱敏工作台",
   "type": "module",
+  "engines": {
+    "node": ">=20 <24"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

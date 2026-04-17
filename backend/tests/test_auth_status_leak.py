@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient

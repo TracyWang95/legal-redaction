@@ -576,6 +576,10 @@ const zhBase: Record<string, string> = {
   'batchWizard.step2.uploadQueue': '上传队列',
   'batchWizard.step2.queueCount': '当前共 {count} 个文件',
   'batchWizard.step2.noFiles': '暂无文件',
+  'batchWizard.step2.removeFile': '删除此文件',
+  'batchWizard.step2.clearAll': '清空',
+  'batchWizard.step2.clearing': '清空中…',
+  'batchWizard.step2.clearConfirm': '确定要清空全部 {count} 个文件吗？此操作无法撤销。',
   'batchWizard.step2.prevStep': '上一步',
   'batchWizard.step2.nextRecognize': '下一步：批量识别',
   'batchWizard.step3.title': '③ 批量识别',
@@ -605,6 +609,9 @@ const zhBase: Record<string, string> = {
     '该文件已完成匿名化，仅供查阅。如需重新匿名化请先在任务详情驳回。',
   'batchWizard.step4.noRecognized': '暂无已完成识别的文件，请先完成第 3 步批量识别。',
   'batchWizard.step4.confirmed': '已确认',
+  'batchWizard.step4.pagesVisited': '已浏览',
+  'batchWizard.step4.pagesVisitedHint': '确认前需要浏览完每一页',
+  'batchWizard.step4.mustVisitAllPages': '请先翻到每一页确认内容后再提交',
   'batchWizard.step4.allConfirmHint': '全部确认后才能进入导出',
   'batchWizard.step4.prevFile': '上一份',
   'batchWizard.step4.nextFile': '下一份',
@@ -1200,6 +1207,26 @@ const zhOverrides: Record<string, string> = {
   'editor.sampleSmart': '当事人一',
   'editor.sampleStructured': '人物[001].个人.姓名',
 };
+
+Object.assign(zhOverrides, {
+  'auth.login.title': '登录',
+  'auth.login.description': '输入访问密码后进入当前工作区。',
+  'auth.login.submit': '进入系统',
+  'auth.login.hint': '当前部署已开启登录保护。',
+  'auth.setup.title': '设置访问密码',
+  'auth.setup.description': '这是首次启用登录，请先设置管理员密码。',
+  'auth.setup.submit': '创建密码',
+  'auth.setup.hint': '建议使用包含大小写字母、数字和特殊字符的强密码。',
+  'auth.password': '密码',
+  'auth.password.placeholder': '请输入密码',
+  'auth.confirmPassword': '确认密码',
+  'auth.confirmPassword.placeholder': '请再次输入密码',
+  'auth.submitting': '提交中...',
+  'auth.logout': '退出登录',
+  'auth.error.title': '登录失败',
+  'auth.error.generic': '请求没有成功，请稍后重试。',
+  'auth.error.passwordMismatch': '两次输入的密码不一致。',
+});
 
 export const zh: Record<string, string> = {
   ...zhBase,

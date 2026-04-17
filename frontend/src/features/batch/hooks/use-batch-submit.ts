@@ -192,7 +192,7 @@ export function useBatchSubmit(
         y: b.y,
         width: b.width,
         height: b.height,
-        page: 1,
+        page: Number(b.page || 1),
         type: b.type,
         text: b.text,
         selected: b.selected,

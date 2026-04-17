@@ -43,6 +43,14 @@ def _get_file_store_lock():
     return _file_store_lock
 
 
+def _group_boxes_by_page(boxes: list[Any]) -> dict[int, list[dict[str, Any]]]:
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for box in boxes:
+        page = int(getattr(box, "page", 1) or 1)
+        grouped.setdefault(page, []).append(to_jsonable(box))
+    return grouped
+
+
 # ---------------------------------------------------------------------------
 # Redaction execution
 # ---------------------------------------------------------------------------
@@ -82,7 +90,7 @@ async def execute_redaction(request: RedactionRequest) -> RedactionResult:
             info["entity_map"] = result.get("entity_map", {})
             info["redacted_count"] = int(result.get("redacted_count", 0))
             if request.bounding_boxes:
-                info["bounding_boxes"] = {1: to_jsonable(request.bounding_boxes)}
+                info["bounding_boxes"] = _group_boxes_by_page(request.bounding_boxes)
             if request.entities:
                 info["entities"] = to_jsonable(request.entities)
             # 版本历史追踪
@@ -233,12 +241,23 @@ async def detect_vision(
     if not has_request:
         sel_img_ids = set()
     else:
+        if (
+            selected_ocr_has_types is not None
+            and selected_has_image_types is not None
+            and len(selected_ocr_has_types) == 0
+            and len(selected_has_image_types) == 0
+        ):
+            logger.warning(
+                "Both selected_ocr_has_types and selected_has_image_types are empty; "
+                "fallback to default enabled vision types."
+            )
+            selected_ocr_has_types = None
+            selected_has_image_types = None
+
         if selected_ocr_has_types is not None:
             sel_ocr_ids = set(selected_ocr_has_types or [])
         if selected_has_image_types is not None:
             sel_img_ids = set(selected_has_image_types or [])
-        else:
-            sel_img_ids = set()
 
     if sel_ocr_ids is not None:
         ocr_has_types = [t for t in all_ocr_has_types if t.id in sel_ocr_ids]
@@ -248,6 +267,28 @@ async def detect_vision(
     if sel_img_ids is not None:
         has_image_types = [t for t in all_has_image_types if t.id in sel_img_ids]
     else:
+        has_image_types = all_has_image_types
+
+    if (
+        selected_ocr_has_types is not None
+        and len(selected_ocr_has_types) > 0
+        and len(ocr_has_types) == 0
+        and len(all_ocr_has_types) > 0
+    ):
+        logger.warning(
+            "selected_ocr_has_types contains no valid IDs; fallback to default enabled OCR+HaS types."
+        )
+        ocr_has_types = all_ocr_has_types
+
+    if (
+        selected_has_image_types is not None
+        and len(selected_has_image_types) > 0
+        and len(has_image_types) == 0
+        and len(all_has_image_types) > 0
+    ):
+        logger.warning(
+            "selected_has_image_types contains no valid IDs; fallback to default enabled HaS Image types."
+        )
         has_image_types = all_has_image_types
 
     ocr_has_enabled = pipelines_db.get("ocr_has", None) and pipelines_db["ocr_has"].enabled and len(ocr_has_types) > 0

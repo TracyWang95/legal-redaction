@@ -377,6 +377,46 @@ async def download_file(file_id: str, redacted: bool = False):
     )
 
 
+@router.get("/files/{file_id}/page-image")
+async def get_page_image(file_id: str, page: int = 1, redacted: bool = False):
+    """Render a single page of a PDF as PNG (for history comparison).
+
+    - redacted=False → original upload
+    - redacted=True  → the redacted output PDF
+    """
+    from starlette.responses import Response as RawResponse
+
+    snapshot = await _fms.get_file_snapshot(file_id)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    if redacted:
+        file_path = snapshot.get("output_path")
+        if not file_path:
+            raise HTTPException(status_code=400, detail="文件尚未匿名化")
+        expected_dir = settings.OUTPUT_DIR
+    else:
+        file_path = snapshot["file_path"]
+        expected_dir = settings.UPLOAD_DIR
+
+    if not _fms.safe_path_in_dir(file_path, expected_dir):
+        raise HTTPException(status_code=403, detail="禁止访问该路径")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    ft = str(snapshot.get("file_type", "")).lower()
+    if ft in ("pdf", "pdf_scanned"):
+        from app.services.file_parser import FileParser
+        parser = FileParser()
+        image_bytes = await parser.get_pdf_page_image(file_path, page)
+        return RawResponse(content=image_bytes, media_type="image/png")
+
+    if ft in ("image", "jpg", "jpeg", "png"):
+        return FileResponse(path=file_path, media_type="image/png")
+
+    raise HTTPException(status_code=400, detail=f"不支持逐页渲染: {ft}")
+
+
 @router.delete("/files/{file_id}")
 async def delete_file(file_id: str):
     """删除文件"""

@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React from 'react';
-import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Button } from './components/ui/button';
 import { Layout } from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useT } from './i18n';
 import { SUSPENSE_SPINNER_DELAY_MS, ROUTE_PREFETCH_DELAY_MS } from './constants/timing';
+import { AuthPage } from './features/auth/auth-page';
+import { sanitizeNextPath } from './features/auth/auth-page';
+import { useAuth } from './features/auth/auth-context';
 
 const Playground = React.lazy(() =>
   import('./features/playground').then((m) => ({ default: m.Playground })),
@@ -59,6 +63,35 @@ function DelayedSpinner() {
 
 const SuspenseFallback = <DelayedSpinner />;
 
+function FullPageSpinner() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background">
+      <DelayedSpinner />
+    </div>
+  );
+}
+
+function AuthStatusErrorPage() {
+  const t = useT();
+  const { error, refresh } = useAuth();
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-background px-6">
+      <div className="w-full max-w-md rounded-3xl border border-border/70 bg-card p-6 shadow-[var(--shadow-md)]">
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">
+          {t('networkFallback.networkTitle')}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {error || t('networkFallback.networkDesc')}
+        </p>
+        <Button className="mt-5" onClick={() => void refresh()}>
+          {t('common.retry')}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 const prefetchRoutes = () => {
   import('./features/batch');
   import('./features/history');
@@ -83,6 +116,41 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   );
 }
 
+function getNextLocation(pathname: string, search: string, hash: string): string {
+  return `${pathname}${search}${hash}`;
+}
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { loading, status } = useAuth();
+
+  if (loading) return <FullPageSpinner />;
+  if (!status) return <AuthStatusErrorPage />;
+
+  if (status.auth_enabled && !status.authenticated) {
+    const next = encodeURIComponent(getNextLocation(location.pathname, location.search, location.hash));
+    return <Navigate to={`/auth?next=${next}`} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function AuthRoute() {
+  const location = useLocation();
+  const { loading, status } = useAuth();
+  const next = sanitizeNextPath(new URLSearchParams(location.search).get('next'));
+
+  if (loading) return <FullPageSpinner />;
+  if (!status) return <AuthStatusErrorPage />;
+  if (!status.auth_enabled || status.authenticated) return <Navigate to={next} replace />;
+
+  return (
+    <ErrorBoundary>
+      <AuthPage />
+    </ErrorBoundary>
+  );
+}
+
 const VALID_BATCH_MODES = new Set(['text', 'image', 'smart']);
 
 function BatchRoute() {
@@ -99,16 +167,30 @@ function BatchRoute() {
 
 export const router = createBrowserRouter([
   {
+    path: '/setup',
+    element: <Navigate to="/auth" replace />,
+  },
+  {
+    path: '/auth',
+    element: <AuthRoute />,
+  },
+  {
     path: '/playground/image-editor',
     element: (
-      <LazyPage>
-        <PlaygroundImagePopout />
-      </LazyPage>
+      <RequireAuth>
+        <LazyPage>
+          <PlaygroundImagePopout />
+        </LazyPage>
+      </RequireAuth>
     ),
   },
   {
     path: '/',
-    element: <Layout />,
+    element: (
+      <RequireAuth>
+        <Layout />
+      </RequireAuth>
+    ),
     children: [
       {
         index: true,

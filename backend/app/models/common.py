@@ -159,3 +159,4 @@ class TokenResponse(BaseModel):
 class AuthStatusResponse(BaseModel):
     auth_enabled: bool
     password_set: bool | None = None
+    authenticated: bool = False

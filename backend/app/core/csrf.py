@@ -1,14 +1,4 @@
-"""CSRF protection via double-submit cookie pattern.
-
-How it works:
-- On every response (GET or mutating), set a ``csrf_token`` cookie if absent.
-- On state-changing requests (POST / PUT / DELETE / PATCH), require that the
-  ``X-CSRF-Token`` header matches the ``csrf_token`` cookie value.
-- Auth endpoints (``/api/v1/auth/*``) are exempt so that login works without
-  a prior page load.
-- Non-browser clients that never receive cookies are unaffected as long as
-  they use Bearer JWT auth (CSRF is a browser-only attack vector).
-"""
+"""CSRF protection via the double-submit cookie pattern."""
 
 import logging
 import secrets
@@ -23,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 _SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-# Paths that are exempt from CSRF validation (login / setup must work
-# without a prior GET to obtain the cookie).
-_EXEMPT_PREFIXES = (
-    "/api/v1/auth/",
+# Login/setup must work before a CSRF cookie exists. Everything else that
+# changes auth state should still require the double-submit check.
+_EXEMPT_MUTATING_PREFIXES = (
+    "/api/v1/auth/login",
+    "/api/v1/auth/setup",
     "/docs",
     "/redoc",
     "/openapi.json",
@@ -35,7 +26,6 @@ _EXEMPT_PREFIXES = (
     "/",
 )
 
-# Auth state-change paths where CSRF token should be rotated
 _AUTH_ROTATE_PREFIXES = (
     "/api/v1/auth/login",
     "/api/v1/auth/setup",
@@ -52,15 +42,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[override]
         path = request.url.path
 
-        # --- Exempt paths ------------------------------------------------
         exempt = path == "/" or any(
-            path.startswith(p) for p in _EXEMPT_PREFIXES if p != "/"
+            path.startswith(prefix) for prefix in _EXEMPT_MUTATING_PREFIXES if prefix != "/"
         )
 
-        # --- Validate on mutating methods --------------------------------
-        # Non-browser clients using Bearer JWT auth are not vulnerable to
-        # CSRF, so skip validation when an Authorization header is present.
-        # Also skip when auth is entirely disabled (no sessions to protect).
+        # Non-browser Bearer-token clients are not vulnerable to CSRF because
+        # the attacker cannot cause the browser to attach that header.
         has_bearer = (request.headers.get("authorization") or "").startswith("Bearer ")
 
         if request.method not in _SAFE_METHODS and not exempt and not has_bearer and settings.AUTH_ENABLED:
@@ -68,31 +55,22 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             header_token = request.headers.get(_HEADER_NAME)
 
             if not cookie_token or not header_token:
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": "缺少 CSRF token"},
-                )
+                return JSONResponse(status_code=403, content={"detail": "Missing CSRF token."})
             if not secrets.compare_digest(cookie_token, header_token):
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": "CSRF token 不匹配"},
-                )
+                return JSONResponse(status_code=403, content={"detail": "CSRF token does not match."})
 
-        # --- Call downstream ---------------------------------------------
         response: Response = await call_next(request)
 
-        # --- Rotate CSRF token on auth state changes ---------------------
         is_auth_change = request.method == "POST" and any(
-            path.startswith(p) for p in _AUTH_ROTATE_PREFIXES
+            path.startswith(prefix) for prefix in _AUTH_ROTATE_PREFIXES
         )
 
-        # --- Ensure cookie is set on every response ----------------------
         if _COOKIE_NAME not in request.cookies or is_auth_change:
             token = secrets.token_urlsafe(32)
             response.set_cookie(
                 key=_COOKIE_NAME,
                 value=token,
-                httponly=False,  # JS must read this cookie
+                httponly=False,
                 samesite="strict",
                 secure=not settings.DEBUG,
                 path="/",

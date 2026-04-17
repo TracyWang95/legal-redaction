@@ -7,9 +7,6 @@ import sys
 from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -233,3 +230,61 @@ class TestRecognitionErrorPropagation:
                 assert result["entity_count"] == 1
 
         asyncio.run(_run())
+
+
+class _FakeEntity:
+    """Mimics Pydantic Entity — mutable attribute access."""
+
+    def __init__(self, start: int, page: int = 1):
+        self.start = start
+        self.page = page
+
+
+class TestAssignPagesToEntities:
+    """_assign_pages_to_entities maps entity.start offsets back to page numbers.
+
+    content is assumed to be "\\n\\n".join(pages), matching file_parser._parse_pdf.
+    """
+
+    def test_single_page_is_noop(self):
+        fps = _reload_fps()
+        ents = [_FakeEntity(start=5)]
+        fps._assign_pages_to_entities(ents, ["only page"])
+        assert ents[0].page == 1
+
+    def test_empty_pages_is_noop(self):
+        fps = _reload_fps()
+        ents = [_FakeEntity(start=10)]
+        fps._assign_pages_to_entities(ents, [])
+        assert ents[0].page == 1
+
+    def test_multi_page_offsets_resolve_correctly(self):
+        """Three pages of lengths [10, 8, 12] joined by '\\n\\n' (2 chars)."""
+        fps = _reload_fps()
+        page1 = "x" * 10
+        page2 = "y" * 8
+        page3 = "z" * 12
+        # Offsets: page1 [0,10), sep [10,12), page2 [12,20), sep [20,22), page3 [22,34)
+        ents = [
+            _FakeEntity(start=0),    # page 1
+            _FakeEntity(start=9),    # still page 1 (last char)
+            _FakeEntity(start=12),   # start of page 2
+            _FakeEntity(start=19),   # still page 2
+            _FakeEntity(start=22),   # page 3
+            _FakeEntity(start=33),   # page 3
+        ]
+        fps._assign_pages_to_entities(ents, [page1, page2, page3])
+        assert [e.page for e in ents] == [1, 1, 2, 2, 3, 3]
+
+    def test_offset_past_content_falls_back_to_last_page(self):
+        fps = _reload_fps()
+        ents = [_FakeEntity(start=9999)]
+        fps._assign_pages_to_entities(ents, ["aaa", "bbb"])
+        assert ents[0].page == 2
+
+    def test_accepts_dict_entities(self):
+        fps = _reload_fps()
+        ents = [{"start": 0}, {"start": 5}]
+        fps._assign_pages_to_entities(ents, ["abc", "de"])  # lengths 3,2; page2 at offset 5
+        assert ents[0]["page"] == 1
+        assert ents[1]["page"] == 2

@@ -45,6 +45,7 @@ class SimpleTaskQueue:
         self._current: dict[int, TaskItem | None] = {}  # worker_id → current task
         self._pending_items: set[str] = set()  # item_id 去重
         self._concurrency = max(1, concurrency)
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     # ------------------------------------------------------------------
     # 生命周期
@@ -52,10 +53,16 @@ class SimpleTaskQueue:
 
     def start(self) -> None:
         """在 FastAPI startup 事件中调用。"""
+        loop = asyncio.get_event_loop()
+        if self._loop is not loop:
+            self._queue = asyncio.Queue()
+            self._worker_tasks.clear()
+            self._current.clear()
+            self._pending_items.clear()
+            self._loop = loop
         if self._running:
             return
         self._running = True
-        loop = asyncio.get_event_loop()
         for i in range(self._concurrency):
             task = loop.create_task(self._worker_loop(worker_id=i))
             self._worker_tasks.append(task)
@@ -70,6 +77,10 @@ class SimpleTaskQueue:
                 t.cancel()
                 tasks.append(t)
         self._worker_tasks.clear()
+        self._current.clear()
+        self._pending_items.clear()
+        self._queue = asyncio.Queue()
+        self._loop = None
         logger.info("SimpleTaskQueue stopped")
         return tasks
 
@@ -266,9 +277,16 @@ class SimpleTaskQueue:
         ocr_types = list(cfg.get("ocr_has_types") or [])
         has_img_types = list(cfg.get("has_image_types") or [])
         pages = int(fi.get("page_count") or 1)
-        logger.info("[queue] item=%s → vision", task.item_id[:8])
+        logger.info(
+            "[queue] item=%s → vision (ocr=%d, has_image=%d, pages=%d)",
+            task.item_id[:8], len(ocr_types), len(has_img_types), pages,
+        )
+        # Pass empty lists as-is (user explicitly deselected a pipeline). Using
+        # `or None` would collapse [] into None and orchestrator would treat
+        # that as "not provided" → fall back to the full default type set,
+        # defeating the user's selection.
         for p in range(1, max(1, pages) + 1):
-            await vision_detect(task.file_id, p, ocr_types or None, has_img_types or None)
+            await vision_detect(task.file_id, p, ocr_types, has_img_types)
 
     async def _run_ner_or_vision(self, task: TaskItem, cfg: dict) -> None:
         """Step 2: 根据文件类型选择 NER 或 Vision 流水线。"""

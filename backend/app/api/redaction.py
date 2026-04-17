@@ -64,6 +64,11 @@ async def execute_redaction(
 
 
 @router.post("/redaction/preview-map", response_model=PreviewEntityMapResponse)
+@router.post(
+    "/redaction/preview-entity-map",
+    response_model=PreviewEntityMapResponse,
+    include_in_schema=False,
+)
 async def preview_entity_map(body: PreviewEntityMapRequest):
     """根据当前勾选实体与替换模式，返回与 execute 一致的 entity_map（不写文件）。"""
     return _orch.preview_entity_map(body.entities, body.config)

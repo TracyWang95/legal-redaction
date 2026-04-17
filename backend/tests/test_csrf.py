@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -186,3 +186,52 @@ def test_csrf_token_rotates_after_setup(csrf_debug_client: TestClient):
     assert setup_csrf != initial_csrf, (
         "CSRF token must rotate after password setup"
     )
+
+
+def test_change_password_requires_csrf_for_cookie_auth(csrf_debug_client: TestClient):
+    """Cookie-authenticated password changes should require the CSRF header."""
+    _setup_and_login(csrf_debug_client)
+
+    resp = csrf_debug_client.post(
+        "/api/v1/auth/change-password",
+        json={"old_password": "Str0ng!Pass#99", "new_password": "An0ther!Pass#88"},
+    )
+
+    assert resp.status_code == 403
+
+
+def test_change_password_allows_cookie_auth_with_csrf(csrf_debug_client: TestClient):
+    """Cookie-authenticated password changes should succeed with a matching CSRF header."""
+    _setup_and_login(csrf_debug_client)
+    csrf = csrf_debug_client.cookies.get("csrf_token")
+
+    resp = csrf_debug_client.post(
+        "/api/v1/auth/change-password",
+        json={"old_password": "Str0ng!Pass#99", "new_password": "An0ther!Pass#88"},
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["access_token"]
+
+
+def test_revoke_all_requires_csrf_for_cookie_auth(csrf_debug_client: TestClient):
+    """Cookie-authenticated revoke-all should require the CSRF header."""
+    _setup_and_login(csrf_debug_client)
+
+    resp = csrf_debug_client.post("/api/v1/auth/revoke-all")
+
+    assert resp.status_code == 403
+
+
+def test_revoke_all_allows_cookie_auth_with_csrf(csrf_debug_client: TestClient):
+    """Cookie-authenticated revoke-all should succeed with a matching CSRF header."""
+    _setup_and_login(csrf_debug_client)
+    csrf = csrf_debug_client.cookies.get("csrf_token")
+
+    resp = csrf_debug_client.post(
+        "/api/v1/auth/revoke-all",
+        headers={"X-CSRF-Token": csrf},
+    )
+
+    assert resp.status_code == 200

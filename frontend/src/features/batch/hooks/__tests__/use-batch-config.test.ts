@@ -320,6 +320,20 @@ describe('useBatchConfig', () => {
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.batchDefaultHasImageTypeIds).toEqual(['img_1']));
     });
+
+    it('falls back to defaults when persisted vision IDs are stale', async () => {
+      setupMocks();
+      (loadBatchWizardConfig as Mock).mockReturnValue({
+        selectedEntityTypeIds: ['TYPE_1'],
+        ocrHasTypes: ['ocr_missing'],
+        hasImageTypes: ['img_missing'],
+        replacementMode: 'structured',
+      });
+      const { result } = renderUseBatchConfig();
+      await waitFor(() => expect(result.current.configLoaded).toBe(true));
+      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1', 'ocr_2']);
+      expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
+    });
   });
 
   // ── isStep1Complete ──
@@ -449,6 +463,23 @@ describe('useBatchConfig', () => {
       act(() => result.current.onBatchVisionPresetChange('preset-vision-1'));
 
       expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1']);
+      expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
+    });
+
+    it('applying stale vision preset IDs falls back to defaults', async () => {
+      const vPreset = {
+        ...makeVisionPreset(),
+        id: 'preset-vision-stale',
+        ocrHasTypes: ['ocr_missing'],
+        hasImageTypes: ['img_missing'],
+      };
+      setupMocks(makeTextTypes(), makePipelines(), [vPreset]);
+      const { result } = renderUseBatchConfig();
+      await waitFor(() => expect(result.current.configLoaded).toBe(true));
+
+      act(() => result.current.onBatchVisionPresetChange('preset-vision-stale'));
+
+      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1', 'ocr_2']);
       expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
     });
 

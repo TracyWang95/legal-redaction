@@ -77,6 +77,8 @@ export function useBatchWizard() {
     msg,
     setMsg,
     toggle,
+    removeRow,
+    clearRows,
     getRootProps,
     getInputProps,
     isDragActive,
@@ -119,6 +121,13 @@ export function useBatchWizard() {
     setReviewIndex,
     reviewEntities,
     reviewBoxes,
+    visibleReviewBoxes,
+    visibleReviewEntities,
+    reviewPageContent,
+    reviewCurrentPage,
+    reviewTotalPages,
+    reviewAllPagesVisited,
+    visitedReviewPagesCount,
     reviewLoading,
     reviewExecuteLoading,
     setReviewExecuteLoading,
@@ -140,6 +149,7 @@ export function useBatchWizard() {
     reviewFileReadOnly,
     selectedReviewEntityCount,
     selectedReviewBoxCount,
+    totalReviewBoxCount,
     reviewImagePreviewSrc,
     displayPreviewMap,
     textPreviewSegments,
@@ -149,6 +159,8 @@ export function useBatchWizard() {
     applyReviewEntities,
     toggleReviewEntitySelected,
     setReviewBoxes,
+    setVisibleReviewBoxes,
+    setReviewCurrentPage,
     handleReviewBoxesCommit,
     toggleReviewBoxSelected,
     undoReviewText,
@@ -208,6 +220,16 @@ export function useBatchWizard() {
       setActiveJobId(null); // eslint-disable-line react-hooks/set-state-in-effect -- clearing stale preview job id on mode change
     }
   }, [activeJobId, isPreviewMode]);
+
+  // Clear the "not all confirmed" warning once everything is in fact confirmed.
+  // advanceToExportStep sets this msg after a failed pre-flight; leaving it on
+  // screen after the user goes back and finishes confirming looks like the app
+  // is still blocking them.
+  useEffect(() => {
+    if (allReviewConfirmed && msg?.text === t('batchWizard.notAllFilesConfirmed')) {
+      setMsg(null);
+    }
+  }, [allReviewConfirmed, msg, setMsg]);
 
   useEffect(() => {
     const jid = searchParams.get('jobId');
@@ -893,6 +915,8 @@ export function useBatchWizard() {
     msg,
     setMsg,
     toggle,
+    removeRow,
+    clearRows,
 
     // Upload
     getRootProps,
@@ -912,6 +936,13 @@ export function useBatchWizard() {
     reviewExecuteLoading,
     reviewEntities,
     reviewBoxes,
+    visibleReviewBoxes,
+    visibleReviewEntities,
+    reviewPageContent,
+    reviewCurrentPage,
+    reviewTotalPages,
+    reviewAllPagesVisited,
+    visitedReviewPagesCount,
     reviewTextContent,
     reviewDraftSaving,
     reviewDraftError,
@@ -930,6 +961,7 @@ export function useBatchWizard() {
     reviewImageRedoStack,
     selectedReviewEntityCount,
     selectedReviewBoxCount,
+    totalReviewBoxCount,
     displayPreviewMap,
     textPreviewSegments,
     reviewTextContentRef,
@@ -945,6 +977,8 @@ export function useBatchWizard() {
     undoReviewImage,
     redoReviewImage,
     setReviewBoxes,
+    setVisibleReviewBoxes,
+    setReviewCurrentPage,
 
     // Export
     zipLoading,

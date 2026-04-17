@@ -1,25 +1,23 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useCallback, useRef, useMemo } from 'react';
-import { authFetch, downloadFile } from '@/services/api-client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
+import { authFetch, downloadFile } from '@/services/api-client';
+import type { VersionHistoryEntry } from '@/types';
 import { localizeErrorMessage } from '@/utils/localizeError';
 import { safeJson } from '../utils';
 import type { RedactionResult } from '../types';
-import { usePlaygroundRecognition } from './use-playground-recognition';
-import { usePlaygroundFile } from './use-playground-file';
 import { usePlaygroundEntities } from './use-playground-entities';
-import { usePlaygroundImage } from './use-playground-image';
+import { usePlaygroundFile } from './use-playground-file';
 import { usePlaygroundHistory } from './use-playground-history';
-import type { VersionHistoryEntry } from '@/types';
-import { useEffect } from 'react';
+import { usePlaygroundImage } from './use-playground-image';
+import { usePlaygroundRecognition } from './use-playground-recognition';
 
 export function usePlayground() {
   const recognition = usePlaygroundRecognition();
 
-  // --- Refs for latest recognition state (used in async callbacks) ---
   const latestOcrHasTypesRef = useRef(recognition.selectedOcrHasTypes);
   const latestHasImageTypesRef = useRef(recognition.selectedHasImageTypes);
   const latestSelectedTypesRef = useRef(recognition.selectedTypes);
@@ -27,17 +25,7 @@ export function usePlayground() {
   latestHasImageTypesRef.current = recognition.selectedHasImageTypes;
   latestSelectedTypesRef.current = recognition.selectedTypes;
 
-  // --- Entity management ---
   const entityCtx = usePlaygroundEntities();
-
-  // --- Image management (needs fileInfo, but fileInfo comes from file hook) ---
-  // We pass a temporary null; the image hook uses fileInfo reactively via its effect deps.
-  // However, fileInfo is set by the file hook, so we need a shared state approach.
-  // We'll use the file hook's fileInfo which is returned.
-
-  // Since hooks cannot be called conditionally, we need to structure carefully.
-  // The image hook needs fileInfo from the file hook. Let's use a separate state that
-  // both hooks can reference.
 
   const [redactionReport, setRedactionReport] = useState<Record<string, unknown> | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -45,8 +33,9 @@ export function usePlayground() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [redactedCount, setRedactedCount] = useState(0);
   const [entityMap, setEntityMap] = useState<Record<string, string>>({});
+  const latestFileIdRef = useRef<string | null>(null);
+  const asyncResultEpochRef = useRef(0);
 
-  // --- File management ---
   const fileCtx = usePlaygroundFile({
     latestOcrHasTypesRef,
     latestHasImageTypesRef,
@@ -57,18 +46,20 @@ export function usePlayground() {
     setBoundingBoxes: (val) => imageCtx.setBoundingBoxes(val),
   });
 
-  // --- Image management ---
   const imageCtx = usePlaygroundImage({
     fileInfo: fileCtx.fileInfo,
   });
 
-  // --- Auto-switch type tab on file mode ---
   const { setTypeTab } = recognition;
   useEffect(() => {
     setTypeTab(fileCtx.isImageMode ? 'vision' : 'text');
   }, [fileCtx.isImageMode, setTypeTab]);
 
-  // --- History / undo-redo / selection ---
+  useEffect(() => {
+    latestFileIdRef.current = fileCtx.fileInfo?.file_id ?? null;
+    asyncResultEpochRef.current += 1;
+  }, [fileCtx.fileInfo?.file_id]);
+
   const allSelectedVisionTypes = useMemo(
     () => [...recognition.selectedOcrHasTypes, ...recognition.selectedHasImageTypes],
     [recognition.selectedOcrHasTypes, recognition.selectedHasImageTypes],
@@ -79,13 +70,17 @@ export function usePlayground() {
     entities: entityCtx.entities,
     setEntities: entityCtx.setEntities,
     boundingBoxes: imageCtx.boundingBoxes,
+    visibleBoxes: imageCtx.visibleBoxes,
     setBoundingBoxes: imageCtx.setBoundingBoxes,
     entityHistory: entityCtx.entityHistory,
     imageHistory: imageCtx.imageHistory,
     allSelectedVisionTypes,
   });
 
-  // --- Re-run recognition (delegates to entity or image sub-hook) ---
+  const canApplyAsyncResult = useCallback((fileId: string, epoch: number) => {
+    return latestFileIdRef.current === fileId && asyncResultEpochRef.current === epoch;
+  }, []);
+
   const handleRerunNer = useCallback(async () => {
     if (!fileCtx.fileInfo) return;
     if (fileCtx.isImageMode) {
@@ -104,9 +99,8 @@ export function usePlayground() {
         fileCtx.setLoadingMessage,
       );
     }
-  }, [fileCtx, entityCtx, imageCtx, recognition]);
+  }, [entityCtx, fileCtx, imageCtx, recognition]);
 
-  // --- Auto re-run NER when a preset is applied (and a file is loaded) ---
   const presetSeqRef = useRef(recognition.presetApplySeq);
   useEffect(() => {
     if (recognition.presetApplySeq === presetSeqRef.current) return;
@@ -122,9 +116,10 @@ export function usePlayground() {
     handleRerunNer,
   ]);
 
-  // --- Execute redaction ---
   const handleRedact = useCallback(async () => {
     if (!fileCtx.fileInfo) return;
+
+    const fileId = fileCtx.fileInfo.file_id;
     fileCtx.setIsLoading(true);
     fileCtx.setLoadingMessage(t('playground.redacting'));
 
@@ -136,7 +131,7 @@ export function usePlayground() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          file_id: fileCtx.fileInfo.file_id,
+          file_id: fileId,
           entities: selectedEntities,
           bounding_boxes: selectedBoxes,
           config: {
@@ -153,27 +148,60 @@ export function usePlayground() {
       setRedactedCount(result.redacted_count || 0);
       fileCtx.setStage('result');
 
-      authFetch(`/api/v1/redaction/${fileCtx.fileInfo.file_id}/report`)
-        .then((r) => r.json())
-        .then((data) => setRedactionReport(data))
-        .catch(() => setRedactionReport(null));
+      latestFileIdRef.current = fileId;
+      const asyncResultEpoch = asyncResultEpochRef.current + 1;
+      asyncResultEpochRef.current = asyncResultEpoch;
 
-      authFetch(`/api/v1/redaction/${fileCtx.fileInfo.file_id}/versions`)
-        .then((r) => r.json())
-        .then((data) => setVersionHistory(data.versions || []))
-        .catch(() => setVersionHistory([]));
+      const loadAsyncResult = async <T,>(url: string): Promise<T> => {
+        const response = await authFetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to load ${url}`);
+        }
+        return safeJson<T>(response);
+      };
 
-      showToast(`完成，共处理 ${result.redacted_count} 处`, 'success');
+      loadAsyncResult<Record<string, unknown>>(`/api/v1/redaction/${fileId}/report`)
+        .then((data) => {
+          if (canApplyAsyncResult(fileId, asyncResultEpoch)) {
+            setRedactionReport(data);
+          }
+        })
+        .catch(() => {
+          if (canApplyAsyncResult(fileId, asyncResultEpoch)) {
+            setRedactionReport(null);
+          }
+        });
+
+      loadAsyncResult<{ versions?: VersionHistoryEntry[] }>(`/api/v1/redaction/${fileId}/versions`)
+        .then((data) => {
+          if (canApplyAsyncResult(fileId, asyncResultEpoch)) {
+            setVersionHistory(data.versions || []);
+          }
+        })
+        .catch(() => {
+          if (canApplyAsyncResult(fileId, asyncResultEpoch)) {
+            setVersionHistory([]);
+          }
+        });
+
+      showToast(`Completed ${result.redacted_count} redactions.`, 'success');
     } catch (err) {
       showToast(localizeErrorMessage(err, 'playground.redactFailed'), 'error');
     } finally {
       fileCtx.setIsLoading(false);
       fileCtx.setLoadingMessage('');
     }
-  }, [fileCtx, entityCtx.entities, imageCtx.boundingBoxes, recognition.replacementMode]);
+  }, [
+    canApplyAsyncResult,
+    entityCtx.entities,
+    fileCtx,
+    imageCtx.boundingBoxes,
+    recognition.replacementMode,
+  ]);
 
-  // --- Reset ---
   const handleReset = useCallback(() => {
+    asyncResultEpochRef.current += 1;
+    latestFileIdRef.current = null;
     fileCtx.setStage('upload');
     fileCtx.setFileInfo(null);
     fileCtx.setContent('');
@@ -187,9 +215,8 @@ export function usePlayground() {
     imageCtx.imageHistory.reset();
     setVersionHistory([]);
     setVersionHistoryOpen(false);
-  }, [fileCtx, entityCtx, imageCtx]);
+  }, [entityCtx, fileCtx, imageCtx]);
 
-  // --- Download ---
   const handleDownload = useCallback(() => {
     if (!fileCtx.fileInfo) return;
     downloadFile(
@@ -198,31 +225,25 @@ export function usePlayground() {
     ).catch(() => {});
   }, [fileCtx.fileInfo]);
 
-  // --- Popout wrapper (binds recognition.visionTypes) ---
   const openPopout = useCallback(() => {
     imageCtx.openPopout(recognition.visionTypes);
   }, [imageCtx, recognition.visionTypes]);
 
   return {
-    // Stage
     stage: fileCtx.stage,
     setStage: fileCtx.setStage,
-    // File info
     fileInfo: fileCtx.fileInfo,
     content: fileCtx.content,
     isImageMode: fileCtx.isImageMode,
-    // Entities & boxes
     entities: entityCtx.entities,
     setEntities: entityCtx.setEntities,
     applyEntities: entityCtx.applyEntities,
     boundingBoxes: imageCtx.boundingBoxes,
     setBoundingBoxes: imageCtx.setBoundingBoxes,
     visibleBoxes: imageCtx.visibleBoxes,
-    // Loading
     isLoading: fileCtx.isLoading,
     loadingMessage: fileCtx.loadingMessage,
     loadingElapsedSec: fileCtx.loadingElapsedSec,
-    // Redaction result
     entityMap,
     redactedCount,
     redactionReport,
@@ -231,16 +252,13 @@ export function usePlayground() {
     versionHistory,
     versionHistoryOpen,
     setVersionHistoryOpen,
-    // Selection counts
     selectedCount: historyCtx.selectedCount,
-    // Undo/redo
     canUndo: historyCtx.canUndo,
     canRedo: historyCtx.canRedo,
     handleUndo: historyCtx.handleUndo,
     handleRedo: historyCtx.handleRedo,
     entityHistory: entityCtx.entityHistory,
     imageHistory: imageCtx.imageHistory,
-    // Actions
     selectAll: historyCtx.selectAll,
     deselectAll: historyCtx.deselectAll,
     toggleBox: imageCtx.toggleBox,
@@ -249,14 +267,14 @@ export function usePlayground() {
     handleRedact,
     handleReset,
     handleDownload,
-    // Dropzone
     dropzone: fileCtx.dropzone,
-    // Image
     imageUrl: imageCtx.imageUrl,
     redactedImageUrl: imageCtx.redactedImageUrl,
+    currentPage: imageCtx.currentPage,
+    setCurrentPage: imageCtx.setCurrentPage,
+    totalPages: imageCtx.totalPages,
     mergeVisibleBoxes: imageCtx.mergeVisibleBoxes,
     openPopout,
-    // Recognition (pass-through)
     recognition,
   };
 }

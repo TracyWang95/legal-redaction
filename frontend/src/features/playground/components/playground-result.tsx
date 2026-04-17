@@ -33,6 +33,9 @@ export interface PlaygroundResultProps {
   isImageMode: boolean;
   imageUrl: string;
   redactedImageUrl?: string;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   visibleBoxes: BoundingBox[];
   visionTypes: VisionTypeConfig[];
   getVisionTypeConfig: (typeId: string) => { name: string; color: string };
@@ -56,6 +59,9 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   isImageMode,
   imageUrl,
   redactedImageUrl,
+  currentPage,
+  totalPages,
+  onPageChange,
   visibleBoxes,
   visionTypes,
   getVisionTypeConfig,
@@ -67,9 +73,26 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   const [mobileTab, setMobileTab] = useState<'original' | 'redacted' | 'mapping'>('original');
   const clickCounterRef = useRef<Record<string, number>>({});
 
+  const isTextPaginated = !isImageMode && totalPages > 1;
+  const pageEntities = isTextPaginated
+    ? entities.filter((entity) => Number(entity.page || 1) === currentPage)
+    : entities;
+  const pages = fileInfo?.pages;
+  const displayContent =
+    isTextPaginated && Array.isArray(pages) && pages.length === totalPages
+      ? pages[currentPage - 1] ?? content
+      : content;
+  const displayEntityMap = isTextPaginated
+    ? Object.fromEntries(
+        Object.entries(entityMap).filter(([key]) =>
+          pageEntities.some((entity) => entity.text === key && entity.selected !== false),
+        ),
+      )
+    : entityMap;
+
   const origToTypeId = new Map<string, string>();
-  for (const entity of entities) {
-    if (!entity.selected || entityMap[entity.text] === undefined) continue;
+  for (const entity of pageEntities) {
+    if (!entity.selected || displayEntityMap[entity.text] === undefined) continue;
     origToTypeId.set(entity.text, String(entity.type));
     if (
       typeof entity.start === 'number' &&
@@ -102,7 +125,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
     });
   };
 
-  const segments = buildSegments(content, entityMap);
+  const segments = buildSegments(displayContent, displayEntityMap);
 
   const markStyleForOrig = (origKey: string): CSSProperties => {
     const typeId = origToTypeId.get(origKey) ?? '';
@@ -256,6 +279,9 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           fileInfo={fileInfo}
           imageUrl={imageUrl}
           redactedImageUrl={redactedImageUrl}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
           visibleBoxes={visibleBoxes}
           visionTypes={visionTypes}
           getVisionTypeConfig={getVisionTypeConfig}
@@ -271,14 +297,17 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
         <TextResultView
           renderOriginal={renderOriginal}
           renderRedacted={renderRedacted}
-          content={content}
-          entityMap={entityMap}
+          content={displayContent}
+          entityMap={displayEntityMap}
           origToTypeId={origToTypeId}
           scrollToMatch={scrollToMatch}
           mobileTab={mobileTab}
           versionHistory={versionHistory}
           versionHistoryOpen={versionHistoryOpen}
           setVersionHistoryOpen={setVersionHistoryOpen}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={onPageChange}
         />
       )}
     </div>

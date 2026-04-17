@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -42,9 +43,8 @@ jobs:
         run: npx prettier --check src/
 
       - name: Unit tests (vitest)
-        # use-playground-recognition.test.ts is excluded because it OOMs in CI
-        # even at 8GB heap (see 11c433d). Run it locally if you touch the hook.
-        run: npm run test -- --passWithNoTests --exclude='**/use-playground-recognition*'
+        # Recognition hook tests were split into smaller files so they can run in CI.
+        run: npx vitest run
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
@@ -61,13 +61,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements-ci.txt
+          cache-dependency-path: backend/requirements.lock
 
       - name: Install dependencies
-        run: pip install -r requirements-ci.txt
+        run: pip install -r requirements.lock
 
       - name: Audit dependencies
-        run: pip install pip-audit && pip-audit -r requirements-ci.txt
+        run: pip install pip-audit && pip-audit -r requirements.lock
 
       - name: Lint with ruff
         run: pip install ruff && ruff check app/
@@ -99,7 +99,7 @@ jobs:
   # ── E2E (Playwright) ─────────────────────────────────────────
   e2e:
     name: E2E Tests (Playwright)
-    if: github.event_name == 'workflow_dispatch'  # E2E only runs on manual trigger
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     needs: [frontend, backend, docker-build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -139,7 +139,12 @@ jobs:
 
       - name: Run Playwright tests
         working-directory: frontend
-        run: npx playwright test
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            npx playwright test
+          else
+            npx playwright test e2e/playground-smoke.spec.ts e2e/batch-smoke.spec.ts e2e/history-smoke.spec.ts e2e/settings-smoke.spec.ts
+          fi
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 

@@ -178,6 +178,30 @@ async def delete_job(job_id: str, store: JobStore = Depends(get_job_store)) -> d
     return result
 
 
+@router.delete("/{job_id}/items/{item_id}")
+async def delete_job_item(
+    job_id: str,
+    item_id: str,
+    store: JobStore = Depends(get_job_store),
+) -> dict[str, Any]:
+    """Remove an item from a draft batch job and delete its underlying file."""
+    job = store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job not found")
+    deleted = store.delete_item(item_id)
+    if not deleted or deleted.get("job_id") != job_id:
+        raise HTTPException(status_code=404, detail="item not found")
+    file_id = deleted.get("file_id")
+    if file_id:
+        from app.services.file_management_service import delete_file as _delete_file
+        try:
+            await _delete_file(file_id)
+        except Exception as exc:  # best-effort cleanup; item row is already gone
+            logger.warning("job item %s: file %s cleanup failed: %s", item_id, file_id, exc)
+    audit_log("delete", "job_item", item_id, detail={"job_id": job_id, "file_id": file_id})
+    return {"deleted": True, "item_id": item_id, "file_id": file_id}
+
+
 @router.get("/{job_id}/items/{item_id}/review-draft", response_model=ReviewDraftResponse)
 async def get_item_review_draft(
     job_id: str,

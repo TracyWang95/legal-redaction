@@ -184,7 +184,6 @@ def auth_integration_client(tmp_data_dir: str) -> Generator[TestClient, None, No
         os.environ.pop(key, None)
 
 
-@pytest.mark.skip(reason="Feature not implemented: app.core.auth._login_attempts does not exist yet")
 class TestAuthFlow:
     def test_invalid_token_rejected(self, auth_integration_client: TestClient):
         """A request with an invalid token should be rejected (401)."""
@@ -230,7 +229,6 @@ class TestAuthFlow:
 
 # ─── 5. Rate limiting ─────────────────────────────────────────
 
-@pytest.mark.skip(reason="Feature not implemented: app.core.auth._login_attempts does not exist yet")
 class TestRateLimiting:
     def test_auth_rate_limit(self, auth_integration_client: TestClient):
         """Auth endpoints have a stricter rate limit (5 req/min per IP)."""
@@ -240,7 +238,7 @@ class TestRateLimiting:
 
         # Send rapid login attempts — after 5, should get 429
         got_429 = False
-        for i in range(8):
+        for _i in range(8):
             resp = client.post("/api/v1/auth/login", json={"password": "wrong!Pass123"})
             if resp.status_code == 429:
                 got_429 = True
@@ -250,7 +248,6 @@ class TestRateLimiting:
 
 # ─── 6. Account lockout ───────────────────────────────────────
 
-@pytest.mark.skip(reason="Feature not implemented: app.core.auth._login_attempts does not exist yet")
 class TestAccountLockout:
     def test_lockout_after_failed_attempts(self, auth_integration_client: TestClient):
         """After 5 failed login attempts, the account should be locked for 15 minutes."""
@@ -271,12 +268,12 @@ class TestAccountLockout:
         _auth_limiter._hits.clear()
         resp = client.post("/api/v1/auth/login", json={"password": "LockTest!123Abc"})
         assert resp.status_code == 429, f"Expected lockout 429, got {resp.status_code}"
-        assert "锁定" in resp.json().get("message", resp.json().get("detail", ""))
+        detail = resp.json().get("message", resp.json().get("detail", "")).lower()
+        assert "lock" in detail
 
 
 # ─── 7. CSRF protection ───────────────────────────────────────
 
-@pytest.mark.skip(reason="Feature not implemented: app.core.auth._login_attempts does not exist yet")
 class TestCSRFProtection:
     def test_logout_requires_csrf_or_cookie(self, auth_integration_client: TestClient):
         """POST /auth/logout is a state-changing endpoint; CSRF middleware may
@@ -288,6 +285,7 @@ class TestCSRFProtection:
         assert login_resp.status_code == 200
 
         # Attempt logout — with TestClient the CSRF cookie should be set automatically
-        logout_resp = client.post("/api/v1/auth/logout")
+        token = login_resp.json()["access_token"]
+        logout_resp = client.post("/api/v1/auth/logout", headers={"Authorization": f"Bearer {token}"})
         # Accept either 200 (success) or 403 (CSRF blocked) — both demonstrate the endpoint works
         assert logout_resp.status_code in (200, 403)

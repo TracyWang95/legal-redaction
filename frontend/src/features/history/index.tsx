@@ -111,22 +111,34 @@ export function History() {
           ) : s.compareData ? (
             <>
               {s.compareBlobUrls && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="mb-2 font-medium">{t('history.beforeRedaction')}</h4>
-                    <img
-                      src={s.compareBlobUrls.original}
-                      alt={t('history.beforeRedaction')}
-                      className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
+                <div className="space-y-3">
+                  {s.compareTotalPages > 1 && (
+                    <PaginationRail
+                      page={s.comparePage}
+                      pageSize={1}
+                      totalItems={s.compareTotalPages}
+                      totalPages={s.compareTotalPages}
+                      compact
+                      onPageChange={s.setComparePage}
                     />
-                  </div>
-                  <div>
-                    <h4 className="mb-2 font-medium">{t('history.afterRedaction')}</h4>
-                    <img
-                      src={s.compareBlobUrls.redacted}
-                      alt={t('history.afterRedaction')}
-                      className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
-                    />
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="mb-2 font-medium">{t('history.beforeRedaction')}</h4>
+                      <img
+                        src={s.compareBlobUrls.original}
+                        alt={t('history.beforeRedaction')}
+                        className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="mb-2 font-medium">{t('history.afterRedaction')}</h4>
+                      <img
+                        src={s.compareBlobUrls.redacted}
+                        alt={t('history.afterRedaction')}
+                        className="max-h-[50vh] w-full rounded-lg border border-border/70 object-contain"
+                      />
+                    </div>
                   </div>
                 </div>
               )}

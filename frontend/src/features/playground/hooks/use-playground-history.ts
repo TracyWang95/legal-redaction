@@ -10,6 +10,7 @@ export interface UsePlaygroundHistoryOptions {
   entities: Entity[];
   setEntities: React.Dispatch<React.SetStateAction<Entity[]>>;
   boundingBoxes: BoundingBox[];
+  visibleBoxes: BoundingBox[];
   setBoundingBoxes: React.Dispatch<React.SetStateAction<BoundingBox[]>>;
   entityHistory: ReturnType<typeof useUndoRedo<Entity[]>>;
   imageHistory: ReturnType<typeof useUndoRedo<BoundingBox[]>>;
@@ -22,6 +23,7 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
     entities,
     setEntities,
     boundingBoxes,
+    visibleBoxes,
     setBoundingBoxes,
     entityHistory,
     imageHistory,
@@ -32,7 +34,7 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
   const canRedo = isImageMode ? imageHistory.canRedo : entityHistory.canRedo;
 
   const selectedCount = isImageMode
-    ? boundingBoxes.filter((b) => b.selected).length
+    ? visibleBoxes.filter((b) => b.selected).length
     : entities.filter((e) => e.selected).length;
 
   const handleUndo = useCallback(() => {
@@ -73,24 +75,31 @@ export function usePlaygroundHistory(options: UsePlaygroundHistoryOptions) {
 
   const selectAll = useCallback(() => {
     if (isImageMode) {
+      const visibleIds = new Set(visibleBoxes.map((box) => box.id));
       setBoundingBoxes((prev) =>
         prev.map((b) => ({
           ...b,
-          selected: allSelectedVisionTypes.includes(b.type),
+          selected: visibleIds.has(b.id) ? allSelectedVisionTypes.includes(b.type) : b.selected,
         })),
       );
     } else {
       setEntities((prev) => prev.map((e) => ({ ...e, selected: true })));
     }
-  }, [isImageMode, allSelectedVisionTypes, setBoundingBoxes, setEntities]);
+  }, [isImageMode, visibleBoxes, allSelectedVisionTypes, setBoundingBoxes, setEntities]);
 
   const deselectAll = useCallback(() => {
     if (isImageMode) {
-      setBoundingBoxes((prev) => prev.map((b) => ({ ...b, selected: false })));
+      const visibleIds = new Set(visibleBoxes.map((box) => box.id));
+      setBoundingBoxes((prev) =>
+        prev.map((b) => ({
+          ...b,
+          selected: visibleIds.has(b.id) ? false : b.selected,
+        })),
+      );
     } else {
       setEntities((prev) => prev.map((e) => ({ ...e, selected: false })));
     }
-  }, [isImageMode, setBoundingBoxes, setEntities]);
+  }, [isImageMode, visibleBoxes, setBoundingBoxes, setEntities]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {

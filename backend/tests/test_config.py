@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import os
 
-from app.core.config import _resolve_local_path, BACKEND_DIR
+from app.core.config import BACKEND_DIR, _resolve_local_path
 
 
 class TestResolveLocalPath:

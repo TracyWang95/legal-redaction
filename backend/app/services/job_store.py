@@ -314,6 +314,17 @@ class JobStore:
             conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
             conn.commit()
 
+    def delete_item(self, item_id: str) -> dict[str, Any] | None:
+        """Remove a single item from its job. Returns the deleted row or None."""
+        with self._connect() as conn:
+            cur = conn.execute("SELECT * FROM job_items WHERE id = ?", (item_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            conn.execute("DELETE FROM job_items WHERE id = ?", (item_id,))
+            conn.commit()
+            return dict(row)
+
     def list_schedulable_jobs(self, limit: int = 5000) -> list[dict[str, Any]]:
         """供 Worker 扫描：包含所有可能有未完成 item 的 job 状态。"""
         lim = max(1, min(50_000, int(limit)))

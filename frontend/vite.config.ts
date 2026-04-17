@@ -35,9 +35,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (id.includes('react-router-dom') || id.includes('react-dom') || id.includes('react')) {
-            return 'vendor-react';
+          if (
+            id.includes('react-router-dom') ||
+            id.includes('react-router') ||
+            id.includes('@remix-run/router')
+          ) {
+            return 'vendor-router';
           }
+          if (id.includes('react-dom')) return 'vendor-react-dom';
+          if (id.includes('/react/')) return 'vendor-react';
           if (id.includes('@radix-ui')) return 'vendor-radix';
           if (id.includes('zustand')) return 'vendor-state';
           if (id.includes('axios')) return 'vendor-network';

@@ -5,7 +5,7 @@
 
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 
 @dataclass
@@ -13,7 +13,7 @@ class RegexPattern:
     """正则模式配置"""
     pattern: str
     priority: int = 1  # 优先级，数字越大越优先
-    validator: callable | None = None  # 可选的校验函数
+    validator: Callable[[str], bool] | None = None  # 可选的校验函数
 
 
 # 预定义的正则模式
@@ -21,11 +21,11 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 身份证号 - 15位或18位
     "ID_CARD": [
         RegexPattern(
-            pattern=r'\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b',
+            pattern=r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b",
             priority=10,
         ),
         RegexPattern(
-            pattern=r'\b[1-9]\d{5}\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}\b',
+            pattern=r"\b[1-9]\d{5}\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}\b",
             priority=9,
         ),
     ],
@@ -33,12 +33,12 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 手机号 - 中国大陆
     "PHONE": [
         RegexPattern(
-            pattern=r'\b1[3-9]\d{9}\b',
+            pattern=r"\b1[3-9]\d{9}\b",
             priority=10,
         ),
         # 带区号的座机
         RegexPattern(
-            pattern=r'\b(?:0\d{2,3}[-\s]?)?\d{7,8}\b',
+            pattern=r"\b(?:0\d{2,3}[-\s]?)?\d{7,8}\b",
             priority=5,
         ),
     ],
@@ -46,7 +46,7 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 银行卡号 - 16-19位数字
     "BANK_CARD": [
         RegexPattern(
-            pattern=r'\b(?:62|4|5)\d{14,17}\b',
+            pattern=r"\b(?:62|4|5)\d{14,17}\b",
             priority=10,
         ),
     ],
@@ -54,7 +54,7 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 邮箱
     "EMAIL": [
         RegexPattern(
-            pattern=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            pattern=r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
             priority=10,
         ),
     ],
@@ -63,12 +63,12 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     "CASE_NUMBER": [
         # (2024)京01民初123号
         RegexPattern(
-            pattern=r'[\(（]\d{4}[\)）][京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1,4}\d{0,4}[民刑行执破知赔财商][初终复再抗申裁监督撤]?\d+号',
+            pattern=r"[\(（]\d{4}[\)）][京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领A-Z]{1,4}\d{0,4}[民刑行执破知赔财商][初终复再抗申裁监督撤]?\d+号",
             priority=10,
         ),
         # 兼容更多格式
         RegexPattern(
-            pattern=r'[\(（]\d{4}[\)）][A-Za-z\u4e00-\u9fff]+\d*[A-Za-z\u4e00-\u9fff]*\d+号',
+            pattern=r"[\(（]\d{4}[\)）][A-Za-z\u4e00-\u9fff]+\d*[A-Za-z\u4e00-\u9fff]*\d+号",
             priority=8,
         ),
     ],
@@ -77,12 +77,12 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     "DATE": [
         # 2024年1月1日
         RegexPattern(
-            pattern=r'\d{4}年\d{1,2}月\d{1,2}日',
+            pattern=r"\d{4}年\d{1,2}月\d{1,2}日",
             priority=10,
         ),
         # 2024-01-01 或 2024/01/01
         RegexPattern(
-            pattern=r'\d{4}[-/]\d{1,2}[-/]\d{1,2}',
+            pattern=r"\d{4}[-/]\d{1,2}[-/]\d{1,2}",
             priority=9,
         ),
     ],
@@ -91,12 +91,12 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     "MONEY": [
         # 人民币格式
         RegexPattern(
-            pattern=r'(?:人民币|￥|¥|RMB)?\s*[\d,]+(?:\.\d{1,2})?\s*(?:元|万元)?',
+            pattern=r"(?:人民币|￥|¥|RMB)?\s*[\d,]+(?:\.\d{1,2})?\s*(?:元|万元)?",
             priority=8,
         ),
         # 纯数字金额后跟单位
         RegexPattern(
-            pattern=r'\d[\d,]*(?:\.\d{1,2})?\s*(?:元|万元|亿元)',
+            pattern=r"\d[\d,]*(?:\.\d{1,2})?\s*(?:元|万元|亿元)",
             priority=9,
         ),
     ],
@@ -104,7 +104,7 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 车牌号
     "LICENSE_PLATE": [
         RegexPattern(
-            pattern=r'[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{5,6}',
+            pattern=r"[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼使领][A-Z][A-Z0-9]{5,6}",
             priority=10,
         ),
     ],
@@ -112,7 +112,7 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # IP地址
     "IP_ADDRESS": [
         RegexPattern(
-            pattern=r'\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b',
+            pattern=r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b",
             priority=10,
         ),
     ],
@@ -120,7 +120,7 @@ BUILTIN_PATTERNS: dict[str, list[RegexPattern]] = {
     # 网址
     "URL": [
         RegexPattern(
-            pattern=r'https?://[^\s<>"{}|\\^`\[\]]+',
+            pattern=r"https?://[^\s<>\"{}|\\^`\[\]]+",
             priority=10,
         ),
     ],
@@ -197,27 +197,27 @@ class RegexService:
 
                     seen_positions.add(pos_key)
                     entities.append({
-                        'id': f'regex_{entity_type}_{start}_{end}',
-                        'text': matched_text,
-                        'type': entity_type,
-                        'start': start,
-                        'end': end,
-                        'confidence': 0.99,  # 正则匹配置信度很高
-                        'source': 'regex',
-                        'priority': priority,
+                        "id": f"regex_{entity_type}_{start}_{end}",
+                        "text": matched_text,
+                        "type": entity_type,
+                        "start": start,
+                        "end": end,
+                        "confidence": 0.99,  # 正则匹配置信度很高
+                        "source": "regex",
+                        "priority": priority,
                     })
 
         # 按位置排序
-        entities.sort(key=lambda x: (x['start'], -x['priority']))
+        entities.sort(key=lambda x: (x["start"], -x["priority"]))
 
         # 处理重叠的匹配，保留优先级高的
         final_entities = []
         last_end = -1
 
         for entity in entities:
-            if entity['start'] >= last_end:
+            if entity["start"] >= last_end:
                 final_entities.append(entity)
-                last_end = entity['end']
+                last_end = entity["end"]
 
         return final_entities
 

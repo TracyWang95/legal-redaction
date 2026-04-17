@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from starlette.types import Message
 
 from app.api import auth as auth_api
 from app.api import entity_types, files, jobs, model_config, ner_backend, presets, redaction, vision_pipeline
@@ -254,17 +255,63 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 # Request body size limit middleware (runs before CORS)
 # ---------------------------------------------------------------------------
 class MaxBodySizeMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_body_size: int = 60 * 1024 * 1024):  # 60MB
+    def __init__(
+        self,
+        app,
+        max_body_size: int = 60 * 1024 * 1024,  # 60MB for uploads
+        max_json_body_size: int = 1 * 1024 * 1024,  # 1MB for JSON requests
+    ):
         super().__init__(app)
         self.max_body_size = max_body_size
+        self.max_json_body_size = max_json_body_size
+
+    @staticmethod
+    def _body_too_large_response() -> JSONResponse:
+        return JSONResponse(
+            status_code=413,
+            content={"error_code": "BODY_TOO_LARGE", "message": "Request body is too large.", "detail": {}},
+        )
+
+    @staticmethod
+    def _install_cached_body(request: Request, body: bytes) -> None:
+        async def receive() -> Message:
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        request._body = body
+        request._receive = receive
+
+    async def _buffer_limited_json_body(self, request: Request) -> bytes | None:
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in request.stream():
+            total += len(chunk)
+            if total > self.max_json_body_size:
+                return None
+            if chunk:
+                chunks.append(chunk)
+        return b"".join(chunks)
 
     async def dispatch(self, request: Request, call_next):
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > self.max_body_size:
-            return JSONResponse(
-                status_code=413,
-                content={"error_code": "BODY_TOO_LARGE", "message": "请求体过大", "detail": {}},
-            )
+        content_type = (request.headers.get("content-type") or "").lower()
+        limit = self.max_body_size
+        is_json_request = "application/json" in content_type or content_type.endswith("+json")
+        if is_json_request:
+            limit = self.max_json_body_size
+
+        if content_length:
+            try:
+                if int(content_length) > limit:
+                    return self._body_too_large_response()
+            except ValueError:
+                logger.warning("Ignoring invalid content-length header: %s", content_length)
+
+        if is_json_request:
+            body = await self._buffer_limited_json_body(request)
+            if body is None:
+                return self._body_too_large_response()
+            self._install_cached_body(request, body)
+
         return await call_next(request)
 
 

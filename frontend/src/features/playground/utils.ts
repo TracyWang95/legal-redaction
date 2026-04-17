@@ -8,9 +8,8 @@ import {
   getSelectionToneClasses,
   type SelectionTone,
 } from '@/ui/selectionPalette';
-import type { Entity, BoundingBox, VisionDetectionResponse } from './types';
+import type { BoundingBox, Entity, VisionDetectionResponse } from './types';
 
-// Re-export from shared module so existing `import { clampPopoverInCanvas } from './utils'` still works.
 export { clampPopoverInCanvas } from '@/utils/domSelection';
 
 export async function safeJson<T = unknown>(res: Response): Promise<T> {
@@ -38,11 +37,11 @@ export function getModePreview(mode: string, sampleEntity?: Entity) {
   const name = sampleEntity?.text || t('editor.sampleName');
   switch (mode) {
     case 'smart':
-      return `${name} → [${t('editor.sampleSmart')}]`;
+      return `${name} -> [${t('editor.sampleSmart')}]`;
     case 'mask':
-      return `${name} → ${name[0]}${'*'.repeat(Math.max(name.length - 1, 1))}`;
+      return `${name} -> ${name[0]}${'*'.repeat(Math.max(name.length - 1, 1))}`;
     case 'structured':
-      return `${name} → <${t('editor.sampleStructured')}>`;
+      return `${name} -> <${t('editor.sampleStructured')}>`;
     default:
       return '';
   }
@@ -58,7 +57,6 @@ export async function authBlobUrl(url: string, mime?: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
-/** Vision detection timeout */
 export const VISION_FETCH_TIMEOUT_MS = VISION_TIMEOUT;
 
 export async function runVisionDetection(
@@ -66,15 +64,11 @@ export async function runVisionDetection(
   ocrHasTypes: string[],
   hasImageTypes: string[],
   externalSignal?: AbortSignal,
+  page = 1,
 ): Promise<{ boxes: BoundingBox[]; resultImage?: string }> {
-  if (import.meta.env.DEV) {
-    console.log('[Vision] 发送识别请求:', { ocrHasTypes, hasImageTypes });
-  }
-
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), VISION_FETCH_TIMEOUT_MS);
 
-  // Forward external abort to our controller
   const onExternalAbort = () => controller.abort();
   if (externalSignal) {
     if (externalSignal.aborted) {
@@ -86,7 +80,7 @@ export async function runVisionDetection(
 
   let res: Response;
   try {
-    res = await authFetch(`/api/v1/redaction/${fileId}/vision?page=1`, {
+    res = await authFetch(`/api/v1/redaction/${fileId}/vision?page=${page}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -95,13 +89,12 @@ export async function runVisionDetection(
       }),
       signal: controller.signal,
     });
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      // If aborted by external signal, re-throw as AbortError (caller handles it)
-      if (externalSignal?.aborted) throw e;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      if (externalSignal?.aborted) throw error;
       throw new Error(t('error.visionTimeout'));
     }
-    throw e;
+    throw error;
   } finally {
     window.clearTimeout(timer);
     externalSignal?.removeEventListener('abort', onExternalAbort);
@@ -113,25 +106,24 @@ export async function runVisionDetection(
 
   const data = await safeJson<VisionDetectionResponse>(res);
   const boxes = (data.bounding_boxes || []).map(
-    (b: Record<string, unknown>, idx: number) =>
+    (box: Record<string, unknown>, idx: number) =>
       ({
-        ...b,
-        id: b.id || `bbox_${idx}`,
+        ...box,
+        id: box.id || `bbox_${idx}`,
         selected: true,
       }) as BoundingBox,
   );
   return { boxes, resultImage: data.result_image };
 }
 
-/** Compute entity type statistics */
 export function computeEntityStats(
   entities: Entity[],
 ): Record<string, { total: number; selected: number }> {
   const stats: Record<string, { total: number; selected: number }> = {};
-  entities.forEach((e) => {
-    if (!stats[e.type]) stats[e.type] = { total: 0, selected: 0 };
-    stats[e.type].total++;
-    if (e.selected) stats[e.type].selected++;
+  entities.forEach((entity) => {
+    if (!stats[entity.type]) stats[entity.type] = { total: 0, selected: 0 };
+    stats[entity.type].total += 1;
+    if (entity.selected) stats[entity.type].selected += 1;
   });
   return stats;
 }

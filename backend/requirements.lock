@@ -1,48 +1,48 @@
 # Pinned dependency versions for DataInfra-RedactionEverything backend.
-# Keep in sync with requirements.txt.  Re-generate after any dependency change
-# by running:  pip freeze -r requirements.txt > requirements.lock
+# Keep in sync with requirements.txt. Re-generate after any dependency change
+# by running: pip freeze -r requirements.txt > requirements.lock
 #
 # Last updated: 2026-04-09
 
-# FastAPI 框架
+# FastAPI framework
 fastapi==0.117.1
 uvicorn[standard]==0.35.0
 python-multipart==0.0.20
 
-# 数据验证
+# Data validation
 pydantic==2.12.5
 pydantic-settings==2.13.1
 
-# 文件处理
+# File processing
 python-docx==1.2.0
 PyMuPDF==1.27.2.2
 Pillow==11.1.0
 pdf2image==1.17.0
 pywin32==311 ; sys_platform == 'win32'
 
-# HTTP 客户端
+# HTTP client
 httpx==0.28.1
 
-# GPU 显存
+# GPU memory checks
 nvidia-ml-py==12.535.133
 aiofiles==24.1.0
 
-# HaS Image / OCR — 已拆分为独立微服务（Dockerfile.ocr / Dockerfile.vision）
-# 主后端不再直接依赖 ultralytics / paddleocr
+# HaS Image / OCR moved to dedicated services (Dockerfile.ocr / Dockerfile.vision).
+# Main backend no longer depends on ultralytics / paddleocr.
 
-# 工具库
+# Utility libraries
 PyJWT==2.11.0
 passlib[bcrypt]==1.7.4
 
-# 可观测性
+# Observability
 python-json-logger==2.0.4
 prometheus-client==0.21.1
 
-# 安全
+# Security
 cryptography==46.0.1
 
-# 运行时工具
+# Runtime tools
 python-dotenv==1.1.1
 
-# 开发工具（随 requirements.txt 安装，CI 亦使用）
+# Development tools (installed with requirements.txt and used in CI)
 pytest==8.3.4

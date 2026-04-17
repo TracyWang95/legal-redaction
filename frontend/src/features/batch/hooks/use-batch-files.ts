@@ -6,7 +6,9 @@ import { t } from '@/i18n';
 import { useDropzone } from 'react-dropzone';
 import { fileApi } from '@/services/api';
 import { FileType } from '@/types';
-import { getJob } from '@/services/jobsApi';
+import { deleteJobItem, getJob } from '@/services/jobsApi';
+import { batchGetFileRaw } from '@/services/batchPipeline';
+import { localizeErrorMessage } from '@/utils/localizeError';
 import type { BatchRow, Step } from '../types';
 import { mapBackendStatus, deriveReviewConfirmed } from './use-batch-wizard-utils';
 
@@ -20,6 +22,8 @@ export interface BatchFilesState {
   msg: { text: string; tone: 'neutral' | 'ok' | 'warn' | 'err' } | null;
   setMsg: (msg: { text: string; tone: 'neutral' | 'ok' | 'warn' | 'err' } | null) => void;
   toggle: (id: string) => void;
+  removeRow: (fileId: string) => Promise<void>;
+  clearRows: () => Promise<void>;
   getRootProps: ReturnType<typeof useDropzone>['getRootProps'];
   getInputProps: ReturnType<typeof useDropzone>['getInputProps'];
   isDragActive: boolean;
@@ -174,6 +178,12 @@ export function useBatchFiles(
   });
 
   // ── Polling ──
+  // Tracks file_ids whose file_info we've already synced post-parse. Upload
+  // records file_type from magic bytes ("pdf"), but the parse step may reclassify
+  // it to "pdf_scanned" once the text-density heuristic decides. Without this
+  // sync the step4 UI would still route scanned PDFs through the text review pane.
+  const syncedFileInfoRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (isPreviewMode) return;
     if (step !== 3 || !activeJobId || !hasItemsInProgress || analyzeRunning) return;
@@ -202,6 +212,58 @@ export function useBatchFiles(
             };
           }),
         );
+
+        // For each item that's past parsing, refresh file_type/isImageMode from
+        // the authoritative file_store so scanned PDFs get routed correctly.
+        const needsSync: string[] = [];
+        for (const it of detail.items) {
+          const status = String(it.status);
+          const parsed = status !== 'pending' && status !== 'parsing';
+          if (parsed && !syncedFileInfoRef.current.has(it.file_id)) {
+            needsSync.push(it.file_id);
+          }
+        }
+        if (needsSync.length) {
+          const updates: Record<string, { fileType: FileType; isImageMode: boolean }> = {};
+          await Promise.all(
+            needsSync.map(async (fid) => {
+              try {
+                const info = await batchGetFileRaw(fid);
+                if (cancelled) return;
+                syncedFileInfoRef.current.add(fid);
+                const ftRaw = String(info.file_type ?? '').toLowerCase();
+                const isScanned = Boolean(info.is_scanned);
+                const resolvedType: FileType =
+                  ftRaw === 'image' || ftRaw === 'jpg' || ftRaw === 'jpeg' || ftRaw === 'png'
+                    ? FileType.IMAGE
+                    : ftRaw === 'pdf_scanned' || (ftRaw === 'pdf' && isScanned)
+                      ? FileType.PDF_SCANNED
+                      : ftRaw === 'pdf'
+                        ? FileType.PDF
+                        : ftRaw === 'doc'
+                          ? FileType.DOC
+                          : FileType.DOCX;
+                updates[fid] = {
+                  fileType: resolvedType,
+                  isImageMode:
+                    resolvedType === FileType.IMAGE || resolvedType === FileType.PDF_SCANNED,
+                };
+              } catch {
+                /* ignore — will retry on next poll tick */
+              }
+            }),
+          );
+          if (!cancelled && Object.keys(updates).length) {
+            setRows((prev) =>
+              prev.map((r) => {
+                const u = updates[r.file_id];
+                if (!u) return r;
+                if (r.file_type === u.fileType && r.isImageMode === u.isImageMode) return r;
+                return { ...r, file_type: u.fileType, isImageMode: u.isImageMode };
+              }),
+            );
+          }
+        }
       } catch {
         /* ignore network jitter */
       }
@@ -214,6 +276,11 @@ export function useBatchFiles(
     };
   }, [step, activeJobId, hasItemsInProgress, analyzeRunning, isPreviewMode]);
 
+  // Reset the sync cache whenever we switch jobs so a new job re-syncs cleanly.
+  useEffect(() => {
+    syncedFileInfoRef.current = new Set();
+  }, [activeJobId]);
+
   const toggle = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -222,6 +289,73 @@ export function useBatchFiles(
       return next;
     });
   }, []);
+
+  const dropRowLocally = useCallback((fileId: string) => {
+    setRows((prev) => prev.filter((r) => r.file_id !== fileId));
+    setSelected((prev) => {
+      if (!prev.has(fileId)) return prev;
+      const next = new Set(prev);
+      next.delete(fileId);
+      return next;
+    });
+    if (itemIdByFileIdRef.current[fileId]) {
+      const { [fileId]: _, ...rest } = itemIdByFileIdRef.current;
+      itemIdByFileIdRef.current = rest;
+    }
+  }, []);
+
+  const removeRow = useCallback(
+    async (fileId: string) => {
+      if (isPreviewMode) {
+        dropRowLocally(fileId);
+        return;
+      }
+      const itemId = itemIdByFileIdRef.current[fileId];
+      try {
+        if (activeJobId && itemId) {
+          await deleteJobItem(activeJobId, itemId);
+        } else {
+          // No linked job item (e.g. file uploaded outside a batch job) — delete
+          // the file directly so it doesn't linger in the upload store.
+          await fileApi.delete(fileId);
+        }
+        dropRowLocally(fileId);
+      } catch (err) {
+        setMsg({ text: localizeErrorMessage(err, 'batchWizard.actionFailed'), tone: 'err' });
+      }
+    },
+    [activeJobId, dropRowLocally, isPreviewMode],
+  );
+
+  const clearRows = useCallback(async () => {
+    if (isPreviewMode) {
+      setRows([]);
+      setSelected(new Set());
+      itemIdByFileIdRef.current = {};
+      return;
+    }
+    const ids = rows.map((r) => r.file_id);
+    if (!ids.length) return;
+    const failures: string[] = [];
+    for (const fid of ids) {
+      const itemId = itemIdByFileIdRef.current[fid];
+      try {
+        if (activeJobId && itemId) {
+          await deleteJobItem(activeJobId, itemId);
+        } else {
+          await fileApi.delete(fid);
+        }
+        dropRowLocally(fid);
+      } catch (err) {
+        failures.push(fid);
+        // eslint-disable-next-line no-console
+        console.warn('clearRows: failed to remove', fid, err);
+      }
+    }
+    if (failures.length) {
+      setMsg({ text: t('batchWizard.actionFailed'), tone: 'err' });
+    }
+  }, [activeJobId, dropRowLocally, isPreviewMode, rows]);
 
   return {
     rows,
@@ -233,6 +367,8 @@ export function useBatchFiles(
     msg,
     setMsg,
     toggle,
+    removeRow,
+    clearRows,
     getRootProps,
     getInputProps,
     isDragActive,

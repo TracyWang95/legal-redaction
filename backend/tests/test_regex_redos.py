@@ -4,6 +4,7 @@
 """Tests for ReDoS protection in safe_regex and regex_service."""
 
 import re
+
 import pytest
 
 from app.core.safe_regex import RegexTimeoutError, safe_compile, safe_finditer

@@ -1,29 +1,13 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * PlaygroundContext — eliminates prop drilling from playground-page.tsx.
- *
- * Instead of destructuring 23+ values from usePlayground() and threading
- * them through props, child components consume this context directly.
- *
- * The context is split into three parts to avoid unnecessary re-renders:
- *   - PlaygroundDataCtx:    frequently-changing data (file, entities, recognition state, etc.)
- *   - PlaygroundActionsCtx: stable callbacks (wrapped in useCallback by the underlying hooks)
- *   - PlaygroundUICtx:      UI-specific state (selection popups, text selection, etc.)
- */
-
 import { createContext, useContext, useMemo, type FC, type ReactNode } from 'react';
 import { usePlayground } from './hooks/use-playground';
 import { usePlaygroundUI } from './hooks/use-playground-ui';
 
-/** The full return type of usePlayground(). */
 export type PlaygroundContextValue = ReturnType<typeof usePlayground>;
-
-/** The full return type of usePlaygroundUI(). */
 export type PlaygroundUIContextValue = ReturnType<typeof usePlaygroundUI>;
 
-/** Frequently-changing data from usePlayground(). */
 export interface PlaygroundDataContextValue {
   stage: PlaygroundContextValue['stage'];
   fileInfo: PlaygroundContextValue['fileInfo'];
@@ -48,11 +32,12 @@ export interface PlaygroundDataContextValue {
   imageHistory: PlaygroundContextValue['imageHistory'];
   imageUrl: PlaygroundContextValue['imageUrl'];
   redactedImageUrl: PlaygroundContextValue['redactedImageUrl'];
+  currentPage: PlaygroundContextValue['currentPage'];
+  totalPages: PlaygroundContextValue['totalPages'];
   recognition: PlaygroundContextValue['recognition'];
   dropzone: PlaygroundContextValue['dropzone'];
 }
 
-/** Stable action callbacks from usePlayground(). */
 export interface PlaygroundActionsContextValue {
   setStage: PlaygroundContextValue['setStage'];
   setEntities: PlaygroundContextValue['setEntities'];
@@ -71,6 +56,7 @@ export interface PlaygroundActionsContextValue {
   handleReset: PlaygroundContextValue['handleReset'];
   handleDownload: PlaygroundContextValue['handleDownload'];
   mergeVisibleBoxes: PlaygroundContextValue['mergeVisibleBoxes'];
+  setCurrentPage: PlaygroundContextValue['setCurrentPage'];
   openPopout: PlaygroundContextValue['openPopout'];
 }
 
@@ -78,10 +64,6 @@ const PlaygroundDataCtx = createContext<PlaygroundDataContextValue | null>(null)
 const PlaygroundActionsCtx = createContext<PlaygroundActionsContextValue | null>(null);
 const PlaygroundUICtx = createContext<PlaygroundUIContextValue | null>(null);
 
-/**
- * Wrap the playground page with this provider.
- * It calls usePlayground() + usePlaygroundUI() once and shares the result.
- */
 export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const ctx = usePlayground();
   const { entityTypes, selectedTypes } = ctx.recognition;
@@ -96,7 +78,6 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
     getTypeConfig: ctx.recognition.getTypeConfig,
   });
 
-  // Data context — depends on frequently-changing values
   const dataValue = useMemo<PlaygroundDataContextValue>(
     () => ({
       stage: ctx.stage,
@@ -122,6 +103,8 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       imageHistory: ctx.imageHistory,
       imageUrl: ctx.imageUrl,
       redactedImageUrl: ctx.redactedImageUrl,
+      currentPage: ctx.currentPage,
+      totalPages: ctx.totalPages,
       recognition: ctx.recognition,
       dropzone: ctx.dropzone,
     }),
@@ -149,12 +132,13 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ctx.imageHistory,
       ctx.imageUrl,
       ctx.redactedImageUrl,
+      ctx.currentPage,
+      ctx.totalPages,
       ctx.recognition,
       ctx.dropzone,
     ],
   );
 
-  // Actions context — all callbacks, typically stable across renders
   const actionsValue = useMemo<PlaygroundActionsContextValue>(
     () => ({
       setStage: ctx.setStage,
@@ -174,6 +158,7 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       handleReset: ctx.handleReset,
       handleDownload: ctx.handleDownload,
       mergeVisibleBoxes: ctx.mergeVisibleBoxes,
+      setCurrentPage: ctx.setCurrentPage,
       openPopout: ctx.openPopout,
     }),
     [
@@ -194,11 +179,12 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ctx.handleReset,
       ctx.handleDownload,
       ctx.mergeVisibleBoxes,
+      ctx.setCurrentPage,
       ctx.openPopout,
     ],
   );
 
-  // UI context — explicit property-level deps to avoid re-renders when `ui` ref changes
+  // Keep UI context reference stable across unrelated state changes.
   const uiValue = useMemo(
     () => ui,
     [
@@ -231,33 +217,24 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-/** Access the playground data context. Throws if used outside PlaygroundProvider. */
 export function usePlaygroundDataContext(): PlaygroundDataContextValue {
   const ctx = useContext(PlaygroundDataCtx);
   if (!ctx) throw new Error('usePlaygroundDataContext must be used within PlaygroundProvider');
   return ctx;
 }
 
-/** Access the playground actions context. Throws if used outside PlaygroundProvider. */
 export function usePlaygroundActionsContext(): PlaygroundActionsContextValue {
   const ctx = useContext(PlaygroundActionsCtx);
   if (!ctx) throw new Error('usePlaygroundActionsContext must be used within PlaygroundProvider');
   return ctx;
 }
 
-/**
- * Access the playground data/actions context merged.
- * Backward-compatible: returns the same shape as the old single context.
- * Note: This causes re-renders on both data AND action changes.
- * Prefer usePlaygroundDataContext() / usePlaygroundActionsContext() for new code.
- */
 export function usePlaygroundContext(): PlaygroundContextValue {
   const data = usePlaygroundDataContext();
   const actions = usePlaygroundActionsContext();
   return { ...data, ...actions } as PlaygroundContextValue;
 }
 
-/** Access the playground UI context (selections, popups, etc.). */
 export function usePlaygroundUIContext(): PlaygroundUIContextValue {
   const ctx = useContext(PlaygroundUICtx);
   if (!ctx) throw new Error('usePlaygroundUIContext must be used within PlaygroundProvider');

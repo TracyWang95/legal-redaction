@@ -65,22 +65,42 @@ const mockDropzone = {
   inputRef: { current: null },
 };
 
+type MockFileInfo = {
+  file_id: string;
+  filename: string;
+  file_size: number;
+  file_type: string;
+  is_scanned: boolean;
+};
+
+const mockFileCtx = {
+  stage: 'upload',
+  setStage: vi.fn((next: string) => {
+    mockFileCtx.stage = next;
+  }),
+  fileInfo: null as MockFileInfo | null,
+  setFileInfo: vi.fn((next: MockFileInfo | null) => {
+    mockFileCtx.fileInfo = next;
+  }),
+  content: '',
+  setContent: vi.fn((next: string) => {
+    mockFileCtx.content = next;
+  }),
+  isLoading: false,
+  setIsLoading: vi.fn((next: boolean) => {
+    mockFileCtx.isLoading = next;
+  }),
+  loadingMessage: '',
+  setLoadingMessage: vi.fn((next: string) => {
+    mockFileCtx.loadingMessage = next;
+  }),
+  loadingElapsedSec: 0,
+  isImageMode: false,
+  dropzone: mockDropzone,
+};
+
 vi.mock('../use-playground-file', () => ({
-  usePlaygroundFile: vi.fn(() => ({
-    stage: 'upload',
-    setStage: vi.fn(),
-    fileInfo: null,
-    setFileInfo: vi.fn(),
-    content: '',
-    setContent: vi.fn(),
-    isLoading: false,
-    setIsLoading: vi.fn(),
-    loadingMessage: '',
-    setLoadingMessage: vi.fn(),
-    loadingElapsedSec: 0,
-    isImageMode: false,
-    dropzone: mockDropzone,
-  })),
+  usePlaygroundFile: vi.fn(() => mockFileCtx),
 }));
 
 const mockImageHistory = {
@@ -130,6 +150,7 @@ vi.mock('@/utils/localizeError', () => ({
 
 import { usePlayground } from '../use-playground';
 import { usePlaygroundFile } from '../use-playground-file';
+import { authFetch } from '@/services/api-client';
 import type { Mock } from 'vitest';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -141,12 +162,29 @@ function renderUsePlayground() {
   return renderHook(() => usePlayground(), { wrapper });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe('usePlayground', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockFileCtx.stage = 'upload';
+    mockFileCtx.fileInfo = null;
+    mockFileCtx.content = '';
+    mockFileCtx.isLoading = false;
+    mockFileCtx.loadingMessage = '';
+    mockFileCtx.loadingElapsedSec = 0;
+    mockFileCtx.isImageMode = false;
   });
 
   // ── Initial state ──
@@ -495,6 +533,116 @@ describe('usePlayground', () => {
       expect(result.current.redactionReport).toBeNull();
       expect(result.current.reportOpen).toBe(false);
     });
+
+    it('ignores late report responses after reset', async () => {
+      mockFileCtx.stage = 'preview';
+      mockFileCtx.fileInfo = {
+        file_id: 'file-1',
+        filename: 'test.docx',
+        file_size: 1024,
+        file_type: 'docx',
+        is_scanned: false,
+      };
+
+      const reportResponse = deferred<{ json: () => Promise<Record<string, unknown>> }>();
+      const versionsResponse = deferred<{ json: () => Promise<{ versions: string[] }> }>();
+
+      vi.mocked(authFetch).mockImplementation((input) => {
+        const url = String(input);
+        if (url === '/api/v1/redaction/execute') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ entity_map: {}, redacted_count: 2 }),
+          } as Response);
+        }
+        if (url === '/api/v1/redaction/file-1/report') {
+          return reportResponse.promise as Promise<Response>;
+        }
+        if (url === '/api/v1/redaction/file-1/versions') {
+          return versionsResponse.promise as Promise<Response>;
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+
+      const { result, rerender } = renderUsePlayground();
+
+      await act(async () => {
+        await result.current.handleRedact();
+      });
+
+      act(() => {
+        result.current.handleReset();
+      });
+      rerender();
+
+      await act(async () => {
+        reportResponse.resolve({
+          json: () => Promise.resolve({ summary: 'stale' }),
+        });
+        versionsResponse.resolve({
+          json: () => Promise.resolve({ versions: ['old-version'] }),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(result.current.redactionReport).toBeNull();
+      expect(result.current.versionHistory).toEqual([]);
+      expect(result.current.fileInfo).toBeNull();
+    });
+
+    it('keeps report and version history empty when async result requests fail', async () => {
+      mockFileCtx.stage = 'preview';
+      mockFileCtx.fileInfo = {
+        file_id: 'file-1',
+        filename: 'test.docx',
+        file_size: 1024,
+        file_type: 'docx',
+        is_scanned: false,
+      };
+
+      vi.mocked(authFetch).mockImplementation((input) => {
+        const url = String(input);
+        if (url === '/api/v1/redaction/execute') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ entity_map: {}, redacted_count: 2 }),
+          } as Response);
+        }
+        if (url === '/api/v1/redaction/file-1/report') {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: () => Promise.resolve({ detail: 'expired' }),
+          } as Response);
+        }
+        if (url === '/api/v1/redaction/file-1/versions') {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            json: () => Promise.resolve({ detail: 'server error' }),
+          } as Response);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        } as Response);
+      });
+
+      const { result } = renderUsePlayground();
+
+      await act(async () => {
+        await result.current.handleRedact();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(result.current.redactionReport).toBeNull();
+      expect(result.current.versionHistory).toEqual([]);
+    });
   });
 
   // ── UI state toggles ──
@@ -607,8 +755,8 @@ describe('usePlayground', () => {
 
     it('calls setTypeTab(vision) when in image mode', () => {
       (usePlaygroundFile as Mock).mockReturnValue({
+        ...mockFileCtx,
         stage: 'preview',
-        setStage: vi.fn(),
         fileInfo: {
           file_id: 'f1',
           filename: 'test.jpg',
@@ -616,16 +764,7 @@ describe('usePlayground', () => {
           file_type: 'image',
           is_scanned: false,
         },
-        setFileInfo: vi.fn(),
-        content: '',
-        setContent: vi.fn(),
-        isLoading: false,
-        setIsLoading: vi.fn(),
-        loadingMessage: '',
-        setLoadingMessage: vi.fn(),
-        loadingElapsedSec: 0,
         isImageMode: true,
-        dropzone: mockDropzone,
       });
 
       renderUsePlayground();

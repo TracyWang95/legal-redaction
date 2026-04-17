@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 from app.core.file_validation import (
     get_file_type,
     safe_path_in_dir,
@@ -15,7 +13,6 @@ from app.core.file_validation import (
     validate_magic_bytes,
 )
 from app.models.schemas import FileType
-
 
 # ── validate_extension ───────────────────────────────────────
 

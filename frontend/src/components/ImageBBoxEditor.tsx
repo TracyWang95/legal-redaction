@@ -15,6 +15,7 @@ export interface BoundingBox {
   y: number;
   width: number;
   height: number;
+  page?: number;
   type: string;
   text?: string;
   selected: boolean;
@@ -307,9 +308,14 @@ function ImageBBoxEditor({
             backgroundColor: box.selected ? 'rgba(148, 163, 184, 0.06)' : 'transparent',
             boxShadow: isSelected ? `0 0 0 1px ${BOX_STROKE_SELECTED}` : 'none',
             cursor: readOnly ? 'default' : 'move',
+            pointerEvents: 'auto',
           }}
           onMouseDown={(e) => {
             if (readOnly) return;
+            // Always stop propagation: in drawMode this prevents the canvas
+            // from starting a new-box drag over an existing box. Users kept
+            // losing the ability to drag/resize/delete recognised boxes once
+            // they enabled the draw tool.
             e.stopPropagation();
             handleBoxMouseDown(e, box.id);
           }}

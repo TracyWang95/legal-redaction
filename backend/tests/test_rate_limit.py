@@ -7,8 +7,6 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
-import pytest
-
 from app.core.rate_limit import RateLimiter
 
 
@@ -117,13 +115,14 @@ def test_upload_limiter_allows_different_ips():
 
 def test_get_client_ip_uses_x_forwarded_for(monkeypatch):
     """get_client_ip should prefer X-Forwarded-For header when behind a trusted proxy."""
-    from app.core.rate_limit import get_client_ip
-    from app.core.config import get_settings
-    from starlette.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.responses import JSONResponse
     from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from app.core.config import get_settings
+    from app.core.rate_limit import get_client_ip
 
     # TestClient peer is "testclient" — add it to trusted proxies
     monkeypatch.setattr(get_settings(), "TRUSTED_PROXIES", ["127.0.0.1", "::1", "testclient"])
@@ -141,12 +140,13 @@ def test_get_client_ip_uses_x_forwarded_for(monkeypatch):
 
 def test_get_client_ip_falls_back_to_client_host():
     """get_client_ip should fall back to request.client.host when no X-Forwarded-For."""
-    from app.core.rate_limit import get_client_ip
-    from starlette.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.responses import JSONResponse
     from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from app.core.rate_limit import get_client_ip
 
     async def echo_ip(request: Request):
         return JSONResponse({"ip": get_client_ip(request)})
@@ -163,12 +163,13 @@ def test_get_client_ip_falls_back_to_client_host():
 
 def test_get_client_ip_ignores_empty_forwarded_for():
     """get_client_ip should ignore empty X-Forwarded-For header."""
-    from app.core.rate_limit import get_client_ip
-    from starlette.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.responses import JSONResponse
     from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from app.core.rate_limit import get_client_ip
 
     async def echo_ip(request: Request):
         return JSONResponse({"ip": get_client_ip(request)})
@@ -187,13 +188,14 @@ def test_get_client_ip_ignores_empty_forwarded_for():
 
 def test_get_client_ip_ignores_xff_from_untrusted_peer(monkeypatch):
     """When the direct peer IP is NOT in TRUSTED_PROXIES, X-Forwarded-For must be ignored."""
-    from app.core.rate_limit import get_client_ip
-    from app.core.config import get_settings
-    from starlette.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.responses import JSONResponse
     from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from app.core.config import get_settings
+    from app.core.rate_limit import get_client_ip
 
     # Only trust loopback — TestClient peer "testclient" is NOT in the list
     monkeypatch.setattr(get_settings(), "TRUSTED_PROXIES", ["127.0.0.1", "::1"])
@@ -214,13 +216,14 @@ def test_get_client_ip_ignores_xff_from_untrusted_peer(monkeypatch):
 
 def test_get_client_ip_trusts_xff_from_trusted_proxy(monkeypatch):
     """When the direct peer IS a trusted proxy, X-Forwarded-For should be respected."""
-    from app.core.rate_limit import get_client_ip
-    from app.core.config import get_settings
-    from starlette.testclient import TestClient
     from starlette.applications import Starlette
     from starlette.requests import Request
     from starlette.responses import JSONResponse
     from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from app.core.config import get_settings
+    from app.core.rate_limit import get_client_ip
 
     # TestClient peer is "testclient" — trust it
     monkeypatch.setattr(get_settings(), "TRUSTED_PROXIES", ["127.0.0.1", "::1", "testclient"])

@@ -126,6 +126,13 @@ export function deleteJob(jobId: string): Promise<DeleteJobResult> {
   return del<DeleteJobResult>(`/jobs/${encodeURIComponent(jobId)}`);
 }
 
+export function deleteJobItem(
+  jobId: string,
+  itemId: string,
+): Promise<{ deleted: boolean; item_id: string; file_id: string | null }> {
+  return del(`/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}`);
+}
+
 export function approveItemReview(jobId: string, itemId: string): Promise<JobItemRow> {
   return post<JobItemRow>(
     `/jobs/${encodeURIComponent(jobId)}/items/${encodeURIComponent(itemId)}/review/approve`,

@@ -6,6 +6,7 @@ import { memo, useCallback, useRef, useState } from 'react';
 
 import { useT } from '@/i18n';
 import { Card } from '@/components/ui/card';
+import { PaginationRail } from '@/components/PaginationRail';
 import { getEntityRiskConfig, getEntityTypeName } from '@/config/entityTypes';
 import type { TextSegment } from '@/utils/textRedactionSegments';
 
@@ -17,10 +18,15 @@ import { useTextSelection } from './use-text-selection';
 
 export interface ReviewTextContentProps {
   reviewEntities: ReviewEntity[];
+  visibleReviewEntities: ReviewEntity[];
   reviewTextContent: string;
+  reviewPageContent: string;
   reviewTextContentRef: React.RefObject<HTMLDivElement | null>;
   reviewTextScrollRef: React.RefObject<HTMLDivElement | null>;
   selectedReviewEntityCount: number;
+  reviewCurrentPage: number;
+  reviewTotalPages: number;
+  onReviewPageChange: (page: number) => void;
   displayPreviewMap: Record<string, string>;
   textPreviewSegments: TextSegment[];
   applyReviewEntities: (
@@ -32,10 +38,15 @@ export interface ReviewTextContentProps {
 
 function ReviewTextContentInner({
   reviewEntities,
+  visibleReviewEntities,
   reviewTextContent,
+  reviewPageContent,
   reviewTextContentRef,
   reviewTextScrollRef,
   selectedReviewEntityCount,
+  reviewCurrentPage,
+  reviewTotalPages,
+  onReviewPageChange,
   displayPreviewMap,
   textPreviewSegments,
   applyReviewEntities,
@@ -98,15 +109,16 @@ function ReviewTextContentInner({
   }, [clickedEntity, applyReviewEntities]);
 
   const renderMarkedContent = () => {
-    if (!reviewTextContent) return <p className="text-muted-foreground">-</p>;
-    const sorted = [...reviewEntities].sort((a, b) => a.start - b.start);
+    if (!reviewPageContent) return <p className="text-muted-foreground">-</p>;
+    const sorted = [...visibleReviewEntities].sort((a, b) => a.start - b.start);
     const nodes: React.ReactNode[] = [];
     let lastEnd = 0;
     sorted.forEach((entity) => {
+      if (entity.start < 0 || entity.end > reviewPageContent.length) return;
       if (entity.start < lastEnd) return;
       if (entity.start > lastEnd) {
         nodes.push(
-          <span key={`txt-${lastEnd}`}>{reviewTextContent.slice(lastEnd, entity.start)}</span>,
+          <span key={`txt-${lastEnd}`}>{reviewPageContent.slice(lastEnd, entity.start)}</span>,
         );
       }
       const risk = getEntityRiskConfig(entity.type);
@@ -123,13 +135,13 @@ function ReviewTextContentInner({
           title={`${getEntityTypeName(entity.type)}`}
           onClick={() => handleEntityClick(entity)}
         >
-          {reviewTextContent.slice(entity.start, entity.end)}
+          {reviewPageContent.slice(entity.start, entity.end)}
         </mark>,
       );
       lastEnd = entity.end;
     });
-    if (lastEnd < reviewTextContent.length) {
-      nodes.push(<span key="txt-end">{reviewTextContent.slice(lastEnd)}</span>);
+    if (lastEnd < reviewPageContent.length) {
+      nodes.push(<span key="txt-end">{reviewPageContent.slice(lastEnd)}</span>);
     }
     return nodes;
   };
@@ -141,13 +153,27 @@ function ReviewTextContentInner({
   };
 
   return (
-    <div className="flex-1 min-h-0 grid gap-3 p-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_320px]">
+    <div className="flex flex-1 min-h-0 flex-col gap-3 p-3">
+      {reviewTotalPages > 1 && (
+        <div className="flex-shrink-0">
+          <PaginationRail
+            page={reviewCurrentPage}
+            pageSize={1}
+            totalItems={reviewTotalPages}
+            totalPages={reviewTotalPages}
+            compact
+            onPageChange={onReviewPageChange}
+          />
+        </div>
+      )}
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.1fr)_320px]">
       {/* Original text */}
       <Card ref={cardRef} className="relative min-h-0 flex flex-col overflow-hidden">
         <div className="shrink-0 px-4 py-2 border-b flex items-center justify-between">
           <span className="text-xs font-semibold">{t('batchWizard.step4.originalText')}</span>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {t('batchWizard.step4.selected')} {selectedReviewEntityCount}/{reviewEntities.length}
+            {t('batchWizard.step4.selected')} {selectedReviewEntityCount}/
+            {reviewTotalPages > 1 ? visibleReviewEntities.length : reviewEntities.length}
           </span>
         </div>
         <div
@@ -226,7 +252,7 @@ function ReviewTextContentInner({
 
       {/* Entity list */}
       <ReviewEntityList
-        reviewEntities={reviewEntities}
+        reviewEntities={reviewTotalPages > 1 ? visibleReviewEntities : reviewEntities}
         selectedReviewEntityCount={selectedReviewEntityCount}
         textTypes={textTypes}
         applyReviewEntities={applyReviewEntities}
@@ -234,6 +260,7 @@ function ReviewTextContentInner({
         reviewTextScrollRef={reviewTextScrollRef}
         previewScrollRef={previewScrollRef}
       />
+      </div>
     </div>
   );
 }

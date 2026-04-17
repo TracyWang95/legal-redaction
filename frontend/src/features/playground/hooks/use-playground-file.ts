@@ -22,6 +22,7 @@ export interface PendingFile {
   fileId: string;
   fileType: string;
   isScanned: boolean;
+  pageCount: number;
   content: string;
 }
 
@@ -77,6 +78,17 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
     };
   }, []);
 
+  const resetRecognizedState = useCallback(() => {
+    const opts = optionsRef.current;
+    setStage('upload');
+    setFileInfo(null);
+    setContent('');
+    opts.setEntities([]);
+    opts.setBoundingBoxes([]);
+    opts.resetEntityHistory();
+    opts.resetImageHistory();
+  }, []);
+
   // --- File upload ---
   const handleFileDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -100,14 +112,19 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
       const parseData = await safeJson<ParseResponse>(parseRes);
 
       const isScanned = parseData.is_scanned || false;
+      const pageCount = Math.max(1, Number(parseData.page_count || 1));
+      const parsedFileType = parseData.file_type || uploadData.file_type;
       const parsedContent = parseData.content || '';
+      const parsedPages = Array.isArray(parseData.pages) ? parseData.pages : undefined;
 
       setFileInfo({
         file_id: uploadData.file_id,
         filename: uploadData.filename,
         file_size: uploadData.file_size,
-        file_type: uploadData.file_type,
+        file_type: parsedFileType,
         is_scanned: isScanned,
+        page_count: pageCount,
+        pages: parsedPages,
       });
       setContent(parsedContent);
       opts.setBoundingBoxes([]);
@@ -116,8 +133,9 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
 
       setPendingFile({
         fileId: uploadData.file_id,
-        fileType: uploadData.file_type,
+        fileType: parsedFileType,
         isScanned,
+        pageCount,
         content: parsedContent,
       });
     } catch (err) {
@@ -130,7 +148,7 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
   // --- Auto-recognition after upload ---
   useEffect(() => {
     if (!pendingFile) return;
-    const { fileId, fileType, isScanned, content: parsedContent } = pendingFile;
+    const { fileId, fileType, isScanned, pageCount, content: parsedContent } = pendingFile;
     setPendingFile(null);
 
     abortRef.current?.abort();
@@ -156,13 +174,37 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
                   : t('playground.loading.vision');
           setLoadingMessage(vLabel);
 
-          const result = await runVisionDetection(fileId, ocrTypes, hiTypes, signal);
-          if (signal.aborted) return;
-
-          opts.setBoundingBoxes(result.boxes);
+          opts.setBoundingBoxes([]);
           opts.resetImageHistory();
+          const totalPages = Math.max(1, pageCount);
+          let totalBoxes = 0;
+          for (let page = 1; page <= totalPages; page += 1) {
+            setLoadingMessage(`${vLabel} (${page}/${totalPages})`);
+            let result: Awaited<ReturnType<typeof runVisionDetection>> | null = null;
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+              try {
+                result = await runVisionDetection(fileId, ocrTypes, hiTypes, signal, page);
+                break;
+              } catch (error) {
+                if (signal.aborted) return;
+                if (attempt >= 2) throw error;
+                setLoadingMessage(`${vLabel} (${page}/${totalPages}) · retry ${attempt}`);
+              }
+            }
+            if (!result) {
+              throw new Error(t('playground.recognizeFailed'));
+            }
+            if (signal.aborted) return;
+            const pageBoxes = result.boxes.map((box) => ({
+              ...box,
+              page: Number(box.page || page),
+            }));
+            totalBoxes += pageBoxes.length;
+            opts.setBoundingBoxes((prev) => [...prev, ...pageBoxes]);
+          }
+
           showToast(
-            t('playground.toast.detectedRegions').replace('{count}', String(result.boxes.length)),
+            t('playground.toast.detectedRegions').replace('{count}', String(totalBoxes)),
             'success',
           );
         } else if (parsedContent) {
@@ -175,32 +217,35 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
           });
           if (signal.aborted) return;
 
-          if (nerRes.ok) {
-            const nerData = await safeJson<NerResponse>(nerRes);
-            const entitiesWithSource = (nerData.entities || []).map(
-              (e: Record<string, unknown>, idx: number) =>
-                ({
-                  ...e,
-                  id: e.id || `entity_${idx}`,
-                  selected: true,
-                  source: e.source || 'llm',
-                }) as Entity,
-            );
-            opts.setEntities(entitiesWithSource);
-            opts.resetEntityHistory();
-            showToast(
-              t('playground.toast.detectedEntities').replace(
-                '{count}',
-                String(entitiesWithSource.length),
-              ),
-              'success',
-            );
+          if (!nerRes.ok) {
+            throw new Error(t('playground.recognizeFailed'));
           }
+
+          const nerData = await safeJson<NerResponse>(nerRes);
+          const entitiesWithSource = (nerData.entities || []).map(
+            (e: Record<string, unknown>, idx: number) =>
+              ({
+                ...e,
+                id: e.id || `entity_${idx}`,
+                selected: true,
+                source: e.source || 'llm',
+              }) as Entity,
+          );
+          opts.setEntities(entitiesWithSource);
+          opts.resetEntityHistory();
+          showToast(
+            t('playground.toast.detectedEntities').replace(
+              '{count}',
+              String(entitiesWithSource.length),
+            ),
+            'success',
+          );
         }
         if (signal.aborted) return;
         setStage('preview');
       } catch (err) {
         if (signal.aborted) return;
+        resetRecognizedState();
         showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
       } finally {
         if (!signal.aborted) {
@@ -211,7 +256,7 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
     };
 
     doRecognition();
-  }, [pendingFile]);
+  }, [pendingFile, resetRecognizedState]);
 
   // --- Dropzone ---
   const dropzone = useDropzone({

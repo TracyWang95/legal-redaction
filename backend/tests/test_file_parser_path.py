@@ -7,10 +7,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-import pytest
-
 from app.core.file_validation import safe_path_in_dir
-
 
 # ── P0-6: Path validation in file_parser ─────────────────────
 

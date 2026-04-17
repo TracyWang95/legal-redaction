@@ -7,8 +7,6 @@ from __future__ import annotations
 import os
 import re
 
-import pytest
-
 BACKEND_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
 
 

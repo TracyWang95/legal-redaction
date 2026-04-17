@@ -191,7 +191,7 @@ def update_type(type_id: str, request: UpdateEntityTypeRequest) -> EntityTypeCon
     if type_id not in entity_types_db:
         return None
     existing = entity_types_db[type_id]
-    update_data = request.dict(exclude_unset=True)
+    update_data = request.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(existing, key, value)
     entity_types_db[type_id] = existing

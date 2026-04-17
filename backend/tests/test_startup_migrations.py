@@ -10,12 +10,8 @@ Verifies that:
 """
 from __future__ import annotations
 
-import importlib
 import os
-import sys
 from unittest import mock
-
-import pytest
 
 
 class TestRunStartupMigrations:
@@ -54,6 +50,7 @@ class TestRunStartupMigrations:
         """Verify the lifespan handler invokes run_startup_migrations."""
         # We inspect the source of app.main to confirm the call is present.
         import inspect
+
         from app.main import lifespan
         source = inspect.getsource(lifespan)
         assert "run_startup_migrations" in source, (

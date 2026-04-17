@@ -231,8 +231,11 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
         has_img = list(job_config.get("has_image_types") or job_config.get("selected_has_image_types") or [])
         fi = get_file_info(file_id) or {}
         pages = int(fi.get("page_count") or 1)
+        # Forward empty lists as-is — orchestrator treats [] as an explicit
+        # deselection of that pipeline; `or None` would collapse to None and
+        # trip the full-default fallback instead.
         for p in range(1, max(1, pages) + 1):
-            await vision_detect(file_id, p, ocr_types or None, has_img or None)
+            await vision_detect(file_id, p, ocr_types, has_img)
 
     async def execute_redaction(self, file_id: str, job_config: dict[str, Any]) -> None:
         from app.models.schemas import BoundingBox, Entity, RedactionConfig, ReplacementMode

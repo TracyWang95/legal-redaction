@@ -72,11 +72,15 @@ export function useImageViewport(imageSrc: string, readOnly: boolean): UseImageV
     [displayW, displayH],
   );
 
-  // Reset when image source changes
+  // Reset zoom when image source changes. Intentionally keep the previous
+  // naturalSize: zeroing it out collapses fitScale to 0 while the new image
+  // is in-flight, so the browser briefly paints the new <img> at its
+  // intrinsic resolution before onload fires — visible as a page-switch "pop".
+  // Leaving the old naturalSize preserves a close-enough fit that stays
+  // stable until the new image loads and handleImageLoad replaces it.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when image source prop changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting zoom when image source prop changes
     setZoom(1);
-    setNaturalSize({ width: 0, height: 0 });
   }, [imageSrc]);
 
   // Reset interaction-related state when entering readOnly

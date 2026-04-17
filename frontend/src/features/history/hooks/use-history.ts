@@ -198,6 +198,8 @@ export function useHistory() {
   } | null>(null);
   const [compareTab, setCompareTab] = useState<'preview' | 'text' | 'changes'>('preview');
   const [comparePreviewItems, setComparePreviewItems] = useState<HistoryPreviewItem[]>([]);
+  const [comparePage, setComparePage] = useState(1);
+  const [compareTotalPages, setCompareTotalPages] = useState(1);
 
   /* Confirm dialog */
   const [confirmDlg, setConfirmDlg] = useState<{
@@ -229,6 +231,23 @@ export function useHistory() {
     setComparePreviewItems([]);
   }, [revokeCompareBlobs]);
 
+  const isPdfRow = useCallback((row: FileListItem) => {
+    const ft = String(row.file_type ?? '').toLowerCase();
+    return ft === 'pdf' || ft === 'pdf_scanned';
+  }, []);
+
+  const fetchPageImages = useCallback(
+    async (fileId: string, page: number) => {
+      const base = `/files/${encodeURIComponent(fileId)}/page-image?page=${page}`;
+      const [origRes, redRes] = await Promise.all([
+        authenticatedBlobUrl(`/api/v1${base}&redacted=false`),
+        authenticatedBlobUrl(`/api/v1${base}&redacted=true`),
+      ]);
+      return { original: origRes, redacted: redRes };
+    },
+    [],
+  );
+
   const openCompareModal = useCallback(
     async (row: FileListItem) => {
       revokeCompareBlobs();
@@ -238,6 +257,7 @@ export function useHistory() {
       setCompareErr(null);
       setCompareLoading(true);
       setComparePreviewItems([]);
+      setComparePage(1);
       const useBinaryPreview = isBinaryPreviewRow(row);
       setCompareTab(useBinaryPreview ? 'preview' : 'text');
       try {
@@ -249,13 +269,26 @@ export function useHistory() {
         setComparePreviewItems(
           normalizeHistoryPreviewItems(fileInfo as Record<string, unknown> | null),
         );
+        const pageCount = Math.max(
+          1,
+          Number((fileInfo as Record<string, unknown> | null)?.page_count || 1),
+        );
+        setCompareTotalPages(pageCount);
+
         if (useBinaryPreview) {
-          const mime = previewMimeForRow(row);
-          const [original, redacted] = await Promise.all([
-            blobUrlFromFileDownload(row.file_id, false, mime),
-            blobUrlFromFileDownload(row.file_id, true, mime),
-          ]);
-          setCompareBlobUrls({ original, redacted });
+          if (isPdfRow(row)) {
+            // PDF: per-page PNG via /page-image endpoint
+            const urls = await fetchPageImages(row.file_id, 1);
+            setCompareBlobUrls(urls);
+          } else {
+            // Single image: download full file as blob
+            const mime = previewMimeForRow(row);
+            const [original, redacted] = await Promise.all([
+              blobUrlFromFileDownload(row.file_id, false, mime),
+              blobUrlFromFileDownload(row.file_id, true, mime),
+            ]);
+            setCompareBlobUrls({ original, redacted });
+          }
         }
       } catch (e) {
         setCompareErr(localizeErrorMessage(e, 'history.compareFailed'));
@@ -263,8 +296,36 @@ export function useHistory() {
         setCompareLoading(false);
       }
     },
-    [revokeCompareBlobs],
+    [revokeCompareBlobs, isPdfRow, fetchPageImages],
   );
+
+  // When user changes compare page (PDF pagination), re-fetch page images.
+  useEffect(() => {
+    if (!compareOpen || !compareTarget || !isPdfRow(compareTarget) || comparePage < 1) return;
+    let cancelled = false;
+    fetchPageImages(compareTarget.file_id, comparePage)
+      .then((urls) => {
+        if (cancelled) {
+          revokeObjectUrl(urls.original);
+          revokeObjectUrl(urls.redacted);
+          return;
+        }
+        setCompareBlobUrls((prev) => {
+          if (prev) {
+            revokeObjectUrl(prev.original);
+            revokeObjectUrl(prev.redacted);
+          }
+          return urls;
+        });
+      })
+      .catch(() => {
+        /* keep previous */
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when page changes
+  }, [comparePage]);
 
   useEffect(() => {
     if (!compareOpen) return;
@@ -614,6 +675,9 @@ export function useHistory() {
     compareTab,
     setCompareTab,
     comparePreviewItems,
+    comparePage,
+    setComparePage,
+    compareTotalPages,
     openCompareModal,
     closeCompareModal,
     /* confirm dialog */

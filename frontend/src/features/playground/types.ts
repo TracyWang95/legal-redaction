@@ -25,6 +25,8 @@ export interface FileInfo {
   file_size: number;
   file_type?: string;
   is_scanned?: boolean;
+  page_count?: number;
+  pages?: string[];
 }
 
 export interface Entity {
@@ -36,6 +38,7 @@ export interface Entity {
   selected: boolean;
   source: 'regex' | 'llm' | 'manual' | 'has';
   coref_id?: string | null;
+  page?: number;
 }
 
 export interface BoundingBox {
@@ -98,6 +101,9 @@ export interface UploadResponse {
 export interface ParseResponse {
   is_scanned?: boolean;
   content?: string;
+  page_count?: number;
+  file_type?: string;
+  pages?: string[];
 }
 
 /** POST /api/v1/files/:id/ner/hybrid */

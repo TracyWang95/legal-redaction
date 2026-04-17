@@ -157,7 +157,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440  # 24 hours
     LOCAL_PASSWORD_HASH: str = ""  # bcrypt hash, set via setup endpoint
-    AUTH_ENABLED: bool = os.environ.get("AUTH_ENABLED", "false").lower() == "true"
+    AUTH_ENABLED: bool = os.environ.get("AUTH_ENABLED", "true").lower() == "true"
 
     # 批量任务并发配置
     JOB_CONCURRENCY: int = 1  # Number of concurrent job items to process

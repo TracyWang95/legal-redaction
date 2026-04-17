@@ -89,6 +89,20 @@ class Redactor(TextRedactorMixin, ImageRedactorMixin):
         """
         file_type = file_info["file_type"]
         file_path = file_info["file_path"]
+        is_scanned_flag = file_info.get("is_scanned")
+        bbox_count = len(bounding_boxes or [])
+        logger.info(
+            "[redact:dispatch] raw file_type=%r is_scanned=%r bbox_count=%d",
+            file_type, is_scanned_flag, bbox_count,
+        )
+        # Route to the image pipeline whenever the caller supplied bounding
+        # boxes for a PDF — that's the unambiguous signal the user annotated
+        # the document visually, regardless of whether the text-density heuristic
+        # flagged it as scanned. Saves us from shipping an unchanged PDF when
+        # upload records stale file_type="pdf" or is_scanned=False but the user
+        # actually redacted via the visual pipeline.
+        if file_type == FileType.PDF and (is_scanned_flag or bbox_count > 0):
+            file_type = FileType.PDF_SCANNED
 
         # 创建匿名化上下文
         context = RedactionContext(config.replacement_mode)

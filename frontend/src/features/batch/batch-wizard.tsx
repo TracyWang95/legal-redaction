@@ -79,6 +79,8 @@ export function BatchWizard() {
               getRootProps={w.getRootProps}
               getInputProps={w.getInputProps}
               goStep={w.goStep}
+              removeRow={w.removeRow}
+              clearRows={w.clearRows}
             />
           )}
 

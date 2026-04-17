@@ -1,12 +1,23 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import axios, { type AxiosRequestConfig } from 'axios';
+import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios';
 
 // ─── Timeout constants ───────────────────────────────────────
 export const API_TIMEOUT = 60_000;
-export const VISION_TIMEOUT = 400_000;
+export const VISION_TIMEOUT = 900_000;
 export const BATCH_TIMEOUT = 120_000;
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
+const DEFAULT_API_PREFIX = '/api/v1';
+const RAW_API_PREFIX = import.meta.env.VITE_API_PREFIX ?? DEFAULT_API_PREFIX;
+
+function normalizeApiPrefix(prefix: string): string {
+  const withLeadingSlash = prefix.startsWith('/') ? prefix : `/${prefix}`;
+  const normalized = withLeadingSlash.replace(/\/+$/, '');
+  return normalized || DEFAULT_API_PREFIX;
+}
+
+export const API_PREFIX = normalizeApiPrefix(RAW_API_PREFIX);
 
 // ─── Error types ─────────────────────────────────────────────
 
@@ -26,9 +37,92 @@ export class ApiError extends Error {
 // ─── Client ──────────────────────────────────────────────────
 
 export const apiClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_PREFIX,
   timeout: API_TIMEOUT,
   withCredentials: true, // Send httpOnly cookies automatically
+});
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const AUTH_EVENT_SUPPRESSED_PATHS = ['/api/v1/auth/login', '/api/v1/auth/setup'];
+
+function getRequestUrl(input: RequestInfo | URL): string | undefined {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.url;
+  return undefined;
+}
+
+function shouldEmitUnauthorized(url?: string): boolean {
+  if (!url) return true;
+  return !AUTH_EVENT_SUPPRESSED_PATHS.some((prefix) => {
+    if (url.includes(prefix)) return true;
+    const suffix = prefix.replace(DEFAULT_API_PREFIX, '');
+    return url.endsWith(suffix) || url.includes(`${API_PREFIX}${suffix}`);
+  });
+}
+
+function emitUnauthorized(url?: string): void {
+  if (typeof window === 'undefined' || !shouldEmitUnauthorized(url)) return;
+  window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT, { detail: { url } }));
+}
+
+function rewriteLegacyApiPath(path: string): string {
+  if (API_PREFIX === DEFAULT_API_PREFIX) return path;
+  if (path === DEFAULT_API_PREFIX) return API_PREFIX;
+  if (path.startsWith(`${DEFAULT_API_PREFIX}/`)) {
+    return `${API_PREFIX}${path.slice(DEFAULT_API_PREFIX.length)}`;
+  }
+  return path;
+}
+
+function normalizeApiInput(input: RequestInfo | URL): RequestInfo | URL {
+  if (typeof input === 'string') {
+    return rewriteLegacyApiPath(input);
+  }
+  if (input instanceof URL) {
+    const rewritten = new URL(input.toString());
+    rewritten.pathname = rewriteLegacyApiPath(rewritten.pathname);
+    return rewritten;
+  }
+  return input;
+}
+
+export function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const raw = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('csrf_token='));
+  if (!raw) return null;
+  return decodeURIComponent(raw.slice('csrf_token='.length));
+}
+
+function shouldAttachCsrf(method?: string): boolean {
+  return !SAFE_METHODS.has((method ?? 'GET').toUpperCase());
+}
+
+function mergeCsrfHeader(headers: HeadersInit | undefined, method?: string): Headers {
+  const merged = new Headers(headers);
+  if (shouldAttachCsrf(method) && !merged.has('X-CSRF-Token')) {
+    const token = getCsrfToken();
+    if (token) merged.set('X-CSRF-Token', token);
+  }
+  return merged;
+}
+
+apiClient.interceptors.request.use((config) => {
+  if (!shouldAttachCsrf(config.method)) return config;
+
+  const token = getCsrfToken();
+  if (!token) return config;
+
+  const headers = config.headers;
+  if (headers && typeof headers.set === 'function') {
+    headers.set('X-CSRF-Token', token);
+  } else {
+    config.headers = AxiosHeaders.from(headers ?? {});
+    config.headers.set('X-CSRF-Token', token);
+  }
+  return config;
 });
 
 // Response: unwrap data, handle errors with classified error types
@@ -50,6 +144,7 @@ apiClient.interceptors.response.use(
       errorType = 'network';
     } else if (error.response.status === 401) {
       errorType = 'auth';
+      emitUnauthorized(error.config?.url);
     } else {
       errorType = 'server';
     }
@@ -82,21 +177,39 @@ export function del<T = void>(url: string, config?: AxiosRequestConfig): Promise
 // ─── Authenticated fetch helpers ─────────────────────────────
 
 export function buildAuthHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { ...extra };
+  const headers = { ...(extra ?? {}) };
+  const token = getCsrfToken();
+  if (token) headers['X-CSRF-Token'] = token;
+  return headers;
 }
 
 /** Drop-in replacement for `fetch()` that sends cookies automatically. */
 export function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  return fetch(input, {
+  const normalizedInput = normalizeApiInput(input);
+  const headers = mergeCsrfHeader(init?.headers, init?.method);
+  const url = getRequestUrl(normalizedInput);
+  return fetch(normalizedInput, {
     ...init,
     credentials: 'include',
-    headers: init?.headers,
+    headers,
+  }).then((response) => {
+    if (response.status === 401) emitUnauthorized(url);
+    return response;
   });
 }
 
 export async function downloadFile(url: string, filename: string): Promise<void> {
-  const res = await fetch(url, { credentials: 'include' });
-  if (!res.ok) throw new ApiError(`Download failed: ${res.status}`, res.status, 'server');
+  const normalizedUrl = rewriteLegacyApiPath(url);
+  const res = await fetch(normalizedUrl, { credentials: 'include' });
+  if (!res.ok) {
+    const isAuthError = res.status === 401;
+    if (isAuthError) emitUnauthorized(normalizedUrl);
+    throw new ApiError(
+      isAuthError ? 'Authentication required.' : `Download failed: ${res.status}`,
+      res.status,
+      isAuthError ? 'auth' : 'server',
+    );
+  }
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -112,11 +225,14 @@ export async function authenticatedBlobUrl(url: string, mime?: string): Promise<
 }
 
 export async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> {
-  const res = await fetch(url, {
+  const normalizedUrl = rewriteLegacyApiPath(url);
+  const res = await fetch(normalizedUrl, {
     ...init,
     credentials: 'include',
   });
   if (!res.ok) {
+    const isAuthError = res.status === 401;
+    if (isAuthError) emitUnauthorized(normalizedUrl);
     let msg = `HTTP ${res.status}`;
     try {
       const err = await res.json();
@@ -124,7 +240,7 @@ export async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> 
     } catch {
       /* ignore */
     }
-    throw new ApiError(msg, res.status, 'server');
+    throw new ApiError(msg, res.status, isAuthError ? 'auth' : 'server');
   }
   return res.blob();
 }

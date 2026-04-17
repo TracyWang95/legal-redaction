@@ -129,12 +129,20 @@ export function useBatchConfig(
         const selectedEntityTypeIds = persisted?.selectedEntityTypeIds?.length
           ? persisted.selectedEntityTypeIds.filter((id) => types.some((tt) => tt.id === id))
           : defaultTextTypeIds;
-        const ocrHas = persisted?.ocrHasTypes?.length
+        const filteredOcrHas = persisted?.ocrHasTypes?.length
           ? persisted.ocrHasTypes.filter((id) => ocrIds.includes(id))
           : defaultOcrHasTypeIds;
-        const hasImg = persisted?.hasImageTypes?.length
+        const filteredHasImg = persisted?.hasImageTypes?.length
           ? persisted.hasImageTypes.filter((id) => hiIds.includes(id))
           : defaultHasImageTypeIds;
+        const ocrHas =
+          persisted?.ocrHasTypes?.length && filteredOcrHas.length === 0
+            ? defaultOcrHasTypeIds
+            : filteredOcrHas;
+        const hasImg =
+          persisted?.hasImageTypes?.length && filteredHasImg.length === 0
+            ? defaultHasImageTypeIds
+            : filteredHasImg;
 
         let next: BatchWizardPersistedConfig = {
           selectedEntityTypeIds,
@@ -253,7 +261,22 @@ export function useBatchConfig(
       const p = presets.find((x) => x.id === id);
       if (p && presetAppliesVision(p)) {
         setActivePresetVisionId(p.id);
-        setCfg((c) => ({ ...c, ...applyVisionPresetFields(p, pipelines), presetVisionId: p.id }));
+        const applied = applyVisionPresetFields(p, pipelines);
+        const recoveredOcr =
+          p.ocrHasTypes.length > 0 && applied.ocrHasTypes.length === 0
+            ? [...batchDefaultOcrHasTypeIds]
+            : applied.ocrHasTypes;
+        const recoveredImage =
+          p.hasImageTypes.length > 0 && applied.hasImageTypes.length === 0
+            ? [...batchDefaultHasImageTypeIds]
+            : applied.hasImageTypes;
+        setCfg((c) => ({
+          ...c,
+          ...applied,
+          ocrHasTypes: recoveredOcr,
+          hasImageTypes: recoveredImage,
+          presetVisionId: p.id,
+        }));
       }
     },
     [batchDefaultOcrHasTypeIds, batchDefaultHasImageTypeIds, presets, pipelines],

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -35,9 +35,9 @@ def test_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
     os.environ["DEBUG"] = "true"
 
     # Import app lazily so env overrides take effect
+    from app.core.auth import require_auth
     from app.core.config import settings
     from app.main import app
-    from app.core.auth import require_auth
     from app.services.file_management_service import file_store
 
     # The settings singleton is cached at first app import. If an earlier

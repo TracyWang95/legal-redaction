@@ -18,6 +18,45 @@ def _store_and_lock():
     return file_store, _file_store_lock
 
 
+def _assign_pages_to_entities(entities: list, pages: list[str] | None) -> None:
+    """Mutate each entity's `page` attribute based on `entity.start` offset.
+
+    Assumes `content = "\\n\\n".join(pages)` (matches file_parser._parse_pdf).
+    No-op when there's only a single page or pages are missing — entities
+    keep their default page=1.
+    """
+    if not pages or len(pages) <= 1 or not entities:
+        return
+    sep_len = 2  # "\n\n"
+    ranges: list[tuple[int, int, int]] = []
+    offset = 0
+    for idx, page_text in enumerate(pages, start=1):
+        length = len(page_text or "")
+        ranges.append((offset, offset + length, idx))
+        offset += length + sep_len
+    last_page = ranges[-1][2]
+    for entity in entities:
+        start_val = getattr(entity, "start", None)
+        if start_val is None and isinstance(entity, dict):
+            start_val = entity.get("start")
+        try:
+            start = int(start_val or 0)
+        except (TypeError, ValueError):
+            start = 0
+        page_num = last_page
+        for r_start, r_end, p in ranges:
+            if start < r_end:
+                page_num = p
+                break
+        if isinstance(entity, dict):
+            entity["page"] = page_num
+        else:
+            try:
+                entity.page = page_num
+            except Exception:
+                pass
+
+
 # ---------------------------------------------------------------------------
 # Parse
 # ---------------------------------------------------------------------------
@@ -45,7 +84,17 @@ async def parse_file(file_id: str) -> dict[str, Any]:
 
     async with _file_store_lock:
         if file_id in file_store:
+            # Also update file_type: upload records it from magic bytes ("pdf"),
+            # but _parse_pdf re-classifies scanned PDFs to PDF_SCANNED. Without
+            # syncing, redactor dispatches on the stale "pdf" and runs the text
+            # pipeline on a scanned file, producing an unchanged output file.
+            resolved_file_type = (
+                result.file_type.value
+                if hasattr(result.file_type, "value")
+                else str(result.file_type)
+            )
             file_store.update_fields(file_id, {
+                "file_type": resolved_file_type,
                 "content": result.content,
                 "pages": result.pages,
                 "page_count": result.page_count,
@@ -111,6 +160,8 @@ async def run_hybrid_ner(file_id: str, entity_type_ids: list[str] | None = None)
             "error": str(e),
         }
 
+    _assign_pages_to_entities(entities, snapshot.get("pages"))
+
     entity_summary = {}
     for ent in entities:
         etype = ent.type
@@ -163,6 +214,8 @@ async def run_default_ner(file_id: str, entity_type_ids: list[str] | None = None
             "recognition_failed": True,
             "error": str(e),
         }
+
+    _assign_pages_to_entities(entities, snapshot.get("pages"))
 
     entity_summary = {}
     for ent in entities:

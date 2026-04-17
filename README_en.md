@@ -15,8 +15,8 @@ Word, PDF, scans, images — dual AI pipelines, 100% on-premise.
 
 English &nbsp;|&nbsp; **[中文](./README.md)**
 
-> **License: [Apache License 2.0](./LICENSE)** — free for academic, research, and non-commercial use.<br/>
-> **Commercial use (SaaS / OEM / enterprise 50+ seats) requires a commercial license.** See **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)**.
+> **License: [Apache License 2.0](./LICENSE)** — this repository may be used, modified, and redistributed under Apache 2.0, including commercial use.<br/>
+> **Need enterprise terms, support, warranty, indemnity, or a commercial contract?** See **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)** for the optional commercial agreement.
 
 <p>
   <a href="#what-is-this">What is this?</a> &middot;
@@ -85,6 +85,7 @@ git clone https://github.com/TracyWang95/DataInfra-RedactionEverything.git
 cd DataInfra-RedactionEverything
 
 # (Optional) Customize environment variables
+# Auth is enabled by default in .env.example. Only disable it for isolated local-only debugging.
 cp .env.example .env
 
 # CPU-only (no GPU services)
@@ -106,7 +107,7 @@ Then open **http://localhost:3000**.
 | Requirement | Version |
 |---|---|
 | Python | 3.10+ |
-| Node.js | 18+ |
+| Node.js | 20+ |
 | GPU | NVIDIA with 8 GB+ VRAM (RTX 4060 or above recommended) |
 | llama.cpp | Latest release (for NER service) |
 
@@ -132,17 +133,17 @@ llama-server -hf xuanwulab/HaS_Text_0209_0.6B_Q4 \
   --port 8080 -ngl 99 --host 0.0.0.0 -c 8192 -np 1
 
 # HaS Image — YOLO11 (port 8081)
-cd backend && python has_image_server.py
+cd backend && python scripts/has_image_server.py
 
 # PaddleOCR-VL (port 8082)
-cd backend && python ocr_server.py
+cd backend && python scripts/ocr_server.py
 ```
 
 #### 3. Start the backend
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install -r requirements.lock
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -254,8 +255,8 @@ The backend exposes **85+ REST endpoints** across 13 route modules:
 - **Safety** — file scanning and validation
 
 Interactive docs available at:
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
+- **Swagger UI**: `http://localhost:8000/docs` (`DEBUG=true` only)
+- **ReDoc**: `http://localhost:8000/redoc` (`DEBUG=true` only)
 
 ---
 
@@ -296,7 +297,7 @@ cp .env.example .env
 | Variable | Default | Description |
 |---|---|---|
 | `DEBUG` | `false` | Enable debug logging |
-| `AUTH_ENABLED` | `false` | Enable JWT authentication (set password on first visit to /setup) |
+| `AUTH_ENABLED` | `true` | Enable JWT authentication (set password on first visit to /auth, with /setup redirecting there) |
 | `JWT_SECRET_KEY` | _(auto-generated)_ | JWT signing key; leave empty for auto-persistence |
 | `BACKEND_PORT` | `8000` | Backend exposed port |
 | `FRONTEND_PORT` | `3000` | Frontend exposed port |
@@ -315,7 +316,7 @@ For optimal OCR performance, install the GPU build of PaddlePaddle **before** in
 
 ```bash
 pip install paddlepaddle-gpu          # CUDA 12.6
-pip install -r backend/requirements.txt
+pip install -r backend/requirements.lock
 
 # Verify
 python -c "import paddle; print(paddle.is_compiled_with_cuda(), paddle.get_device())"
@@ -383,6 +384,7 @@ cd frontend && npm run test
 PR checklist:
 - [ ] All inference runs locally — no cloud API calls
 - [ ] Smoke test passes
+- [ ] For the full contribution gate, follow [CONTRIBUTING.md](./CONTRIBUTING.md)
 - [ ] Documentation updated (if applicable)
 
 ---
@@ -391,8 +393,8 @@ PR checklist:
 
 This project is licensed under the **[Apache License 2.0](./LICENSE)**.
 
-For commercial deployment, OEM, or managed-service use, a separate commercial license is required.
-See **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)** for details.
+Apache 2.0 governs the source code in this repository, including commercial use.
+If your organization needs a separate commercial agreement (for example support, warranty, indemnity, procurement, or custom terms), see **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)**.
 
 ---
 

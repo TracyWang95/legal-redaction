@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import ImageBBoxEditor from '@/components/ImageBBoxEditor';
+import { PaginationRail } from '@/components/PaginationRail';
 import type { VersionHistoryEntry } from '@/types';
 import type { BoundingBox, FileInfo, VisionTypeConfig } from '../types';
 import { MappingColumn } from './playground-result-mapping';
@@ -21,6 +22,9 @@ export const TextResultView: FC<{
   versionHistory: VersionHistoryEntry[];
   versionHistoryOpen: boolean;
   setVersionHistoryOpen: Dispatch<SetStateAction<boolean>>;
+  currentPage?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }> = ({
   renderOriginal,
   renderRedacted,
@@ -32,11 +36,30 @@ export const TextResultView: FC<{
   versionHistory,
   versionHistoryOpen,
   setVersionHistoryOpen,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
 }) => {
   const t = useT();
 
+  const paginationRail =
+    totalPages > 1 && onPageChange ? (
+      <div className="mx-3 mb-2 flex-shrink-0 sm:mx-4">
+        <PaginationRail
+          page={currentPage}
+          pageSize={1}
+          totalItems={totalPages}
+          totalPages={totalPages}
+          compact
+          onPageChange={onPageChange}
+        />
+      </div>
+    ) : null;
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {paginationRail}
+      <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
       <div
         className={cn(
           'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background',
@@ -82,6 +105,7 @@ export const TextResultView: FC<{
         versionHistoryOpen={versionHistoryOpen}
         setVersionHistoryOpen={setVersionHistoryOpen}
       />
+      </div>
     </div>
   );
 };
@@ -90,6 +114,9 @@ export const ImageResultView: FC<{
   fileInfo: FileInfo | null;
   imageUrl: string;
   redactedImageUrl?: string;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   visibleBoxes: BoundingBox[];
   visionTypes: VisionTypeConfig[];
   getVisionTypeConfig: (typeId: string) => { name: string; color: string };
@@ -104,6 +131,9 @@ export const ImageResultView: FC<{
   fileInfo,
   imageUrl,
   redactedImageUrl,
+  currentPage,
+  totalPages,
+  onPageChange,
   visibleBoxes,
   visionTypes,
   getVisionTypeConfig,
@@ -143,6 +173,20 @@ export const ImageResultView: FC<{
                 color: '#6366F1',
               }))}
               defaultType={visionTypes[0]?.id || 'CUSTOM'}
+              viewportTopSlot={
+                totalPages > 1 ? (
+                  <div className="w-full min-w-[320px]">
+                    <PaginationRail
+                      page={currentPage}
+                      pageSize={1}
+                      totalItems={totalPages}
+                      totalPages={totalPages}
+                      compact
+                      onPageChange={onPageChange}
+                    />
+                  </div>
+                ) : null
+              }
             />
           )}
         </div>

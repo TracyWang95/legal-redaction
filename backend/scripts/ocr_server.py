@@ -199,6 +199,27 @@ class OCRResponse(BaseModel):
     elapsed: float
 
 
+def map_boxes_to_original(items: List[OCRBox]) -> List[OCRBox]:
+    """Return OCR boxes in the original image space.
+
+    OCR boxes are already normalized to the processed image size. Normalized
+    coordinates are scale-invariant, so resizing the image before inference does
+    not require an extra scaling pass when mapping back to the original image.
+    """
+    mapped: List[OCRBox] = []
+    for item in items:
+        mapped.append(OCRBox(
+            text=item.text,
+            x=max(0.0, min(float(item.x), 1.0)),
+            y=max(0.0, min(float(item.y), 1.0)),
+            width=max(0.0, min(float(item.width), 1.0)),
+            height=max(0.0, min(float(item.height), 1.0)),
+            confidence=item.confidence,
+            label=item.label,
+        ))
+    return mapped
+
+
 # ============================================================
 # OCR 核心逻辑
 # ============================================================
@@ -422,24 +443,15 @@ async def ocr_extract(request: OCRRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid base64 image")
 
-    original, ocr_image, scale_x, scale_y = prepare_image(image_bytes)
+    original, ocr_image, _scale_x, _scale_y = prepare_image(image_bytes)
 
     # PaddleOCR-VL is not stable when invoked from a worker thread
     # in this Windows setup, so keep inference on the main thread.
     items = extract_vl(ocr_image, max_new_tokens=request.max_new_tokens)
 
-    # 坐标映射回原图
-    mapped = []
-    for item in items:
-        mapped.append(OCRBox(
-            text=item.text,
-            x=item.x * scale_x,
-            y=item.y * scale_y,
-            width=item.width * scale_x,
-            height=item.height * scale_y,
-            confidence=item.confidence,
-            label=item.label,
-        ))
+    # OCR boxes are normalized, so they already align with the original image
+    # after resize-based preprocessing.
+    mapped = map_boxes_to_original(items)
 
     elapsed = time.perf_counter() - start
     print(f"[OCR] {len(mapped)} boxes in {elapsed:.2f}s")

@@ -22,6 +22,9 @@ export function BatchStep4Review() {
     reviewLoading,
     reviewExecuteLoading,
     reviewFileReadOnly,
+    reviewTotalPages,
+    reviewAllPagesVisited,
+    visitedReviewPagesCount,
     navigateReviewIndex,
     reviewDraftSaving,
     reviewDraftError,
@@ -156,13 +159,34 @@ export function BatchStep4Review() {
 
         {/* Right actions */}
         <div className="ml-auto flex items-center gap-2">
+          {reviewTotalPages > 1 && !reviewFileReadOnly && (
+            <span
+              className={cn(
+                'text-xs tabular-nums',
+                reviewAllPagesVisited ? 'text-[var(--success-foreground)]' : 'text-muted-foreground',
+              )}
+              title={t('batchWizard.step4.pagesVisitedHint')}
+            >
+              {t('batchWizard.step4.pagesVisited')} {visitedReviewPagesCount}/{reviewTotalPages}
+            </span>
+          )}
           <span className="text-xs text-muted-foreground tabular-nums">
             {t('batchWizard.step4.confirmed')} {reviewedOutputCount}/{rows.length}
           </span>
           <Button
             size="sm"
             onClick={() => void confirmCurrentReview()}
-            disabled={reviewLoading || reviewExecuteLoading || reviewFileReadOnly}
+            disabled={
+              reviewLoading ||
+              reviewExecuteLoading ||
+              reviewFileReadOnly ||
+              !reviewAllPagesVisited
+            }
+            title={
+              !reviewAllPagesVisited && !reviewFileReadOnly
+                ? t('batchWizard.step4.mustVisitAllPages')
+                : undefined
+            }
             data-testid="confirm-redact"
           >
             {reviewFileReadOnly
@@ -188,22 +212,32 @@ export function BatchStep4Review() {
       {isImage ? (
         <ReviewImageContent
           reviewBoxes={w.reviewBoxes}
+          visibleReviewBoxes={w.visibleReviewBoxes}
           reviewOrigImageBlobUrl={w.reviewOrigImageBlobUrl}
           reviewImagePreviewSrc={w.reviewImagePreviewSrc}
           reviewImagePreviewLoading={w.reviewImagePreviewLoading}
+          reviewCurrentPage={w.reviewCurrentPage}
+          reviewTotalPages={w.reviewTotalPages}
           selectedReviewBoxCount={w.selectedReviewBoxCount}
+          totalReviewBoxCount={w.totalReviewBoxCount}
           pipelines={w.pipelines}
-          setReviewBoxes={w.setReviewBoxes}
+          onReviewPageChange={w.setReviewCurrentPage}
+          setVisibleReviewBoxes={w.setVisibleReviewBoxes}
           handleReviewBoxesCommit={w.handleReviewBoxesCommit}
           toggleReviewBoxSelected={w.toggleReviewBoxSelected}
         />
       ) : (
         <ReviewTextContent
           reviewEntities={w.reviewEntities}
+          visibleReviewEntities={w.visibleReviewEntities}
           reviewTextContent={w.reviewTextContent}
+          reviewPageContent={w.reviewPageContent}
           reviewTextContentRef={w.reviewTextContentRef}
           reviewTextScrollRef={w.reviewTextScrollRef}
           selectedReviewEntityCount={w.selectedReviewEntityCount}
+          reviewCurrentPage={w.reviewCurrentPage}
+          reviewTotalPages={w.reviewTotalPages}
+          onReviewPageChange={w.setReviewCurrentPage}
           displayPreviewMap={w.displayPreviewMap}
           textPreviewSegments={w.textPreviewSegments}
           applyReviewEntities={w.applyReviewEntities}

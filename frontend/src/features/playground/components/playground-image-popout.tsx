@@ -3,6 +3,7 @@
 
 import { type FC, useEffect, useRef, useState } from 'react';
 import ImageBBoxEditor, { type BoundingBox } from '@/components/ImageBBoxEditor';
+import { PaginationRail } from '@/components/PaginationRail';
 import { useT } from '@/i18n';
 
 interface TypeOption {
@@ -19,6 +20,8 @@ export const PlaygroundImagePopout: FC = () => {
   const [boxes, setBoxes] = useState<BoundingBox[]>([]);
   const [types, setTypes] = useState<TypeOption[]>([]);
   const [defaultType, setDefaultType] = useState<string>('CUSTOM');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [ready, setReady] = useState(false);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const suppressRef = useRef(false);
@@ -30,11 +33,20 @@ export const PlaygroundImagePopout: FC = () => {
     ch.onmessage = (e) => {
       const d = e.data;
       if (d?.type === 'init') {
-        setImageUrl(d.imageUrl ?? '');
+        setImageUrl(d.rawImageUrl || d.imageUrl || '');
         setBoxes(d.boxes ?? []);
         setTypes(d.visionTypes ?? []);
         setDefaultType(d.defaultType ?? 'CUSTOM');
+        setCurrentPage(Number(d.currentPage || 1));
+        setTotalPages(Math.max(1, Number(d.totalPages || 1)));
         setReady(true);
+      }
+      if (d?.type === 'image-update') {
+        setImageUrl(d.imageUrl || '');
+      }
+      if (d?.type === 'page-update') {
+        setCurrentPage(Number(d.currentPage || 1));
+        setTotalPages(Math.max(1, Number(d.totalPages || 1)));
       }
       if (d?.type === 'boxes-update') {
         if (suppressRef.current) return;
@@ -69,6 +81,12 @@ export const PlaygroundImagePopout: FC = () => {
     });
   };
 
+  const handlePageChange = (page: number) => {
+    const nextPage = Math.min(Math.max(1, page), totalPages);
+    setCurrentPage(nextPage);
+    channelRef.current?.postMessage({ type: 'page-change', page: nextPage });
+  };
+
   if (!ready) {
     return (
       <div
@@ -93,6 +111,20 @@ export const PlaygroundImagePopout: FC = () => {
         getTypeConfig={getTypeConfig}
         availableTypes={types}
         defaultType={defaultType}
+        viewportTopSlot={
+          totalPages > 1 ? (
+            <div className="w-full min-w-[320px]">
+              <PaginationRail
+                page={currentPage}
+                pageSize={1}
+                totalItems={totalPages}
+                totalPages={totalPages}
+                compact
+                onPageChange={handlePageChange}
+              />
+            </div>
+          ) : null
+        }
       />
     </div>
   );

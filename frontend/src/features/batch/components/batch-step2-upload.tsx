@@ -1,9 +1,10 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,8 @@ interface BatchStep2UploadProps {
   getRootProps: () => Record<string, unknown>;
   getInputProps: () => Record<string, unknown>;
   goStep: (s: Step) => void;
+  removeRow: (fileId: string) => Promise<void>;
+  clearRows: () => Promise<void>;
 }
 
 function BatchStep2UploadInner({
@@ -33,10 +36,36 @@ function BatchStep2UploadInner({
   getRootProps,
   getInputProps,
   goStep,
+  removeRow,
+  clearRows,
 }: BatchStep2UploadProps) {
   const t = useT();
   const previewJob = activeJobId ? isPreviewBatchJobId(activeJobId) : false;
   const jobLabel = previewJob ? t('batchWizard.previewJobLabel') : activeJobId;
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  const handleRemove = async (fileId: string) => {
+    setPendingRemoveId(fileId);
+    try {
+      await removeRow(fileId);
+    } finally {
+      setPendingRemoveId(null);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!rows.length) return;
+    if (!window.confirm(t('batchWizard.step2.clearConfirm').replace('{count}', String(rows.length)))) {
+      return;
+    }
+    setClearing(true);
+    try {
+      await clearRows();
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const dropHint =
     mode === 'smart'
@@ -98,11 +127,25 @@ function BatchStep2UploadInner({
 
         {/* Upload queue */}
         <Card className="overflow-hidden flex flex-col min-h-[320px] rounded-[24px] border-border/70 shadow-[var(--shadow-control)]">
-          <CardHeader className="border-b border-border/70 py-4">
-            <CardTitle className="text-sm">{t('batchWizard.step2.uploadQueue')}</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              {t('batchWizard.step2.queueCount').replace('{count}', String(rows.length))}
-            </p>
+          <CardHeader className="border-b border-border/70 py-4 flex flex-row items-center justify-between gap-2 space-y-0">
+            <div className="min-w-0">
+              <CardTitle className="text-sm">{t('batchWizard.step2.uploadQueue')}</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {t('batchWizard.step2.queueCount').replace('{count}', String(rows.length))}
+              </p>
+            </div>
+            {rows.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+                onClick={handleClear}
+                disabled={clearing || loading}
+                data-testid="step2-clear-all"
+              >
+                {clearing ? t('batchWizard.step2.clearing') : t('batchWizard.step2.clearAll')}
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto max-h-[420px] divide-y p-0">
             {rows.length === 0 ? (
@@ -111,9 +154,23 @@ function BatchStep2UploadInner({
               </p>
             ) : (
               rows.map((r) => (
-                <div key={r.file_id} className="px-4 py-2 flex justify-between gap-2 text-sm">
-                  <span className="truncate">{r.original_filename}</span>
+                <div
+                  key={r.file_id}
+                  className="px-4 py-2 flex items-center justify-between gap-2 text-sm"
+                >
+                  <span className="truncate flex-1">{r.original_filename}</span>
                   <span className="text-xs text-muted-foreground shrink-0">{r.file_type}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => void handleRemove(r.file_id)}
+                    disabled={pendingRemoveId === r.file_id || clearing || loading}
+                    title={t('batchWizard.step2.removeFile')}
+                    data-testid={`step2-remove-${r.file_id}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               ))
             )}
