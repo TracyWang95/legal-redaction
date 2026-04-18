@@ -1,6 +1,6 @@
 """
 HaS Image (Ultralytics YOLO11) 独立微服务
-端口: 8081（与 PaddleOCR 8082、HaS NER 8080 并列）
+端口: 8081（与 MinerU OCR 8082、HaS NER 8080 并列）
 
 API:
   GET  /health
@@ -14,6 +14,7 @@ import base64
 import os
 import sys
 import time
+from contextlib import asynccontextmanager
 from io import BytesIO
 from typing import Any, List, Optional
 
@@ -22,7 +23,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+# 包 app 在 backend/ 下，须把 backend 根目录加入 path（而非 scripts/）
+_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(_ROOT_DIR)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
@@ -32,7 +35,14 @@ from app.core.has_image_categories import (  # noqa: E402
     slug_list_to_class_indices,
 )
 
-app = FastAPI(title="HaS Image Service", version="1.0.0")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    init_model()
+    yield
+
+
+app = FastAPI(title="HaS Image Service", version="1.0.0", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"])
 
 _model = None
@@ -186,11 +196,6 @@ async def detect(req: DetectRequest):
     elapsed = time.perf_counter() - start
     print(f"[HaS-Image] {len(boxes)} boxes in {elapsed:.2f}s", flush=True)
     return DetectResponse(boxes=boxes, elapsed=elapsed, model=os.path.basename(_weights_path))
-
-
-@app.on_event("startup")
-async def startup():
-    init_model()
 
 
 if __name__ == "__main__":

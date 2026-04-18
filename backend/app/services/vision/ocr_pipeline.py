@@ -1,8 +1,8 @@
 """
-OCR Pipeline - PaddleOCR text extraction + HaS NER sensitive entity detection.
+OCR Pipeline - MinerU（HTTP 微服务）文字提取 + HaS NER 敏感实体检测。
 
 Responsibilities:
-- Running PaddleOCR-VL microservice to extract text blocks and visual regions
+- 调用 MinerU OCR 微服务提取文字块与视觉区域（如印章）
 - HTML table cell extraction and expansion
 - Running HaS local NER model on OCR text to identify sensitive entities
 - Matching NER entities back to OCR bounding boxes (exact + fuzzy)
@@ -40,16 +40,15 @@ def prepare_image(image_bytes: bytes) -> tuple[Image.Image, int, int]:
 
 
 # ---------------------------------------------------------------------------
-# PaddleOCR extraction
+# OCR 微服务（MinerU）
 # ---------------------------------------------------------------------------
 
-def run_paddle_ocr(
+def run_ocr_microservice(
     image: Image.Image,
     ocr_service: Any,
 ) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
     """
-    Call PaddleOCR-VL microservice (port 8082) to extract text blocks and visual
-    regions (e.g. seals).
+    调用 MinerU OCR 微服务（默认 8082）提取文字块与视觉区域（如印章）。
 
     Returns:
         (text_blocks, visual_sensitive_regions)
@@ -74,7 +73,7 @@ def _run_ocr_service(
     image: Image.Image,
     ocr_service: Any,
 ) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
-    """Low-level call to OCRService (PaddleOCR-VL) and result conversion."""
+    """调用 OCRService HTTP 客户端并转换为 OCRTextBlock / SensitiveRegion。"""
     if not ocr_service or not ocr_service.is_available():
         return [], []
 
@@ -122,7 +121,7 @@ def _run_ocr_service(
                 width=right - left,
                 height=bottom - top,
                 confidence=item.confidence,
-                source="paddleocr_vl",
+                source="mineru",
                 color=(255, 0, 0),
             ))
             logger.info("Found SEAL @ (%d, %d, %d, %d)", left, top, right - left, bottom - top)

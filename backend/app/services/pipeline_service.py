@@ -58,7 +58,7 @@ PRESET_PIPELINES: dict[str, PipelineConfig] = {
     "ocr_has": PipelineConfig(
         mode=PipelineMode.OCR_HAS,
         name="OCR + HaS (本地)",
-        description="使用 PaddleOCR-VL 提取文字 + HaS 本地模型识别敏感信息。适合文字多的场景：微信聊天记录、PDF扫描件、合同文档等。完全离线，速度快。",
+        description="使用 MinerU（ModelScope）OCR 微服务提取文字 + HaS 本地模型识别敏感信息。适合文字多的场景：微信聊天记录、PDF扫描件、合同文档等。完全离线。",
         enabled=True,
         types=PRESET_OCR_HAS_TYPES,
     ),

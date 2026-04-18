@@ -20,16 +20,16 @@ DEFAULT_CONFIGS = ModelConfigList(
     configs=[
         ModelConfig(
             id="paddle_ocr_service",
-            name="PaddleOCR-VL 微服务 (8082)",
+            name="MinerU OCR 微服务 (8082)",
             provider="local",
             enabled=True,
             base_url="http://127.0.0.1:8082",
-            model_name="PaddleOCR-VL-1.5",
+            model_name="MinerU-pipeline (ModelScope)",
             temperature=0.8,
             top_p=0.6,
             max_tokens=4096,
             enable_thinking=False,
-            description="PaddleOCR-VL OCR；基址与后端环境变量 OCR_BASE_URL 一致",
+            description="MinerU pipeline OCR（ModelScope 权重）；基址与 OCR_BASE_URL 一致",
         ),
         ModelConfig(
             id="has_image_service",
@@ -181,7 +181,7 @@ def delete_config(config_id: str) -> tuple[bool, str]:
     """Returns (success, error_message)."""
     configs = load_configs()
     if config_id in VISION_BUILTIN_IDS:
-        return False, "内置视觉后端（PaddleOCR-VL / HaS Image）不可删除"
+        return False, "内置视觉后端（MinerU OCR / HaS Image）不可删除"
     if len(configs.configs) <= 1:
         return False, "至少保留一个配置"
     for i, cfg in enumerate(configs.configs):
@@ -205,7 +205,7 @@ def reset_configs() -> None:
 # ── 健康探测 ──────────────────────────────────────────────
 
 async def _probe_paddle_ocr_health(base_override: str | None = None) -> dict:
-    """探测 PaddleOCR-VL：GET /health，检查 ready。"""
+    """探测 MinerU OCR 微服务：GET /health，检查 ready。"""
     import httpx
 
     base = (base_override or settings.OCR_BASE_URL).rstrip("/")
@@ -232,7 +232,7 @@ async def _probe_paddle_ocr_health(base_override: str | None = None) -> dict:
     except Exception:
         return {"success": True, "message": f"OCR 已响应（{base}），但返回非 JSON", "base_url": base}
 
-    model = j.get("model", "PaddleOCR-VL")
+    model = j.get("model", "MinerU-pipeline")
     ready = bool(j.get("ready", False))
     device = j.get("device", "")
     st = j.get("status", "")
@@ -255,7 +255,7 @@ async def _probe_paddle_ocr_health(base_override: str | None = None) -> dict:
 
 
 async def test_paddle_ocr() -> dict:
-    """与推理后端列表中 PaddleOCR-VL 条目的「测试」同源。"""
+    """与推理后端列表中 MinerU OCR 条目的「测试」同源。"""
     return await _probe_paddle_ocr_health(None)
 
 

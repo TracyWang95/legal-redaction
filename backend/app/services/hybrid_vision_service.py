@@ -1,6 +1,6 @@
 """
 Hybrid Vision Service - 图像匿名化核心服务
-PaddleOCR-VL（独立微服务@8082）+ HaS 本地模型（敏感信息识别）混合模式
+MinerU OCR（独立微服务@8082）+ HaS 本地模型（敏感信息识别）混合模式
 完全离线运行，不依赖云端 API
 
 This module defines the shared data classes (SensitiveRegion, OCRTextBlock) and
@@ -85,7 +85,7 @@ class OCRTextBlock:
 class HybridVisionService:
     """
     混合视觉匿名化服务（完全离线）
-    1. PaddleOCR-VL：文字检测+识别（获取精确位置）
+    1. MinerU pipeline：版面 + 文字检测识别（获取精确位置）
     2. HaS 本地模型：敏感信息类型识别（理解语义）
     3. 融合两者结果
     """
@@ -129,9 +129,9 @@ class HybridVisionService:
         from app.services.vision.ocr_pipeline import prepare_image
         return prepare_image(image_bytes)
 
-    def _run_paddle_ocr(self, image: Image.Image) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
-        from app.services.vision.ocr_pipeline import run_paddle_ocr
-        return run_paddle_ocr(image, self._ocr_service)
+    def _run_ocr_microservice(self, image: Image.Image) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
+        from app.services.vision.ocr_pipeline import run_ocr_microservice
+        return run_ocr_microservice(image, self._ocr_service)
 
     async def _run_has_text_analysis(
         self,
@@ -211,7 +211,7 @@ class HybridVisionService:
         检测敏感信息并在图像上绘制
 
         流程：
-        1. PaddleOCR 提取所有文字和精确坐标
+        1. MinerU OCR 微服务提取文字与精确坐标
         2. HaS 分析文字内容，识别敏感实体（不依赖坐标）
         3. 用文字匹配把敏感实体映射回 OCR 坐标
         4. 正则规则补充检测
@@ -240,9 +240,9 @@ class HybridVisionService:
                 "ACCOUNT_NUMBER", "ADDRESS", "DATE", "SEAL",
             ]
 
-        # 1. 运行 PaddleOCR-VL
+        # 1. 运行 MinerU OCR 微服务
         ocr_start = time.perf_counter()
-        ocr_blocks, visual_regions = await asyncio.to_thread(self._run_paddle_ocr, image)
+        ocr_blocks, visual_regions = await asyncio.to_thread(self._run_ocr_microservice, image)
         logger.info("OCR finished in %.2fs, blocks=%d", time.perf_counter() - ocr_start, len(ocr_blocks))
 
         all_regions: list[SensitiveRegion] = []
@@ -279,7 +279,7 @@ class HybridVisionService:
             all_regions = self._merge_regions(all_regions, regex_regions)
             logger.info("Regex finished in %.2fs, matches=%d", time.perf_counter() - regex_start, len(regex_regions))
         else:
-            logger.warning("PaddleOCR returned no text blocks")
+            logger.warning("OCR 微服务未返回文字块")
 
         logger.info("Final detected %d sensitive regions", len(all_regions))
 

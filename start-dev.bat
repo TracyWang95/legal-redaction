@@ -13,8 +13,8 @@ start "Backend :8000" cmd /k "cd /d D:\DataInfra-RedactionEverything\backend && 
 echo [2/5] Frontend (Vite :3000)
 start "Frontend :3000" cmd /k "cd /d D:\DataInfra-RedactionEverything\frontend && npm run dev -- --port 3000 --strictPort"
 
-echo [3/5] PaddleOCR-VL (conda:oda :8082)
-start "OCR :8082" cmd /k "cd /d D:\DataInfra-RedactionEverything\backend && conda activate oda && python scripts/ocr_server.py"
+echo [3/5] MinerU OCR (conda:DataInfra :8082)
+start "OCR :8082" cmd /k "cd /d D:\DataInfra-RedactionEverything\backend && conda activate DataInfra && python scripts/ocr_server.py"
 
 echo [4/5] HaS-Image YOLO (conda:legal-redaction :8081)
 start "Vision :8081" cmd /k "cd /d D:\DataInfra-RedactionEverything\backend && set PYTHONPATH=. && conda activate legal-redaction && python scripts/has_image_server.py"
@@ -26,7 +26,7 @@ echo.
 echo ============================================
 echo   Backend:    http://localhost:8000
 echo   Frontend:   http://localhost:3000
-echo   OCR:        http://localhost:8082  (conda:oda)
+echo   OCR:        http://localhost:8082  (conda:DataInfra, MinerU)
 echo   Vision:     http://localhost:8081  (conda:legal-redaction)
 echo   NER:        http://localhost:8080  (llama-server)
 echo ============================================

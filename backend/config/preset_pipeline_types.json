@@ -339,7 +339,7 @@
     {
       "id": "SEAL",
       "name": "印章/公章",
-      "description": "PaddleOCR-VL可精确识别印章内的文字内容（公章、合同章、法院印章、财务章等）",
+      "description": "MinerU pipeline 可识别版面中的印章区域及印章内文字（公章、合同章、法院印章、财务章等）",
       "examples": [
         "XX有限公司公章",
         "XX市中级人民法院",

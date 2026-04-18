@@ -1,0 +1,4 @@
+Looking in indexes: https://mirrors.aliyun.com/pypi/simple/
+Requirement already satisfied: omegaconf in /home/spark/anaconda3/envs/DataInfra/lib/python3.12/site-packages (2.3.0)
+Requirement already satisfied: antlr4-python3-runtime==4.9.* in /home/spark/anaconda3/envs/DataInfra/lib/python3.12/site-packages (from omegaconf) (4.9.3)
+Requirement already satisfied: PyYAML>=5.1.0 in /home/spark/anaconda3/envs/DataInfra/lib/python3.12/site-packages (from omegaconf) (6.0.3)

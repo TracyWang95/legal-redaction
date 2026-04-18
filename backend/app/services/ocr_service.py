@@ -1,7 +1,7 @@
 """
 OCR 服务客户端
-通过 HTTP 调用独立的 PaddleOCR-VL 微服务 (端口8082)
-不再在后端进程中加载 PaddleOCR 模型
+通过 HTTP 调用独立的 MinerU（ModelScope）OCR 微服务（默认端口 8082）
+主后端进程不加载 MinerU / 版面模型
 """
 from __future__ import annotations
 
@@ -65,10 +65,10 @@ class OCRService:
         try:
             resp = self._health_client.get(f"{self.base_url}/health")
             if resp.status_code == 200:
-                return resp.json().get("model", "PaddleOCR-VL")
+                return resp.json().get("model", "MinerU-pipeline")
         except Exception as e:
             logger.debug("OCR model name check failed: %s", e)
-        return "PaddleOCR-VL"
+        return "MinerU-pipeline"
 
     def _do_ocr_request(self, image_b64: str) -> httpx.Response:
         """Execute a single OCR HTTP request (retryable, uses pooled client)."""

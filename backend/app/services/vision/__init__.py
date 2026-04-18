@@ -16,7 +16,7 @@ from app.services.vision.ocr_pipeline import (
     match_entities_to_ocr,
     prepare_image,
     run_has_text_analysis,
-    run_paddle_ocr,
+    run_ocr_microservice,
 )
 from app.services.vision.region_merger import (
     calc_iou_boxes,
@@ -27,7 +27,7 @@ from app.services.vision.region_merger import (
 __all__ = [
     # ocr_pipeline
     "prepare_image",
-    "run_paddle_ocr",
+    "run_ocr_microservice",
     "extract_table_cells",
     "expand_table_blocks",
     "run_has_text_analysis",

@@ -40,7 +40,7 @@ DEBUG=true python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 cd frontend && npm install && npm run dev
 
 # 3. GPU Model Services (each in a separate terminal)
-# PaddleOCR-VL (port 8082) — requires paddlepaddle-gpu + paddleocr
+# MinerU OCR (port 8082) — requires `pip install -r requirements-ocr.lock` + CUDA PyTorch（见该文件注释）
 cd backend && python scripts/ocr_server.py
 
 # HaS Image YOLO (port 8081) — requires ultralytics

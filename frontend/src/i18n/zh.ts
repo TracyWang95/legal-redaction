@@ -169,7 +169,7 @@ const zhBase: Record<string, string> = {
   'page.textModel.title': '文本模型配置',
   'page.textModel.sub': '文本 NER · HaS（llama-server）',
   'page.visionModel.title': '视觉服务配置',
-  'page.visionModel.sub': 'HaS Image · PaddleOCR-VL 登记与检测',
+  'page.visionModel.sub': 'HaS Image · MinerU（ModelScope）登记与检测',
 
   'preset.saveText.prompt': '另存为文本预设：请输入名称',
   'preset.saveText.success': '已另存为文本预设。',
@@ -725,7 +725,7 @@ const zhBase: Record<string, string> = {
   'batchWizard.previewJobLabel': '预览任务',
 
   'error.visionTimeout':
-    '图像识别超时（超过 3 分钟）。若 Paddle 在 CPU 上跑会很慢，可换更小图片或安装 paddle GPU 版加速。',
+    '图像识别超时（超过 3 分钟）。MinerU 在 CPU 上会很慢，可换更小图片或使用 GPU 环境。',
   'error.visionDetectionFailed': '图像识别失败',
   'error.reRecognizeFailed': '重新识别失败',
 };

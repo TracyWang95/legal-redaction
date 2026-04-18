@@ -122,7 +122,7 @@ class Settings(BaseSettings):
         ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".webp", ".tif", ".tiff",
     ]
 
-    # HaS Image YOLO 微服务（独立进程，端口 8081，与 PaddleOCR 8082 同级）
+    # HaS Image YOLO 微服务（独立进程，端口 8081，与 MinerU OCR 8082 同级）
     HAS_IMAGE_BASE_URL: str = "http://127.0.0.1:8081"
     HAS_IMAGE_TIMEOUT: float = 120.0
     HAS_IMAGE_CONF: float = 0.25
@@ -135,7 +135,7 @@ class Settings(BaseSettings):
     ENTITY_TYPES_STORE_PATH: str = ""
     MODEL_CONFIG_PATH: str = ""
 
-    # PaddleOCR-VL 微服务配置（独立进程，端口8082）
+    # MinerU OCR 微服务配置（独立进程，端口 8082）
     OCR_BASE_URL: str = "http://127.0.0.1:8082"
     # VL 推理常 >120s（大图/CPU/显卡繁忙时）；可用环境变量 OCR_TIMEOUT 覆盖
     OCR_TIMEOUT: float = 360.0

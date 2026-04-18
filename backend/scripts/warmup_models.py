@@ -67,8 +67,8 @@ def warmup_has_image_model():
 
 
 def warmup_ocr():
-    """预热PaddleOCR-VL微服务"""
-    print("[warmup] PaddleOCR-VL ...")
+    """预热 MinerU OCR 微服务"""
+    print("[warmup] MinerU OCR ...")
     try:
         start = time.perf_counter()
         resp = httpx.post(
@@ -76,10 +76,10 @@ def warmup_ocr():
         )
         resp.raise_for_status()
         elapsed = time.perf_counter() - start
-        print(f"[warmup] [OK] PaddleOCR-VL warmup done in {elapsed:.2f}s")
+        print(f"[warmup] [OK] MinerU OCR warmup done in {elapsed:.2f}s")
         return True
     except Exception as e:
-        print(f"[warmup] [FAIL] PaddleOCR-VL warmup failed: {e}")
+        print(f"[warmup] [FAIL] MinerU OCR warmup failed: {e}")
         return False
 
 

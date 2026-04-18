@@ -416,7 +416,7 @@ async def services_health():
     ocr_result, has_result, has_image_result = await asyncio.gather(
         loop.run_in_executor(
             None,
-            lambda: check_sync(ocr_url, "PaddleOCR-VL-1.5", ocr_timeout),
+            lambda: check_sync(ocr_url, "MinerU OCR", ocr_timeout),
         ),
         loop.run_in_executor(None, check_has_ner),
         loop.run_in_executor(None, check_sync, f"{settings.HAS_IMAGE_BASE_URL}/health", "HaS Image YOLO"),

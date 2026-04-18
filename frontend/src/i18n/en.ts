@@ -170,7 +170,7 @@ const enBase: Record<string, string> = {
   'page.textModel.title': 'Text Model',
   'page.textModel.sub': 'Text NER, HaS (llama-server)',
   'page.visionModel.title': 'Vision Service',
-  'page.visionModel.sub': 'HaS Image, PaddleOCR-VL registration & detection',
+  'page.visionModel.sub': 'HaS Image, MinerU (ModelScope) registration & detection',
 
   'preset.saveText.prompt': 'Save as text preset: enter name',
   'preset.saveText.success': 'Text preset saved.',
@@ -711,7 +711,7 @@ const enBase: Record<string, string> = {
   'safety.autoDelete.desc': 'Automatically remove uploaded source files once redaction completes',
 
   'error.visionTimeout':
-    'Vision detection timed out (over 3 min). PaddleOCR is slow on CPU — try a smaller image or install paddle GPU.',
+    'Vision detection timed out (over 3 min). MinerU is slow on CPU — try a smaller image or use a GPU setup.',
   'error.visionDetectionFailed': 'Vision detection failed',
   'error.reRecognizeFailed': 'Re-recognition failed',
 };
