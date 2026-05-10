@@ -1,0 +1,192 @@
+# DataInfra-RedactionEverything  —  Docker Compose
+# -----------------------------------------------------------
+# CPU-only (default):   docker compose up -d
+# With GPU services:    docker compose --profile gpu up -d
+# -----------------------------------------------------------
+
+services:
+  # ── FastAPI 后端 ──────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - DEBUG=${DEBUG:-false}
+      - DATA_DIR=/app/data
+      - UPLOAD_DIR=/app/uploads
+      - OUTPUT_DIR=/app/outputs
+      - AUTH_ENABLED=${AUTH_ENABLED:-true}
+      - OCR_BASE_URL=http://ocr:8082
+      - HAS_LLAMACPP_BASE_URL=http://ner:8080/v1
+      - HAS_IMAGE_BASE_URL=http://vision:8081
+      - CORS_ORIGINS=["http://localhost:${FRONTEND_PORT:-3000}","http://127.0.0.1:${FRONTEND_PORT:-3000}"]
+    volumes:
+      - backend-data:/app/data
+      - backend-uploads:/app/uploads
+      - backend-outputs:/app/outputs
+    networks:
+      - redaction-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+    restart: unless-stopped
+
+  # ── React 前端（Nginx）──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:8080"
+    networks:
+      - redaction-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # ── PaddleOCR-VL 微服务（端口 8082）— GPU ──────────────
+  ocr:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.ocr
+    ports:
+      - "8082:8082"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - redaction-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8082/health').raise_for_status()"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    profiles:
+      - gpu
+    restart: unless-stopped
+
+  # ── HaS Text NER（llama-server，端口 8080）— GPU ────────
+  ner:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/models:/models
+    command: >
+      --host 0.0.0.0
+      --port 8080
+      -m /models/has/HaS_Text_0209_0.6B_Q4_K_M.gguf
+      -ngl 99
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - redaction-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    profiles:
+      - gpu
+    restart: unless-stopped
+
+  # ── HaS Image YOLO 微服务（端口 8081）— GPU ────────────
+  vision:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.vision
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./backend/models:/app/models
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - redaction-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8081/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    profiles:
+      - gpu
+    restart: unless-stopped
+
+# ── 持久化卷 ───────────────────────────────────────────────
+volumes:
+  backend-data:
+  backend-uploads:
+  backend-outputs:
+
+# ── 网络 ───────────────────────────────────────────────────
+networks:
+  redaction-net:
+    driver: bridge
