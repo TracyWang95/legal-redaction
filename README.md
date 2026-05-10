@@ -74,7 +74,29 @@
 
 模型权重、真实样本、上传文件、运行数据库和导出结果不随仓库提交。请按自己的本地路径配置。
 
-### 启动后端
+### 本地一键启动（Windows + WSL）
+
+本地完整模型链路建议从仓库根目录启动：
+
+```bash
+npm run dev
+```
+
+这个入口会按固定顺序启动本地服务：WSL 中的 vLLM 模型服务和 OCR 包装服务、Windows 上的 llama.cpp VLM、HaS Image、后端 API，最后启动前端。脚本会先执行模型预热，只有 HaS Text、PaddleOCR-VL、PP-StructureV3、HaS Image 和 GLM VLM 全部预热成功后，才会输出：
+
+```text
+[dev] ready: http://localhost:3000
+```
+
+关闭所有本地服务：
+
+```bash
+npm run stop
+```
+
+如果 WSL localhost 转发不可用，启动脚本会自动使用 WSL IP 连接 vLLM/OCR 服务，避免前端服务探测显示离线。模型服务应保持 GPU/CUDA 推理；`/health/services` 中任一模型出现 CPU fallback 风险时，应先修正环境再处理文件。
+
+### 手动启动后端
 
 ```bash
 cd backend
@@ -91,7 +113,7 @@ curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/health/services
 ```
 
-### 启动前端
+### 手动启动前端
 
 ```bash
 cd frontend

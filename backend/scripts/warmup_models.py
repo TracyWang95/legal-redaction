@@ -15,12 +15,14 @@ from io import BytesIO
 import httpx
 from PIL import Image, ImageDraw
 
-HAS_URL = "http://127.0.0.1:8080/v1/chat/completions"
+HAS_BASE_URL = os.environ.get("HAS_TEXT_VLLM_BASE_URL", "http://127.0.0.1:8080/v1").rstrip("/")
+HAS_URL = f"{HAS_BASE_URL}/chat/completions"
 HAS_MODEL = os.environ.get("HAS_TEXT_MODEL_NAME", "HaS_4.0_0.6B")
 HAS_IMAGE_HEALTH = "http://127.0.0.1:8081/health"
 HAS_IMAGE_DETECT = "http://127.0.0.1:8081/detect"
-OCR_URL = "http://127.0.0.1:8082/ocr"
-OCR_STRUCTURE_URL = "http://127.0.0.1:8082/structure"
+OCR_BASE_URL = os.environ.get("OCR_BASE_URL", "http://127.0.0.1:8082").rstrip("/")
+OCR_URL = f"{OCR_BASE_URL}/ocr"
+OCR_STRUCTURE_URL = f"{OCR_BASE_URL}/structure"
 VLM_URL = os.environ.get("VLM_WARMUP_URL", "http://127.0.0.1:8090/v1/chat/completions")
 VLM_MODEL = os.environ.get("VLM_MODEL_NAME", "GLM-4.6V-Flash-Q4")
 TIMEOUT = 180.0
@@ -55,7 +57,7 @@ def _table_png_base64() -> str:
 
 
 def _post_json(url: str, payload: dict, *, timeout: float = TIMEOUT) -> httpx.Response:
-    response = httpx.post(url, json=payload, timeout=timeout)
+    response = httpx.post(url, json=payload, timeout=timeout, trust_env=False)
     response.raise_for_status()
     return response
 
@@ -176,22 +178,22 @@ def warmup_vlm() -> bool:
 
 def check_service(url: str) -> bool:
     try:
-        response = httpx.get(url.replace("/v1/chat/completions", "/health"), timeout=5.0)
+        response = httpx.get(url.replace("/v1/chat/completions", "/health"), timeout=5.0, trust_env=False)
         if response.status_code == 200:
             return True
     except Exception:
         pass
     try:
-        response = httpx.get(url.replace("/v1/chat/completions", "/v1/models"), timeout=5.0)
+        response = httpx.get(url.replace("/v1/chat/completions", "/v1/models"), timeout=5.0, trust_env=False)
         return response.status_code == 200
     except Exception:
-            return False
+        return False
 
 
 def check_vlm_service() -> bool:
     try:
         base = VLM_URL.rsplit("/chat/completions", 1)[0]
-        response = httpx.get(f"{base}/models", timeout=5.0)
+        response = httpx.get(f"{base}/models", timeout=5.0, trust_env=False)
         return response.status_code == 200
     except Exception:
         return False
@@ -199,7 +201,7 @@ def check_vlm_service() -> bool:
 
 def probe_has_image() -> tuple[str, bool]:
     try:
-        response = httpx.get(HAS_IMAGE_HEALTH, timeout=5.0)
+        response = httpx.get(HAS_IMAGE_HEALTH, timeout=5.0, trust_env=False)
         if response.status_code != 200:
             return "down", False
         payload = response.json()
@@ -224,7 +226,7 @@ def wait_for_services(max_wait: int = DEFAULT_MAX_WAIT) -> bool:
 
         if not ocr_ready:
             try:
-                response = httpx.get("http://127.0.0.1:8082/health", timeout=3.0)
+                response = httpx.get(f"{OCR_BASE_URL}/health", timeout=3.0, trust_env=False)
                 if response.status_code == 200 and response.json().get("ready"):
                     ocr_ready = True
                     print("[start] [OK] OCR ready")
@@ -242,7 +244,7 @@ def wait_for_services(max_wait: int = DEFAULT_MAX_WAIT) -> bool:
         elif state == "unavailable" and second % 20 == 0:
             print("[start] [WARN] HaS Image is reachable but not ready")
 
-        if has_ready and ocr_ready and (state != "down" or second >= 15):
+        if has_ready and ocr_ready and vlm_ready and state == "ready" and loaded:
             return True
 
         if second % 5 == 0:
@@ -259,7 +261,8 @@ def wait_for_services(max_wait: int = DEFAULT_MAX_WAIT) -> bool:
         "[start] services are not reachable from this shell. "
         "If /health/services is online, run this script inside the same WSL/container network as the model services."
     )
-    return has_ready and ocr_ready
+    state, loaded = probe_has_image()
+    return has_ready and ocr_ready and vlm_ready and state == "ready" and loaded
 
 
 def main() -> None:
@@ -295,8 +298,10 @@ def main() -> None:
     if all_ok:
         print("[OK] All models warmed up!")
     else:
-        print("[WARN] Some models failed to warm up")
+        print("[ERROR] Some models failed to warm up")
     print("=" * 50)
+    if not all_ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

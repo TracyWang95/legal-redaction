@@ -312,7 +312,7 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
                     task.cancel()
                 raise
 
-        if pages > 1 and vlm_types:
+        if pages > 1 and vlm_types != []:
             logger.info(
                 "Vision multi-page scheduling: OCR+HaS/HaS Image first (concurrency=%d), then VLM merge pass (concurrency=1)",
                 page_concurrency,

@@ -97,6 +97,32 @@ def _vision_signature(
     }
 
 
+def _should_run_vlm_for_page(file_info: dict[str, Any], page: int) -> tuple[bool, str | None]:
+    from app.core.config import settings
+
+    file_type = str(file_info.get("file_type") or "").lower()
+    filename = str(file_info.get("original_filename") or file_info.get("stored_filename") or "").lower()
+    is_pdf = file_type in {"pdf", "pdf_scanned"} or filename.endswith(".pdf")
+    if not is_pdf:
+        return True, None
+
+    page_count = int(file_info.get("page_count") or 1)
+    if page_count <= 1:
+        return True, None
+
+    policy = str(getattr(settings, "VLM_PDF_PAGE_POLICY", "all") or "all").strip().lower()
+    if policy in {"all", "full", "every"}:
+        return True, None
+    if policy in {"off", "none", "disabled"}:
+        return False, "VLM skipped for PDF by VLM_PDF_PAGE_POLICY=off"
+
+    tail_pages = max(1, int(getattr(settings, "VLM_PDF_TAIL_PAGES", 2) or 2))
+    first_tail_page = max(1, page_count - tail_pages + 1)
+    if page >= first_tail_page:
+        return True, None
+    return False, f"VLM skipped for PDF page {page}/{page_count}; tail-page policy runs pages {first_tail_page}-{page_count}"
+
+
 def _page_value(mapping: Any, page: int) -> Any:
     if not isinstance(mapping, dict):
         return None
@@ -433,6 +459,12 @@ async def detect_vision(
     effective_ocr_types = ocr_has_types if ocr_has_enabled else None
     effective_has_image_types = has_image_types if has_image_enabled else None
     effective_vlm_types = vlm_types if vlm_enabled else None
+    vlm_policy_warning: str | None = None
+    if effective_vlm_types:
+        should_run_vlm, vlm_policy_warning = _should_run_vlm_for_page(snapshot, page)
+        if not should_run_vlm:
+            logger.info(vlm_policy_warning)
+            effective_vlm_types = None
 
     signature_ocr_types = effective_ocr_types
     signature_has_image_types = effective_has_image_types
@@ -473,6 +505,8 @@ async def detect_vision(
         include_result_image=include_result_image,
     )
     warnings = list(getattr(vision_service, "last_warnings", []) or [])
+    if vlm_policy_warning:
+        warnings.append(vlm_policy_warning)
     pipeline_status = dict(getattr(vision_service, "last_pipeline_status", {}) or {})
     duration_ms = dict(getattr(vision_service, "last_duration_ms", {}) or {})
     if merge_existing:

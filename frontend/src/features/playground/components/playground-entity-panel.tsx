@@ -370,7 +370,9 @@ const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
             ? t('playground.sourceOcr')
             : box.source === 'has_image'
               ? t('playground.sourceImage')
-              : t('playground.sourceManual');
+              : box.source === 'vlm'
+                ? t('playground.sourceVlm')
+                : t('playground.sourceManual');
 
         return (
           <div

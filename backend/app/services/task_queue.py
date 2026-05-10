@@ -724,7 +724,18 @@ class SimpleTaskQueue:
         active_pages = 0
         max_active_pages = 0
 
-        async def run_page(p: int) -> None:
+        async def run_page(
+            p: int,
+            *,
+            selected_ocr_types: list[str] | None,
+            selected_has_img_types: list[str] | None,
+            selected_vlm_types: list[str] | None,
+            merge_existing: bool = False,
+            signature_ocr_types: list[str] | None = None,
+            signature_has_img_types: list[str] | None = None,
+            signature_vlm_types: list[str] | None = None,
+            stage_label: str = "视觉识别",
+        ) -> None:
             nonlocal active_pages, max_active_pages
             async with page_sem:
                 page_started = time.perf_counter()
@@ -737,11 +748,11 @@ class SimpleTaskQueue:
                     stage="vision",
                     current=p,
                     total=pages,
-                    message=f"Recognizing page {p}/{pages}",
+                    message=f"{stage_label}第 {p}/{pages} 页",
                 )
                 logger.info(
-                    "[queue] item=%s vision page %d/%d START (page_concurrency=%d active_pages=%d)",
-                    task.item_id[:8], p, pages, page_concurrency, active_at_start,
+                    "[queue] item=%s %s page %d/%d START (page_concurrency=%d active_pages=%d)",
+                    task.item_id[:8], stage_label, p, pages, page_concurrency, active_at_start,
                 )
                 self._record_item_performance(
                     store,
@@ -761,7 +772,17 @@ class SimpleTaskQueue:
                 )
                 try:
                     result = await asyncio.wait_for(
-                        vision_detect(task.file_id, p, ocr_types, has_img_types, vlm_types),
+                        vision_detect(
+                            task.file_id,
+                            p,
+                            selected_ocr_types,
+                            selected_has_img_types,
+                            selected_vlm_types,
+                            merge_existing=merge_existing,
+                            signature_ocr_has_types=signature_ocr_types,
+                            signature_has_image_types=signature_has_img_types,
+                            signature_vlm_types=signature_vlm_types,
+                        ),
                         timeout=page_timeout,
                     )
                 except TimeoutError as exc:
@@ -784,7 +805,7 @@ class SimpleTaskQueue:
                         },
                     )
                     raise TimeoutError(
-                        f"vision page {p}/{pages} timed out after {page_timeout:.0f}s"
+                        f"{stage_label} page {p}/{pages} timed out after {page_timeout:.0f}s"
                     ) from exc
                 except Exception:
                     page_ms = _elapsed_ms(page_started)
@@ -835,21 +856,80 @@ class SimpleTaskQueue:
                         },
                     )
                     logger.info(
-                        "[queue] item=%s vision page %d/%d DONE elapsed=%.2fs active_pages=%d",
+                        "[queue] item=%s %s page %d/%d DONE elapsed=%.2fs active_pages=%d",
                         task.item_id[:8],
+                        stage_label,
                         p,
                         pages,
                         page_ms / 1000,
                         active_at_end,
                     )
 
-        page_tasks = {
-            asyncio.create_task(run_page(p)): p
-            for p in range(1, max(1, pages) + 1)
-        }
+        async def run_page_stage(
+            *,
+            selected_ocr_types: list[str] | None,
+            selected_has_img_types: list[str] | None,
+            selected_vlm_types: list[str] | None,
+            merge_existing: bool = False,
+            signature_ocr_types: list[str] | None = None,
+            signature_has_img_types: list[str] | None = None,
+            signature_vlm_types: list[str] | None = None,
+            stage_label: str = "视觉识别",
+        ) -> None:
+            page_tasks = {
+                asyncio.create_task(
+                    run_page(
+                        p,
+                        selected_ocr_types=selected_ocr_types,
+                        selected_has_img_types=selected_has_img_types,
+                        selected_vlm_types=selected_vlm_types,
+                        merge_existing=merge_existing,
+                        signature_ocr_types=signature_ocr_types,
+                        signature_has_img_types=signature_has_img_types,
+                        signature_vlm_types=signature_vlm_types,
+                        stage_label=stage_label,
+                    )
+                ): p
+                for p in range(1, max(1, pages) + 1)
+            }
+            try:
+                for page_task in asyncio.as_completed(page_tasks):
+                    await page_task
+            except Exception:
+                for page_task in page_tasks:
+                    page_task.cancel()
+                raise
+
         try:
-            for page_task in asyncio.as_completed(page_tasks):
-                await page_task
+            if pages > 1 and vlm_types != []:
+                logger.info(
+                    "[queue] item=%s vision multi-page scheduling: non-VLM first (concurrency=%d), then VLM merge pass (concurrency=1)",
+                    task.item_id[:8],
+                    page_concurrency,
+                )
+                await run_page_stage(
+                    selected_ocr_types=ocr_types,
+                    selected_has_img_types=has_img_types,
+                    selected_vlm_types=[],
+                    stage_label="OCR+HaS识别",
+                )
+                page_sem = asyncio.Semaphore(1)
+                await run_page_stage(
+                    selected_ocr_types=[],
+                    selected_has_img_types=[],
+                    selected_vlm_types=vlm_types,
+                    merge_existing=True,
+                    signature_ocr_types=ocr_types,
+                    signature_has_img_types=has_img_types,
+                    signature_vlm_types=vlm_types,
+                    stage_label="VLM识别",
+                )
+            else:
+                await run_page_stage(
+                    selected_ocr_types=ocr_types,
+                    selected_has_img_types=has_img_types,
+                    selected_vlm_types=vlm_types,
+                )
             store.update_item_progress(
                 task.item_id,
                 stage="vision",
@@ -876,15 +956,9 @@ class SimpleTaskQueue:
                 max_active_pages,
             )
         except TimeoutError as exc:
-            for page_task in page_tasks:
-                page_task.cancel()
             raise TimeoutError(
                 f"vision recognition timed out after {page_timeout:.0f}s per page"
             ) from exc
-        except Exception:
-            for page_task in page_tasks:
-                page_task.cancel()
-            raise
 
     async def _run_ner_or_vision(self, task: TaskItem, cfg: dict) -> None:
         """Step 2: 根据文件类型选择 NER 或 Vision 流水线。"""

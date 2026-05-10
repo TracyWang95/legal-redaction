@@ -157,7 +157,10 @@ export async function runVisionDetectionPages({
   onPageComplete,
 }: RunVisionDetectionPagesOptions): Promise<{ boxes: BoundingBox[]; totalBoxes: number }> {
   const pages = Array.from({ length: Math.max(1, totalPages) }, (_unused, index) => index + 1);
-  const maxWorkers = Math.max(1, Math.min(concurrency, pages.length));
+  // The local VLM service runs as a single GPU slot. Letting multi-page PDFs
+  // enqueue several VLM requests at once causes avoidable timeout cascades.
+  const effectiveConcurrency = vlmTypes.length > 0 ? 1 : concurrency;
+  const maxWorkers = Math.max(1, Math.min(effectiveConcurrency, pages.length));
   const boxesByPage = new Map<number, BoundingBox[]>();
   let nextIndex = 0;
   let completedPages = 0;

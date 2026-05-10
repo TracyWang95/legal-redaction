@@ -56,6 +56,8 @@ const ENTITY_TYPE_ALIASES: Record<string, string> = {
   WITNESS: 'PERSON',
   seal: 'official_seal',
   stamp: 'official_seal',
+  signature: 'SIGNATURE',
+  handwritten_signature: 'SIGNATURE',
 };
 
 export function normalizeEntityTypeId(typeId: string): string {
@@ -195,6 +197,9 @@ const HAS_IMAGE_TYPE_IDS = new Set([
 ]);
 
 function prettifyTypeId(typeId: string) {
+  if (/^custom_ocr_has_/i.test(typeId)) return t('entity.customOcrHas');
+  if (/^custom_/i.test(typeId)) return t('entity.custom');
+
   return typeId
     .toLowerCase()
     .split('_')
