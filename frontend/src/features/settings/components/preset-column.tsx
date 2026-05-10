@@ -11,17 +11,22 @@ import {
   presetAppliesVision,
   type RecognitionPreset,
 } from '@/services/presetsApi';
+import { localizePresetName, localizeRecognitionTypeName } from '../lib/redaction-display';
 import type { EntityTypeConfig, PipelineConfig } from '../hooks/use-entity-types';
 
 const presetMetaPillClass =
-  'inline-flex h-7 items-center rounded-full border border-border/70 bg-muted/45 px-2.5 text-[11px] font-medium leading-none text-muted-foreground';
+  'inline-flex h-6 w-[4.5rem] items-center justify-center whitespace-nowrap rounded-full border border-border/70 bg-muted/45 px-2 text-[11px] font-medium leading-none text-muted-foreground';
 const presetActionButtonClass =
-  'h-7 rounded-full border-border/80 bg-background px-3 text-[11px] font-medium leading-none';
+  'h-7 whitespace-nowrap rounded-full border-border/80 bg-background px-3 text-[11px] font-medium leading-none';
 const presetDangerButtonClass =
-  'h-7 rounded-full border-destructive/25 bg-background px-3 text-[11px] font-medium leading-none text-destructive hover:bg-destructive/8';
+  'h-7 whitespace-nowrap rounded-full border-destructive/25 bg-background px-3 text-[11px] font-medium leading-none text-destructive hover:bg-destructive/8';
 const presetPreviewChipClass =
   'inline-flex h-7 w-full items-center rounded-[14px] border border-border/70 bg-background px-2 text-[11px] font-medium leading-none';
 const presetPreviewChipGridClass = 'grid grid-cols-3 gap-1.5 xl:grid-cols-4 2xl:grid-cols-5';
+const presetRowLeftClass = 'grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-2';
+const presetRowNameClass = 'min-w-0 truncate font-medium';
+const presetMetaPlaceholderClass = 'h-6 w-[4.5rem]';
+type PresetPreviewScope = 'text' | 'vision';
 
 export function PresetColumn({
   title,
@@ -48,17 +53,21 @@ export function PresetColumn({
 }) {
   const t = useT();
   const defaultKey = `${colPrefix}:__default__`;
+  const defaultPresetName = localizePresetName(defaultPreset, t);
+  const previewScope: PresetPreviewScope = colPrefix === 'text' ? 'text' : 'vision';
 
   return (
     <div className="flex min-h-0 flex-col">
-      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h4>
-      <ul className="max-h-[min(55vh,520px)] divide-y divide-border overflow-y-auto rounded-md border text-xs">
+      <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70 bg-card text-xs shadow-[var(--shadow-sm)]">
         <li className="bg-muted/30">
-          <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{defaultPreset.name}</span>
+          <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 px-2.5 py-1.5">
+            <div className={presetRowLeftClass}>
+              <span className={presetRowNameClass} title={defaultPresetName}>
+                {defaultPresetName}
+              </span>
               <Badge variant="secondary" className={presetMetaPillClass}>
                 {t('settings.redaction.systemDefault')}
               </Badge>
@@ -68,6 +77,7 @@ export function PresetColumn({
               variant="outline"
               className={presetActionButtonClass}
               onClick={() => setExpanded((current) => (current === defaultKey ? null : defaultKey))}
+              aria-label={`${expanded === defaultKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')} ${defaultPresetName}`}
             >
               {expanded === defaultKey
                 ? t('settings.redaction.collapse')
@@ -75,47 +85,75 @@ export function PresetColumn({
             </Button>
           </div>
           {expanded === defaultKey && (
-            <PresetPreview preset={defaultPreset} entityTypes={entityTypes} pipelines={pipelines} />
+            <PresetPreview
+              preset={defaultPreset}
+              entityTypes={entityTypes}
+              pipelines={pipelines}
+              scope={previewScope}
+            />
           )}
         </li>
 
         {presets.map((preset) => {
           const rowKey = `${colPrefix}:${preset.id}`;
+          const presetName = localizePresetName(preset, t);
           return (
             <li key={preset.id} className="bg-muted/30">
-              <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-1.5">
-                <span className="font-medium">{preset.name}</span>
-                <div className="flex gap-1">
+              <div className="flex min-h-10 flex-wrap items-center justify-between gap-2 px-2.5 py-1.5">
+                <div className={presetRowLeftClass}>
+                  <span className={presetRowNameClass} title={presetName}>
+                    {presetName}
+                  </span>
+                  {preset.readonly && (
+                    <Badge variant="secondary" className={presetMetaPillClass}>
+                      {t('settings.redaction.systemDefault')}
+                    </Badge>
+                  )}
+                  {!preset.readonly && <span aria-hidden="true" className={presetMetaPlaceholderClass} />}
+                </div>
+                <div className="flex shrink-0 flex-wrap justify-end gap-1">
                   <Button
                     size="sm"
                     variant="outline"
                     className={presetActionButtonClass}
                     onClick={() => setExpanded((current) => (current === rowKey ? null : rowKey))}
+                    aria-label={`${expanded === rowKey ? t('settings.redaction.collapse') : t('settings.redaction.preview')} ${presetName}`}
                   >
                     {expanded === rowKey
                       ? t('settings.redaction.collapse')
                       : t('settings.redaction.preview')}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={presetActionButtonClass}
-                    onClick={() => onEdit(preset)}
-                  >
-                    {t('settings.redaction.edit')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={presetDangerButtonClass}
-                    onClick={() => void onDelete(preset.id)}
-                  >
-                    {t('settings.redaction.delete')}
-                  </Button>
+                  {!preset.readonly && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={presetActionButtonClass}
+                        onClick={() => onEdit(preset)}
+                        aria-label={`${t('settings.redaction.edit')} ${presetName}`}
+                      >
+                        {t('settings.redaction.edit')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={presetDangerButtonClass}
+                        onClick={() => void onDelete(preset.id)}
+                        aria-label={`${t('settings.redaction.delete')} ${presetName}`}
+                      >
+                        {t('settings.redaction.delete')}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
               {expanded === rowKey && (
-                <PresetPreview preset={preset} entityTypes={entityTypes} pipelines={pipelines} />
+                <PresetPreview
+                  preset={preset}
+                  entityTypes={entityTypes}
+                  pipelines={pipelines}
+                  scope={previewScope}
+                />
               )}
             </li>
           );
@@ -129,72 +167,94 @@ function PresetPreview({
   preset,
   entityTypes,
   pipelines,
+  scope,
 }: {
   preset: RecognitionPreset;
   entityTypes: EntityTypeConfig[];
   pipelines: PipelineConfig[];
+  scope: PresetPreviewScope;
 }) {
   const t = useT();
+  const showText = scope === 'text' && presetAppliesText(preset);
+  const showVision = scope === 'vision' && presetAppliesVision(preset);
   const ocrPipeline = pipelines.find((pipeline) => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find((pipeline) => pipeline.mode === 'has_image');
+  const vlmPipeline = pipelines.find((pipeline) => pipeline.mode === 'vlm');
+  const entityTypeById = useMemo(
+    () => new Map(entityTypes.map((type) => [type.id, type])),
+    [entityTypes],
+  );
+  const ocrTypeById = useMemo(
+    () => new Map((ocrPipeline?.types ?? []).map((type) => [type.id, type])),
+    [ocrPipeline?.types],
+  );
+  const imageTypeById = useMemo(
+    () => new Map((imagePipeline?.types ?? []).map((type) => [type.id, type])),
+    [imagePipeline?.types],
+  );
+  const vlmTypeById = useMemo(
+    () => new Map((vlmPipeline?.types ?? []).map((type) => [type.id, type])),
+    [vlmPipeline?.types],
+  );
 
   const selectedRegexTypes = useMemo(
     () =>
-      preset.selectedEntityTypeIds.filter(
-        (id) => entityTypes.find((type) => type.id === id)?.regex_pattern,
-      ),
-    [preset.selectedEntityTypeIds, entityTypes],
+      preset.selectedEntityTypeIds.filter((id) => {
+        const type = entityTypeById.get(id);
+        return type?.id.startsWith('custom_') && type.regex_pattern;
+      }),
+    [preset.selectedEntityTypeIds, entityTypeById],
   );
   const selectedSemanticTypes = useMemo(
     () =>
       preset.selectedEntityTypeIds.filter((id) => {
-        const et = entityTypes.find((type) => type.id === id);
+        const et = entityTypeById.get(id);
         return et && et.use_llm && !et.regex_pattern;
       }),
-    [preset.selectedEntityTypeIds, entityTypes],
+    [preset.selectedEntityTypeIds, entityTypeById],
   );
 
   return (
     <div className="space-y-2 border-t px-2 pb-3 pt-2">
-      {presetAppliesText(preset) && selectedRegexTypes.length > 0 && (
+      {showText && selectedRegexTypes.length > 0 && (
         <div>
           <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
             {t('settings.redaction.regexGroup')} ({selectedRegexTypes.length})
           </p>
           <div className={presetPreviewChipGridClass}>
-            {selectedRegexTypes.map((id) => (
-              <span
-                key={id}
-                className={cn(presetPreviewChipClass, 'truncate')}
-                title={entityTypes.find((type) => type.id === id)?.name ?? id}
-              >
-                {entityTypes.find((type) => type.id === id)?.name ?? id}
-              </span>
-            ))}
+            {selectedRegexTypes.map((id) => {
+              const type = entityTypeById.get(id);
+              const label = type ? localizeRecognitionTypeName(type, t) : id;
+              return (
+                <span key={id} className={cn(presetPreviewChipClass, 'truncate')} title={label}>
+                  {label}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {presetAppliesText(preset) && selectedSemanticTypes.length > 0 && (
+      {showText && selectedSemanticTypes.length > 0 && (
         <div>
           <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
             {t('settings.redaction.semanticGroup')} ({selectedSemanticTypes.length})
           </p>
           <div className={presetPreviewChipGridClass}>
-            {selectedSemanticTypes.map((id) => (
-              <span
-                key={id}
-                className={cn(presetPreviewChipClass, 'truncate')}
-                title={entityTypes.find((type) => type.id === id)?.name ?? id}
-              >
-                {entityTypes.find((type) => type.id === id)?.name ?? id}
-              </span>
-            ))}
+            {selectedSemanticTypes.map((id) => {
+              const type = entityTypeById.get(id);
+              const label = type ? localizeRecognitionTypeName(type, t) : id;
+              return (
+                <span key={id} className={cn(presetPreviewChipClass, 'truncate')} title={label}>
+                  {label}
+                </span>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {presetAppliesVision(preset) && (
+      {showVision && (
         <>
           {preset.ocrHasTypes.length > 0 && (
             <div>
@@ -202,15 +262,15 @@ function PresetPreview({
                 {t('settings.redaction.ocrGroup')} ({preset.ocrHasTypes.length})
               </p>
               <div className={presetPreviewChipGridClass}>
-                {preset.ocrHasTypes.map((id) => (
-                  <span
-                    key={id}
-                    className={cn(presetPreviewChipClass, 'truncate')}
-                    title={ocrPipeline?.types.find((type) => type.id === id)?.name ?? id}
-                  >
-                    {ocrPipeline?.types.find((type) => type.id === id)?.name ?? id}
-                  </span>
-                ))}
+                {preset.ocrHasTypes.map((id) => {
+                  const type = ocrTypeById.get(id);
+                  const label = type ? localizeRecognitionTypeName(type, t) : id;
+                  return (
+                    <span key={id} className={cn(presetPreviewChipClass, 'truncate')} title={label}>
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -220,15 +280,33 @@ function PresetPreview({
                 {t('settings.redaction.imageGroup')} ({preset.hasImageTypes.length})
               </p>
               <div className={presetPreviewChipGridClass}>
-                {preset.hasImageTypes.map((id) => (
-                  <span
-                    key={id}
-                    className={cn(presetPreviewChipClass, 'truncate')}
-                    title={imagePipeline?.types.find((type) => type.id === id)?.name ?? id}
-                  >
-                    {imagePipeline?.types.find((type) => type.id === id)?.name ?? id}
-                  </span>
-                ))}
+                {preset.hasImageTypes.map((id) => {
+                  const type = imageTypeById.get(id);
+                  const label = type ? localizeRecognitionTypeName(type, t) : id;
+                  return (
+                    <span key={id} className={cn(presetPreviewChipClass, 'truncate')} title={label}>
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {(preset.vlmTypes ?? []).length > 0 && (
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                {t('settings.redaction.vlmGroup')} ({(preset.vlmTypes ?? []).length})
+              </p>
+              <div className={presetPreviewChipGridClass}>
+                {(preset.vlmTypes ?? []).map((id) => {
+                  const type = vlmTypeById.get(id);
+                  const label = type ? localizeRecognitionTypeName(type, t) : id;
+                  return (
+                    <span key={id} className={cn(presetPreviewChipClass, 'truncate')} title={label}>
+                      {label}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}

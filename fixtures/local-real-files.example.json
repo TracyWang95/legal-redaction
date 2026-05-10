@@ -1,0 +1,20 @@
+{
+  "files": [
+    {
+      "id": "docx_a",
+      "path": "../local-private-eval/sample-a.docx"
+    },
+    {
+      "id": "docx_b",
+      "path": "../local-private-eval/sample-b.docx"
+    },
+    {
+      "id": "contract_pdf",
+      "path": "../local-private-eval/sample-contract.pdf"
+    },
+    {
+      "id": "sample_image",
+      "path": "../local-private-eval/sample-image.png"
+    }
+  ]
+}

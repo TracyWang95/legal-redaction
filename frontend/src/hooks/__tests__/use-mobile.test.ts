@@ -37,7 +37,7 @@ describe('useIsMobile', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns true when viewport is below 768px', () => {
+  it('returns true when viewport is below 1024px', () => {
     setViewportWidth(500);
     stubMatchMedia(true);
 
@@ -45,7 +45,7 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(true);
   });
 
-  it('returns false when viewport is 768px or above', () => {
+  it('returns false when viewport is 1024px or above', () => {
     setViewportWidth(1024);
     stubMatchMedia(false);
 
@@ -53,16 +53,16 @@ describe('useIsMobile', () => {
     expect(result.current).toBe(false);
   });
 
-  it('returns false at exactly 768px', () => {
-    setViewportWidth(768);
+  it('returns false at exactly 1024px', () => {
+    setViewportWidth(1024);
     stubMatchMedia(false);
 
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(false);
   });
 
-  it('returns true at 767px (just below breakpoint)', () => {
-    setViewportWidth(767);
+  it('returns true at 1023px (just below breakpoint)', () => {
+    setViewportWidth(1023);
     stubMatchMedia(true);
 
     const { result } = renderHook(() => useIsMobile());

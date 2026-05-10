@@ -9,12 +9,22 @@ import { t } from '@/i18n';
 import { TEST_BUTTON_MIN_SPIN_MS } from '@/constants/timing';
 import { useServiceHealth } from '@/hooks/use-service-health';
 
-function normalizeServiceLive(status: 'online' | 'offline' | 'checking' | undefined) {
+export const DEFAULT_NER_BACKEND_URL = 'http://127.0.0.1:8080/v1';
+
+function normalizeServiceLive(
+  status: 'online' | 'offline' | 'checking' | 'busy' | 'degraded' | undefined,
+) {
   return status === 'online' || status === 'offline' ? status : undefined;
 }
 
+export function normalizeNerBackendUrl(value: unknown): string {
+  if (!value || typeof value !== 'object') return DEFAULT_NER_BACKEND_URL;
+  const rawUrl = (value as { llamacpp_base_url?: unknown }).llamacpp_base_url;
+  return typeof rawUrl === 'string' && rawUrl.trim() ? rawUrl : DEFAULT_NER_BACKEND_URL;
+}
+
 export function useNerBackend() {
-  const [llamacppBaseUrl, setLlamacppBaseUrl] = useState('http://127.0.0.1:8080/v1');
+  const [llamacppBaseUrl, setLlamacppBaseUrl] = useState(DEFAULT_NER_BACKEND_URL);
   const [nerLoading, setNerLoading] = useState(true);
   const [nerSaving, setNerSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -27,8 +37,8 @@ export function useNerBackend() {
       setNerLoading(true);
       const res = await fetchWithTimeout('/api/v1/ner-backend', { timeoutMs: 25000 });
       if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      setLlamacppBaseUrl(data.llamacpp_base_url || 'http://127.0.0.1:8080/v1');
+      const data = await res.json().catch(() => ({}));
+      setLlamacppBaseUrl(normalizeNerBackendUrl(data));
     } catch (e) {
       if (import.meta.env.DEV) console.error('fetch NER config failed', e);
     } finally {
@@ -172,9 +182,10 @@ interface ModelConfigList {
 interface BuiltinServiceLive {
   paddle?: 'online' | 'offline';
   has_image?: 'online' | 'offline';
+  vlm?: 'online' | 'offline';
 }
 
-export const BUILTIN_VISION_IDS = new Set(['paddle_ocr_service', 'has_image_service']);
+export const BUILTIN_VISION_IDS = new Set(['paddle_ocr_service', 'has_image_service', 'vlm_service']);
 
 export const DEFAULT_MODEL_FORM: Partial<ModelConfig> = {
   provider: 'local',
@@ -192,6 +203,7 @@ export function useVisionModelConfig() {
   const [loading, setLoading] = useState(true);
   const [builtinLive, setBuiltinLive] = useState<BuiltinServiceLive | null>(null);
   const [testingModelId, setTestingModelId] = useState<string | null>(null);
+  const [settingActiveModelId, setSettingActiveModelId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const { health } = useServiceHealth();
 
@@ -226,6 +238,7 @@ export function useVisionModelConfig() {
     setBuiltinLive({
       paddle: normalizeServiceLive(health?.services?.paddle_ocr?.status),
       has_image: normalizeServiceLive(health?.services?.has_image?.status),
+      vlm: normalizeServiceLive(health?.services?.vlm?.status),
     });
   }, [health]);
 
@@ -302,10 +315,37 @@ export function useVisionModelConfig() {
     if (res.ok) await fetchModelConfigs();
   }, [fetchModelConfigs]);
 
+  const setActiveModelConfig = useCallback(
+    async (configId: string) => {
+      setSettingActiveModelId(configId);
+      try {
+        const res = await authFetch(`/api/v1/model-config/active/${configId}`, { method: 'POST' });
+        if (res.ok) {
+          await fetchModelConfigs();
+          return true;
+        }
+        const data = await res.json().catch(() => ({}));
+        showToast(
+          (data as { detail?: string }).detail || t('settings.visionModel.setActiveFailed'),
+          'error',
+        );
+        return false;
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('set active model config failed', err);
+        showToast(t('settings.visionModel.setActiveFailed'), 'error');
+        return false;
+      } finally {
+        setSettingActiveModelId(null);
+      }
+    },
+    [fetchModelConfigs],
+  );
+
   const liveForBuiltin = useCallback(
     (configId: string): 'online' | 'offline' | undefined => {
       if (configId === 'paddle_ocr_service') return builtinLive?.paddle;
       if (configId === 'has_image_service') return builtinLive?.has_image;
+      if (configId === 'vlm_service') return builtinLive?.vlm;
       return undefined;
     },
     [builtinLive],
@@ -329,11 +369,13 @@ export function useVisionModelConfig() {
     loading,
     builtinLive,
     testingModelId,
+    settingActiveModelId,
     testResult,
     saveModelConfig,
     deleteModelConfig,
     testModelConfig,
     resetModelConfigs,
+    setActiveModelConfig,
     liveForBuiltin,
     getProviderLabel,
   };

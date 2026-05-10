@@ -18,11 +18,13 @@ export interface PlaygroundDataContextValue {
   visibleBoxes: PlaygroundContextValue['visibleBoxes'];
   isLoading: PlaygroundContextValue['isLoading'];
   loadingMessage: PlaygroundContextValue['loadingMessage'];
-  loadingElapsedSec: PlaygroundContextValue['loadingElapsedSec'];
+  uploadIssue: PlaygroundContextValue['uploadIssue'];
+  recognitionIssue: PlaygroundContextValue['recognitionIssue'];
   entityMap: PlaygroundContextValue['entityMap'];
   redactedCount: PlaygroundContextValue['redactedCount'];
   redactionReport: PlaygroundContextValue['redactionReport'];
   reportOpen: PlaygroundContextValue['reportOpen'];
+  resetConfirmOpen: PlaygroundContextValue['resetConfirmOpen'];
   versionHistory: PlaygroundContextValue['versionHistory'];
   versionHistoryOpen: PlaygroundContextValue['versionHistoryOpen'];
   selectedCount: PlaygroundContextValue['selectedCount'];
@@ -32,6 +34,7 @@ export interface PlaygroundDataContextValue {
   imageHistory: PlaygroundContextValue['imageHistory'];
   imageUrl: PlaygroundContextValue['imageUrl'];
   redactedImageUrl: PlaygroundContextValue['redactedImageUrl'];
+  redactedImageError: PlaygroundContextValue['redactedImageError'];
   currentPage: PlaygroundContextValue['currentPage'];
   totalPages: PlaygroundContextValue['totalPages'];
   recognition: PlaygroundContextValue['recognition'];
@@ -53,7 +56,10 @@ export interface PlaygroundActionsContextValue {
   removeEntity: PlaygroundContextValue['removeEntity'];
   handleRerunNer: PlaygroundContextValue['handleRerunNer'];
   handleRedact: PlaygroundContextValue['handleRedact'];
+  cancelProcessing: PlaygroundContextValue['cancelProcessing'];
   handleReset: PlaygroundContextValue['handleReset'];
+  confirmReset: PlaygroundContextValue['confirmReset'];
+  cancelReset: PlaygroundContextValue['cancelReset'];
   handleDownload: PlaygroundContextValue['handleDownload'];
   mergeVisibleBoxes: PlaygroundContextValue['mergeVisibleBoxes'];
   setCurrentPage: PlaygroundContextValue['setCurrentPage'];
@@ -89,11 +95,13 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       visibleBoxes: ctx.visibleBoxes,
       isLoading: ctx.isLoading,
       loadingMessage: ctx.loadingMessage,
-      loadingElapsedSec: ctx.loadingElapsedSec,
+      uploadIssue: ctx.uploadIssue,
+      recognitionIssue: ctx.recognitionIssue,
       entityMap: ctx.entityMap,
       redactedCount: ctx.redactedCount,
       redactionReport: ctx.redactionReport,
       reportOpen: ctx.reportOpen,
+      resetConfirmOpen: ctx.resetConfirmOpen,
       versionHistory: ctx.versionHistory,
       versionHistoryOpen: ctx.versionHistoryOpen,
       selectedCount: ctx.selectedCount,
@@ -103,6 +111,7 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       imageHistory: ctx.imageHistory,
       imageUrl: ctx.imageUrl,
       redactedImageUrl: ctx.redactedImageUrl,
+      redactedImageError: ctx.redactedImageError,
       currentPage: ctx.currentPage,
       totalPages: ctx.totalPages,
       recognition: ctx.recognition,
@@ -118,11 +127,13 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ctx.visibleBoxes,
       ctx.isLoading,
       ctx.loadingMessage,
-      ctx.loadingElapsedSec,
+      ctx.uploadIssue,
+      ctx.recognitionIssue,
       ctx.entityMap,
       ctx.redactedCount,
       ctx.redactionReport,
       ctx.reportOpen,
+      ctx.resetConfirmOpen,
       ctx.versionHistory,
       ctx.versionHistoryOpen,
       ctx.selectedCount,
@@ -132,6 +143,7 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ctx.imageHistory,
       ctx.imageUrl,
       ctx.redactedImageUrl,
+      ctx.redactedImageError,
       ctx.currentPage,
       ctx.totalPages,
       ctx.recognition,
@@ -155,7 +167,10 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       removeEntity: ctx.removeEntity,
       handleRerunNer: ctx.handleRerunNer,
       handleRedact: ctx.handleRedact,
+      cancelProcessing: ctx.cancelProcessing,
       handleReset: ctx.handleReset,
+      confirmReset: ctx.confirmReset,
+      cancelReset: ctx.cancelReset,
       handleDownload: ctx.handleDownload,
       mergeVisibleBoxes: ctx.mergeVisibleBoxes,
       setCurrentPage: ctx.setCurrentPage,
@@ -176,7 +191,10 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ctx.removeEntity,
       ctx.handleRerunNer,
       ctx.handleRedact,
+      ctx.cancelProcessing,
       ctx.handleReset,
+      ctx.confirmReset,
+      ctx.cancelReset,
       ctx.handleDownload,
       ctx.mergeVisibleBoxes,
       ctx.setCurrentPage,
@@ -185,8 +203,27 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
   );
 
   // Keep UI context reference stable across unrelated state changes.
-  const uiValue = useMemo(
-    () => ui,
+  const uiValue = useMemo<PlaygroundUIContextValue>(
+    () => ({
+      selectedText: ui.selectedText,
+      selectionPos: ui.selectionPos,
+      selectedTypeId: ui.selectedTypeId,
+      setSelectedTypeId: ui.setSelectedTypeId,
+      selectedOverlapIds: ui.selectedOverlapIds,
+      clickedEntity: ui.clickedEntity,
+      setClickedEntity: ui.setClickedEntity,
+      entityPopupPos: ui.entityPopupPos,
+      setEntityPopupPos: ui.setEntityPopupPos,
+      contentRef: ui.contentRef,
+      textScrollRef: ui.textScrollRef,
+      clearTextSelection: ui.clearTextSelection,
+      handleTextSelect: ui.handleTextSelect,
+      addManualEntity: ui.addManualEntity,
+      removeSelectedEntities: ui.removeSelectedEntities,
+      handleEntityClick: ui.handleEntityClick,
+      getTypeConfig: ui.getTypeConfig,
+      confirmRemoveEntity: ui.confirmRemoveEntity,
+    }),
     [
       ui.selectedText,
       ui.selectionPos,
@@ -204,6 +241,7 @@ export const PlaygroundProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ui.addManualEntity,
       ui.removeSelectedEntities,
       ui.handleEntityClick,
+      ui.getTypeConfig,
       ui.confirmRemoveEntity,
     ],
   );

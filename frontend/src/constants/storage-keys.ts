@@ -8,6 +8,8 @@ export const STORAGE_KEYS = {
   ONBOARDING_COMPLETED: 'onboarding_completed',
   OCR_HAS_TYPES: 'ocrHasTypes',
   HAS_IMAGE_TYPES: 'hasImageTypes',
+  VLM_TYPES: 'vlmTypes',
+  VISION_SELECTION_SIGNATURE: 'datainfraRedaction:visionSelectionSignature',
   ACTIVE_PRESET_TEXT_ID: 'datainfraRedaction:activePresetTextId',
   ACTIVE_PRESET_TEXT_ID_LEGACY: 'legalRedaction:activePresetTextId',
   ACTIVE_PRESET_VISION_ID: 'datainfraRedaction:activePresetVisionId',

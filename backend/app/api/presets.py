@@ -1,6 +1,6 @@
 """
 识别配置预设（Preset）API — 路由层（thin wrapper）
-供 Playground / 批量向导 / 识别项配置页 共用同一套「识别类型 + 替换模式」组合。
+供单文件处理 / 批量向导 / 识别项配置页共用同一套「识别类型 + 替换模式」组合。
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -45,6 +45,8 @@ async def create_preset(body: PresetCreate):
 
 @router.put("/presets/{preset_id}", response_model=PresetOut)
 async def update_preset(preset_id: str, body: PresetUpdate):
+    if preset_service.is_builtin(preset_id):
+        raise HTTPException(status_code=403, detail="内置预设为只读，不能修改")
     result = preset_service.update(preset_id, body)
     if result is None:
         raise HTTPException(status_code=404, detail="预设不存在")
@@ -53,6 +55,8 @@ async def update_preset(preset_id: str, body: PresetUpdate):
 
 @router.delete("/presets/{preset_id}")
 async def delete_preset(preset_id: str):
+    if preset_service.is_builtin(preset_id):
+        raise HTTPException(status_code=403, detail="内置预设为只读，不能删除")
     if not preset_service.delete(preset_id):
         raise HTTPException(status_code=404, detail="预设不存在")
     return {"ok": True}

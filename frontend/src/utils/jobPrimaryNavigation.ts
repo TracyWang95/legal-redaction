@@ -9,6 +9,52 @@ export type PrimaryNavAction =
 
 type BatchRouteMode = 'text' | 'image' | 'smart';
 
+export type JobPrimaryNavigationLabels = {
+  continueConfig: string;
+  continueUpload: string;
+  continueRecognize: string;
+  continueReview: string;
+  continueExport: string;
+  viewProgress: string;
+  downloadRedactedResult: string;
+  taskFailed: string;
+  viewFailureDetail: string;
+  taskCancelled: string;
+  viewDetail: string;
+};
+
+export const DEFAULT_JOB_PRIMARY_NAVIGATION_LABELS: JobPrimaryNavigationLabels = {
+  continueConfig: 'Continue config',
+  continueUpload: 'Continue upload',
+  continueRecognize: 'Continue recognition',
+  continueReview: 'Continue review',
+  continueExport: 'Continue export',
+  viewProgress: 'View progress',
+  downloadRedactedResult: 'Download redacted result',
+  taskFailed: 'Task failed',
+  viewFailureDetail: 'View failure detail',
+  taskCancelled: 'Task cancelled and cannot be edited',
+  viewDetail: 'View detail',
+};
+
+export function buildJobPrimaryNavigationLabels(
+  t: (key: string) => string,
+): JobPrimaryNavigationLabels {
+  return {
+    continueConfig: t('jobNav.continueConfig'),
+    continueUpload: t('jobNav.continueUpload'),
+    continueRecognize: t('jobNav.continueRecognize'),
+    continueReview: t('jobNav.continueReview'),
+    continueExport: t('jobNav.continueExport'),
+    viewProgress: t('jobNav.viewProgress'),
+    downloadRedactedResult: t('jobNav.downloadRedactedResult'),
+    taskFailed: t('jobNav.taskFailed'),
+    viewFailureDetail: t('jobNav.viewFailureDetail'),
+    taskCancelled: t('jobNav.taskCancelled'),
+    viewDetail: t('jobNav.viewDetail'),
+  };
+}
+
 export type JobNavHints = {
   item_count: number;
   first_awaiting_review_item_id?: string | null;
@@ -120,12 +166,15 @@ export function effectiveWizardFurthestStep(input: {
   return Math.max(...candidates) as 1 | 2 | 3 | 4 | 5;
 }
 
-function buildDraftStepLabel(step: 1 | 2 | 3 | 4 | 5): string {
-  if (step === 1) return '继续配置';
-  if (step === 2) return '继续上传';
-  if (step === 3) return '继续识别';
-  if (step === 4) return '继续审阅';
-  return '继续导出';
+function buildDraftStepLabel(
+  step: 1 | 2 | 3 | 4 | 5,
+  labels: JobPrimaryNavigationLabels,
+): string {
+  if (step === 1) return labels.continueConfig;
+  if (step === 2) return labels.continueUpload;
+  if (step === 3) return labels.continueRecognize;
+  if (step === 4) return labels.continueReview;
+  return labels.continueExport;
 }
 
 function fixDraftEmptyBatchWorkbenchLink(input: {
@@ -136,8 +185,10 @@ function fixDraftEmptyBatchWorkbenchLink(input: {
   jobConfig?: Record<string, unknown> | null;
   navHints?: JobNavHints | null;
   nav: PrimaryNavAction;
+  labels?: JobPrimaryNavigationLabels;
 }): PrimaryNavAction {
   const { jobId, status, jobType, itemCount, jobConfig, navHints, nav } = input;
+  const labels = input.labels ?? DEFAULT_JOB_PRIMARY_NAVIGATION_LABELS;
   if (nav.kind !== 'link') return nav;
   if (status !== 'draft' || itemCount !== 0 || !nav.to.includes('step=1')) return nav;
   const step = effectiveWizardFurthestStep({ jobConfig, navHints, jobType });
@@ -145,7 +196,7 @@ function fixDraftEmptyBatchWorkbenchLink(input: {
   const nextStep = Math.min(5, Math.max(2, step)) as 2 | 3 | 4 | 5;
   return {
     kind: 'link',
-    label: buildDraftStepLabel(nextStep),
+    label: buildDraftStepLabel(nextStep, labels),
     to: buildBatchWorkbenchUrl(jobId, jobType, nextStep, undefined, jobConfig),
   };
 }
@@ -158,6 +209,7 @@ export function coerceDraftEmptyBatchPrimaryNav(input: {
   jobConfig?: Record<string, unknown> | null;
   navHints?: JobNavHints | null;
   nav: PrimaryNavAction;
+  labels?: JobPrimaryNavigationLabels;
 }): PrimaryNavAction {
   return fixDraftEmptyBatchWorkbenchLink(input);
 }
@@ -170,8 +222,10 @@ export function resolveJobPrimaryNavigation(input: {
   currentPage?: 'job_detail' | 'other';
   navHints?: JobNavHints | null;
   jobConfig?: Record<string, unknown> | null;
+  labels?: JobPrimaryNavigationLabels;
 }): PrimaryNavAction {
   const { jobId, status, jobType, items, currentPage, navHints, jobConfig } = input;
+  const labels = input.labels ?? DEFAULT_JOB_PRIMARY_NAVIGATION_LABELS;
   const itemCount = navHints?.item_count ?? items.length;
   const firstAwaiting =
     items.find((item) => item.status === 'awaiting_review')?.id ??
@@ -186,7 +240,7 @@ export function resolveJobPrimaryNavigation(input: {
         const nextStep: 1 | 2 = step != null && step >= 2 ? 2 : 1;
         action = {
           kind: 'link',
-          label: buildDraftStepLabel(nextStep),
+          label: buildDraftStepLabel(nextStep, labels),
           to: buildBatchWorkbenchUrl(jobId, jobType, nextStep, undefined, jobConfig),
         };
         break;
@@ -194,7 +248,7 @@ export function resolveJobPrimaryNavigation(input: {
       const nextStep = Math.min(5, Math.max(2, step ?? 2)) as 2 | 3 | 4 | 5;
       action = {
         kind: 'link',
-        label: buildDraftStepLabel(nextStep),
+        label: buildDraftStepLabel(nextStep, labels),
         to: buildBatchWorkbenchUrl(jobId, jobType, nextStep, undefined, jobConfig),
       };
       break;
@@ -205,41 +259,45 @@ export function resolveJobPrimaryNavigation(input: {
     case 'redacting':
       action = {
         kind: 'link',
-        label: '查看进度',
+        label: labels.viewProgress,
         to: buildBatchWorkbenchUrl(jobId, jobType, 3, undefined, jobConfig),
       };
       break;
     case 'awaiting_review':
       action = {
         kind: 'link',
-        label: '继续审阅',
+        label: labels.continueReview,
         to: buildBatchWorkbenchUrl(jobId, jobType, 4, firstAwaiting, jobConfig),
       };
       break;
     case 'completed':
       action = {
         kind: 'link',
-        label: '下载脱敏结果',
+        label: labels.downloadRedactedResult,
         to: `/history?source=batch&jobId=${encodeURIComponent(jobId)}`,
       };
       break;
     case 'failed':
       action =
         currentPage === 'job_detail'
-          ? { kind: 'none', reason: '任务已失败' }
-          : { kind: 'link', label: '查看失败详情', to: `/jobs/${encodeURIComponent(jobId)}` };
+          ? { kind: 'none', reason: labels.taskFailed }
+          : {
+              kind: 'link',
+              label: labels.viewFailureDetail,
+              to: `/jobs/${encodeURIComponent(jobId)}`,
+            };
       break;
     case 'cancelled':
       action =
         currentPage === 'job_detail'
-          ? { kind: 'none', reason: '任务已取消，不可编辑' }
-          : { kind: 'link', label: '查看详情', to: `/jobs/${encodeURIComponent(jobId)}` };
+          ? { kind: 'none', reason: labels.taskCancelled }
+          : { kind: 'link', label: labels.viewDetail, to: `/jobs/${encodeURIComponent(jobId)}` };
       break;
     default:
       action =
         currentPage === 'job_detail'
           ? { kind: 'none' }
-          : { kind: 'link', label: '查看详情', to: `/jobs/${encodeURIComponent(jobId)}` };
+          : { kind: 'link', label: labels.viewDetail, to: `/jobs/${encodeURIComponent(jobId)}` };
   }
 
   return fixDraftEmptyBatchWorkbenchLink({
@@ -250,5 +308,6 @@ export function resolveJobPrimaryNavigation(input: {
     jobConfig,
     navHints,
     nav: action,
+    labels,
   });
 }

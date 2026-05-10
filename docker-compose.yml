@@ -1,11 +1,16 @@
-# DataInfra-RedactionEverything  —  Docker Compose
-# -----------------------------------------------------------
-# CPU-only (default):   docker compose up -d
-# With GPU services:    docker compose --profile gpu up -d
-# -----------------------------------------------------------
+# DataInfra-RedactionEverything Docker Compose
+#
+# Default startup:
+#   docker compose up -d
+# Starts only the lightweight backend and frontend services.
+#
+# Optional GPU/model services:
+#   docker compose --profile gpu up -d
+# GPU-backed OCR, text NER, and vision services stay isolated behind the
+# "gpu" profile and are not part of the default open-source startup path.
 
 services:
-  # ── FastAPI 后端 ──────────────────────────────────────────
+  # FastAPI backend
   backend:
     build:
       context: ./backend
@@ -49,7 +54,7 @@ services:
         max-file: "5"
     restart: unless-stopped
 
-  # ── React 前端（Nginx）──────────────────────────────────
+  # React frontend served by nginx
   frontend:
     build:
       context: ./frontend
@@ -74,7 +79,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── PaddleOCR-VL 微服务（端口 8082）— GPU ──────────────
+  # Optional GPU OCR service
   ocr:
     build:
       context: ./backend
@@ -107,7 +112,7 @@ services:
       - gpu
     restart: unless-stopped
 
-  # ── HaS Text NER（llama-server，端口 8080）— GPU ────────
+  # Optional GPU text NER service
   ner:
     image: ghcr.io/ggerganov/llama.cpp:server
     ports:
@@ -145,7 +150,7 @@ services:
       - gpu
     restart: unless-stopped
 
-  # ── HaS Image YOLO 微服务（端口 8081）— GPU ────────────
+  # Optional GPU vision service
   vision:
     build:
       context: ./backend
@@ -180,13 +185,11 @@ services:
       - gpu
     restart: unless-stopped
 
-# ── 持久化卷 ───────────────────────────────────────────────
 volumes:
   backend-data:
   backend-uploads:
   backend-outputs:
 
-# ── 网络 ───────────────────────────────────────────────────
 networks:
   redaction-net:
     driver: bridge

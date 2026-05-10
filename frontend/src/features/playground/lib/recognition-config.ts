@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { t } from '@/i18n';
+import { isHasImageModelTypeId } from '@/services/defaultRedactionPreset';
+import { getStorageItem, setStorageItem } from '@/lib/storage';
+import { buildDefaultPipelineTypeIds } from '@/services/defaultRedactionPreset';
 import type { SelectionTone } from '@/ui/selectionPalette';
 import type { EntityTypeConfig, PipelineConfig, VisionTypeConfig } from '../types';
 
@@ -20,11 +23,70 @@ const entityNameCollator = new Intl.Collator('zh-Hans-CN', {
   sensitivity: 'base',
 });
 
+const RECOGNITION_CONFIG_CACHE_VERSION = 1;
+const RECOGNITION_CONFIG_CACHE_TTL_MS = 10 * 60 * 1000;
+const RECOGNITION_CONFIG_CACHE_KEY = 'datainfraRedaction:recognitionConfigCache';
+
+type CachedConfigPayload = {
+  version: number;
+  savedAt: number;
+  entityTypes: EntityTypeConfig[];
+  pipelines: PipelineConfig[];
+};
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const isRecognitionPayload = (value: unknown): value is CachedConfigPayload => {
+  if (!isObject(value)) return false;
+  if (value.version !== RECOGNITION_CONFIG_CACHE_VERSION) return false;
+  if (typeof value.savedAt !== 'number' || value.savedAt <= 0) return false;
+  if (!Array.isArray(value.entityTypes) || !Array.isArray(value.pipelines)) return false;
+  return true;
+};
+
+export interface CachedRecognitionConfig {
+  entityTypes: EntityTypeConfig[];
+  pipelines: PipelineConfig[];
+}
+
+export function getCachedRecognitionConfig(): CachedRecognitionConfig | null {
+  const cached = getStorageItem<unknown>(RECOGNITION_CONFIG_CACHE_KEY, null);
+  if (!isRecognitionPayload(cached)) return null;
+
+  if (Date.now() - cached.savedAt > RECOGNITION_CONFIG_CACHE_TTL_MS) {
+    return null;
+  }
+
+  return {
+    entityTypes: cached.entityTypes,
+    pipelines: cached.pipelines,
+  };
+}
+
+export function updateRecognitionConfigCache(payload: Partial<CachedRecognitionConfig>): void {
+  const cached = getCachedRecognitionConfig();
+  setStorageItem(RECOGNITION_CONFIG_CACHE_KEY, {
+    version: RECOGNITION_CONFIG_CACHE_VERSION,
+    savedAt: Date.now(),
+    entityTypes: payload.entityTypes ?? cached?.entityTypes ?? [],
+    pipelines: payload.pipelines ?? cached?.pipelines ?? [],
+  });
+}
+
+export function buildVisionSelectionSignature(pipelines: PipelineConfig[]): string {
+  return JSON.stringify({
+    ocrHas: buildDefaultPipelineTypeIds(pipelines, 'ocr_has'),
+    hasImage: buildDefaultPipelineTypeIds(pipelines, 'has_image'),
+    vlm: buildDefaultPipelineTypeIds(pipelines, 'vlm'),
+  });
+}
+
 export function sortEntityTypes(types: EntityTypeConfig[]): EntityTypeConfig[] {
   return [...types].sort((left, right) => {
     const leftRegex = left.regex_pattern ? 1 : 0;
     const rightRegex = right.regex_pattern ? 1 : 0;
-    if (leftRegex !== rightRegex) return rightRegex - leftRegex;
+    if (leftRegex !== rightRegex) return leftRegex - rightRegex;
     return entityNameCollator.compare(left.name, right.name);
   });
 }
@@ -33,22 +95,20 @@ export function buildPlaygroundTextGroups(types: EntityTypeConfig[]): Playground
   const regexTypes = types.filter((type) => Boolean(type.regex_pattern));
   const semanticTypes = types.filter((type) => !type.regex_pattern);
 
-  const groups: PlaygroundTextGroup[] = [
-    {
-      key: 'regex',
-      label: t('playground.group.regex'),
-      tone: 'regex',
-      types: regexTypes,
-    },
+  return [
     {
       key: 'semantic',
       label: t('playground.group.semantic'),
       tone: 'semantic',
       types: semanticTypes,
     },
+    {
+      key: 'regex',
+      label: t('playground.group.regex'),
+      tone: 'regex',
+      types: regexTypes,
+    },
   ];
-
-  return groups.filter((group) => group.types.length > 0);
 }
 
 export function normalizeVisionPipelines(pipelines: PipelineConfig[]): PipelineConfig[] {
@@ -56,14 +116,29 @@ export function normalizeVisionPipelines(pipelines: PipelineConfig[]): PipelineC
     .filter((pipeline) => pipeline.enabled)
     .map((pipeline) => ({
       ...pipeline,
-      name: pipeline.mode === 'has_image' ? t('settings.pipelineDisplayName.image') : pipeline.name,
+      name:
+        pipeline.mode === 'has_image'
+          ? t('settings.pipelineDisplayName.image')
+          : pipeline.mode === 'ocr_has'
+            ? t('settings.pipelineDisplayName.ocr')
+            : pipeline.mode === 'vlm'
+              ? t('settings.pipelineDisplayName.vlm')
+            : pipeline.name,
       description:
         pipeline.mode === 'has_image'
           ? t('settings.pipelineDescription.image')
+          : pipeline.mode === 'ocr_has'
+            ? t('settings.pipelineDescription.ocr')
+            : pipeline.mode === 'vlm'
+              ? t('settings.pipelineDescription.vlm')
           : pipeline.description,
-      types: pipeline.types.filter((type) => type.enabled),
-    }))
-    .filter((pipeline) => pipeline.types.length > 0);
+      types: pipeline.types.filter(
+        (type) =>
+          pipeline.mode === 'has_image'
+            ? isHasImageModelTypeId(type.id)
+            : type.enabled,
+      ),
+    }));
 }
 
 export function flattenVisionTypes(pipelines: PipelineConfig[]): VisionTypeConfig[] {

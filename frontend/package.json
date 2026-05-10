@@ -1,10 +1,10 @@
 {
   "name": "datainfra-redaction-everything-frontend",
   "version": "1.0.0",
-  "description": "DataInfra-RedactionEverything 前端：本地匿名化与脱敏工作台",
+  "description": "DataInfra-RedactionEverything frontend workbench for local redaction workflows",
   "type": "module",
   "engines": {
-    "node": ">=20 <24"
+    "node": ">=20 <25"
   },
   "scripts": {
     "dev": "vite",

@@ -44,7 +44,7 @@ async def execute_redaction(
 
     根据提供的实体列表和配置，对文档进行匿名化处理:
     - 文本类文档: 替换敏感文本
-    - 图片类文档: 添加黑色遮罩
+    - 图片类文档: 对敏感区域执行马赛克、模糊或纯色遮罩
     """
     cached = check_idempotency(x_idempotency_key)
     if cached is not None:
@@ -120,12 +120,15 @@ async def get_redaction_versions(file_id: str):
 async def detect_sensitive_regions(
     file_id: str,
     page: int = 1,
+    force: bool = False,
+    include_result_image: bool = True,
     request: VisionDetectRequest | None = None,
 ):
     """
     对图片/扫描件进行视觉识别
 
-    并行：OCR + HaS（文字）与 HaS Image（8081 YOLO，21 类隐私区域），合并去重。
+    OCR + HaS（文字）与 HaS Image（8081 YOLO，21 类隐私区域）双路识别，
+    由后端配置决定顺序或并行调度，最终合并去重。
     """
     try:
         return await _orch.detect_vision(
@@ -133,7 +136,10 @@ async def detect_sensitive_regions(
             page=page,
             selected_ocr_has_types=request.selected_ocr_has_types if request else None,
             selected_has_image_types=request.selected_has_image_types if request else None,
+            selected_vlm_types=request.selected_vlm_types if request else None,
             has_request=request is not None,
+            force=force,
+            include_result_image=include_result_image,
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))

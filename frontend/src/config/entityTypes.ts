@@ -31,6 +31,38 @@ export const ENTITY_FALLBACK_STYLE = {
   textColor: '#075985',
 } as const;
 
+const ENTITY_TYPE_ALIASES: Record<string, string> = {
+  DRIVER_LICENSE: 'ID_CARD',
+  MILITARY_ID: 'ID_CARD',
+  QQ_WECHAT_ID: 'USERNAME_PASSWORD',
+  PAYMENT_ACCOUNT: 'BANK_ACCOUNT',
+  MONEY: 'AMOUNT',
+  MAC_ADDRESS: 'DEVICE_ID',
+  URL: 'URL_WEBSITE',
+  WEBSITE: 'URL_WEBSITE',
+  LINK: 'URL_WEBSITE',
+  DATETIME: 'DATE',
+  DATE_TIME: 'DATE',
+  BIRTH_DATE: 'DATE',
+  RACE_ETHNICITY: 'ETHNICITY',
+  COMPANY: 'COMPANY_NAME',
+  CONTRACT_ID: 'CASE_NUMBER',
+  CONTRACT_NO: 'CASE_NUMBER',
+  CONTRACT_NUMBER: 'CASE_NUMBER',
+  MEDICAL_RECORD: 'HEALTH_INFO',
+  LEGAL_PARTY: 'PERSON',
+  LAWYER: 'PERSON',
+  JUDGE: 'PERSON',
+  WITNESS: 'PERSON',
+  seal: 'official_seal',
+  stamp: 'official_seal',
+};
+
+export function normalizeEntityTypeId(typeId: string): string {
+  const trimmed = typeId.trim();
+  return ENTITY_TYPE_ALIASES[trimmed] ?? trimmed;
+}
+
 function defineTypes(
   entries: Array<[id: string, name: string, description?: string]>,
 ): EntityTypeConfig[] {
@@ -40,111 +72,85 @@ function defineTypes(
 export const ENTITY_GROUPS: EntityGroup[] = [
   {
     id: 'identity',
-    label: '个人身份',
+    label: '身份',
     ...ENTITY_PALETTE.personal,
     types: defineTypes([
       ['PERSON', '姓名'],
       ['ID_CARD', '身份证号'],
       ['PASSPORT', '护照号'],
       ['SOCIAL_SECURITY', '社保号'],
-      ['DRIVER_LICENSE', '驾驶证号'],
-      ['MILITARY_ID', '军官证号'],
       ['BIOMETRIC', '生物特征'],
-      ['USERNAME_PASSWORD', '账号密码'],
     ]),
   },
   {
     id: 'contact',
-    label: '联系通信',
+    label: '联系',
     ...ENTITY_PALETTE.contact,
     types: defineTypes([
-      ['PHONE', '电话号码'],
-      ['EMAIL', '电子邮箱'],
-      ['QQ_WECHAT_ID', '社交账号'],
-      ['IP_ADDRESS', 'IP 地址'],
-      ['MAC_ADDRESS', 'MAC 地址'],
-      ['DEVICE_ID', '设备 ID'],
+      ['PHONE', '电话'],
+      ['EMAIL', '邮箱'],
+      ['ADDRESS', '地址'],
+      ['GPS_LOCATION', '位置'],
+    ]),
+  },
+  {
+    id: 'account',
+    label: '账号',
+    ...ENTITY_PALETTE.org,
+    types: defineTypes([
+      ['USERNAME_PASSWORD', '登录账号'],
+      ['AUTH_SECRET', '密码'],
+      ['BANK_CARD', '银行卡号'],
+      ['BANK_ACCOUNT', '银行账号'],
+    ]),
+  },
+  {
+    id: 'network',
+    label: '网络',
+    ...ENTITY_PALETTE.contact,
+    types: defineTypes([
+      ['DEVICE_ID', '设备号'],
+      ['IP_ADDRESS', 'IP地址'],
       ['URL_WEBSITE', '网址'],
     ]),
   },
   {
-    id: 'finance',
-    label: '金融财务',
-    ...ENTITY_PALETTE.contact,
-    types: defineTypes([
-      ['BANK_CARD', '银行卡号'],
-      ['BANK_ACCOUNT', '银行账号'],
-      ['BANK_NAME', '开户行'],
-      ['PAYMENT_ACCOUNT', '支付账号'],
-      ['TAX_ID', '税号'],
-      ['AMOUNT', '金额'],
-      ['PROPERTY', '财产信息'],
-    ]),
-  },
-  {
-    id: 'org_address',
-    label: '机构与地址',
-    ...ENTITY_PALETTE.org,
-    types: defineTypes([
-      ['ORG', '机构名称'],
-      ['COMPANY', '公司名称'],
-      ['COMPANY_CODE', '统一信用代码'],
-      ['ADDRESS', '地址'],
-      ['POSTAL_CODE', '邮编'],
-      ['GPS_LOCATION', 'GPS 坐标'],
-      ['WORK_UNIT', '工作单位'],
-    ]),
-  },
-  {
-    id: 'time_number',
-    label: '时间与编号',
+    id: 'business',
+    label: '业务',
     ...ENTITY_PALETTE.time,
     types: defineTypes([
-      ['BIRTH_DATE', '出生日期'],
+      ['ORG', '单位'],
       ['DATE', '日期'],
       ['TIME', '时间'],
+      ['AMOUNT', '金额'],
+      ['COMPANY_NAME', '公司名称'],
+      ['INSTITUTION_NAME', '机构名称'],
+      ['GOVERNMENT_AGENCY', '机关单位'],
+      ['WORK_UNIT', '工作单位'],
+      ['DEPARTMENT_NAME', '部门名称'],
+      ['PROJECT_NAME', '项目名称'],
+      ['CREDIT_CODE', '统一社会信用代码'],
+      ['TAX_ID', '税号'],
+      ['CASE_NUMBER', '编号'],
       ['LICENSE_PLATE', '车牌号'],
       ['VIN', '车架号'],
-      ['CASE_NUMBER', '案件编号'],
-      ['CONTRACT_NO', '合同号'],
-      ['LEGAL_DOC_NO', '法律文书号'],
     ]),
   },
   {
-    id: 'demographics',
-    label: '人口统计',
+    id: 'profile',
+    label: '画像',
     ...ENTITY_PALETTE.personal,
     types: defineTypes([
       ['AGE', '年龄'],
       ['GENDER', '性别'],
       ['NATIONALITY', '国籍'],
-      ['MARITAL_STATUS', '婚姻状况'],
-      ['OCCUPATION', '职业'],
-      ['EDUCATION', '学历'],
-    ]),
-  },
-  {
-    id: 'legal_party',
-    label: '诉讼参与',
-    ...ENTITY_PALETTE.personal,
-    types: defineTypes([
-      ['LEGAL_PARTY', '当事人'],
-      ['LAWYER', '律师'],
-      ['JUDGE', '法官'],
-      ['WITNESS', '证人'],
-    ]),
-  },
-  {
-    id: 'sensitive',
-    label: '敏感信息',
-    ...ENTITY_PALETTE.personal,
-    types: defineTypes([
+      ['ETHNICITY', '民族'],
+      ['MARITAL_STATUS', '婚姻状态'],
       ['HEALTH_INFO', '健康信息'],
-      ['MEDICAL_RECORD', '病历号'],
-      ['CRIMINAL_RECORD', '犯罪记录'],
-      ['POLITICAL', '政治面貌'],
       ['RELIGION', '宗教信仰'],
+      ['POLITICAL', '政治面貌'],
       ['SEXUAL_ORIENTATION', '性取向'],
+      ['CRIMINAL_RECORD', '法律记录'],
     ]),
   },
   {
@@ -164,6 +170,30 @@ export const ENTITY_GROUPS: EntityGroup[] = [
 
 export const ALL_ENTITY_TYPES: EntityTypeConfig[] = ENTITY_GROUPS.flatMap((group) => group.types);
 
+const HAS_IMAGE_TYPE_IDS = new Set([
+  'face',
+  'fingerprint',
+  'palmprint',
+  'id_card',
+  'hk_macau_permit',
+  'passport',
+  'employee_badge',
+  'license_plate',
+  'bank_card',
+  'physical_key',
+  'receipt',
+  'shipping_label',
+  'official_seal',
+  'whiteboard',
+  'sticky_note',
+  'mobile_screen',
+  'monitor_screen',
+  'medical_wristband',
+  'qr_code',
+  'barcode',
+  'paper',
+]);
+
 function prettifyTypeId(typeId: string) {
   return typeId
     .toLowerCase()
@@ -173,7 +203,11 @@ function prettifyTypeId(typeId: string) {
 }
 
 export function getEntityGroup(typeId: string): EntityGroup | undefined {
-  return ENTITY_GROUPS.find((group) => group.types.some((type) => type.id === typeId));
+  const canonicalTypeId = normalizeEntityTypeId(typeId);
+  if (HAS_IMAGE_TYPE_IDS.has(canonicalTypeId)) {
+    return ENTITY_GROUPS.find((group) => group.id === 'visual');
+  }
+  return ENTITY_GROUPS.find((group) => group.types.some((type) => type.id === canonicalTypeId));
 }
 
 export function getEntityGroupLabel(groupId: string): string {
@@ -186,7 +220,8 @@ export function getEntityGroupLabel(groupId: string): string {
 }
 
 export function getEntityTypeConfig(typeId: string): EntityTypeConfig | undefined {
-  return ALL_ENTITY_TYPES.find((type) => type.id === typeId);
+  const canonicalTypeId = normalizeEntityTypeId(typeId);
+  return ALL_ENTITY_TYPES.find((type) => type.id === canonicalTypeId);
 }
 
 export function getEntityColor(typeId: string): string {
@@ -205,12 +240,13 @@ export function getEntityTextColor(typeId: string): string {
 }
 
 export function getEntityTypeName(typeId: string): string {
-  const key = `entity.${typeId}`;
+  const canonicalTypeId = normalizeEntityTypeId(typeId);
+  const key = `entity.${canonicalTypeId}`;
   const translated = t(key);
   if (translated !== key) return translated;
 
-  const config = getEntityTypeConfig(typeId);
-  return config?.name || prettifyTypeId(typeId);
+  const config = getEntityTypeConfig(canonicalTypeId);
+  return config?.name || prettifyTypeId(canonicalTypeId);
 }
 
 export function getEntityRiskConfig(typeId: string) {

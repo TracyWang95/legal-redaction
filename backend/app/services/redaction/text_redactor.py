@@ -11,12 +11,16 @@ from typing import Any
 
 import fitz
 from docx import Document
+from docx.opc.constants import CONTENT_TYPE as CT
+from lxml import etree
 
 from app.core.config import settings
 from app.models.schemas import Entity
 from app.services.redaction.replacement_strategy import RedactionContext
 
 logger = logging.getLogger(__name__)
+
+WORD_XML_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 
 
 class TextRedactorMixin:
@@ -56,8 +60,111 @@ class TextRedactorMixin:
                 trace_path=trace_path,
             )
 
+        redacted_count += self._replace_in_docx_xml_parts(doc, replacements)
         doc.save(output_path)
         return redacted_count
+
+    def _replace_in_docx_xml_parts(self, doc: Document, replacements: dict[str, str]) -> int:
+        """Replace text in DOCX XML parts not exposed by python-docx objects."""
+        if not replacements:
+            return 0
+        target_content_types = {
+            CT.WML_DOCUMENT_MAIN,
+            CT.WML_HEADER,
+            CT.WML_FOOTER,
+            CT.WML_COMMENTS,
+            CT.WML_FOOTNOTES,
+            CT.WML_ENDNOTES,
+        }
+        replaced_count = 0
+        for part in doc.part.package.parts:
+            if getattr(part, "content_type", None) not in target_content_types:
+                continue
+            root = getattr(part, "element", None)
+            if root is None and hasattr(part, "blob"):
+                try:
+                    root = etree.fromstring(part.blob)
+                except (etree.XMLSyntaxError, TypeError, ValueError):
+                    root = None
+            if root is None:
+                continue
+            part_replaced_count = 0
+            for paragraph in self._docx_xpath(root, ".//w:p"):
+                part_replaced_count += self._replace_in_docx_xml_paragraph(paragraph, replacements)
+            if part_replaced_count and getattr(part, "element", None) is None:
+                part._blob = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+            replaced_count += part_replaced_count
+        return replaced_count
+
+    def _replace_in_docx_xml_paragraph(self, paragraph, replacements: dict[str, str]) -> int:
+        text_nodes = list(self._docx_xpath(paragraph, ".//w:t"))
+        if not text_nodes:
+            return 0
+        full_text = "".join(node.text or "" for node in text_nodes)
+        if not full_text:
+            return 0
+
+        node_ids: list[int] = []
+        for index, node in enumerate(text_nodes):
+            node_ids.extend([index] * len(node.text or ""))
+        if not node_ids:
+            return 0
+
+        matches: list[tuple[int, int, str]] = []
+        for old_text, new_text in replacements.items():
+            if not old_text:
+                continue
+            start = 0
+            while True:
+                pos = full_text.find(old_text, start)
+                if pos < 0:
+                    break
+                matches.append((pos, pos + len(old_text), new_text))
+                start = pos + len(old_text)
+
+        if not matches:
+            return 0
+        matches.sort(key=lambda item: (item[0], -(item[1] - item[0])))
+
+        filtered_matches: list[tuple[int, int, str]] = []
+        last_end = -1
+        for start, end, replacement in matches:
+            if start < last_end:
+                continue
+            filtered_matches.append((start, end, replacement))
+            last_end = end
+
+        replace_map: dict[int, tuple[int, str, int]] = {}
+        for start, end, replacement in filtered_matches:
+            span_node_ids = node_ids[start:end] if end <= len(node_ids) else node_ids[start:]
+            target_node_idx = Counter(span_node_ids).most_common(1)[0][0] if span_node_ids else node_ids[start]
+            replace_map[start] = (end, replacement, target_node_idx)
+
+        outputs: list[list[str]] = [[] for _ in text_nodes]
+        i = 0
+        replaced_count = 0
+        while i < len(full_text):
+            replacement = replace_map.get(i)
+            if replacement:
+                end, replacement_text, target_node_idx = replacement
+                outputs[target_node_idx].append(replacement_text)
+                i = end
+                replaced_count += 1
+            else:
+                node_idx = node_ids[i]
+                outputs[node_idx].append(full_text[i])
+                i += 1
+
+        for index, node in enumerate(text_nodes):
+            node.text = "".join(outputs[index])
+        return replaced_count
+
+    @staticmethod
+    def _docx_xpath(element, query: str):
+        try:
+            return element.xpath(query)
+        except etree.XPathError:
+            return element.xpath(query, namespaces=WORD_XML_NS)
 
     def _iter_all_paragraphs(self, doc: Document):
         """遍历正文/表格/页眉页脚中的所有段落"""
@@ -384,35 +491,47 @@ class TextRedactorMixin:
         # 对每一页进行处理
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
+            replacement_inserts: list[tuple[fitz.Rect, str]] = []
 
             for old_text, new_text in replacements.items():
                 # 查找文本位置
                 text_instances = page.search_for(old_text)
 
                 for inst in text_instances:
-                    # 添加遮罩（白色背景 + 新文本）
-                    # 首先用白色矩形覆盖原文本
-                    shape = page.new_shape()
-                    shape.draw_rect(inst)
-                    shape.finish(color=(1, 1, 1), fill=(1, 1, 1))
-                    shape.commit()
-
-                    # 然后插入新文本
-                    # 计算文本位置（矩形左上角）
-                    text_point = fitz.Point(inst.x0, inst.y1 - 2)
-                    page.insert_text(
-                        text_point,
-                        new_text,
-                        fontsize=10,
-                        color=(0, 0, 0),
-                    )
+                    # Use a real PDF redaction annotation so original text is
+                    # removed from the content stream, not merely covered.
+                    rect = fitz.Rect(inst)
+                    page.add_redact_annot(rect, fill=(1, 1, 1))
+                    replacement_inserts.append((rect, new_text))
 
                     redacted_count += 1
 
-        doc.save(output_path)
+            if replacement_inserts:
+                page.apply_redactions()
+                for rect, new_text in replacement_inserts:
+                    page.insert_textbox(
+                        rect,
+                        new_text,
+                        fontsize=self._fit_pdf_replacement_font_size(rect, new_text),
+                        color=(0, 0, 0),
+                        align=fitz.TEXT_ALIGN_LEFT,
+                    )
+
+        doc.save(output_path, garbage=4, deflate=True, clean=True)
         doc.close()
 
         return redacted_count
+
+    @staticmethod
+    def _fit_pdf_replacement_font_size(rect: fitz.Rect, text: str) -> float:
+        """Choose a conservative font size for inline PDF replacement labels."""
+        if not text:
+            return 10.0
+        base_size = max(6.0, min(10.0, rect.height * 0.78))
+        estimated_width = fitz.get_text_length(text, fontsize=base_size)
+        if estimated_width <= max(1.0, rect.width):
+            return base_size
+        return max(5.0, min(base_size, base_size * rect.width / max(1.0, estimated_width)))
 
     def _extract_docx_text(self, file_path: str) -> str:
         """提取 Word 文档文本（含表格，与 FileParser._parse_docx 结构一致）"""

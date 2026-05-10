@@ -1,415 +1,181 @@
-<div align="center">
+# DataInfra RedactionEverything
 
-# DataInfra &middot; RedactionEverything
+DataInfra RedactionEverything is a local-first redaction workflow: one file first,
+then batch.
 
-**Open-source anonymization infrastructure for unstructured data**
+[Chinese](./README.md) | [Docs](./docs/README.md) | [API](./docs/API.md) | [Models](./docs/MODELS.md)
 
-Not just PII — **Redaction _Everything_**.<br/>
-Define your own sensitive content. Anonymize anything: PII, trade secrets, medical records, classified IDs…<br/>
-Word, PDF, scans, images — dual AI pipelines, 100% on-premise.
+## One Browser Entry
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
-[![CI](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml/badge.svg)](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
-[![GitHub Stars](https://img.shields.io/github/stars/TracyWang95/DataInfra-RedactionEverything?style=social)](https://github.com/TracyWang95/DataInfra-RedactionEverything)
+Use only `http://localhost:3000` for opening the interface.
 
-English &nbsp;|&nbsp; **[中文](./README.md)**
+Other ports are service endpoints, not browser pages:
 
-> **License: [Apache License 2.0](./LICENSE)** — this repository may be used, modified, and redistributed under Apache 2.0, including commercial use.<br/>
-> **Need enterprise terms, support, warranty, indemnity, or a commercial contract?** See **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)** for the optional commercial agreement.
+- `8000` backend API and `/health`
+- `8080` HaS Text
+- `8081` HaS Image
+- `8082` OCR
 
-<p>
-  <a href="#what-is-this">What is this?</a> &middot;
-  <a href="#features">Features</a> &middot;
-  <a href="#quickstart">Quickstart</a> &middot;
-  <a href="#architecture">Architecture</a> &middot;
-  <a href="#tech-stack">Tech Stack</a> &middot;
-  <a href="#deployment">Deployment</a> &middot;
-  <a href="#contributing">Contributing</a> &middot;
-  <a href="#license">License</a>
-</p>
+## Start and Check Model/GPU Readiness
 
-<!-- screenshot: hero -->
-
-</div>
-
----
-
-## What is this?
-
-It's called **Redaction _Everything_** because we anonymize more than just PII.
-
-Every industry has its own sensitive data — case numbers and party names in legal contracts, diagnoses in medical records, account numbers in financial documents, classified designators in defense files. Legacy tools only handle PII and fall flat on domain-specific fields.
-
-**RedactionEverything** is built around **full customizability**: you define what's sensitive, the system detects and anonymizes it. 60+ entity types work out of the box, plus custom regex rules, AI semantic rules, and tag templates to fit any industry or compliance requirement.
-
-Under the hood, a **dual-pipeline architecture** — OCR + NER for text entities, YOLO11 instance segmentation for 21 visual target categories (faces, seals, ID cards, QR codes…) — fuses results for comprehensive coverage. Everything runs locally: **your data never leaves your network**.
-
----
-
-## Features
-
-| | Feature | Description |
-|---|---|---|
-| :wrench: | **Fully Customizable** | Custom entity types, regex rules, AI semantic rules, tag templates — not just PII, **define and detect anything sensitive** |
-| :brain: | **AI Semantic Recognition** | LLM-powered NER (Qwen3-0.6B via llama.cpp) that understands context, not just pattern matching |
-| :eyes: | **Visual Feature Detection** | YOLO11 instance segmentation — faces, fingerprints, seals, signatures, ID cards, bank cards, QR codes, license plates — **21 categories** |
-| :page_facing_up: | **Multi-format** | DOCX, PDF, scanned PDF, JPG, PNG |
-| :zap: | **Batch Processing** | 5-step wizard: configure → upload → queue → review → export |
-| :shield: | **100% On-premise** | All inference runs locally, zero cloud dependencies, data stays in your network |
-| :dart: | **Multi-industry Compliance** | Legal, medical, finance, government — GDPR, PIPL, GB/T 37964-2019 |
-| :globe_with_meridians: | **Bilingual UI** | Chinese / English — switch in one click |
-| :gear: | **REST API** | 85+ endpoints, SSE real-time progress, Swagger / ReDoc docs |
-
----
-
-## Screenshots
-
-<!-- screenshot: playground single-file flow -->
-
-<!-- screenshot: batch review three-column layout -->
-
-<!-- screenshot: detection results with dual-pipeline overlay -->
-
----
-
-## Quickstart
-
-### Docker Compose (recommended)
-
-> **Prerequisites:** [Docker Engine](https://docs.docker.com/engine/install/) 24+ with Compose V2.<br/>
-> GPU services additionally require the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+### First run (UI/API)
 
 ```bash
 git clone https://github.com/TracyWang95/DataInfra-RedactionEverything.git
 cd DataInfra-RedactionEverything
-
-# (Optional) Customize environment variables
-# Auth is enabled by default in .env.example. Only disable it for isolated local-only debugging.
-cp .env.example .env
-
-# CPU-only (no GPU services)
+npm run setup
+cp .env.docker.example .env
 docker compose up -d
-
-# With GPU services (OCR, NER, Vision)
-docker compose --profile gpu up -d
 ```
 
-Then open **http://localhost:3000**.
+Use Node.js 24. The package engine is `>=20 <25`, and the repository
+keeps `.nvmrc` and `.node-version` aligned for local version managers.
 
-> **Note:** The first build pulls base images and installs dependencies — this may take a while. GPU service model files must be placed in `backend/models/` beforehand.
-
-### Manual Setup
-
-<details>
-<summary><strong>Prerequisites</strong></summary>
-
-| Requirement | Version |
-|---|---|
-| Python | 3.10+ |
-| Node.js | 20+ |
-| GPU | NVIDIA with 8 GB+ VRAM (RTX 4060 or above recommended) |
-| llama.cpp | Latest release (for NER service) |
-
-</details>
-
-#### 1. Clone and prepare models
+If backend, frontend, or model services are already running and you only want
+to attach to the existing local stack:
 
 ```bash
-git clone https://github.com/TracyWang95/DataInfra-RedactionEverything.git
-cd DataInfra-RedactionEverything
-
-# Download model weights
-# - HaS Text NER:  huggingface.co/xuanwulab/HaS_Text_0209_0.6B_Q4
-# - HaS Image:     sensitive_seg_best.pt (YOLO11)
-# - PaddleOCR-VL:  auto-downloaded on first run (~2 GB)
+npm run dev:attach
 ```
 
-#### 2. Start AI services
+This is the default lightweight mode for interface and API smoke checks.
+It is not the full recognition path.
 
 ```bash
-# HaS NER (port 8080)
-llama-server -hf xuanwulab/HaS_Text_0209_0.6B_Q4 \
-  --port 8080 -ngl 99 --host 0.0.0.0 -c 8192 -np 1
-
-# HaS Image — YOLO11 (port 8081)
-cd backend && python scripts/has_image_server.py
-
-# PaddleOCR-VL (port 8082)
-cd backend && python scripts/ocr_server.py
-```
-
-#### 3. Start the backend
-
-```bash
-cd backend
-pip install -r requirements.lock
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-#### 4. Start the frontend
-
-```bash
-cd frontend
-npm install && npm run dev
-```
-
-Open **http://localhost:3000** and verify all services are green:
-
-```bash
+npm run doctor
 curl http://127.0.0.1:8000/health/services
 ```
 
----
-
-## Architecture
-
-```
-                          +------------------+
-                          |   User uploads   |
-                          | DOCX / PDF / IMG |
-                          +--------+---------+
-                                   |
-                          +--------v---------+
-                          |   File parsing   |
-                          |  & page imaging  |
-                          +--------+---------+
-                                   |
-                    +--------------+--------------+
-                    |                              |
-          +---------v----------+       +----------v---------+
-          |  Pipeline 1: Text  |       | Pipeline 2: Vision |
-          +---------+----------+       +----------+---------+
-                    |                              |
-          +---------v----------+       +----------v---------+
-          |   PaddleOCR-VL-1.5 |       |   YOLO11 (21-class |
-          |   text detection   |       |   instance segment) |
-          +---------+----------+       +----------+---------+
-                    |                              |
-          +---------v----------+                   |
-          |   HaS NER (Q4)    |                   |
-          |   entity recog.   |                   |
-          +---------+----------+                   |
-                    |                              |
-          +---------v----------+       +----------v---------+
-          |  Entity-to-coord   |       |  Normalize coords  |
-          |  matching          |       |  (0-1 relative)    |
-          +---------+----------+       +----------+---------+
-                    |                              |
-                    +--------------+--------------+
-                                   |
-                          +--------v---------+
-                          |   IoU dedup &    |
-                          |   result fusion  |
-                          +--------+---------+
-                                   |
-                          +--------v---------+
-                          | Interactive edit |
-                          | & redaction      |
-                          +------------------+
-```
-
-**Five services** work together:
-
-| Service | Port | Role |
-|---|---|---|
-| **Frontend** | 3000 | React UI — upload, annotate, review, export |
-| **Backend API** | 8000 | FastAPI — orchestration, job queue, file I/O |
-| **HaS NER** | 8080 | llama.cpp — named entity recognition |
-| **HaS Image** | 8081 | YOLO11 — 21-class visual PII segmentation |
-| **PaddleOCR** | 8082 | PaddleOCR-VL-1.5 — text detection & layout |
-
----
-
-## Tech Stack
-
-| Layer | Technology | Version |
-|---|---|---|
-| **Frontend** | React | 19 |
-| | TypeScript | 5.7 |
-| | Vite | 6.1 |
-| | Tailwind CSS | 3.4 |
-| | Radix UI (ShadCN) | latest |
-| | Zustand | 5.0 |
-| | Playwright | 1.58 |
-| **Backend** | FastAPI | 0.115+ |
-| | Python | 3.10+ |
-| | SQLite | (via job queue) |
-| **AI / ML** | PaddleOCR-VL-1.5 | 2.7+ |
-| | HaS Text (Qwen3-0.6B Q4) | via llama.cpp |
-| | YOLO11 (Ultralytics) | 8.3+ |
-
----
-
-## API
-
-The backend exposes **85+ REST endpoints** across 13 route modules:
-
-- **Vision Pipeline** — detect, redact, preview
-- **Jobs** — batch task CRUD, queue management, review/approve workflow
-- **Files** — upload, download, format conversion
-- **Entity Types** — custom entity type management
-- **Redaction** — apply anonymization with multiple strategies
-- **Model Config** — switch models, adjust parameters at runtime
-- **Auth** — JWT-based authentication (optional)
-- **Safety** — file scanning and validation
-
-Interactive docs available at:
-- **Swagger UI**: `http://localhost:8000/docs` (`DEBUG=true` only)
-- **ReDoc**: `http://localhost:8000/redoc` (`DEBUG=true` only)
-
----
-
-## Deployment
-
-### Docker Compose Details
-
-The provided `docker-compose.yml` includes 5 services:
-
-| Service | Image / Build | Default Port | Profile |
-|---|---|---|---|
-| **backend** | `./backend/Dockerfile` | 8000 | _(always starts)_ |
-| **frontend** | `./frontend/Dockerfile` | 3000 → 80 | _(always starts)_ |
-| **ocr** | `./backend/Dockerfile.ocr` | 8082 | `gpu` |
-| **ner** | `ghcr.io/ggerganov/llama.cpp:server` | 8080 | `gpu` |
-| **vision** | `./backend/Dockerfile.vision` | 8081 | `gpu` |
-
-**Data Persistence (Docker Volumes):**
-
-| Volume | Container Path | Purpose |
-|---|---|---|
-| `backend-data` | `/app/data` | SQLite database, config, JWT secret |
-| `backend-uploads` | `/app/uploads` | User-uploaded files |
-| `backend-outputs` | `/app/outputs` | Redacted output files |
-
-**Networking:** All services communicate over the `redaction-net` bridge network, addressing each other by service name (e.g., `http://ocr:8082`).
-
-**Logging:** JSON log rotation — max 20 MB per file, 5 files retained (backend) / 3 files (GPU services).
-
-### Environment Variables
-
-All configurable options are documented in **`.env.example`** — copy it and customize:
+When OCR/HaS Text/HaS Image are not `online`, start model mode:
 
 ```bash
-cp .env.example .env
+docker compose --profile gpu up -d
 ```
 
-| Variable | Default | Description |
-|---|---|---|
-| `DEBUG` | `false` | Enable debug logging |
-| `AUTH_ENABLED` | `true` | Enable JWT authentication (set password on first visit to /auth, with /setup redirecting there) |
-| `JWT_SECRET_KEY` | _(auto-generated)_ | JWT signing key; leave empty for auto-persistence |
-| `BACKEND_PORT` | `8000` | Backend exposed port |
-| `FRONTEND_PORT` | `3000` | Frontend exposed port |
-| `OCR_BASE_URL` | `http://ocr:8082` | PaddleOCR service URL |
-| `HAS_LLAMACPP_BASE_URL` | `http://ner:8080/v1` | HaS NER service URL |
-| `HAS_IMAGE_BASE_URL` | `http://vision:8081` | HaS Image service URL |
-| `MAX_FILE_SIZE` | `52428800` (50 MB) | Max upload file size in bytes |
-| `OCR_TIMEOUT` | `360` | PaddleOCR VL inference timeout (seconds) |
-| `HAS_TIMEOUT` | `120` | HaS Text NER timeout (seconds) |
-| `FILE_ENCRYPTION_ENABLED` | `false` | AES-256-GCM at-rest encryption |
-| `DEFAULT_REPLACEMENT_MODE` | `smart` | Redaction mode: smart / mask / custom |
+Models and GPU are optional for first-run UI/API checks, but required for full
+recognition and confident export.
 
-### GPU Setup (Manual Deployment)
+## One-Click Start and Port Checks
 
-For optimal OCR performance, install the GPU build of PaddlePaddle **before** installing backend dependencies:
+For a non-technical first open on Windows, double-click `start-dev.bat` from the
+repository root. In WSL, macOS, or Linux, run:
 
 ```bash
-pip install paddlepaddle-gpu          # CUDA 12.6
-pip install -r backend/requirements.lock
-
-# Verify
-python -c "import paddle; print(paddle.is_compiled_with_cuda(), paddle.get_device())"
-# Expected: True gpu:0
+npm run dev:attach
 ```
 
----
-
-## Visual PII Categories (HaS Image)
-
-YOLO11 detects **21 categories** of visual PII, covering documents, biometrics, devices, and codes:
-
-| ID | Slug | Category |
-|:---:|---|---|
-| 0 | `face` | Human face |
-| 1 | `fingerprint` | Fingerprint |
-| 2 | `palmprint` | Palmprint |
-| 3 | `id_card` | ID card |
-| 4 | `hk_macau_permit` | HK/Macau travel permit |
-| 5 | `passport` | Passport |
-| 6 | `employee_badge` | Employee badge |
-| 7 | `license_plate` | License plate |
-| 8 | `bank_card` | Bank card |
-| 9 | `physical_key` | Physical key |
-| 10 | `receipt` | Receipt |
-| 11 | `shipping_label` | Shipping label |
-| 12 | `official_seal` | Official seal |
-| 13 | `whiteboard` | Whiteboard |
-| 14 | `sticky_note` | Sticky note |
-| 15 | `mobile_screen` | Mobile screen |
-| 16 | `monitor_screen` | Monitor screen |
-| 17 | `medical_wristband` | Medical wristband |
-| 18 | `qr_code` | QR code |
-| 19 | `barcode` | Barcode |
-| 20 | `paper` | Paper document |
-
----
-
-## Compliance
-
-This project references the following data protection standards:
-
-| Standard | Scope |
-|---|---|
-| **GDPR** (EU) | General Data Protection Regulation |
-| **PIPL** (China) | Personal Information Protection Law |
-| **GB/T 37964-2019** | Information security — Guide for de-identification of personal information |
-
-The entity taxonomy is built on GB/T 37964-2019, classifying PII into **direct identifiers** (name, ID number, phone), **quasi-identifiers** (company, address, date), and **visual elements** (seals, faces, documents).
-
----
-
-## Contributing
-
-We welcome contributions! Please read **[CONTRIBUTING.md](./CONTRIBUTING.md)** before submitting a PR.
+For the lightweight Docker path, run:
 
 ```bash
-# Run E2E tests
-cd frontend && npm run test:e2e
-
-# Run unit tests
-cd frontend && npm run test
+cp .env.docker.example .env
+docker compose up -d
 ```
 
-PR checklist:
-- [ ] All inference runs locally — no cloud API calls
-- [ ] Smoke test passes
-- [ ] For the full contribution gate, follow [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [ ] Documentation updated (if applicable)
+After startup, check only these two addresses:
 
----
+| Check | Address | Success signal |
+| --- | --- | --- |
+| User interface | `http://localhost:3000` | The DataInfra page opens in the browser. |
+| Backend health | `http://127.0.0.1:8000/health` | JSON is returned, usually with `status`. |
 
-## License
+Bash / WSL:
 
-This project is licensed under the **[Apache License 2.0](./LICENSE)**.
+```bash
+curl -I http://localhost:3000
+curl http://127.0.0.1:8000/health
+```
 
-Apache 2.0 governs the source code in this repository, including commercial use.
-If your organization needs a separate commercial agreement (for example support, warranty, indemnity, procurement, or custom terms), see **[COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md)**.
+PowerShell:
 
----
+```powershell
+Invoke-WebRequest http://localhost:3000 -UseBasicParsing
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
 
-## Security
+If `3000` is down, check the frontend. If `8000` is down, check the backend.
+Port `8000` is for API and health checks; it is not the product UI.
 
-Please see **[SECURITY.md](./SECURITY.md)** for our security policy and responsible disclosure process. Key principle: this platform is designed for **on-premise deployment** — no data is transmitted externally.
+## Model Warm-Up Script Network Rule
 
----
+`backend/scripts/warmup_models.py` only calls already-running model services. It
+does not start or stop model processes. The script calls `127.0.0.1:8080`,
+`127.0.0.1:8081`, and `127.0.0.1:8082` from the environment where it runs, so
+run it only from a WSL/container network where those ports are reachable on the
+same `127.0.0.1`.
 
-<div align="center">
+First confirm model ports from that shell:
 
-## Star History
+```bash
+curl http://127.0.0.1:8080/v1/models
+curl http://127.0.0.1:8081/health
+curl http://127.0.0.1:8082/health
+```
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TracyWang95/DataInfra-RedactionEverything&type=Date)](https://star-history.com/#TracyWang95/DataInfra-RedactionEverything&Date)
+Then run from WSL/Linux:
 
-If this project helps you, please consider giving it a star.
+```bash
+WARMUP_MAX_WAIT_SECONDS=180 node scripts/run-python.mjs backend/scripts/warmup_models.py
+```
 
-</div>
+If Docker publishes `8080/8081/8082` to the host, prefer running the command
+from the WSL host shell. Do not run it with plain `docker compose exec backend
+...`: on a bridge network, `127.0.0.1` means the backend container itself, not
+the `ner`, `vision`, or `ocr` containers.
+
+If you must run it from a temporary container and your Linux/WSL Docker supports
+host networking, use:
+
+```bash
+docker run --rm --network host -v "$PWD/backend:/app" -w /app python:3.11-slim \
+  sh -lc "pip install -q httpx Pillow && WARMUP_MAX_WAIT_SECONDS=180 python scripts/warmup_models.py"
+```
+
+## User Flow
+
+### Single-file flow
+
+1. Open `http://localhost:3000`
+2. Upload one file (DOCX, PDF, scanned PDF, PNG, JPG)
+3. Run recognition
+4. Review text entities and visual boxes
+5. Export and verify the output file
+
+### Task center and batch flow
+
+- Open a batch from task center when the single-file flow is stable.
+- One batch supports mixed file types by default.
+- In task center, check per-file progress, errors, and status before exporting.
+- Export after review passes.
+
+### Result handoff status
+
+- `ready_for_delivery`: result page/file can be handed off.
+- `action_required`: review is still needed.
+
+## Model Boundary
+
+Model files are not committed in this repository. Configure local paths such as
+`HAS_MODEL_PATH` and `HAS_IMAGE_WEIGHTS` to enable full recognition.
+See [docs/MODELS.md](./docs/MODELS.md) and
+[docs/MODEL_PROVENANCE.md](./docs/MODEL_PROVENANCE.md).
+
+HaS Image currently has a fixed 21-class contract: `face`, `fingerprint`,
+`palmprint`, `id_card`, `hk_macau_permit`, `passport`, `employee_badge`,
+`license_plate`, `bank_card`, `physical_key`, `receipt`, `shipping_label`,
+`official_seal`, `whiteboard`, `sticky_note`, `mobile_screen`, `monitor_screen`,
+`medical_wristband`, `qr_code`, `barcode`, `paper`.
+
+The default configuration leaves `paper` off. Signature, handwriting, and
+VLM-based signature detection are not HaS Image classes. If signature-like
+evidence appears, it comes from conservative local fallback or OCR visual labels,
+not from an added HaS Image class.
+
+## Notes for evaluation
+
+- `npm run eval:public -- output/playwright/eval-public-current` checks public fixtures.
+- `npm run quality:fast` runs the contributor-facing quick gate.
+- `npm run eval:ceshi -- output/playwright/eval-ceshi-current` is maintainer private
+  corpus flow and should run only after services are healthy and GPU is idle.
+
+If auth is disabled, evaluation scripts can run without `DATAINFRA_TOKEN_FILE`.
+If auth is enabled, use the local token command documented in project docs.

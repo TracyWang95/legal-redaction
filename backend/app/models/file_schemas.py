@@ -42,7 +42,7 @@ class FileListItem(BaseModel):
     entity_count: int = 0
     upload_source: Literal["playground", "batch"] = Field(
         default="playground",
-        description="playground=Playground 单文件；batch=批量向导或任务工单上传",
+        description="playground=single-file workflow legacy API value; batch=batch wizard or job upload",
     )
     job_id: str | None = Field(
         default=None,
@@ -50,7 +50,7 @@ class FileListItem(BaseModel):
     )
     batch_group_id: str | None = Field(
         default=None,
-        description="批量向导同一会话上传的文件共享此 ID；Playground 单文件上传为 null",
+        description="Files uploaded in the same batch session share this ID; single-file uploads use null",
     )
     batch_group_count: int | None = Field(
         default=None,
@@ -76,6 +76,10 @@ class FileListResponse(BaseModel):
     total: int
     page: int = 1
     page_size: int = 20
+    stats: dict[str, int] = Field(
+        default_factory=dict,
+        description="Filtered-list aggregate counters, independent of pagination.",
+    )
 
 
 class ParseResult(BaseModel):
@@ -103,3 +107,7 @@ class BatchDownloadRequest(BaseModel):
     """批量打包下载"""
     file_ids: list[str] = Field(..., min_length=1, description="要打包的文件 ID 列表")
     redacted: bool = Field(default=False, description="为 True 时打包匿名化后的文件（需已匿名化）")
+    job_id: str | None = Field(
+        default=None,
+        description="Optional batch job id. Redacted downloads with a job id require every selected job file to be ready for delivery.",
+    )

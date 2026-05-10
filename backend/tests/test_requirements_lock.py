@@ -8,6 +8,10 @@ import os
 import re
 
 BACKEND_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+ALLOWED_FLEXIBLE_LOCK_REQUIREMENTS = {
+    "llama-cpp-python[server]>=0.3.16",
+    "setuptools>=77,<81",
+}
 
 
 def _parse_pinned_packages(path: str) -> dict[str, str]:
@@ -23,6 +27,11 @@ def _parse_pinned_packages(path: str) -> dict[str, str]:
             if m:
                 result[m.group(1).lower()] = m.group(2)
     return result
+
+
+def _is_requirement_line(line: str) -> bool:
+    """Return True for package requirement lines, excluding pip options."""
+    return bool(re.match(r"^[A-Za-z0-9_.-]+(?:\[.*?\])?\s*[<=>!~]", line))
 
 
 def _parse_all_packages(path: str) -> set[str]:
@@ -47,13 +56,17 @@ def test_lock_file_has_no_todo_comment():
     assert "TODO" not in content, "requirements.lock should not contain TODO comments"
 
 
-def test_lock_file_uses_pinned_versions():
-    """Every non-comment, non-empty line in the lock file should use == pinning."""
+def test_lock_file_uses_pinned_versions_except_documented_runtime_ranges():
+    """Every package line in the lock file should use == pinning unless explicitly allowed."""
     lock_path = os.path.join(BACKEND_DIR, "requirements.lock")
     with open(lock_path, encoding="utf-8") as f:
         for lineno, line in enumerate(f, 1):
             line = line.strip()
             if not line or line.startswith("#"):
+                continue
+            if not _is_requirement_line(line):
+                continue
+            if line in ALLOWED_FLEXIBLE_LOCK_REQUIREMENTS:
                 continue
             assert "==" in line, (
                 f"requirements.lock line {lineno}: '{line}' is not pinned with =="

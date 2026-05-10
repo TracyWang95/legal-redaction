@@ -4,6 +4,8 @@ import sqlite3
 import threading
 import time
 
+from app.core.sqlite_base import connect_sqlite
+
 logger = logging.getLogger(__name__)
 
 _CREATE_TABLE_SQL = """
@@ -40,9 +42,13 @@ class TokenBlacklist:
     # ------------------------------------------------------------------
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db_path, timeout=5.0)
-        conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        return connect_sqlite(
+            self._db_path,
+            row_factory=False,
+            timeout=5.0,
+            busy_timeout_ms=5000,
+            wal=True,
+        )
 
     def _maybe_cleanup(self) -> None:
         now = time.time()

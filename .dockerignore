@@ -7,12 +7,17 @@ node_modules
 frontend/node_modules
 frontend/dist
 frontend/e2e-screenshots
+frontend/test-results
+frontend/playwright-report
 backend/__pycache__
 backend/.pytest_cache
 backend/tests
 backend/data
 backend/uploads
 backend/outputs
+backend/models
+backend/.venv
+backend/venv
 *.log
 *.md
 !README.md
@@ -51,3 +56,10 @@ Dockerfile.dev
 .coverage
 htmlcov
 .pytest_cache
+
+# Model artifacts are mounted at runtime by profile-gated services.
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.onnx

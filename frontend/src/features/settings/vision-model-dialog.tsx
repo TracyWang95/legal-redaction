@@ -50,8 +50,8 @@ export function VisionModelDialog({
         if (!nextOpen) onClose();
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(90vh,780px)] flex-col overflow-hidden sm:max-w-2xl">
+        <DialogHeader className="space-y-1">
           <DialogTitle>
             {editingId
               ? t('settings.visionModel.dialog.editTitle')
@@ -60,74 +60,84 @@ export function VisionModelDialog({
           <DialogDescription>{t('settings.visionModel.dialog.desc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
-          <div className="space-y-1.5">
-            <Label>{t('settings.visionModel.nameLabel')} *</Label>
-            <Input
-              value={form.name ?? ''}
-              onChange={(e) => onUpdateForm({ name: e.target.value })}
-              placeholder={t('settings.visionModel.namePlaceholder')}
-              data-testid="vision-model-name"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t('settings.visionModel.providerLabel')} *</Label>
-            <Select
-              value={form.provider ?? 'local'}
-              onValueChange={(value) =>
-                onUpdateForm({ provider: value as ModelConfig['provider'] })
-              }
-            >
-              <SelectTrigger data-testid="vision-model-provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="local">{t('settings.visionModel.provider.local')}</SelectItem>
-                <SelectItem value="openai">{t('settings.visionModel.provider.openai')}</SelectItem>
-                <SelectItem value="custom">{t('settings.visionModel.provider.custom')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label>{t('settings.visionModel.modelLabel')} *</Label>
-            <Input
-              value={form.model_name ?? ''}
-              onChange={(e) => onUpdateForm({ model_name: e.target.value })}
-              className="font-mono text-sm"
-              placeholder={form.provider === 'local' ? 'HaS-Image-YOLO11' : 'gpt-4-vision-preview'}
-              data-testid="vision-model-model-name"
-            />
-          </div>
-
-          {(form.provider === 'local' ||
-            form.provider === 'openai' ||
-            form.provider === 'custom') && (
-            <div className="space-y-1.5">
-              <Label>{t('settings.visionModel.baseUrlLabel')}</Label>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-1 pr-1">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.visionModel.nameLabel')} *</Label>
               <Input
-                value={form.base_url ?? ''}
-                onChange={(e) => onUpdateForm({ base_url: e.target.value })}
-                className="font-mono text-sm"
-                placeholder={
-                  form.provider === 'local' ? 'http://127.0.0.1:8081' : 'https://api.openai.com'
-                }
-                data-testid="vision-model-base-url"
+                value={form.name ?? ''}
+                onChange={(e) => onUpdateForm({ name: e.target.value })}
+                placeholder={t('settings.visionModel.namePlaceholder')}
+                data-testid="vision-model-name"
               />
             </div>
-          )}
+
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.visionModel.providerLabel')} *</Label>
+              <Select
+                value={form.provider ?? 'local'}
+                onValueChange={(value) =>
+                  onUpdateForm({ provider: value as ModelConfig['provider'] })
+                }
+              >
+                <SelectTrigger data-testid="vision-model-provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">{t('settings.visionModel.provider.local')}</SelectItem>
+                  <SelectItem value="openai">
+                    {t('settings.visionModel.provider.openai')}
+                  </SelectItem>
+                  <SelectItem value="custom">
+                    {t('settings.visionModel.provider.custom')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.visionModel.modelLabel')} *</Label>
+              <Input
+                value={form.model_name ?? ''}
+                onChange={(e) => onUpdateForm({ model_name: e.target.value })}
+                className="font-mono text-sm"
+                placeholder={
+                  form.provider === 'local' ? 'HaS-Image-YOLO11' : 'gpt-4-vision-preview'
+                }
+                data-testid="vision-model-model-name"
+              />
+            </div>
+
+            {(form.provider === 'local' ||
+              form.provider === 'openai' ||
+              form.provider === 'custom') && (
+              <div className="space-y-1">
+                <Label className="text-xs">{t('settings.visionModel.baseUrlLabel')}</Label>
+                <Input
+                  value={form.base_url ?? ''}
+                  onChange={(e) => onUpdateForm({ base_url: e.target.value })}
+                  className="font-mono text-sm"
+                  placeholder={
+                    form.provider === 'local' ? 'http://127.0.0.1:8081' : 'https://api.openai.com'
+                  }
+                  data-testid="vision-model-base-url"
+                />
+              </div>
+            )}
+          </div>
 
           {(form.provider === 'openai' || form.provider === 'custom') && (
-            <div className="space-y-1.5">
-              <Label>{t('settings.visionModel.apiKeyLabel')}</Label>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('settings.visionModel.apiKeyLabel')}</Label>
               <Input
                 type="password"
                 value={form.api_key === '__REDACTED__' ? '' : (form.api_key ?? '')}
                 onChange={(e) => onUpdateForm({ api_key: e.target.value })}
                 className="font-mono text-sm"
                 placeholder={
-                  form.api_key === '__REDACTED__' ? '(已设置，输入新值可替换)' : 'sk-...'
+                  form.api_key === '__REDACTED__' ? '已保存，输入新密钥可替换' : 'sk-...'
                 }
                 data-testid="vision-model-api-key"
                 autoComplete="off"
@@ -135,9 +145,9 @@ export function VisionModelDialog({
             </div>
           )}
 
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-medium">{t('settings.visionModel.advancedTitle')}</h4>
-            <div className="grid grid-cols-3 gap-3">
+          <div className="border-t pt-3">
+            <h4 className="mb-2 text-sm font-medium">{t('settings.visionModel.advancedTitle')}</h4>
+            <div className="grid grid-cols-3 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-xs">{t('settings.visionModel.temperatureLabel')}</Label>
                 <Input
@@ -177,7 +187,7 @@ export function VisionModelDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-3 py-2">
             <Switch
               checked={
                 editingId && BUILTIN_VISION_IDS.has(editingId) ? true : (form.enabled ?? true)
@@ -186,7 +196,7 @@ export function VisionModelDialog({
               onCheckedChange={(checked) => onUpdateForm({ enabled: checked })}
               data-testid="vision-model-enabled"
             />
-            <Label>
+            <Label className="text-sm leading-5">
               {t('settings.visionModel.enabledLabel')}
               {editingId && BUILTIN_VISION_IDS.has(editingId) && (
                 <span className="text-muted-foreground">
@@ -197,23 +207,32 @@ export function VisionModelDialog({
             </Label>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>{t('settings.visionModel.notesLabel')}</Label>
+          <div className="space-y-1">
+            <Label className="text-xs">{t('settings.visionModel.notesLabel')}</Label>
             <Textarea
               value={form.description ?? ''}
               onChange={(e) => onUpdateForm({ description: e.target.value })}
               rows={2}
+              className="min-h-[64px]"
               placeholder={t('settings.visionModel.notesPlaceholder')}
               data-testid="vision-model-desc"
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} data-testid="vision-model-cancel">
+        <DialogFooter className="border-t pt-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={onClose}
+            data-testid="vision-model-cancel"
+          >
             {t('settings.cancel')}
           </Button>
           <Button
+            size="sm"
+            className="h-8"
             disabled={!form.name || !form.model_name}
             onClick={onSave}
             data-testid="vision-model-save"

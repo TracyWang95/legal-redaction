@@ -6,24 +6,626 @@ Responsibilities:
 - HTML table cell extraction and expansion
 - Running HaS local NER model on OCR text to identify sensitive entities
 - Matching NER entities back to OCR bounding boxes (exact + fuzzy)
-- Regex-based supplementary detection on OCR text
+- Matching OCR text selected by HaS Text back to document coordinates
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import html
 import io
 import logging
-import re
+import threading
+import time
+from collections import OrderedDict
 from difflib import SequenceMatcher
 from html.parser import HTMLParser
 from typing import Any
 
 from PIL import Image, ImageOps
 
+from app.core.config import settings
+from app.models.type_mapping import TYPE_ID_TO_CN
 from app.services.hybrid_vision_service import OCRTextBlock, SensitiveRegion
+from app.services.vision.has_text_payload import (
+    DEFAULT_HAS_TEXT_TYPE_IDS,
+    _build_has_text_payload,
+    _build_has_text_type_names,
+    _canonical_image_text_type,
+    _compact_text,
+    _filter_blocks_for_has_text,
+)
 
 logger = logging.getLogger(__name__)
+
+
+TABLE_PRECISION_ENTITY_TYPES = {
+    "AMOUNT",
+    "BANK_ACCOUNT",
+    "ACCOUNT_NUMBER",
+    "BANK_CARD",
+    "COMPANY_CODE",
+    "CONTRACT_NO",
+}
+
+_AMOUNT_TOKEN_PREFIX_CHARS = frozenset("¥￥$€£")
+_AMOUNT_TOKEN_BEFORE_BLOCKERS = frozenset("_.")
+_AMOUNT_TOKEN_AFTER_BLOCKERS = frozenset("_.%")
+
+OCR_VISUAL_ENTITY_TYPES = {
+    "SEAL",
+    "SIGNATURE",
+    "FINGERPRINT",
+    "PHOTO",
+    "QR_CODE",
+    "HANDWRITING",
+    "WATERMARK",
+}
+
+_OCR_TEXT_BLOCK_CACHE_LOCK = threading.Lock()
+_OCR_TEXT_BLOCK_CACHE: OrderedDict[
+    tuple[Any, ...],
+    tuple[float, list[OCRTextBlock], list[SensitiveRegion]],
+] = OrderedDict()
+_OCR_TEXT_BLOCK_INFLIGHT_LOCK = threading.Lock()
+_OCR_TEXT_BLOCK_INFLIGHT: dict[tuple[Any, ...], "_OcrOutputInflight"] = {}
+_HAS_TEXT_NER_LOCK: asyncio.Lock | None = None
+_HAS_TEXT_NER_LOCK_LOOP: asyncio.AbstractEventLoop | None = None
+_HAS_TEXT_NER_INFLIGHT: dict[tuple[Any, ...], asyncio.Future] = {}
+_HAS_TEXT_NER_INFLIGHT_LOOP: asyncio.AbstractEventLoop | None = None
+
+
+class _OcrOutputInflight:
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.result: tuple[list[OCRTextBlock], list[SensitiveRegion]] | None = None
+        self.error: BaseException | None = None
+
+
+def _get_has_text_ner_lock() -> asyncio.Lock:
+    """Serialize local HaS Text calls inside this process.
+
+    llama.cpp serves one small local model for all scanned-PDF pages. Letting
+    page workers submit concurrent NER calls tends to increase cold-start tail
+    latency without improving recall, while OCR and HaS Image can still run on
+    their own paths.
+    """
+    global _HAS_TEXT_NER_LOCK, _HAS_TEXT_NER_LOCK_LOOP
+    loop = asyncio.get_running_loop()
+    if _HAS_TEXT_NER_LOCK is None or _HAS_TEXT_NER_LOCK_LOOP is not loop:
+        _HAS_TEXT_NER_LOCK = asyncio.Lock()
+        _HAS_TEXT_NER_LOCK_LOOP = loop
+    return _HAS_TEXT_NER_LOCK
+
+
+def _copy_has_text_ner_result(
+    result: Any,
+) -> Any:
+    if not isinstance(result, dict):
+        return None
+    return {
+        key: list(value) if isinstance(value, list) else value
+        for key, value in result.items()
+    }
+
+
+def _has_text_ner_inflight_key(
+    has_client: Any,
+    text_content: str,
+    chinese_types: list[str],
+) -> tuple[Any, ...]:
+    identity: Any = type(has_client).__qualname__
+    effective_base_url = getattr(has_client, "_effective_base_url", None)
+    if callable(effective_base_url):
+        try:
+            identity = effective_base_url()
+        except Exception:
+            logger.debug("HaS client identity lookup failed", exc_info=True)
+    else:
+        identity = getattr(has_client, "base_url", identity)
+    digest = hashlib.sha256(text_content.encode("utf-8", errors="ignore")).hexdigest()
+    return (identity, tuple(chinese_types), digest)
+
+
+def _begin_has_text_ner_inflight(
+    key: tuple[Any, ...],
+) -> tuple[bool, asyncio.Future]:
+    global _HAS_TEXT_NER_INFLIGHT_LOOP
+    loop = asyncio.get_running_loop()
+    if _HAS_TEXT_NER_INFLIGHT_LOOP is not loop:
+        _HAS_TEXT_NER_INFLIGHT.clear()
+        _HAS_TEXT_NER_INFLIGHT_LOOP = loop
+
+    future = _HAS_TEXT_NER_INFLIGHT.get(key)
+    if future is not None:
+        return False, future
+
+    future = loop.create_future()
+    _HAS_TEXT_NER_INFLIGHT[key] = future
+    return True, future
+
+
+def _finish_has_text_ner_inflight(
+    key: tuple[Any, ...],
+    future: asyncio.Future,
+    result: Any,
+) -> None:
+    if _HAS_TEXT_NER_INFLIGHT.get(key) is future:
+        _HAS_TEXT_NER_INFLIGHT.pop(key, None)
+    if not future.done():
+        future.set_result(_copy_has_text_ner_result(result))
+
+
+def _has_recent_negative_health(has_client: Any) -> bool:
+    checked_at = float(getattr(has_client, "_health_checked_at", 0.0) or 0.0)
+    if checked_at <= 0:
+        return False
+    if bool(getattr(has_client, "_health_ready", False)):
+        return False
+    return time.monotonic() - checked_at < 5.0
+
+
+def _get_cached_has_text_ner(
+    has_client: Any,
+    text_content: str,
+    chinese_types: list[str],
+) -> dict[str, list[str]] | None:
+    getter = getattr(has_client, "get_cached_ner", None)
+    if not callable(getter):
+        return None
+    try:
+        cached = getter(text_content, chinese_types)
+    except Exception:
+        logger.debug("HaS NER cache lookup failed", exc_info=True)
+        return None
+    return cached if isinstance(cached, dict) else None
+
+
+def _clone_text_block(block: OCRTextBlock) -> OCRTextBlock:
+    return OCRTextBlock(
+        text=block.text,
+        polygon=[[float(point[0]), float(point[1])] for point in block.polygon],
+        confidence=float(block.confidence),
+    )
+
+
+def _clone_sensitive_region(region: SensitiveRegion) -> SensitiveRegion:
+    return SensitiveRegion(
+        text=region.text,
+        entity_type=region.entity_type,
+        left=int(region.left),
+        top=int(region.top),
+        width=int(region.width),
+        height=int(region.height),
+        confidence=float(region.confidence),
+        source=region.source,
+        color=tuple(region.color),
+    )
+
+
+def _clone_ocr_output(
+    blocks: list[OCRTextBlock],
+    visual_regions: list[SensitiveRegion],
+) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
+    return (
+        [_clone_text_block(block) for block in blocks],
+        [_clone_sensitive_region(region) for region in visual_regions],
+    )
+
+
+def clear_ocr_text_block_cache() -> None:
+    """Clear process-local OCR output cache. Intended for tests and admin hooks."""
+    with _OCR_TEXT_BLOCK_CACHE_LOCK:
+        _OCR_TEXT_BLOCK_CACHE.clear()
+    with _OCR_TEXT_BLOCK_INFLIGHT_LOCK:
+        _OCR_TEXT_BLOCK_INFLIGHT.clear()
+
+
+def _record_ocr_cache_stage(
+    stage_status: dict[str, Any] | None,
+    stage: str,
+    status: str,
+) -> None:
+    if stage_status is None:
+        return
+    stage_status[f"ocr_{stage}_cache_status"] = status
+    if status == "hit":
+        stage_status[f"ocr_{stage}_cache_hit"] = True
+        stage_status["ocr_cache_hits"] = int(stage_status.get("ocr_cache_hits", 0) or 0) + 1
+    elif status == "miss":
+        stage_status[f"ocr_{stage}_cache_hit"] = False
+        stage_status["ocr_cache_misses"] = int(stage_status.get("ocr_cache_misses", 0) or 0) + 1
+
+
+def _record_ocr_stage_duration(
+    stage_status: dict[str, Any] | None,
+    stage: str,
+    started_at: float,
+) -> None:
+    if stage_status is None:
+        return
+    key = f"ocr_{stage}_ms"
+    elapsed_ms = round((time.perf_counter() - started_at) * 1000)
+    stage_status[key] = int(stage_status.get(key, 0) or 0) + elapsed_ms
+
+
+def _record_has_text_metric(
+    stage_status: dict[str, Any] | None,
+    key: str,
+    value: Any,
+) -> None:
+    if stage_status is not None:
+        stage_status[key] = value
+
+
+def _compact_amount_candidate(text: str) -> str:
+    return _compact_text(text).strip("，,。.;；:：()（）[]【】")
+
+
+def _amount_digit_count(text: str) -> int:
+    return sum(1 for ch in text if ch.isdigit())
+
+
+def _amount_digit_signature(text: str) -> str:
+    return "".join(ch for ch in text if ch.isdigit())
+
+
+def _amount_value_signature(text: str) -> str:
+    """Normalize display variants of the same amount for dedupe.
+
+    This is deliberately a value-level helper, not a detector. HaS still decides
+    whether text is an amount; this only prevents OCR supplements such as
+    1431400 and 1431400.00 from being kept as separate findings.
+    """
+    raw = str(text or "")
+    digits = _amount_digit_signature(raw)
+    if len(digits) > 2 and digits.endswith("00") and any(ch in raw for ch in ".,\uff0c\uff0e"):
+        return digits[:-2]
+    return digits
+
+
+def _iter_percent_value_tokens(text: str) -> list[str]:
+    """Return percent value substrings such as 40% without regular expressions."""
+    raw = str(text or "")
+    tokens: list[str] = []
+    i = 0
+    while i < len(raw):
+        if not raw[i].isdigit():
+            i += 1
+            continue
+
+        start = i
+        while i < len(raw) and raw[i].isdigit():
+            i += 1
+        if i < len(raw) and raw[i] in ".\uff0e":
+            decimal_start = i + 1
+            decimal_end = decimal_start
+            while decimal_end < len(raw) and raw[decimal_end].isdigit():
+                decimal_end += 1
+            if decimal_end > decimal_start:
+                i = decimal_end
+
+        if i < len(raw) and raw[i] in "%\uff05":
+            tokens.append(raw[start : i + 1])
+            i += 1
+            continue
+
+        i = max(start + 1, i)
+    return tokens
+
+
+def _visual_match_text_for_entity(entity_type: str, entity_text: str) -> str:
+    """Choose the visible span to place a box on for a semantic entity.
+
+    Amount percentages are often returned by HaS with surrounding business
+    context ("contract amount 40%"). The sensitive value on the page is the
+    percentage token itself, so use that shorter visible span when available.
+    """
+    if entity_type != "AMOUNT":
+        return entity_text
+    percent_tokens = _iter_percent_value_tokens(entity_text)
+    if not percent_tokens:
+        return entity_text
+    for token in percent_tokens:
+        if _compact_text(token) != _compact_text(entity_text):
+            return token
+    return entity_text
+
+
+def _extend_amount_pair_for_visual_match(
+    block_text: str,
+    entity_text: str,
+    start: int,
+) -> tuple[str, int]:
+    """Keep RMB uppercase/lowercase amount pairs together when HaS returns one side."""
+    if start < 0 or not entity_text:
+        return entity_text, start
+
+    end = start + len(entity_text)
+    if start > 0 and block_text[start - 1] in "（(":
+        start -= 1
+    if end < len(block_text) and block_text[end] in "）)":
+        end += 1
+
+    before_start = max(0, start - 48)
+    before = block_text[before_start:start]
+    lower_pos = before.rfind("小写")
+    upper_pos = before.rfind("人民币大写")
+    if upper_pos < 0:
+        upper_pos = before.rfind("大写")
+    lower_tail_units = _char_visual_units(before[lower_pos:]) if lower_pos >= 0 else 999.0
+    if upper_pos >= 0 and lower_pos >= 0 and upper_pos < lower_pos and lower_tail_units <= 8.0:
+        phrase_start = before_start + upper_pos
+        phrase = block_text[phrase_start:end].strip()
+        leading_trim = len(block_text[phrase_start:end]) - len(block_text[phrase_start:end].lstrip())
+        return phrase, phrase_start + leading_trim
+
+    return block_text[start:end], start
+
+
+def _visual_match_span_for_entity(
+    entity_type: str,
+    block_text: str,
+    entity_text: str,
+    occurrence_start: int,
+) -> tuple[str, int]:
+    visual_text = _visual_match_text_for_entity(entity_type, entity_text)
+    visual_start = occurrence_start
+    if visual_text != entity_text:
+        relative_visual_start = entity_text.find(visual_text)
+        if relative_visual_start >= 0:
+            visual_start = occurrence_start + relative_visual_start
+
+    if entity_type == "AMOUNT":
+        return _extend_amount_pair_for_visual_match(block_text, visual_text, visual_start)
+
+    visual_text = _extend_entity_for_visual_match(
+        entity_type,
+        block_text,
+        visual_text,
+        visual_start,
+    )
+    return visual_text, visual_start
+
+
+def _is_percent_value_text(text: str) -> bool:
+    compact = _compact_text(text)
+    return bool(compact) and compact in {_compact_text(token) for token in _iter_percent_value_tokens(compact)}
+
+
+def _is_amount_token_before_boundary(text: str, start: int) -> bool:
+    if start <= 0:
+        return True
+    prev = text[start - 1]
+    return not (prev.isalnum() or prev in _AMOUNT_TOKEN_BEFORE_BLOCKERS)
+
+
+def _is_amount_token_after_boundary(text: str, end: int) -> bool:
+    if end >= len(text):
+        return True
+    nxt = text[end]
+    return not (nxt.isalnum() or nxt in _AMOUNT_TOKEN_AFTER_BLOCKERS)
+
+
+def _iter_probable_amount_tokens(text: str) -> list[str]:
+    """Scan OCR text for standalone amount-like numeric tokens without regex."""
+    tokens: list[str] = []
+    raw = str(text or "")
+    i = 0
+    while i < len(raw):
+        start = i
+        if raw[i] in _AMOUNT_TOKEN_PREFIX_CHARS:
+            i += 1
+            if i >= len(raw) or not raw[i].isdigit():
+                i = start + 1
+                continue
+        elif not raw[i].isdigit():
+            i += 1
+            continue
+
+        digit_start = i
+        while i < len(raw) and raw[i].isdigit():
+            i += 1
+        digit_count = i - digit_start
+        if not 5 <= digit_count <= 9:
+            i = start + 1
+            continue
+
+        end = i
+        if i < len(raw) and raw[i] in ".,":
+            decimal_start = i + 1
+            decimal_end = decimal_start
+            while decimal_end < len(raw) and raw[decimal_end].isdigit():
+                decimal_end += 1
+            decimal_count = decimal_end - decimal_start
+            if 1 <= decimal_count <= 2:
+                end = decimal_end
+                i = decimal_end
+            elif decimal_count > 0:
+                i = start + 1
+                continue
+
+        if _is_amount_token_before_boundary(raw, start) and _is_amount_token_after_boundary(raw, end):
+            tokens.append(raw[start:end])
+        i = max(start + 1, end)
+    return tokens
+
+
+def _is_probable_table_amount_token(text: str) -> bool:
+    compact = _compact_amount_candidate(text)
+    if not compact or "%" in compact:
+        return False
+    if any(ch.isalpha() for ch in compact):
+        return False
+    digits = _amount_digit_count(compact)
+    return 5 <= digits <= 9 and bool(_iter_probable_amount_tokens(compact))
+
+
+def _augment_amount_entities_from_ocr(
+    entities: list[dict[str, str]],
+    ocr_blocks: list[OCRTextBlock],
+    selected_type_ids: list[str],
+) -> list[dict[str, str]]:
+    """Recover table amount cells that HaS may skip as contextless numbers."""
+    if "AMOUNT" not in selected_type_ids:
+        return entities
+    if not any(_canonical_image_text_type(entity.get("type")) == "AMOUNT" for entity in entities):
+        return entities
+
+    seen = {_compact_amount_candidate(str(entity.get("text", ""))) for entity in entities}
+    seen_digit_signatures = {
+        signature
+        for entity in entities
+        if _canonical_image_text_type(entity.get("type")) == "AMOUNT"
+        for signature in [_amount_value_signature(str(entity.get("text", "")))]
+        if 5 <= len(signature) <= 9
+    }
+    augmented = list(entities)
+    for block in ocr_blocks:
+        text = str(block.text or "")
+        for token in _iter_probable_amount_tokens(text):
+            candidate = _compact_amount_candidate(token)
+            digit_signature = _amount_value_signature(candidate)
+            if (
+                candidate in seen
+                or digit_signature in seen_digit_signatures
+                or not _is_probable_table_amount_token(candidate)
+            ):
+                continue
+            seen.add(candidate)
+            seen_digit_signatures.add(digit_signature)
+            augmented.append({"type": "AMOUNT", "text": candidate})
+            logger.debug("OCR amount supplement found table amount candidate: %s", candidate)
+    return augmented
+
+
+def _add_has_text_duration(
+    stage_status: dict[str, Any] | None,
+    key: str,
+    elapsed_ms: int,
+) -> None:
+    if stage_status is None:
+        return
+    stage_status[key] = int(stage_status.get(key, 0) or 0) + max(0, int(elapsed_ms))
+
+
+def _ocr_cache_enabled() -> bool:
+    return settings.OCR_TEXT_BLOCK_CACHE_TTL_SEC > 0 and settings.OCR_TEXT_BLOCK_CACHE_MAX_ITEMS > 0
+
+
+def _ocr_service_cache_identity(ocr_service: Any) -> tuple[str, str, int]:
+    base_url = str(getattr(ocr_service, "base_url", "") or "")
+    service_name = f"{type(ocr_service).__module__}.{type(ocr_service).__qualname__}"
+    return base_url, service_name, id(ocr_service)
+
+
+def _image_png_bytes(image: Image.Image) -> bytes:
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _ocr_cache_key(
+    stage: str,
+    image: Image.Image,
+    image_bytes: bytes,
+    ocr_service: Any,
+) -> tuple[Any, ...]:
+    config_bits: tuple[Any, ...]
+    if stage == "vl":
+        config_bits = (int(settings.OCR_MAX_NEW_TOKENS),)
+    else:
+        config_bits = ()
+    return (
+        stage,
+        hashlib.sha256(image_bytes).hexdigest(),
+        image.width,
+        image.height,
+        image.mode,
+        _ocr_service_cache_identity(ocr_service),
+        config_bits,
+    )
+
+
+def _get_cached_ocr_output(
+    key: tuple[Any, ...],
+    stage: str,
+    stage_status: dict[str, Any] | None,
+) -> tuple[list[OCRTextBlock], list[SensitiveRegion]] | None:
+    if not _ocr_cache_enabled():
+        _record_ocr_cache_stage(stage_status, stage, "disabled")
+        return None
+
+    now = time.monotonic()
+    ttl = float(settings.OCR_TEXT_BLOCK_CACHE_TTL_SEC)
+    with _OCR_TEXT_BLOCK_CACHE_LOCK:
+        cached = _OCR_TEXT_BLOCK_CACHE.get(key)
+        if cached is None:
+            _record_ocr_cache_stage(stage_status, stage, "miss")
+            return None
+        stored_at, blocks, visual_regions = cached
+        if now - stored_at > ttl:
+            _OCR_TEXT_BLOCK_CACHE.pop(key, None)
+            _record_ocr_cache_stage(stage_status, stage, "miss")
+            return None
+        _OCR_TEXT_BLOCK_CACHE.move_to_end(key)
+        _record_ocr_cache_stage(stage_status, stage, "hit")
+        return _clone_ocr_output(blocks, visual_regions)
+
+
+def _set_cached_ocr_output(
+    key: tuple[Any, ...],
+    blocks: list[OCRTextBlock],
+    visual_regions: list[SensitiveRegion],
+) -> None:
+    if not _ocr_cache_enabled():
+        return
+
+    max_items = int(settings.OCR_TEXT_BLOCK_CACHE_MAX_ITEMS)
+    with _OCR_TEXT_BLOCK_CACHE_LOCK:
+        cached_blocks, cached_regions = _clone_ocr_output(blocks, visual_regions)
+        _OCR_TEXT_BLOCK_CACHE[key] = (time.monotonic(), cached_blocks, cached_regions)
+        _OCR_TEXT_BLOCK_CACHE.move_to_end(key)
+        while len(_OCR_TEXT_BLOCK_CACHE) > max_items:
+            _OCR_TEXT_BLOCK_CACHE.popitem(last=False)
+
+
+def _begin_ocr_output_inflight(
+    key: tuple[Any, ...],
+) -> tuple[bool, _OcrOutputInflight]:
+    with _OCR_TEXT_BLOCK_INFLIGHT_LOCK:
+        inflight = _OCR_TEXT_BLOCK_INFLIGHT.get(key)
+        if inflight is not None:
+            return False, inflight
+        inflight = _OcrOutputInflight()
+        _OCR_TEXT_BLOCK_INFLIGHT[key] = inflight
+        return True, inflight
+
+
+def _finish_ocr_output_inflight(
+    key: tuple[Any, ...],
+    inflight: _OcrOutputInflight,
+    result: tuple[list[OCRTextBlock], list[SensitiveRegion]] | None,
+    error: BaseException | None = None,
+) -> None:
+    with _OCR_TEXT_BLOCK_INFLIGHT_LOCK:
+        if _OCR_TEXT_BLOCK_INFLIGHT.get(key) is inflight:
+            _OCR_TEXT_BLOCK_INFLIGHT.pop(key, None)
+    if result is not None:
+        inflight.result = _clone_ocr_output(*result)
+    inflight.error = error
+    inflight.event.set()
+
+
+def _wait_for_ocr_output_inflight(
+    inflight: _OcrOutputInflight,
+) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
+    inflight.event.wait()
+    if inflight.error is not None:
+        raise inflight.error
+    if inflight.result is None:
+        return [], []
+    return _clone_ocr_output(*inflight.result)
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +641,30 @@ def prepare_image(image_bytes: bytes) -> tuple[Image.Image, int, int]:
     return image, image.width, image.height
 
 
+def _is_effectively_blank_page(image: Image.Image) -> tuple[bool, float, float]:
+    """Return whether a page is blank enough to skip expensive OCR inference."""
+    if image.width < 600 or image.height < 800:
+        return False, 1.0, 1.0
+
+    sample = image.convert("RGB")
+    sample.thumbnail((512, 512))
+    gray = sample.convert("L")
+    pixels = list(gray.getdata())
+    total = len(pixels)
+    if total == 0:
+        return True, 0.0, 0.0
+
+    dark_pixels = sum(1 for value in pixels if value < 180)
+    ink_pixels = sum(1 for value in pixels if value < 230)
+    dark_ratio = dark_pixels / total
+    ink_ratio = ink_pixels / total
+
+    # Keep this threshold deliberately low: it only skips pages with essentially
+    # no visible ink, while preserving faint scans, small seals, and single-line
+    # pages for the semantic OCR path.
+    return dark_ratio <= 0.00002 and ink_ratio <= 0.0001, dark_ratio, ink_ratio
+
+
 # ---------------------------------------------------------------------------
 # PaddleOCR extraction
 # ---------------------------------------------------------------------------
@@ -46,6 +672,9 @@ def prepare_image(image_bytes: bytes) -> tuple[Image.Image, int, int]:
 def run_paddle_ocr(
     image: Image.Image,
     ocr_service: Any,
+    require_visual_regions: bool = False,
+    selected_entity_types: list[str] | None = None,
+    stage_status: dict[str, Any] | None = None,
 ) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
     """
     Call PaddleOCR-VL microservice (port 8082) to extract text blocks and visual
@@ -58,11 +687,106 @@ def run_paddle_ocr(
         logger.warning("OCR client not initialized")
         return [], []
 
+    is_blank, dark_ratio, ink_ratio = _is_effectively_blank_page(image)
+    if is_blank:
+        if stage_status is not None:
+            stage_status["ocr_blank_page_skipped"] = True
+            stage_status["ocr_blank_dark_ratio"] = round(dark_ratio, 6)
+            stage_status["ocr_blank_ink_ratio"] = round(ink_ratio, 6)
+        logger.info(
+            "OCR skipped effectively blank page (dark_ratio=%.6f, ink_ratio=%.6f)",
+            dark_ratio,
+            ink_ratio,
+        )
+        return [], []
+
     if not ocr_service.is_available():
         logger.warning("OCR microservice offline (8082)")
         return [], []
 
-    blocks, visual_regions = _run_ocr_service(image, ocr_service)
+    encoded_image_bytes: bytes | None = None
+
+    def image_bytes() -> bytes:
+        nonlocal encoded_image_bytes
+        if encoded_image_bytes is None:
+            encoded_image_bytes = _image_png_bytes(image)
+        return encoded_image_bytes
+
+    selected = {_canonical_image_text_type(type_id) for type_id in (selected_entity_types or [])}
+    adaptive_mode = selected_entity_types is not None
+    table_like = _looks_like_table(image) if adaptive_mode else False
+    needs_table_precision = bool(selected & TABLE_PRECISION_ENTITY_TYPES)
+    needs_ocr_visual_regions = bool(selected & OCR_VISUAL_ENTITY_TYPES)
+
+    use_structure_primary = (
+        settings.OCR_STRUCTURE_ENABLED
+        and settings.OCR_STRUCTURE_PRIMARY
+        and not require_visual_regions
+        and not needs_ocr_visual_regions
+    )
+
+    primary_structure_blocks: list[OCRTextBlock] | None = None
+    if use_structure_primary:
+        primary_structure_blocks = _run_structure_service(
+            image,
+            ocr_service,
+            stage_status=stage_status,
+            image_bytes=image_bytes(),
+        )
+        min_blocks = max(1, int(settings.OCR_STRUCTURE_PRIMARY_MIN_BOXES))
+        if len(primary_structure_blocks) >= min_blocks:
+            logger.info(
+                "Using PP-StructureV3 primary OCR path: %d blocks (min=%d, table_like=%s, table_types=%s)",
+                len(primary_structure_blocks),
+                min_blocks,
+                table_like,
+                needs_table_precision,
+            )
+            return primary_structure_blocks, []
+        if primary_structure_blocks:
+            logger.info(
+                "PP-StructureV3 primary OCR was sparse (%d < %d); falling back to PaddleOCR-VL",
+                len(primary_structure_blocks),
+                min_blocks,
+            )
+
+    blocks, visual_regions = _run_ocr_service(
+        image,
+        ocr_service,
+        stage_status=stage_status,
+        image_bytes=image_bytes(),
+        service_available_checked=True,
+    )
+    should_structure_fallback = (
+        settings.OCR_STRUCTURE_ENABLED
+        and (
+            _should_run_structure_fallback(image, blocks)
+            or _has_coarse_markup_blocks(blocks)
+            or (adaptive_mode and table_like and needs_table_precision)
+            or (needs_table_precision and _has_coarse_multiline_blocks(blocks))
+        )
+    )
+    if should_structure_fallback:
+        if primary_structure_blocks is not None:
+            structure_blocks = primary_structure_blocks
+            if stage_status is not None:
+                stage_status["ocr_structure_fallback_reused_primary"] = True
+        else:
+            structure_blocks = _run_structure_service(
+                image,
+                ocr_service,
+                stage_status=stage_status,
+                image_bytes=image_bytes(),
+            )
+        if structure_blocks:
+            before = len(blocks)
+            blocks = _merge_ocr_blocks(blocks, structure_blocks)
+            logger.info(
+                "PP-StructureV3 table fallback added %d blocks (%d -> %d)",
+                len(structure_blocks),
+                before,
+                len(blocks),
+            )
     if blocks or visual_regions:
         logger.info("OCR got %d text blocks, %d visual regions", len(blocks), len(visual_regions))
     else:
@@ -70,27 +794,379 @@ def run_paddle_ocr(
     return blocks, visual_regions
 
 
+def _looks_like_table(image: Image.Image) -> bool:
+    gray = image.convert("L")
+    # Downsample for a cheap table-line heuristic.
+    gray.thumbnail((640, 640))
+    width, height = gray.size
+    if width < 80 or height < 80:
+        return False
+    pixels = gray.load()
+    horizontal = 0
+    vertical = 0
+    for y in range(height):
+        dark = sum(1 for x in range(width) if pixels[x, y] < 90)
+        if dark / width > 0.35:
+            horizontal += 1
+    for x in range(width):
+        dark = sum(1 for y in range(height) if pixels[x, y] < 90)
+        if dark / height > 0.25:
+            vertical += 1
+    return horizontal >= 3 and vertical >= 3
+
+
+def _should_run_structure_fallback(image: Image.Image, blocks: list[OCRTextBlock]) -> bool:
+    sparse = len(blocks) < max(1, int(settings.OCR_STRUCTURE_MIN_VL_BOXES))
+    if not sparse:
+        return False
+    if any(block.text.lstrip().lower().startswith(("<table", "<html", "<div")) for block in blocks):
+        return True
+    return _looks_like_table(image)
+
+
+def _has_coarse_multiline_blocks(blocks: list[OCRTextBlock]) -> bool:
+    typical_height = _infer_typical_textline_height(blocks)
+    if not typical_height:
+        return False
+    for block in blocks:
+        if block.text.lstrip().startswith(("<table", "<div")):
+            return True
+        compact_len = len(_compact_text(block.text))
+        if compact_len >= 40 and block.height > typical_height * 1.7:
+            return True
+    return False
+
+
+def _has_coarse_markup_blocks(blocks: list[OCRTextBlock]) -> bool:
+    return any(_is_coarse_markup_block(block) for block in blocks)
+
+
+def _is_coarse_markup_block(block: OCRTextBlock) -> bool:
+    return block.text.lstrip().lower().startswith(("<table", "<html", "<div"))
+
+
+def _ocr_items_to_blocks(items: list[Any], image: Image.Image) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
+    width, height = image.size
+    blocks: list[OCRTextBlock] = []
+    visual_regions: list[SensitiveRegion] = []
+
+    for item in items:
+        left = int(item.x * width)
+        top = int(item.y * height)
+        w = int(item.width * width)
+        h = int(item.height * height)
+        right = max(left + max(w, 1), left + 1)
+        bottom = max(top + max(h, 1), top + 1)
+
+        left = max(0, min(left, width - 1))
+        top = max(0, min(top, height - 1))
+        right = max(left + 1, min(right, width))
+        bottom = max(top + 1, min(bottom, height))
+
+        label = getattr(item, "label", "text") or "text"
+        if str(label).strip().lower() in {"figure", "image", "picture", "diagram", "chart"}:
+            continue
+        text = str(getattr(item, "text", "") or "").strip()
+        if label == "seal" or text == "[公章]":
+            region = SensitiveRegion(
+                text="[公章]",
+                entity_type="SEAL",
+                left=left,
+                top=top,
+                width=right - left,
+                height=bottom - top,
+                confidence=float(getattr(item, "confidence", 0.9) or 0.9),
+                source="ocr_seal",
+            )
+            visual_regions.extend(_split_merged_seal_region(image, region))
+            continue
+        if not text:
+            continue
+        blocks.append(OCRTextBlock(
+            text=text,
+            polygon=[[left, top], [right, top], [right, bottom], [left, bottom]],
+            confidence=float(getattr(item, "confidence", 0.9) or 0.9),
+        ))
+    return blocks, visual_regions
+
+
+def _run_structure_service(
+    image: Image.Image,
+    ocr_service: Any,
+    stage_status: dict[str, Any] | None = None,
+    image_bytes: bytes | None = None,
+) -> list[OCRTextBlock]:
+    stage_start = time.perf_counter()
+    if not ocr_service or not hasattr(ocr_service, "extract_structure_boxes"):
+        _record_ocr_stage_duration(stage_status, "structure", stage_start)
+        return []
+    if image_bytes is None:
+        image_bytes = _image_png_bytes(image)
+    cache_key = _ocr_cache_key("structure", image, image_bytes, ocr_service)
+    cached = _get_cached_ocr_output(cache_key, "structure", stage_status)
+    if cached is not None:
+        blocks, _visual_regions = cached
+        _record_ocr_stage_duration(stage_status, "structure", stage_start)
+        return blocks
+
+    owns_inflight, inflight = _begin_ocr_output_inflight(cache_key)
+    if not owns_inflight:
+        blocks, _visual_regions = _wait_for_ocr_output_inflight(inflight)
+        _record_ocr_cache_stage(stage_status, "structure", "shared_inflight")
+        _record_ocr_stage_duration(stage_status, "structure", stage_start)
+        return blocks
+
+    try:
+        items = ocr_service.extract_structure_boxes(image_bytes)
+    except Exception as e:
+        logger.warning("PP-StructureV3 fallback failed: %s", e)
+        _finish_ocr_output_inflight(cache_key, inflight, ([], []))
+        _record_ocr_stage_duration(stage_status, "structure", stage_start)
+        return []
+    try:
+        blocks, _visual_regions = _ocr_items_to_blocks(items, image)
+    except Exception as e:
+        _finish_ocr_output_inflight(cache_key, inflight, None, e)
+        raise
+    _set_cached_ocr_output(cache_key, blocks, [])
+    _finish_ocr_output_inflight(cache_key, inflight, (blocks, []))
+    _record_ocr_stage_duration(stage_status, "structure", stage_start)
+    return blocks
+
+
+def _merge_ocr_blocks(primary: list[OCRTextBlock], extra: list[OCRTextBlock]) -> list[OCRTextBlock]:
+    if extra:
+        merged = [
+            block for block in primary
+            if not _is_coarse_markup_block(block)
+        ]
+    else:
+        merged = list(primary)
+
+    def iou(a: OCRTextBlock, b: OCRTextBlock) -> float:
+        ax1, ay1, ax2, ay2 = a.bbox
+        bx1, by1, bx2, by2 = b.bbox
+        x1, y1 = max(ax1, bx1), max(ay1, by1)
+        x2, y2 = min(ax2, bx2), min(ay2, by2)
+        if x2 <= x1 or y2 <= y1:
+            return 0.0
+        inter = (x2 - x1) * (y2 - y1)
+        area_a = max(1, (ax2 - ax1) * (ay2 - ay1))
+        area_b = max(1, (bx2 - bx1) * (by2 - by1))
+        return inter / (area_a + area_b - inter)
+
+    for block in extra:
+        if _is_coarse_markup_block(block):
+            continue
+        compact = _compact_text(block.text)
+        duplicate = False
+        for existing in merged:
+            if compact and compact == _compact_text(existing.text) and iou(block, existing) > 0.5:
+                duplicate = True
+                break
+            if iou(block, existing) > 0.85:
+                duplicate = True
+                break
+        if not duplicate:
+            merged.append(block)
+    return merged
+
+
+def _is_red_stamp_pixel(r: int, g: int, b: int) -> bool:
+    return (
+        r >= 115
+        and r - g >= 30
+        and r - b >= 30
+        and g <= max(135, int(r * 0.78))
+        and b <= max(135, int(r * 0.78))
+    )
+
+
+def _split_merged_seal_region(image: Image.Image, region: SensitiveRegion) -> list[SensitiveRegion]:
+    """Split a model-returned seal box when it visibly contains stacked seals.
+
+    PaddleOCR-VL sometimes returns one tall region around two adjacent red
+    stamps. Redacting the combined box works, but it hides too much nearby text
+    and makes manual review awkward. This post-process is intentionally generic:
+    it only runs for unusually tall seal boxes and separates them by red-pixel
+    row projections inside the box.
+    """
+    if region.entity_type != "SEAL":
+        return [region]
+    if region.width < 40 or region.height < 40:
+        return [region]
+    if region.height < region.width * 1.25:
+        return [region]
+
+    img_w, img_h = image.size
+    if region.width < max(80, int(img_w * 0.075)):
+        return [region]
+    x1 = max(0, min(region.left, img_w - 1))
+    y1 = max(0, min(region.top, img_h - 1))
+    x2 = max(x1 + 1, min(region.left + region.width, img_w))
+    y2 = max(y1 + 1, min(region.top + region.height, img_h))
+    crop = image.crop((x1, y1, x2, y2)).convert("RGB")
+    width, height = crop.size
+    pixels = crop.load()
+
+    red_rows: list[int] = []
+    for y in range(height):
+        count = 0
+        for x in range(width):
+            if _is_red_stamp_pixel(*pixels[x, y]):
+                count += 1
+        red_rows.append(count)
+
+    # Smooth the projection so sparse red text and broken rings are treated as
+    # one seal band while preserving larger vertical gaps between stamps.
+    radius = max(2, min(7, height // 80))
+    smoothed = [
+        sum(red_rows[max(0, y - radius): min(height, y + radius + 1)])
+        for y in range(height)
+    ]
+    active_threshold = max(12, int(width * 0.10))
+    close_gap = max(8, min(24, height // 18))
+    min_band_height = max(28, min(90, int(region.width * 0.35)))
+
+    bands: list[tuple[int, int]] = []
+    in_band = False
+    start = 0
+    gap = 0
+    for y, count in enumerate(smoothed):
+        if count >= active_threshold:
+            if not in_band:
+                start = y
+                in_band = True
+            gap = 0
+        elif in_band:
+            gap += 1
+            if gap >= close_gap:
+                end = y - gap + 1
+                if end - start >= min_band_height:
+                    bands.append((start, end))
+                in_band = False
+                gap = 0
+    if in_band and height - start >= min_band_height:
+        bands.append((start, height - 1))
+
+    if len(bands) < 2:
+        max_projection = max(smoothed) if smoothed else 0
+        peak_candidates: list[tuple[float, int]] = []
+        if max_projection > 0:
+            for y in range(1, height - 1):
+                if (
+                    smoothed[y] >= smoothed[y - 1]
+                    and smoothed[y] >= smoothed[y + 1]
+                    and smoothed[y] >= max_projection * 0.35
+                ):
+                    peak_candidates.append((float(smoothed[y]), y))
+        peaks: list[int] = []
+        min_peak_distance = max(48, int(width * 0.55))
+        for _score, y in sorted(peak_candidates, reverse=True):
+            if all(abs(y - existing) >= min_peak_distance for existing in peaks):
+                peaks.append(y)
+            if len(peaks) >= 4:
+                break
+        peaks.sort()
+        if len(peaks) >= 2:
+            half_band = max(64, int(width * 0.52))
+            bands = [
+                (max(0, peak - half_band), min(height - 1, peak + half_band))
+                for peak in peaks
+            ]
+
+    if len(bands) < 2:
+        return [region]
+
+    split_regions: list[SensitiveRegion] = []
+    for band_start, band_end in bands:
+        red_xs: list[int] = []
+        red_ys: list[int] = []
+        y_start = max(0, band_start - radius)
+        y_end = min(height - 1, band_end + radius)
+        for y in range(y_start, y_end + 1):
+            for x in range(width):
+                if _is_red_stamp_pixel(*pixels[x, y]):
+                    red_xs.append(x)
+                    red_ys.append(y)
+        if not red_xs:
+            continue
+        bx1, bx2 = min(red_xs), max(red_xs)
+        by1, by2 = min(red_ys), max(red_ys)
+        box_w = bx2 - bx1 + 1
+        box_h = by2 - by1 + 1
+        if box_w < max(24, region.width * 0.18) or box_h < max(24, region.width * 0.18):
+            continue
+        pad = max(6, int(max(box_w, box_h) * 0.06))
+        left = max(0, x1 + bx1 - pad)
+        top = max(0, y1 + by1 - pad)
+        right = min(img_w, x1 + bx2 + pad + 1)
+        bottom = min(img_h, y1 + by2 + pad + 1)
+        split_regions.append(SensitiveRegion(
+            text=region.text,
+            entity_type=region.entity_type,
+            left=left,
+            top=top,
+            width=max(1, right - left),
+            height=max(1, bottom - top),
+            confidence=region.confidence,
+            source=region.source,
+            color=region.color,
+        ))
+
+    return split_regions if len(split_regions) >= 2 else [region]
+
+
 def _run_ocr_service(
     image: Image.Image,
     ocr_service: Any,
+    stage_status: dict[str, Any] | None = None,
+    image_bytes: bytes | None = None,
+    service_available_checked: bool = False,
 ) -> tuple[list[OCRTextBlock], list[SensitiveRegion]]:
     """Low-level call to OCRService (PaddleOCR-VL) and result conversion."""
-    if not ocr_service or not ocr_service.is_available():
+    stage_start = time.perf_counter()
+    if not ocr_service:
+        _record_ocr_stage_duration(stage_status, "vl", stage_start)
+        return [], []
+    if not service_available_checked and not ocr_service.is_available():
+        _record_ocr_stage_duration(stage_status, "vl", stage_start)
         return [], []
 
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    image_bytes = buffer.getvalue()
+    if image_bytes is None:
+        image_bytes = _image_png_bytes(image)
+    cache_key = _ocr_cache_key("vl", image, image_bytes, ocr_service)
+    cached = _get_cached_ocr_output(cache_key, "vl", stage_status)
+    if cached is not None:
+        _record_ocr_stage_duration(stage_status, "vl", stage_start)
+        return cached
+
+    owns_inflight, inflight = _begin_ocr_output_inflight(cache_key)
+    if not owns_inflight:
+        result = _wait_for_ocr_output_inflight(inflight)
+        _record_ocr_cache_stage(stage_status, "vl", "shared_inflight")
+        _record_ocr_stage_duration(stage_status, "vl", stage_start)
+        return result
 
     from app.services.ocr_service import OCRServiceError
+    cacheable = True
     try:
         items = ocr_service.extract_text_boxes(image_bytes)
     except OCRServiceError as e:
         logger.warning("OCR 服务异常 (transient=%s): %s", e.transient, e)
         if not e.transient:
+            _finish_ocr_output_inflight(cache_key, inflight, None, e)
             raise  # permanent error propagated
+        cacheable = False
         items = []  # transient error degrades gracefully
+    except Exception as e:
+        _finish_ocr_output_inflight(cache_key, inflight, None, e)
+        raise
     if not items:
+        if cacheable:
+            _set_cached_ocr_output(cache_key, [], [])
+        _finish_ocr_output_inflight(cache_key, inflight, ([], []))
+        _record_ocr_stage_duration(stage_status, "vl", stage_start)
         return [], []
 
     width, height = image.size
@@ -114,7 +1190,7 @@ def _run_ocr_service(
         # seals -> direct sensitive region
         label = getattr(item, 'label', 'text') or 'text'
         if label == "seal" or item.text.strip() == "[公章]":
-            visual_regions.append(SensitiveRegion(
+            region = SensitiveRegion(
                 text="[公章]",
                 entity_type="SEAL",
                 left=left,
@@ -124,8 +1200,17 @@ def _run_ocr_service(
                 confidence=item.confidence,
                 source="paddleocr_vl",
                 color=(255, 0, 0),
-            ))
-            logger.info("Found SEAL @ (%d, %d, %d, %d)", left, top, right - left, bottom - top)
+            )
+            split_regions = _split_merged_seal_region(image, region)
+            visual_regions.extend(split_regions)
+            logger.info(
+                "Found SEAL @ (%d, %d, %d, %d), split=%d",
+                left,
+                top,
+                right - left,
+                bottom - top,
+                len(split_regions),
+            )
             continue
 
         polygon = [
@@ -140,6 +1225,10 @@ def _run_ocr_service(
             confidence=float(item.confidence),
         ))
 
+    if cacheable:
+        _set_cached_ocr_output(cache_key, blocks, visual_regions)
+    _finish_ocr_output_inflight(cache_key, inflight, (blocks, visual_regions))
+    _record_ocr_stage_duration(stage_status, "vl", stage_start)
     return blocks, visual_regions
 
 
@@ -154,15 +1243,16 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> list[OCRTextBlo
     Cell positions are estimated from row/column indices and the parent block's
     bounding box.
     """
-    rows: list[list[tuple]] = []
+    rows: list[list[tuple[str, int, int]]] = []
 
     class TableCellParser(HTMLParser):
         def __init__(self):
             super().__init__()
             self.in_cell = False
             self.current_cell = ""
-            self.current_row: list[tuple] = []
+            self.current_row: list[tuple[str, int, int]] = []
             self.current_colspan = 1
+            self.current_rowspan = 1
 
         def handle_starttag(self, tag, attrs):
             if tag == "tr":
@@ -171,18 +1261,24 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> list[OCRTextBlo
                 self.in_cell = True
                 self.current_cell = ""
                 self.current_colspan = 1
+                self.current_rowspan = 1
                 for k, v in attrs:
                     if k == "colspan":
                         try:
                             self.current_colspan = max(1, int(v))
                         except Exception:
                             self.current_colspan = 1
+                    elif k == "rowspan":
+                        try:
+                            self.current_rowspan = max(1, int(v))
+                        except Exception:
+                            self.current_rowspan = 1
 
         def handle_endtag(self, tag):
             if tag in ("td", "th") and self.in_cell:
                 self.in_cell = False
                 cell_text = html.unescape(self.current_cell).strip()
-                self.current_row.append((cell_text, self.current_colspan))
+                self.current_row.append((cell_text, self.current_colspan, self.current_rowspan))
             if tag == "tr":
                 if self.current_row:
                     rows.append(self.current_row)
@@ -204,11 +1300,24 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> list[OCRTextBlo
     if not rows:
         return []
 
-    num_rows = len(rows)
-    num_cols = max(
-        (sum(max(1, span) for _, span in row) for row in rows),
-        default=0,
-    )
+    placements: list[tuple[str, int, int, int, int]] = []
+    occupied: set[tuple[int, int]] = set()
+    num_cols = 0
+    for r_idx, row in enumerate(rows):
+        col_idx = 0
+        for cell_text, colspan, rowspan in row:
+            while (r_idx, col_idx) in occupied:
+                col_idx += 1
+            col_span = max(1, colspan)
+            row_span = max(1, rowspan)
+            placements.append((cell_text, r_idx, col_idx, row_span, col_span))
+            for rr in range(r_idx, r_idx + row_span):
+                for cc in range(col_idx, col_idx + col_span):
+                    occupied.add((rr, cc))
+            num_cols = max(num_cols, col_idx + col_span)
+            col_idx += col_span
+
+    num_rows = max((row for row, _ in occupied), default=len(rows) - 1) + 1
     if num_rows == 0 or num_cols == 0:
         return []
 
@@ -216,29 +1325,38 @@ def extract_table_cells(table_html: str, block: OCRTextBlock) -> list[OCRTextBlo
     col_width = max(block.width / num_cols, 1.0)
 
     virtual_blocks: list[OCRTextBlock] = []
-    for r_idx, row in enumerate(rows):
-        col_idx = 0
-        for cell_text, colspan in row:
-            span = max(1, colspan)
-            if cell_text.strip():
-                cell_left = block.left + col_idx * col_width
-                cell_top = block.top + r_idx * row_height
-                cell_width = col_width * span
-                cell_height = row_height
+    for cell_text, r_idx, col_idx, row_span, col_span in placements:
+        if cell_text.strip():
+            cell_left = block.left + col_idx * col_width
+            cell_top = block.top + r_idx * row_height
+            cell_width = col_width * col_span
+            cell_height = row_height * row_span
 
-                virtual_blocks.append(OCRTextBlock(
-                    text=cell_text,
-                    polygon=[
-                        [cell_left, cell_top],
-                        [cell_left + cell_width, cell_top],
-                        [cell_left + cell_width, cell_top + cell_height],
-                        [cell_left, cell_top + cell_height],
-                    ],
-                    confidence=block.confidence * 0.9,
-                ))
-            col_idx += span
+            virtual_blocks.append(OCRTextBlock(
+                text=cell_text,
+                polygon=[
+                    [cell_left, cell_top],
+                    [cell_left + cell_width, cell_top],
+                    [cell_left + cell_width, cell_top + cell_height],
+                    [cell_left, cell_top + cell_height],
+                ],
+                confidence=block.confidence * 0.9,
+            ))
 
     return virtual_blocks
+
+
+def _html_to_plain_text(markup: str) -> str:
+    parts: list[str] = []
+
+    class PlainTextParser(HTMLParser):
+        def handle_data(self, data):
+            if data:
+                parts.append(data)
+
+    parser = PlainTextParser()
+    parser.feed(markup)
+    return " ".join(html.unescape(part).strip() for part in parts if part.strip()).strip()
 
 
 def expand_table_blocks(ocr_blocks: list[OCRTextBlock]) -> list[OCRTextBlock]:
@@ -251,8 +1369,7 @@ def expand_table_blocks(ocr_blocks: list[OCRTextBlock]) -> list[OCRTextBlock]:
                 expanded.extend(cell_blocks)
                 continue
             # parse failed - strip HTML tags as fallback
-            plain = re.sub(r"<[^>]+>", " ", block.text)
-            plain = re.sub(r"\s+", " ", plain).strip()
+            plain = _html_to_plain_text(block.text)
             if plain:
                 expanded.append(OCRTextBlock(
                     text=plain,
@@ -274,6 +1391,7 @@ async def run_has_text_analysis(
     ocr_blocks: list[OCRTextBlock],
     has_client: Any,
     vision_types: list | None = None,
+    stage_status: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """
     Analyse OCR text with HaS local NER model to identify sensitive entities.
@@ -287,7 +1405,19 @@ async def run_has_text_analysis(
     Returns:
         [{type: "PERSON", text: "张三"}, ...]
     """
+    total_start = time.perf_counter()
+    _record_has_text_metric(stage_status, "has_text_cache_status", "not_started")
+    _record_has_text_metric(stage_status, "has_text_slot_wait_ms", 0)
+    _record_has_text_metric(stage_status, "has_text_duplicate_wait_ms", 0)
+    _record_has_text_metric(stage_status, "has_text_model_ms", 0)
+
     if not ocr_blocks:
+        _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_empty_ocr")
+        _record_has_text_metric(
+            stage_status,
+            "has_text_total_ms",
+            round((time.perf_counter() - total_start) * 1000),
+        )
         return []
 
     # Lazy re-init if client was not available at startup
@@ -297,78 +1427,201 @@ async def run_has_text_analysis(
             has_client = HaSClient()
         except Exception as e:
             logger.error("HaS Client init failed: %s", e)
+            _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_no_client")
+            _record_has_text_metric(
+                stage_status,
+                "has_text_total_ms",
+                round((time.perf_counter() - total_start) * 1000),
+            )
             return []
 
-    if not has_client.is_available():
-        logger.warning("HaS service not available, skipping NER")
+    if _has_recent_negative_health(has_client):
+        logger.warning("HaS service recently reported unavailable, skipping NER")
+        _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_recent_unavailable")
+        _record_has_text_metric(
+            stage_status,
+            "has_text_total_ms",
+            round((time.perf_counter() - total_start) * 1000),
+        )
         return []
 
     try:
-        all_texts = [block.text for block in ocr_blocks if block.text.strip()]
-        text_content = "\n".join(all_texts)
-
-        MAX_VISION_TEXT_LENGTH = 500_000
-        if len(text_content) > MAX_VISION_TEXT_LENGTH:
-            logger.warning("OCR 文本过长 (%d chars)，截断至 %d", len(text_content), MAX_VISION_TEXT_LENGTH)
-            text_content = text_content[:MAX_VISION_TEXT_LENGTH]
+        prepare_start = time.perf_counter()
+        selected_type_ids = [_canonical_image_text_type(getattr(vt, "id", "")) for vt in (vision_types or [])]
+        candidate_blocks = _filter_blocks_for_has_text(ocr_blocks, selected_type_ids)
+        has_payload = _build_has_text_payload(
+            candidate_blocks,
+            max_chars=settings.HAS_VISION_MAX_TEXT_CHARS,
+            max_block_chars=settings.HAS_VISION_MAX_BLOCK_CHARS,
+        )
+        text_content = has_payload.content
+        _add_has_text_duration(
+            stage_status,
+            "has_text_prepare_ms",
+            round((time.perf_counter() - prepare_start) * 1000),
+        )
+        _record_has_text_metric(stage_status, "has_text_source_blocks", has_payload.source_block_count)
+        _record_has_text_metric(stage_status, "has_text_eligible_blocks", has_payload.eligible_block_count)
+        _record_has_text_metric(stage_status, "has_text_unique_blocks", len(has_payload.texts))
+        _record_has_text_metric(stage_status, "has_text_duplicate_blocks", has_payload.duplicate_block_count)
+        _record_has_text_metric(stage_status, "has_text_clipped_blocks", has_payload.clipped_block_count)
+        _record_has_text_metric(stage_status, "has_text_input_chars", has_payload.input_chars)
+        _record_has_text_metric(stage_status, "has_text_emitted_chars", has_payload.emitted_chars)
+        _record_has_text_metric(stage_status, "has_text_omitted_chars", has_payload.omitted_chars)
+        _record_has_text_metric(stage_status, "has_text_truncated", has_payload.truncated)
 
         if not text_content.strip():
+            logger.info(
+                "HaS skipped; no eligible OCR text blocks (source=%d, eligible=%d, duplicates=%d)",
+                has_payload.source_block_count,
+                has_payload.eligible_block_count,
+                has_payload.duplicate_block_count,
+            )
+            _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_no_eligible_text")
+            _record_has_text_metric(
+                stage_status,
+                "has_text_total_ms",
+                round((time.perf_counter() - total_start) * 1000),
+            )
             return []
 
-        logger.info("HaS analyzing %d text blocks...", len(all_texts))
+        min_text_chars = int(settings.HAS_VISION_MIN_TEXT_CHARS_FOR_NER)
+        compact_chars = len(_compact_text(text_content))
+        _record_has_text_metric(stage_status, "has_text_compact_chars", compact_chars)
+        if compact_chars < min_text_chars:
+            logger.info(
+                "HaS skipped; compact OCR text chars=%d below min=%d (eligible=%d)",
+                compact_chars,
+                min_text_chars,
+                has_payload.eligible_block_count,
+            )
+            _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_too_short")
+            _record_has_text_metric(
+                stage_status,
+                "has_text_total_ms",
+                round((time.perf_counter() - total_start) * 1000),
+            )
+            return []
+
+        logger.info(
+            (
+                "HaS analyzing unique_blocks=%d/%d, source_blocks=%d, "
+                "input_chars=%d, emitted_chars=%d, duplicate_blocks=%d, "
+                "clipped_blocks=%d, omitted_chars=%d, type_configs=%d, truncated=%s"
+            ),
+            len(has_payload.texts),
+            has_payload.eligible_block_count,
+            has_payload.source_block_count,
+            has_payload.input_chars,
+            has_payload.emitted_chars,
+            has_payload.duplicate_block_count,
+            has_payload.clipped_block_count,
+            has_payload.omitted_chars,
+            len(vision_types or []),
+            has_payload.truncated,
+        )
 
         # ----- type ID <-> Chinese name mappings -----
-        from app.models.type_mapping import TYPE_ID_TO_CN
-
-        VISUAL_ONLY_TYPES = {
-            "SEAL", "SIGNATURE", "FINGERPRINT", "PHOTO",
-            "QR_CODE", "HANDWRITING", "WATERMARK",
-        }
+        from app.models.type_mapping import cn_to_id
 
         if vision_types:
-            chinese_types = []
-            for vt in vision_types:
-                if vt.id in VISUAL_ONLY_TYPES:
-                    continue
-                if vt.id in TYPE_ID_TO_CN:
-                    chinese_types.append(TYPE_ID_TO_CN[vt.id])
-                else:
-                    chinese_types.append(vt.name)
-            chinese_types = list(dict.fromkeys(chinese_types))
+            chinese_types = _build_has_text_type_names(vision_types)
+            if not chinese_types:
+                logger.info("HaS skipped; selected OCR types are visual-only")
+                _record_has_text_metric(stage_status, "has_text_cache_status", "skipped_visual_only_types")
+                _record_has_text_metric(
+                    stage_status,
+                    "has_text_total_ms",
+                    round((time.perf_counter() - total_start) * 1000),
+                )
+                return []
             logger.info("HaS using types for NER: %s", chinese_types)
         else:
-            chinese_types = [
-                "人名", "身份证号", "电话号码", "电子邮箱",
-                "银行卡号", "银行账号", "机构名称", "详细地址",
-                "日期", "金额", "案件编号", "当事人", "律师",
-            ]
+            chinese_types = _build_has_text_type_names()
             logger.info("HaS using default types: %s", chinese_types)
+        _record_has_text_metric(stage_status, "has_text_type_count", len(chinese_types))
 
-        # HaS httpx is synchronous - offload to threadpool
-        ner_result = await asyncio.to_thread(
-            has_client.ner, text_content, chinese_types
-        )
+        ner_result = _get_cached_has_text_ner(has_client, text_content, chinese_types)
+        if ner_result is not None:
+            _record_has_text_metric(stage_status, "has_text_cache_status", "hit_before_slot")
+            logger.info("HaS NER cache hit before local slot wait")
+        else:
+            _record_has_text_metric(stage_status, "has_text_cache_status", "miss")
+            inflight_key = _has_text_ner_inflight_key(has_client, text_content, chinese_types)
+            owns_inflight, inflight_future = _begin_has_text_ner_inflight(inflight_key)
+            if not owns_inflight:
+                duplicate_wait_start = time.perf_counter()
+                ner_result = await asyncio.shield(inflight_future)
+                wait_ms = round((time.perf_counter() - duplicate_wait_start) * 1000)
+                _record_has_text_metric(stage_status, "has_text_cache_status", "shared_inflight")
+                _add_has_text_duration(stage_status, "has_text_duplicate_wait_ms", wait_ms)
+                logger.info("HaS NER duplicate waited %dms without local slot", wait_ms)
+            else:
+                try:
+                    # HaS httpx is synchronous - offload to a worker thread. Keep local
+                    # HaS Text calls serialized so scanned-PDF page concurrency does not
+                    # amplify cold-start and queue latency inside llama.cpp.
+                    lock = _get_has_text_ner_lock()
+                    queue_start = time.perf_counter()
+                    async with lock:
+                        queue_ms = round((time.perf_counter() - queue_start) * 1000)
+                        _add_has_text_duration(stage_status, "has_text_slot_wait_ms", queue_ms)
+                        if queue_ms > 0:
+                            logger.info("HaS Text waited %dms for local NER slot", queue_ms)
+                        ner_result = _get_cached_has_text_ner(has_client, text_content, chinese_types)
+                        if ner_result is not None:
+                            _record_has_text_metric(stage_status, "has_text_cache_status", "hit_after_slot")
+                            logger.info("HaS NER cache hit after local slot wait")
+                        else:
+                            model_start = time.perf_counter()
+                            ner_result = await asyncio.to_thread(
+                                has_client.ner, text_content, chinese_types
+                            )
+                            _record_has_text_metric(stage_status, "has_text_cache_status", "model_call")
+                            _add_has_text_duration(
+                                stage_status,
+                                "has_text_model_ms",
+                                round((time.perf_counter() - model_start) * 1000),
+                            )
+                    _finish_has_text_ner_inflight(inflight_key, inflight_future, ner_result)
+                except Exception:
+                    _finish_has_text_ner_inflight(inflight_key, inflight_future, None)
+                    raise
 
         if not ner_result or not isinstance(ner_result, dict):
             logger.info("HaS: no entities found by NER")
+            _record_has_text_metric(stage_status, "has_text_entity_count", 0)
+            _record_has_text_metric(
+                stage_status,
+                "has_text_total_ms",
+                round((time.perf_counter() - total_start) * 1000),
+            )
             return []
 
         logger.info("HaS NER result: %s", ner_result)
 
         # ----- reverse mapping: Chinese -> type ID -----
-        from app.models.type_mapping import TYPE_CN_TO_ID
-        chinese_to_id = dict(TYPE_CN_TO_ID)
-
         if vision_types:
+            chinese_to_id = {}
             for vt in vision_types:
-                if vt.id not in TYPE_ID_TO_CN:
-                    chinese_to_id[vt.name] = vt.id
+                normalized_id = _canonical_image_text_type(vt.id)
+                if not normalized_id:
+                    continue
+                chinese_to_id[vt.name] = normalized_id
+                chinese_to_id[normalized_id] = normalized_id
+                canonical_name = TYPE_ID_TO_CN.get(normalized_id)
+                if canonical_name:
+                    chinese_to_id[canonical_name] = normalized_id
+        else:
+            chinese_to_id = {
+                TYPE_ID_TO_CN.get(type_id, type_id): type_id
+                for type_id in DEFAULT_HAS_TEXT_TYPE_IDS
+            }
 
         entities = []
         min_len_by_type = {
             "PERSON": 2,
             "ORG": 2,
-            "COMPANY": 2,
             "ADDRESS": 4,
         }
 
@@ -376,7 +1629,10 @@ async def run_has_text_analysis(
             if not entity_list:
                 continue
 
-            normalized_type = chinese_to_id.get(entity_type, entity_type.upper())
+            normalized_type = chinese_to_id.get(entity_type)
+            if not normalized_type:
+                logger.debug("HaS skipped unrequested type bucket: %s", entity_type)
+                continue
             min_len = min_len_by_type.get(normalized_type, 2)
 
             for entity_text in entity_list:
@@ -391,17 +1647,316 @@ async def run_has_text_analysis(
                 })
                 logger.debug("HaS found entity: %s (%s)", text, normalized_type)
 
+        entities = _augment_amount_entities_from_ocr(entities, candidate_blocks, selected_type_ids)
         logger.info("HaS total %d sensitive entities found", len(entities))
+        _record_has_text_metric(stage_status, "has_text_entity_count", len(entities))
+        _record_has_text_metric(
+            stage_status,
+            "has_text_total_ms",
+            round((time.perf_counter() - total_start) * 1000),
+        )
         return entities
 
     except Exception as e:
         logger.exception("HaS text analysis failed: %s", e)
+        _record_has_text_metric(stage_status, "has_text_cache_status", "failed")
+        _record_has_text_metric(
+            stage_status,
+            "has_text_total_ms",
+            round((time.perf_counter() - total_start) * 1000),
+        )
         return []
 
 
 # ---------------------------------------------------------------------------
 # Entity-to-OCR matching
 # ---------------------------------------------------------------------------
+
+DOCUMENT_TITLE_SUFFIXES = {
+    "合同",
+    "协议",
+    "清单",
+    "方案",
+    "报告",
+    "通知",
+    "函",
+}
+
+
+def _is_low_signal_vision_entity(entity_type: str, entity_text: str) -> bool:
+    compact = _compact_text(entity_text)
+    if not compact:
+        return True
+    return False
+
+
+def _entity_type_from_block_context(entity_type: str, entity_text: str, block_text: str) -> str | None:
+    return _canonical_image_text_type(entity_type)
+
+def _extend_entity_for_visual_match(entity_type: str, block_text: str, entity_text: str, start: int) -> str:
+    """Extend short semantic values to adjacent visual suffixes in the same line.
+
+    HaS/field completion often returns the core business object ("采购项目"),
+    while the visible document title appends a generic suffix such as "合同".
+    For redaction coordinates, the suffix belongs to the same visual phrase and
+    must be covered to avoid readable tail characters.
+    """
+    if entity_type != "PROPERTY" or start < 0:
+        return entity_text
+    tail_start = start + len(entity_text)
+    tail = _compact_text(block_text[tail_start: tail_start + 12])
+    for suffix in sorted(DOCUMENT_TITLE_SUFFIXES, key=len, reverse=True):
+        if tail.startswith(suffix):
+            return entity_text + suffix
+    return entity_text
+
+
+def _char_visual_units(text: str) -> float:
+    total = 0.0
+    for ch in text or "":
+        if ch.isspace():
+            total += 0.25
+        elif "\u4e00" <= ch <= "\u9fff":
+            total += 1.0
+        elif ch.isdigit() or ("a" <= ch.lower() <= "z"):
+            total += 0.56
+        elif ch in ".,:;()[]{}<>-/\\|_+=*&^%$#@!?~`'\"":
+            total += 0.35
+        else:
+            total += 0.65
+    return max(total, 0.01)
+
+
+def _char_unit(ch: str) -> float:
+    return _char_visual_units(ch)
+
+
+def _find_wrap_break(text: str, start: int, estimated: int) -> int:
+    """Choose a natural visual-wrap boundary near an estimated character index."""
+    if not text:
+        return start
+    lo = max(start + 1, estimated - 12)
+    hi = min(len(text) - 1, estimated + 12)
+    if lo > hi:
+        return max(start + 1, min(len(text) - 1, estimated))
+
+    # Prefer punctuation after the mark, then currency/digit starts. This keeps
+    # amounts and identifiers intact when a long OCR row was visually wrapped.
+    punctuation = "，,。.;；、)）]】"
+    best: tuple[int, int] | None = None
+    for idx in range(lo, hi + 1):
+        ch = text[idx]
+        score = 0
+        break_after = True
+        if ch in punctuation:
+            score = 30
+        elif ch in "￥¥" and idx > start:
+            score = 24
+            break_after = False
+        elif ch.isdigit() and idx > start and text[idx - 1] in "￥¥":
+            score = 20
+            break_after = False
+        elif ch.isspace():
+            score = 12
+        if score:
+            distance = abs(idx - estimated)
+            candidate = idx + 1 if break_after else idx
+            if candidate <= start:
+                continue
+            ranked = (score - distance, candidate)
+            if best is None or ranked > best:
+                best = ranked
+    if best is not None:
+        return min(len(text), max(start + 1, best[1]))
+
+    candidate = max(start + 1, min(len(text), estimated))
+    while candidate < len(text) and text[candidate - 1].isdigit() and text[candidate].isdigit():
+        candidate += 1
+    return min(len(text), candidate)
+
+
+def _split_visual_lines(text: str, line_count: int) -> list[tuple[int, int, str]]:
+    if line_count <= 1 or not text:
+        return [(0, len(text), text)]
+    total_units = _char_visual_units(text)
+    target_units = total_units / line_count
+    segments: list[tuple[int, int, str]] = []
+    start = 0
+    acc = 0.0
+    next_target = target_units
+
+    for idx, ch in enumerate(text):
+        acc += _char_unit(ch)
+        if len(segments) >= line_count - 1:
+            break
+        if acc >= next_target:
+            end = _find_wrap_break(text, start, idx)
+            segments.append((start, end, text[start:end]))
+            start = end
+            next_target = target_units * (len(segments) + 1)
+
+    if start < len(text):
+        segments.append((start, len(text), text[start:]))
+    return [seg for seg in segments if seg[2]]
+
+
+def _infer_typical_textline_height(blocks: list[OCRTextBlock]) -> int | None:
+    heights = [
+        block.height
+        for block in blocks
+        if block.height > 4
+        and block.width > block.height
+        and not block.text.lstrip().startswith(("<table", "<div"))
+    ]
+    if not heights:
+        return None
+    heights = sorted(heights)
+    return int(heights[(len(heights) - 1) // 2])
+
+
+def _estimate_entity_region(
+    block: OCRTextBlock,
+    entity_text: str,
+    typical_line_height: int | None = None,
+    occurrence_start: int | None = None,
+) -> tuple[int, int, int, int]:
+    """
+    Estimate a sub-box inside an OCR block for an exact text hit.
+
+    PaddleOCR-VL often returns a whole form row or paragraph as one block. Using
+    the entire OCR block for each entity makes the review screen look
+    over-detected, so split by visual lines first and then estimate x by the
+    entity's character position in that line.
+    """
+    block_text = block.text or ""
+    explicit_lines = [line for line in block_text.splitlines() if line.strip()]
+    lines = explicit_lines or [block_text]
+
+    line_index = 0
+    line_text = block_text
+    start_pos = occurrence_start if occurrence_start is not None else block_text.find(entity_text)
+
+    line_count = max(len(lines), 1)
+    if line_count == 1 and typical_line_height and block.height > typical_line_height * 1.7:
+        visual_line_height = max(1, int(typical_line_height * 1.55))
+        line_count = max(2, round(block.height / visual_line_height))
+        visual_lines = _split_visual_lines(block_text, line_count)
+        absolute_start = max(start_pos, 0)
+        for idx, (seg_start, _seg_end, seg_text) in enumerate(visual_lines):
+            relative_pos = seg_text.find(entity_text)
+            if relative_pos >= 0:
+                line_index = idx
+                line_text = seg_text
+                start_pos = relative_pos
+                break
+            if seg_start <= absolute_start:
+                line_index = idx
+                line_text = seg_text
+                start_pos = max(0, absolute_start - seg_start)
+    else:
+        absolute_cursor = 0
+        for idx, line in enumerate(lines):
+            line_start = block_text.find(line, absolute_cursor)
+            if line_start < 0:
+                line_start = absolute_cursor
+            line_end = line_start + len(line)
+            absolute_cursor = line_end
+            if occurrence_start is not None and line_start <= occurrence_start <= line_end:
+                line_index = idx
+                line_text = line
+                start_pos = max(0, occurrence_start - line_start)
+                break
+            pos = line.find(entity_text)
+            if pos >= 0:
+                line_index = idx
+                line_text = line
+                start_pos = pos
+                break
+
+    line_top = block.top + int(block.height * line_index / line_count)
+    next_line_top = block.top + int(block.height * (line_index + 1) / line_count)
+    line_height = max(1, next_line_top - line_top)
+    if typical_line_height:
+        capped_height = max(1, int(typical_line_height * 1.2))
+        if line_height > capped_height:
+            line_top += max(0, (line_height - capped_height) // 2)
+            line_height = capped_height
+
+    before_text = line_text[:start_pos]
+    text_units = _char_visual_units(line_text)
+    before_units = _char_visual_units(before_text) if before_text else 0.0
+    entity_units = _char_visual_units(entity_text)
+    start_pos = max(start_pos, 0)
+    start_ratio = max(0.0, min(before_units / text_units, 1.0))
+    width_ratio = max(entity_units / text_units, 0.01)
+
+    pad_x = max(2, int(block.width * 0.006))
+    sub_left = int(block.left + start_ratio * block.width) - pad_x
+    sub_width = int(width_ratio * block.width) + pad_x * 2
+    min_width = min(block.width, max(18, len(entity_text) * 10))
+
+    sub_left = max(block.left, sub_left)
+    sub_width = max(min_width, sub_width)
+    if sub_left + sub_width > block.left + block.width:
+        sub_width = max(1, block.left + block.width - sub_left)
+
+    return sub_left, line_top, sub_width, line_height
+
+
+def _dedupe_ocr_regions(regions: list[SensitiveRegion]) -> list[SensitiveRegion]:
+    """Drop duplicate OCR matches that point at the same visual box/text."""
+    priority = {
+        "BANK_NAME": 5,
+        "BANK_ACCOUNT": 5,
+        "PHONE": 5,
+        "ID_CARD": 5,
+        "AMOUNT": 5,
+        "PERSON": 5,
+        "ORG": 3,
+        "LEGAL_PARTY": 2,
+    }
+    chosen: dict[tuple, SensitiveRegion] = {}
+    for region in regions:
+        key = (
+            region.left // 4,
+            region.top // 4,
+            region.width // 4,
+            region.height // 4,
+            _compact_text(region.text),
+        )
+        existing = chosen.get(key)
+        if existing is None:
+            chosen[key] = region
+            continue
+        if priority.get(region.entity_type, 1) > priority.get(existing.entity_type, 1):
+            chosen[key] = region
+
+    def overlap_ratio(a: SensitiveRegion, b: SensitiveRegion) -> float:
+        x1 = max(a.left, b.left)
+        y1 = max(a.top, b.top)
+        x2 = min(a.left + a.width, b.left + b.width)
+        y2 = min(a.top + a.height, b.top + b.height)
+        if x2 <= x1 or y2 <= y1:
+            return 0.0
+        inter = (x2 - x1) * (y2 - y1)
+        smaller = max(1, min(a.width * a.height, b.width * b.height))
+        return inter / smaller
+
+    deduped: list[SensitiveRegion] = []
+    for region in sorted(
+        chosen.values(),
+        key=lambda r: priority.get(r.entity_type, 1),
+        reverse=True,
+    ):
+        duplicate = any(
+            _compact_text(region.text) == _compact_text(existing.text)
+            and overlap_ratio(region, existing) >= 0.7
+            for existing in deduped
+        )
+        if not duplicate:
+            deduped.append(region)
+    return deduped
+
 
 def match_entities_to_ocr(
     ocr_blocks: list[OCRTextBlock],
@@ -426,6 +1981,7 @@ def match_entities_to_ocr(
                 expanded_blocks.append(block)
         else:
             expanded_blocks.append(block)
+    typical_line_height = _infer_typical_textline_height(expanded_blocks)
 
     for entity in entities:
         entity_text = entity.get("text", "").strip()
@@ -442,7 +1998,11 @@ def match_entities_to_ocr(
             "银行卡": "BANK_CARD", "银行卡号": "BANK_CARD",
             "地址": "ADDRESS", "公司": "ORG", "公司名称": "ORG",
         }
-        normalized_type = type_mapping.get(entity_type, entity_type.upper())
+        normalized_type = _canonical_image_text_type(type_mapping.get(entity_type, entity_type.upper()))
+
+        if _is_low_signal_vision_entity(normalized_type, entity_text):
+            logger.debug("HaS skipped low-signal vision entity: '%s' (%s)", entity_text, normalized_type)
+            continue
 
         matched = False
 
@@ -454,53 +2014,56 @@ def match_entities_to_ocr(
 
             # Exact containment match
             if entity_text in block_text:
-                start_pos = block_text.find(entity_text)
-                text_len = len(block_text)
-                entity_len = len(entity_text)
+                contextual_type = _entity_type_from_block_context(normalized_type, entity_text, block_text)
+                if contextual_type is None:
+                    continue
+                search_from = 0
+                while True:
+                    occurrence_start = block_text.find(entity_text, search_from)
+                    if occurrence_start < 0:
+                        break
+                    visual_text, visual_occurrence_start = _visual_match_span_for_entity(
+                        contextual_type,
+                        block_text,
+                        entity_text,
+                        occurrence_start,
+                    )
+                    sub_left, sub_top, sub_width, sub_height = _estimate_entity_region(
+                        block,
+                        visual_text,
+                        typical_line_height,
+                        occurrence_start=visual_occurrence_start,
+                    )
+                    if contextual_type in {"PHONE", "ID_CARD", "BANK_ACCOUNT", "BANK_CARD", "DATE", "PERSON"}:
+                        token_cap = max(24, int(_char_visual_units(visual_text) * max(10, sub_height * 0.75)))
+                        sub_width = min(sub_width, token_cap)
+                    elif contextual_type == "AMOUNT" and "大写" not in visual_text and "小写" not in visual_text:
+                        height_factor = 0.42 if _is_percent_value_text(visual_text) else 0.75
+                        token_cap = max(28, int(_char_visual_units(visual_text) * max(10, sub_height * height_factor)))
+                        sub_width = min(sub_width, token_cap)
 
-                separator_count = (
-                    block_text.count("：")
-                    + block_text.count(":")
-                    + block_text.count("|")
-                )
-                is_multi_field = separator_count >= 2 or "  " in block_text or "\t" in block_text
-
-                if text_len > 100 or entity_len / text_len < 0.1 or is_multi_field:
-                    sub_left = block.left
-                    sub_width = block.width
-                elif text_len > 0:
-                    start_ratio = start_pos / text_len
-                    width_ratio = entity_len / text_len
-
-                    sub_left = int(block.left + start_ratio * block.width)
-                    sub_width = max(int(width_ratio * block.width), 20)
-
-                    if width_ratio > 0.8:
-                        sub_left = block.left
-                        sub_width = block.width
-                else:
-                    sub_left = block.left
-                    sub_width = block.width
-
-                regions.append(SensitiveRegion(
-                    text=entity_text,
-                    entity_type=normalized_type,
-                    left=sub_left,
-                    top=block.top,
-                    width=sub_width,
-                    height=block.height,
-                    confidence=1.0,
-                    source="text_match",
-                ))
-                logger.debug(
-                    "MATCH '%s' in '%s...' @ (%d, %d, %d, %d)",
-                    entity_text, block_text[:20], sub_left, block.top, sub_width, block.height,
-                )
+                    regions.append(SensitiveRegion(
+                        text=visual_text,
+                        entity_type=contextual_type,
+                        left=sub_left,
+                        top=sub_top,
+                        width=sub_width,
+                        height=sub_height,
+                        confidence=1.0,
+                        source="text_match",
+                    ))
+                    logger.debug(
+                        "MATCH '%s' in '%s...' @ (%d, %d, %d, %d)",
+                        entity_text, block_text[:20], sub_left, sub_top, sub_width, sub_height,
+                    )
+                    search_from = occurrence_start + max(1, len(entity_text))
                 matched = True
-                break
+                continue
 
             # Fuzzy match (handles minor OCR errors)
-            elif SequenceMatcher(None, entity_text, block_text).ratio() > 0.85:
+            elif not matched and len(entity_text) >= 4 and len(block_text) <= max(len(entity_text) * 3, 24) and (
+                SequenceMatcher(None, entity_text, block_text).ratio() > 0.9
+            ):
                 regions.append(SensitiveRegion(
                     text=entity_text,
                     entity_type=normalized_type,
@@ -533,81 +2096,8 @@ def match_entities_to_ocr(
                         "MATCH '%s' in table @ (%d, %d, %d, %d) [fallback]",
                         entity_text, block.left, block.top, block.width, block.height,
                     )
-                break
+                    break
 
-    logger.info("Matched %d entities to OCR blocks", len(regions))
-    return regions
-
-
-# ---------------------------------------------------------------------------
-# Regex supplementary detection
-# ---------------------------------------------------------------------------
-
-def apply_regex_rules(
-    ocr_blocks: list[OCRTextBlock],
-    entity_types: list[str],
-) -> list[SensitiveRegion]:
-    """
-    Apply regex patterns to OCR text blocks for supplementary sensitive-info
-    detection (IDs, phone numbers, emails, bank cards, etc.).
-    """
-    patterns = {
-        # Contact info
-        "PHONE": r"1[3-9]\d{9}",
-        "EMAIL": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
-        # ID documents
-        "ID_CARD": r"[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]",
-        "BANK_CARD": r"[3-6]\d{15,18}",
-        # Organizations
-        "COMPANY": r"[\u4e00-\u9fa5]{2,20}(?:有限公司|股份有限公司|集团|公司)",
-        # Bank names
-        "BANK_NAME": r"[\u4e00-\u9fa5]{2,10}(?:银行)[\u4e00-\u9fa5]{0,10}(?:分行|支行|营业部)?",
-        # Account numbers
-        "ACCOUNT_NUMBER": r"(?:账号|帐号|账户号)[：:\s]*(\d{10,25})",
-        # Dates
-        "DATE": r"(?:\d{4}[-/年]\d{1,2}[-/月]\d{1,2}日?)|(?:\d{4}年\d{1,2}月\d{1,2}日)",
-    }
-
-    regions: list[SensitiveRegion] = []
-
-    for block in ocr_blocks:
-        block_text = block.text
-        text_len = len(block_text)
-
-        for entity_type, pattern in patterns.items():
-            if entity_type not in entity_types:
-                continue
-
-            matches = re.finditer(pattern, block_text)
-            for match in matches:
-                matched_text = match.group()
-
-                start_pos = match.start()
-                matched_len = len(matched_text)
-
-                if text_len > 0:
-                    start_ratio = start_pos / text_len
-                    width_ratio = matched_len / text_len
-
-                    sub_left = int(block.left + start_ratio * block.width)
-                    sub_width = max(int(width_ratio * block.width), 20)
-
-                    if width_ratio > 0.8:
-                        sub_left = block.left
-                        sub_width = block.width
-                else:
-                    sub_left = block.left
-                    sub_width = block.width
-
-                regions.append(SensitiveRegion(
-                    text=matched_text,
-                    entity_type=entity_type,
-                    left=sub_left,
-                    top=block.top,
-                    width=sub_width,
-                    height=block.height,
-                    confidence=1.0,
-                    source="regex",
-                ))
-
-    return regions
+    deduped_regions = _dedupe_ocr_regions(regions)
+    logger.info("Matched %d entities to OCR blocks (%d after dedupe)", len(regions), len(deduped_regions))
+    return deduped_regions

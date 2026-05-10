@@ -4,7 +4,9 @@
 import { memo, useEffect, useState } from 'react';
 
 import { useT } from '@/i18n';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { buildDefaultPipelineCoverage } from '@/services/defaultRedactionPreset';
 
 import { useBatchWizardContext } from '../batch-wizard-context';
 import type { PreviewGroup } from './batch-step1-preview';
@@ -15,13 +17,18 @@ import { BatchStep1Footer } from './batch-step1-footer';
 function BatchStep1ConfigInner() {
   const t = useT();
   const {
+    mode,
     cfg,
     setCfg,
     configLoaded,
+    jobConfigLocked,
     textTypes,
     pipelines,
     textPresets,
     visionPresets,
+    presetLoadError,
+    presetReloading,
+    retryLoadPresets,
     onBatchTextPresetChange,
     onBatchVisionPresetChange,
     confirmStep1,
@@ -35,14 +42,15 @@ function BatchStep1ConfigInner() {
   const [previewDialog, setPreviewDialog] = useState<'text' | 'image' | null>(null);
 
   useEffect(() => {
+    if (jobConfigLocked) return;
     if (cfg.executionDefault !== 'queue') {
       setCfg((current) => ({ ...current, executionDefault: 'queue' }));
     }
-  }, [cfg.executionDefault, setCfg]);
+  }, [cfg.executionDefault, jobConfigLocked, setCfg]);
 
   const textRedactionMode = cfg.replacementMode ?? 'structured';
   const imageRedactionMethod = cfg.imageRedactionMethod ?? 'mosaic';
-  const imageRedactionStrength = cfg.imageRedactionStrength ?? 25;
+  const imageRedactionStrength = cfg.imageRedactionStrength ?? 75;
   const imageFillColor = cfg.imageFillColor ?? '#000000';
   const textPresetName =
     textPresets.find((preset) => preset.id === cfg.presetTextId)?.name ??
@@ -62,18 +70,65 @@ function BatchStep1ConfigInner() {
   const hasImageTypes = pipelines
     .filter((pipeline) => pipeline.mode === 'has_image')
     .flatMap((pipeline) => pipeline.types);
+  const vlmTypes = pipelines
+    .filter((pipeline) => pipeline.mode === 'vlm')
+    .flatMap((pipeline) => pipeline.types);
   const selectedOcrLabels = ocrTypes
     .filter((type) => cfg.ocrHasTypes.includes(type.id))
     .map((type) => type.name);
   const selectedImageLabels = hasImageTypes
     .filter((type) => cfg.hasImageTypes.includes(type.id))
     .map((type) => type.name);
+  const selectedVlmLabels = vlmTypes
+    .filter((type) => (cfg.vlmTypes ?? []).includes(type.id))
+    .map((type) => type.name);
+  const defaultOcrCoverage = buildDefaultPipelineCoverage(pipelines, 'ocr_has');
+  const defaultImageCoverage = buildDefaultPipelineCoverage(pipelines, 'has_image');
+  const defaultVlmCoverage = buildDefaultPipelineCoverage(pipelines, 'vlm');
+  const pipelineNameById = new Map(
+    [...ocrTypes, ...hasImageTypes, ...vlmTypes].map((type) => [type.id, type.name] as const),
+  );
+  const defaultVisionExcludedLabels = [
+    ...defaultOcrCoverage.excludedIds,
+    ...defaultImageCoverage.excludedIds,
+    ...defaultVlmCoverage.excludedIds,
+  ]
+    .map((id) => pipelineNameById.get(id) ?? id)
+    .slice(0, 6);
+  const defaultTextSummary = t('batchWizard.step1.defaultTextCoverage').replace(
+    '{count}',
+    String(cfg.selectedEntityTypeIds.length),
+  );
+  const defaultVisionSummary = t('batchWizard.step1.defaultVisionCoverage')
+    .replace(
+      '{selected}',
+      String(
+        defaultOcrCoverage.selectedIds.length +
+          defaultImageCoverage.selectedIds.length +
+          defaultVlmCoverage.selectedIds.length,
+      ),
+    )
+    .replace(
+      '{excluded}',
+      String(
+        defaultOcrCoverage.excludedIds.length +
+          defaultImageCoverage.excludedIds.length +
+          defaultVlmCoverage.excludedIds.length,
+      ),
+    );
+  const defaultVisionExcludedSummary =
+    defaultVisionExcludedLabels.length > 0
+      ? t('batchWizard.step1.defaultVisionExcluded').replace(
+          '{labels}',
+          defaultVisionExcludedLabels.join(', '),
+        )
+      : '';
   const textModeLabel =
     textRedactionMode === 'smart'
-      ? t('mode.smart')
+      ? t('batchWizard.step1.textMethodSmart')
       : textRedactionMode === 'mask'
-        ? t('mode.mask')
-        : t('mode.structured');
+        ? t('batchWizard.step1.textMethodMask')
+        : t('batchWizard.step1.textMethodStructured');
   const imageMethodLabel =
     imageRedactionMethod === 'blur'
       ? t('batchWizard.step1.imageMethodBlur')
@@ -98,12 +153,12 @@ function BatchStep1ConfigInner() {
         ];
   const textPreviewGroups: PreviewGroup[] = [
     {
-      title: t('settings.regex'),
+      title: t('batchWizard.step1.fixedTextRange'),
       items: selectedRegexLabels,
       emptyLabel: t('batchWizard.step1.noTextSelection'),
     },
     {
-      title: t('settings.semantic'),
+      title: t('batchWizard.step1.contextTextRange'),
       items: selectedSemanticLabels,
       emptyLabel: t('batchWizard.step1.noTextSelection'),
     },
@@ -117,6 +172,11 @@ function BatchStep1ConfigInner() {
     {
       title: t('batchWizard.step1.imageTypes'),
       items: selectedImageLabels,
+      emptyLabel: t('batchWizard.step1.noVisionSelection'),
+    },
+    {
+      title: t('batchWizard.step1.vlmTypes'),
+      items: selectedVlmLabels,
       emptyLabel: t('batchWizard.step1.noVisionSelection'),
     },
   ];
@@ -139,17 +199,52 @@ function BatchStep1ConfigInner() {
       className="page-surface flex-1 rounded-[24px] border-border/70 shadow-[var(--shadow-control)]"
       data-testid="batch-step1-config"
     >
-      <CardHeader className="flex flex-col gap-0.5 border-b border-border/70 pb-2 pt-3">
+      <CardHeader className="flex shrink-0 flex-col gap-0.5 border-b border-border/70 px-3 pb-2 pt-2.5">
         <CardTitle className="text-base tracking-[-0.03em]">
           {t('batchWizard.step1.title')}
         </CardTitle>
-        <p className="text-sm text-muted-foreground leading-snug">{t('batchWizard.step1.desc')}</p>
+        <p className="text-sm leading-tight text-muted-foreground">{t('batchWizard.step1.desc')}</p>
+        <p
+          className="truncate text-xs text-muted-foreground"
+          data-testid="batch-step1-single-file-hint"
+        >
+          {t('batchHub.noActiveJobsDesc')}
+        </p>
+        {jobConfigLocked && (
+          <p className="text-xs font-medium text-amber-700" data-testid="step1-config-locked">
+            {t('batchWizard.step1.lockedHint')}
+          </p>
+        )}
       </CardHeader>
 
-      <CardContent className="page-surface-body flex-1 flex flex-col gap-2 pt-2">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-3 pt-2">
+        {presetLoadError && (
+          <div
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            data-testid="batch-preset-load-error"
+          >
+            <span>{presetLoadError}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 bg-white/70 text-xs"
+              disabled={presetReloading}
+              onClick={() => void retryLoadPresets()}
+              data-testid="retry-presets"
+            >
+              {presetReloading
+                ? t('batchWizard.step1.retryPresetsLoading')
+                : t('batchWizard.step1.retryPresets')}
+            </Button>
+          </div>
+        )}
+
         <BatchStep1PresetCards
+          mode={mode}
           cfg={cfg}
           setCfg={setCfg}
+          disabled={jobConfigLocked}
           textPresets={textPresets}
           visionPresets={visionPresets}
           onBatchTextPresetChange={onBatchTextPresetChange}
@@ -161,18 +256,24 @@ function BatchStep1ConfigInner() {
           imageMethodHint={imageMethodHint}
           imageRedactionStrength={imageRedactionStrength}
           imageFillColor={imageFillColor}
+          defaultTextSummary={defaultTextSummary}
+          defaultVisionSummary={defaultVisionSummary}
+          defaultVisionExcludedSummary={defaultVisionExcludedSummary}
         />
 
-        <BatchStep1PreviewCards
-          textPreviewGroups={textPreviewGroups}
-          imagePreviewGroups={imagePreviewGroups}
-          textPresetName={textPresetName}
-          visionPresetName={visionPresetName}
-          textModeLabel={textModeLabel}
-          imageDetailPills={imageDetailPills}
-          previewDialog={previewDialog}
-          setPreviewDialog={setPreviewDialog}
-        />
+        <div className="shrink-0">
+          <BatchStep1PreviewCards
+            mode={mode}
+            textPreviewGroups={textPreviewGroups}
+            imagePreviewGroups={imagePreviewGroups}
+            textPresetName={textPresetName}
+            visionPresetName={visionPresetName}
+            textModeLabel={textModeLabel}
+            imageDetailPills={imageDetailPills}
+            previewDialog={previewDialog}
+            setPreviewDialog={setPreviewDialog}
+          />
+        </div>
       </CardContent>
 
       <BatchStep1Footer
@@ -181,6 +282,7 @@ function BatchStep1ConfigInner() {
         isStep1Complete={isStep1Complete}
         jobPriority={jobPriority}
         setJobPriority={setJobPriority}
+        configLocked={jobConfigLocked}
         advanceToUploadStep={advanceToUploadStep}
       />
     </Card>

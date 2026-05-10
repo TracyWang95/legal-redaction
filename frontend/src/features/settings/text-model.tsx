@@ -3,16 +3,17 @@
 
 import { useState } from 'react';
 import { useT } from '@/i18n';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InteractionLockOverlay } from '@/components/InteractionLockOverlay';
 import { useNerBackend } from './hooks/use-model-config';
 import { ModelEndpointCard } from './components/model-endpoint-card';
 
 export function TextModel() {
   const t = useT();
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const {
     llamacppBaseUrl,
     setLlamacppBaseUrl,
@@ -36,28 +37,41 @@ export function TextModel() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background">
-      <div className="page-shell-narrow overflow-auto overscroll-contain">
-        <div className="page-stack">
-          <Card className="rounded-[24px] border-border/70 bg-muted/30 shadow-[var(--shadow-control)]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base tracking-[-0.03em]">
-                {t('settings.textModel.infoTitle')}
-              </CardTitle>
-              <CardDescription className="mt-2 text-sm leading-relaxed">
+      <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
+        <div className="page-stack gap-2.5">
+          <section className="surface-subtle flex shrink-0 flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold tracking-normal">{t('nav.textModel')}</h1>
+              <p className="mt-0.5 max-w-5xl text-xs leading-5 text-muted-foreground">
                 {t('settings.textModel.infoDesc')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex flex-wrap gap-2 border-t pt-3">
-                <Badge variant="outline">{t('settings.textModel.tag.openai')}</Badge>
-                <Badge variant="outline">{t('settings.textModel.tag.local')}</Badge>
-                <Badge variant="outline">{t('settings.textModel.tag.server')}</Badge>
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+              <div className="flex flex-wrap justify-end gap-1.5">
+                <Badge variant="outline" className="whitespace-nowrap text-[10px] leading-4">
+                  {t('settings.textModel.tag.openai')}
+                </Badge>
+                <Badge variant="outline" className="whitespace-nowrap text-[10px] leading-4">
+                  {t('settings.textModel.tag.local')}
+                </Badge>
+                <Badge variant="outline" className="whitespace-nowrap text-[10px] leading-4">
+                  {t('settings.textModel.tag.server')}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 whitespace-nowrap"
+                onClick={() => setConfirmResetOpen(true)}
+                data-testid="reset-ner-default"
+              >
+                {t('settings.textModel.reset')}
+              </Button>
+            </div>
+          </section>
 
           <ModelEndpointCard
-            title={t('settings.textModel.cardTitle')}
+            title={t('nav.textModel')}
             description={t('settings.textModel.cardDescription')}
             endpointUrl={llamacppBaseUrl}
             onEndpointChange={setLlamacppBaseUrl}
@@ -72,16 +86,6 @@ export function TextModel() {
             endpointLabel={t('settings.textModel.endpointLabel')}
             endpointHint={t('settings.textModel.endpointHint')}
           />
-
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setConfirmResetOpen(true)}
-              data-testid="reset-ner-default"
-            >
-              {t('settings.textModel.reset')}
-            </Button>
-          </div>
         </div>
       </div>
       <ConfirmDialog
@@ -90,11 +94,19 @@ export function TextModel() {
         message={t('settings.textModel.confirmClearOverride')}
         danger
         onConfirm={() => {
-          setConfirmResetOpen(false);
-          void clearNerOverride();
+          void (async () => {
+            setConfirmResetOpen(false);
+            setResetting(true);
+            try {
+              await clearNerOverride();
+            } finally {
+              setResetting(false);
+            }
+          })();
         }}
         onCancel={() => setConfirmResetOpen(false)}
       />
+      <InteractionLockOverlay active={nerSaving || testing || resetting} />
     </div>
   );
 }

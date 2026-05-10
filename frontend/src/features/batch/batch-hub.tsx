@@ -2,37 +2,188 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Link } from 'react-router-dom';
-import { useT } from '@/i18n';
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileText,
+  Files,
+  History,
+  Image,
+  ListChecks,
+  PlayCircle,
+  Settings2,
+} from 'lucide-react';
+import { useI18n, useT } from '@/i18n';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useServiceHealth } from '@/hooks/use-service-health';
 import { BatchHubJobList } from './components/batch-hub-job-list';
 import { useBatchHub } from './hooks/use-batch-hub';
+import type { BatchWizardMode } from '@/services/batchPipeline';
+import type { Locale } from '@/i18n';
+
+type ModeCard = {
+  mode: BatchWizardMode;
+  icon: typeof Files;
+  titleKey: string;
+  descKey: string;
+  titleHint?: string;
+  descHint?: string;
+  tagKeys: string[];
+  summaryKey: string;
+  testId: string;
+};
+
+type LocalCopy = Record<Locale, string>;
+
+const PRIMARY_MODE: ModeCard = {
+  mode: 'smart',
+  icon: Files,
+  titleKey: 'batchHub.mode.smart.title',
+  descKey: 'batchHub.mode.smart.desc',
+  tagKeys: ['batchHub.mode.smart.tag1', 'batchHub.mode.text.tag1', 'batchHub.mode.image.tag1'],
+  summaryKey: 'batchHub.mode.smart.summaryValue',
+  testId: 'batch-launch-smart',
+};
+
+const SPECIALIST_MODE_CARDS: ModeCard[] = [
+  {
+    mode: 'text',
+    icon: FileText,
+    titleKey: 'batchHub.mode.text.title',
+    descKey: 'batchHub.mode.text.desc',
+    tagKeys: ['batchHub.mode.text.tag1'],
+    summaryKey: 'batchHub.mode.text.summaryValue',
+    testId: 'batch-launch-text',
+  },
+  {
+    mode: 'image',
+    icon: Image,
+    titleKey: 'batchHub.mode.image.title',
+    descKey: 'batchHub.mode.image.desc',
+    tagKeys: ['batchHub.mode.image.tag1'],
+    summaryKey: 'batchHub.mode.image.summaryValue',
+    testId: 'batch-launch-image',
+  },
+];
+
+function getLocalCopy(
+  t: (key: string) => string,
+  locale: Locale,
+  key: string,
+  fallback: LocalCopy,
+) {
+  const translated = t(key);
+  return translated === key ? fallback[locale] : translated;
+}
 
 export function BatchHub() {
   const t = useT();
-  const { loading, jobsUnavailable, activeJobs, openBatch, continueJob, openPreview } =
-    useBatchHub();
+  const locale = useI18n((state) => state.locale);
+  const {
+    loading,
+    tableLoading,
+    jobsUnavailable,
+    activeJobs,
+    openBatch,
+    continueJob,
+    openPreview,
+  } = useBatchHub();
+  const { health, checking: healthChecking } = useServiceHealth();
+  const modelServicesLimited = Boolean(health && !health.all_online && !healthChecking);
+  const batchEntryBlocked = jobsUnavailable;
+  const getBlockedReason = (_mode: BatchWizardMode) => {
+    if (jobsUnavailable) return t('batchHub.liveDisabledBackend');
+    return undefined;
+  };
+  const primaryTitle = getLocalCopy(t, locale, 'batchHub.primary.title', {
+    en: 'Process multiple files',
+    zh: '\u5904\u7406\u591a\u4e2a\u6587\u4ef6',
+  });
+  const primaryDesc = getLocalCopy(t, locale, 'batchHub.primary.desc', {
+    en: 'Upload Word, PDF, scan, and image files together. The default mixed workflow keeps recognition, review, and export in one queue.',
+    zh: '\u4e0a\u4f20 Word\u3001PDF\u3001\u626b\u63cf\u4ef6\u548c\u56fe\u7247\u6df7\u5408\u6279\u6b21\uff0c\u9ed8\u8ba4\u7528\u540c\u4e00\u961f\u5217\u5b8c\u6210\u8bc6\u522b\u3001\u590d\u6838\u548c\u5bfc\u51fa\u3002',
+  });
+  const specialistTitle = getLocalCopy(t, locale, 'batchHub.specialist.title', {
+    en: 'For same-type files (optional)',
+    zh: '\u540c\u7c7b\u6587\u4ef6\u5907\u7528\u8def\u5f84\uff08\u53ef\u9009\uff09',
+  });
+  const specialistDesc = getLocalCopy(t, locale, 'batchHub.specialist.desc', {
+    en: 'Use these routes only when this batch is all the same file type.',
+    zh: '\u53ea\u6709\u5f53\u5168\u90e8\u6587\u4ef6\u90fd\u662f\u540c\u7c7b\u65f6\u624d\u4f7f\u7528\u3002',
+  });
+  const mixedModeNote =
+    locale === 'zh'
+      ? '\u5927\u591a\u6570\u7528\u6237\u5e94\u5148\u4ece\u878d\u5408\u6587\u4ef6\u5f00\u59cb\u3002'
+      : 'Most users should start with mixed-file batches.';
+  const textModeHint =
+    locale === 'zh'
+      ? {
+          title: '\u53ea\u5904\u7406\u6587\u6863',
+          desc: '\u53ea\u6709\u5f53\u6574\u6279\u90fd\u662f\u6587\u6863\u7c7b\u578b\u65f6\u4f7f\u7528\u3002',
+        }
+      : {
+          title: 'Documents only',
+          desc: 'Use this path only when all files are document style files.',
+        };
+  const imageModeHint =
+    locale === 'zh'
+      ? {
+          title: '\u53ea\u5904\u7406\u626b\u63cf\u6587\u4ef6\u6216\u56fe\u7247',
+          desc: '\u53ea\u6709\u5f53\u6574\u6279\u90fd\u662f\u626b\u63cf\u6216\u56fe\u7247\u6587\u4ef6\u65f6\u4f7f\u7528\u3002',
+        }
+      : {
+          title: 'Scans & images only',
+          desc: 'Use this path only when all files are scans or images.',
+        };
+  const specialistModeCards: Array<ModeCard> = SPECIALIST_MODE_CARDS.map((item) => ({
+    ...item,
+    titleHint: item.mode === 'text' ? textModeHint.title : imageModeHint.title,
+    descHint: item.mode === 'text' ? textModeHint.desc : imageModeHint.desc,
+  }));
 
   return (
-    <div className="saas-page flex h-full min-h-0 overflow-y-auto bg-background">
-      <div className="page-shell-narrow !max-w-[104rem] 2xl:!max-w-[114rem]">
-        <div className="page-stack gap-3.5 sm:gap-4">
-          <section className="saas-hero relative overflow-hidden px-5 py-5 sm:px-6 sm:py-5.5">
-            <div className="flex flex-col gap-4">
+    <div className="saas-page flex h-full min-h-0 overflow-hidden bg-background">
+      <div className="page-shell-narrow !max-w-[min(100%,2048px)] !px-3 !py-3 sm:!px-4 2xl:!px-5">
+        <div className="page-stack gap-3 overflow-hidden">
+          <section className="saas-panel flex shrink-0 flex-nowrap items-start justify-between gap-3 rounded-[18px] border-border/70 bg-card/95 p-3 shadow-[var(--shadow-control)]">
+            <div className="flex min-w-0 flex-col gap-1.5">
               <span className="saas-kicker">{t('batchHub.kicker')}</span>
-              <div className="page-section-heading gap-2">
-                <h2
-                  className="text-2xl font-semibold tracking-[-0.04em]"
-                  data-testid="batch-hub-title"
-                >
-                  {t('batchHub.title')}
-                </h2>
-                <p className="max-w-2xl text-sm leading-7 text-muted-foreground">
-                  {t('batchHub.desc')}
-                </p>
-              </div>
+              <h2
+                className="truncate text-2xl font-semibold leading-8"
+                data-testid="batch-hub-title"
+              >
+                {t('batchHub.title')}
+              </h2>
+              <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
+                {t('batchHub.desc')}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-nowrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl whitespace-nowrap"
+                asChild
+              >
+                <Link to="/jobs">
+                  <ListChecks className="mr-2 size-4" />
+                  {t('batchHub.jobCenter')}
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl whitespace-nowrap"
+                asChild
+              >
+                <Link to="/history">
+                  <History className="mr-2 size-4" />
+                  {t('batchHub.history')}
+                </Link>
+              </Button>
             </div>
           </section>
 
@@ -40,120 +191,431 @@ export function BatchHub() {
             <Alert data-testid="batch-hub-preview-alert">
               <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
                 <span>{t('batchHub.previewDesc')}</span>
-                <Button variant="outline" size="sm" onClick={() => openPreview()}>
+                <Button variant="outline" size="sm" onClick={() => openPreview('smart')}>
                   {t('batchHub.previewCta')}
                 </Button>
               </AlertDescription>
             </Alert>
           )}
 
-          <section>
-            <Card className="overflow-hidden border-border/70 shadow-[var(--shadow-md)]">
-              <CardHeader className="gap-3 border-b border-border/70 bg-muted/20 px-6 py-4.5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <CardTitle className="text-xl font-semibold tracking-[-0.03em]">
-                        {t('batchHub.mode.smart.title')}
+          {!jobsUnavailable && modelServicesLimited && (
+            <Alert data-testid="batch-hub-model-preview-alert">
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                <span>{t('batchHub.modelPreviewDesc')}</span>
+                <Button variant="outline" size="sm" onClick={() => openPreview('smart')}>
+                  {t('batchHub.previewCta')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <JourneyRail locale={locale} />
+
+          <section className="grid min-h-0 flex-1 gap-3 overflow-hidden xl:grid-cols-[minmax(0,1.18fr)_minmax(23rem,0.82fr)]">
+            <div className="flex min-h-0 flex-col gap-3">
+              <PrimaryBatchEntry
+                item={PRIMARY_MODE}
+                title={primaryTitle}
+                desc={primaryDesc}
+                journeyNote={mixedModeNote}
+                liveBlocked={batchEntryBlocked}
+                liveBlockedReason={getBlockedReason('smart')}
+                onOpenLive={() => openBatch('smart')}
+                onOpenPreview={() => openPreview('smart')}
+              />
+              <BatchHubJobList
+                jobs={activeJobs}
+                loading={loading}
+                tableLoading={tableLoading}
+                onContinue={continueJob}
+              />
+            </div>
+
+            <div className="grid min-h-0 gap-3 overflow-hidden md:grid-cols-2 xl:flex xl:flex-col">
+              <Card className="page-surface !flex-none border-border/70 shadow-[var(--shadow-control)]">
+                <CardHeader className="gap-2 px-4 pb-2 pt-3.5">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground">
+                      <Settings2 className="size-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <CardTitle className="truncate text-sm font-semibold" title={specialistTitle}>
+                        {specialistTitle}
                       </CardTitle>
-                      <Badge
-                        variant="secondary"
-                        className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
-                      >
-                        {jobsUnavailable ? t('batchHub.previewBadge') : t('batchHub.liveBadge')}
-                      </Badge>
+                      <CardDescription className="mt-1 text-xs leading-5" title={specialistDesc}>
+                        {specialistDesc}
+                      </CardDescription>
                     </div>
-                    <CardDescription className="max-w-3xl text-sm leading-7">
-                      {t('batchHub.mode.smart.desc')}
-                    </CardDescription>
                   </div>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2.5 px-4 pb-4 pt-0">
+                  {specialistModeCards.map((item) => (
+                    <SpecialistBatchEntry
+                      key={item.mode}
+                      item={item}
+                      title={item.titleHint}
+                      desc={item.descHint}
+                      liveBlocked={batchEntryBlocked}
+                      liveBlockedReason={getBlockedReason(item.mode)}
+                      onOpenLive={() => openBatch(item.mode)}
+                      onOpenPreview={() => openPreview(item.mode)}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
 
+              <Card className="page-surface !flex-none border-border/70 shadow-[var(--shadow-control)]">
+                <CardHeader className="gap-1 px-4 pb-2 pt-3.5">
+                  <CardTitle className="text-sm font-semibold">
+                    {t('batchHub.recordsTitle')}
+                  </CardTitle>
+                  <CardDescription className="text-xs leading-5">
+                    {t('batchHub.recordsDesc')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-2 px-4 pb-4 pt-0">
                   <Button
+                    variant="outline"
                     size="sm"
-                    className="h-10 rounded-xl px-4"
-                    onClick={() => (jobsUnavailable ? openPreview() : openBatch())}
-                    data-testid="batch-launch-smart"
+                    className="h-9 justify-between rounded-xl whitespace-nowrap"
+                    asChild
                   >
-                    {jobsUnavailable ? t('batchHub.previewCta') : t('batchHub.enterConfig')}
+                    <Link to="/jobs">
+                      <span className="inline-flex items-center gap-2">
+                        <ListChecks className="size-4" />
+                        {t('batchHub.jobCenter')}
+                      </span>
+                      <ArrowRight className="size-4" />
+                    </Link>
                   </Button>
-                </div>
-              </CardHeader>
-
-              <CardContent className="grid gap-3.5 p-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(17rem,0.95fr)]">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
-                      {t('batchHub.mode.text.title')}
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
-                      {t('batchHub.mode.image.title')}
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
-                      {t('batchHub.mode.smart.tag1')}
-                    </Badge>
-                  </div>
-
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="surface-muted flex flex-col gap-2 px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-[var(--selection-regex-accent)]" />
-                        <span className="text-sm font-semibold text-foreground">
-                          {t('batchHub.mode.text.title')}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {t('batchHub.mode.text.summaryValue')}
-                      </p>
-                    </div>
-
-                    <div className="surface-muted flex flex-col gap-2 px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-[var(--selection-visual-accent)]" />
-                        <span className="text-sm font-semibold text-foreground">
-                          {t('batchHub.mode.image.title')}
-                        </span>
-                      </div>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {t('batchHub.mode.image.summaryValue')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="surface-muted flex flex-col gap-3 px-5 py-4">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                    {t('batchHub.mode.smart.summaryLabel')}
-                  </span>
-                  <p className="text-sm leading-7 text-foreground">
-                    {t('batchHub.mode.smart.summaryValue')}
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    {t('batchHub.modeSectionDesc')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 justify-between rounded-xl whitespace-nowrap"
+                    asChild
+                  >
+                    <Link to="/history">
+                      <span className="inline-flex items-center gap-2">
+                        <History className="size-4" />
+                        {t('batchHub.history')}
+                      </span>
+                      <ArrowRight className="size-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </section>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-          <div className="page-fill">
-            <BatchHubJobList
-              jobs={activeJobs}
-              loading={loading}
-              onContinue={continueJob}
-              footer={
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
-                    <Link to="/jobs">{t('batchHub.jobCenter')}</Link>
-                  </Button>
-                  <span className="text-border">&middot;</span>
-                  <Button variant="link" size="sm" className="h-auto px-0 text-xs" asChild>
-                    <Link to="/history">{t('batchHub.history')}</Link>
-                  </Button>
+function JourneyRail({ locale }: { locale: Locale }) {
+  const copy =
+    locale === 'zh'
+      ? [
+          {
+            title: '\u5f15\u5bfc',
+            desc: '\u786e\u8ba4\u670d\u52a1\u4e0e\u5904\u7406\u8def\u5f84',
+            cta: '\u67e5\u770b\u5f15\u5bfc',
+            href: '/',
+            Icon: CheckCircle2,
+          },
+          {
+            title: '\u5355\u6b21',
+            desc: '\u5148\u7528\u4e00\u4e2a\u6587\u4ef6\u9a8c\u8bc1\u89c4\u5219',
+            cta: '\u5355\u6b21\u9a8c\u8bc1',
+            href: '/playground',
+            Icon: PlayCircle,
+          },
+          {
+            title: '\u6279\u91cf',
+            desc: '\u786e\u8ba4\u540e\u542f\u52a8\u6df7\u5408\u6279\u6b21',
+            cta: '\u5f53\u524d\u9875\u9762',
+            Icon: Files,
+          },
+        ]
+      : [
+          {
+            title: 'Guide',
+            desc: 'Confirm service readiness and the right path.',
+            cta: 'Open guide',
+            href: '/',
+            Icon: CheckCircle2,
+          },
+          {
+            title: 'Single',
+            desc: 'Validate rules with one file first.',
+            cta: 'Run single file',
+            href: '/playground',
+            Icon: PlayCircle,
+          },
+          {
+            title: 'Batch',
+            desc: 'Start mixed batches after validation.',
+            cta: 'Current page',
+            Icon: Files,
+          },
+        ];
+
+  return (
+    <Card
+      className="page-surface !flex-none border-border/70 shadow-[var(--shadow-control)]"
+      data-testid="batch-journey-rail"
+    >
+      <CardContent className="grid gap-2 p-2 sm:grid-cols-3">
+        {copy.map(({ title, desc, cta, href, Icon }, index) => {
+          const active = index === copy.length - 1;
+
+          return (
+            <div
+              key={title}
+              className={`grid min-h-[4.25rem] grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 py-2 ${
+                active ? 'border-foreground bg-muted/50' : 'border-border/70 bg-background/70'
+              }`}
+            >
+              <span
+                className={`flex size-9 items-center justify-center rounded-xl ${
+                  active ? 'bg-foreground text-background' : 'bg-muted text-foreground'
+                }`}
+              >
+                <Icon className="size-4" />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <span className="truncate text-sm font-semibold">{title}</span>
                 </div>
-              }
-            />
+                <p className="mt-0.5 truncate text-xs leading-5 text-muted-foreground" title={desc}>
+                  {desc}
+                </p>
+              </div>
+              {href ? (
+                <Button variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-xs" asChild>
+                  <Link to={href}>
+                    {cta}
+                    <ArrowRight className="ml-1 size-3.5" />
+                  </Link>
+                </Button>
+              ) : (
+                <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px]">
+                  {cta}
+                </Badge>
+              )}
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PrimaryBatchEntry({
+  item,
+  title,
+  desc,
+  journeyNote,
+  liveBlocked,
+  liveBlockedReason,
+  onOpenLive,
+  onOpenPreview,
+}: {
+  item: ModeCard;
+  title: string;
+  desc: string;
+  journeyNote: string;
+  liveBlocked: boolean;
+  liveBlockedReason?: string;
+  onOpenLive: () => void;
+  onOpenPreview: () => void;
+}) {
+  const t = useT();
+  const Icon = item.icon;
+  const blockedReasonId = `${item.testId}-blocked-reason`;
+
+  return (
+    <Card className="page-surface !flex-none overflow-hidden border-border/70 shadow-[var(--shadow-md)]">
+      <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-end">
+        <div className="min-w-0 space-y-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl border border-foreground bg-foreground text-background">
+              <Icon className="size-6" />
+            </span>
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="truncate text-lg font-semibold leading-6" title={title}>
+                  {title}
+                </CardTitle>
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                >
+                  {t('batchHub.liveBadge')}
+                </Badge>
+                {liveBlocked ? (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                  >
+                    {t('batchHub.demoBadge')}
+                  </Badge>
+                ) : null}
+              </div>
+              <CardDescription className="text-xs leading-5" title={t(item.summaryKey)}>
+                {t(item.summaryKey)}
+              </CardDescription>
+            </div>
+          </div>
+
+          <p className="max-w-3xl text-sm leading-6 text-muted-foreground" title={desc}>
+            {desc}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs">
+              {journeyNote}
+            </Badge>
+            {item.tagKeys.map((tagKey) => (
+              <Badge
+                key={tagKey}
+                variant="outline"
+                className="rounded-full px-2.5 py-0.5 text-xs whitespace-nowrap"
+              >
+                {t(tagKey)}
+              </Badge>
+            ))}
           </div>
         </div>
+
+        <div className="min-w-0 space-y-2">
+          {liveBlockedReason ? (
+            <p
+              id={blockedReasonId}
+              className="text-xs leading-5 text-muted-foreground"
+              data-testid={blockedReasonId}
+            >
+              {liveBlockedReason}
+            </p>
+          ) : null}
+          <Button
+            size="sm"
+            variant="default"
+            className="h-10 w-full justify-between rounded-xl whitespace-nowrap"
+            onClick={onOpenLive}
+            disabled={liveBlocked}
+            aria-describedby={liveBlockedReason ? blockedReasonId : undefined}
+            title={liveBlocked ? liveBlockedReason : undefined}
+            data-testid={item.testId}
+          >
+            <span className="truncate">{title}</span>
+            <ArrowRight className="size-4" />
+          </Button>
+          {liveBlocked ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-9 w-full justify-between rounded-xl whitespace-nowrap"
+              onClick={onOpenPreview}
+              data-testid={`${item.testId}-preview`}
+            >
+              {t('batchHub.demoCta')}
+              <ArrowRight className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SpecialistBatchEntry({
+  item,
+  title,
+  desc,
+  liveBlocked,
+  liveBlockedReason,
+  onOpenLive,
+  onOpenPreview,
+}: {
+  item: ModeCard;
+  title?: string;
+  desc?: string;
+  liveBlocked: boolean;
+  liveBlockedReason?: string;
+  onOpenLive: () => void;
+  onOpenPreview: () => void;
+}) {
+  const t = useT();
+  const Icon = item.icon;
+  const blockedReasonId = `${item.testId}-blocked-reason`;
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+      <div className="flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3
+              className="truncate text-sm font-medium leading-5"
+              title={title ?? t(item.titleKey)}
+            >
+              {title ?? t(item.titleKey)}
+            </h3>
+            {liveBlocked ? (
+              <Badge variant="outline" className="shrink-0 rounded-full px-2 py-0.5 text-[10px]">
+                {t('batchHub.demoBadge')}
+              </Badge>
+            ) : null}
+          </div>
+          <p
+            className="mt-1 text-xs leading-5 text-muted-foreground"
+            title={desc ?? t(item.descKey)}
+          >
+            {desc ?? t(item.descKey)}
+          </p>
+        </div>
+      </div>
+      {liveBlockedReason ? (
+        <p
+          id={blockedReasonId}
+          className="mt-2 text-[11px] leading-4 text-muted-foreground"
+          data-testid={blockedReasonId}
+        >
+          {liveBlockedReason}
+        </p>
+      ) : null}
+      <div className="mt-2 flex flex-nowrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9 min-w-0 flex-1 justify-between rounded-xl whitespace-nowrap"
+          onClick={onOpenLive}
+          disabled={liveBlocked}
+          aria-describedby={liveBlockedReason ? blockedReasonId : undefined}
+          title={liveBlocked ? liveBlockedReason : undefined}
+          data-testid={item.testId}
+        >
+          <span className="truncate">{t('batchHub.enterConfig')}</span>
+          <ArrowRight className="size-4" />
+        </Button>
+        {liveBlocked ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-9 min-w-0 flex-1 justify-between rounded-xl whitespace-nowrap"
+            onClick={onOpenPreview}
+            data-testid={`${item.testId}-preview`}
+          >
+            <span className="truncate">{t('batchHub.demoCta')}</span>
+            <ArrowRight className="size-4" />
+          </Button>
+        ) : null}
       </div>
     </div>
   );

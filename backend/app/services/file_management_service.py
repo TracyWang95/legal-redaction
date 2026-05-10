@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import logging
+import ntpath
 import os
 import re
 import uuid
@@ -134,14 +136,36 @@ def bounding_box_total(info: dict) -> int:
     return 0
 
 
+def _stored_item_selected(item: Any) -> bool:
+    if isinstance(item, dict):
+        return item.get("selected") is not False
+    return getattr(item, "selected", True) is not False
+
+
+def _selected_bounding_box_total(info: dict) -> int:
+    raw = info.get("bounding_boxes")
+    if raw is None:
+        return 0
+    if isinstance(raw, list):
+        return sum(1 for box in raw if _stored_item_selected(box))
+    if isinstance(raw, dict):
+        n = 0
+        for boxes in raw.values():
+            if isinstance(boxes, list):
+                n += sum(1 for box in boxes if _stored_item_selected(box))
+        return n
+    return 0
+
+
 def recognition_count_from_stored_fields(info: dict) -> int:
     """仅从 file_store 已有字段推断条数（不含 redacted_count）。"""
     ents = info.get("entities")
-    n_text = len(ents) if isinstance(ents, list) else 0
-    n_boxes = bounding_box_total(info)
-    n = n_text + n_boxes
-    if n > 0:
-        return n
+    has_entities = isinstance(ents, list)
+    has_boxes = "bounding_boxes" in info
+    n_text = sum(1 for ent in ents if _stored_item_selected(ent)) if has_entities else 0
+    n_boxes = _selected_bounding_box_total(info) if has_boxes else 0
+    if has_entities or has_boxes:
+        return n_text + n_boxes
     em = info.get("entity_map")
     if isinstance(em, dict) and len(em) > 0:
         return len(em)
@@ -150,12 +174,11 @@ def recognition_count_from_stored_fields(info: dict) -> int:
 
 def entity_count(info: dict) -> int:
     """
-    处理历史「识别项」数量：
-    - 已生成匿名化文件时优先使用 redacted_count（执行接口落库）；
-    - 否则根据 entities / bounding_boxes / entity_map 推断。
+    处理历史、任务项、导出报表里的「识别项」数量。
+
+    这个数表示当前审阅后仍选中的实体/区域数量，不表示文本替换发生次数；
+    只有旧记录缺少 entities / bounding_boxes 时才回退到 entity_map。
     """
-    if bool(info.get("output_path")) and isinstance(info.get("redacted_count"), int):
-        return int(info["redacted_count"])
     return recognition_count_from_stored_fields(info)
 
 
@@ -177,6 +200,29 @@ def _candidate_storage_dirs(preferred_dir: str) -> list[str]:
     return out
 
 
+def _path_leaf_name(path: str) -> str:
+    """Return a filename for POSIX, Windows, or accidentally mixed legacy paths."""
+    candidates = [
+        os.path.basename(path),
+        ntpath.basename(path),
+        os.path.basename(path.replace("\\", "/")),
+    ]
+    candidates = [c for c in candidates if c and c not in {".", os.sep}]
+    if not candidates:
+        return ""
+    return min(candidates, key=len)
+
+
+def _windows_drive_path_to_posix(path: str) -> str | None:
+    """Map a Windows drive path to the matching WSL mount path when possible."""
+    drive, tail = ntpath.splitdrive(path)
+    if not drive or len(drive) < 2 or drive[1] != ":":
+        return None
+    letter = drive[0].lower()
+    tail = tail.replace("\\", "/").lstrip("/")
+    return os.path.realpath(os.path.join("/mnt", letter, tail))
+
+
 def _normalize_store_path(raw: object, preferred_dir: str) -> str | None:
     if not isinstance(raw, str) or not raw.strip():
         return None
@@ -184,7 +230,11 @@ def _normalize_store_path(raw: object, preferred_dir: str) -> str | None:
     if os.path.isabs(path) and os.path.exists(path):
         return os.path.realpath(path)
 
-    basename = os.path.basename(path)
+    windows_posix = _windows_drive_path_to_posix(path)
+    if windows_posix and os.path.exists(windows_posix):
+        return windows_posix
+
+    basename = _path_leaf_name(path)
     if basename:
         for directory in _candidate_storage_dirs(preferred_dir):
             candidate = os.path.realpath(os.path.join(directory, basename))
@@ -220,6 +270,105 @@ def repair_file_store_paths() -> int:
             repaired += 1
 
     return repaired
+
+
+_OUTPUT_ARTIFACT_FIELDS = (
+    "output_path",
+    "output_file_id",
+    "entity_map",
+    "redacted_count",
+)
+
+
+def clear_file_output(file_id: str, *, delete_disk: bool = True) -> bool:
+    """Remove stale redacted-output signals for a file.
+
+    Returns True when file_store metadata changed. Disk deletion is best-effort
+    and limited to OUTPUT_DIR so a bad legacy path cannot remove unrelated data.
+    """
+    info = file_store.get(file_id)
+    if not isinstance(info, dict):
+        return False
+
+    next_info = dict(info)
+    output_path = next_info.get("output_path")
+    changed = False
+    for key in _OUTPUT_ARTIFACT_FIELDS:
+        if key in next_info:
+            next_info.pop(key, None)
+            changed = True
+
+    if changed:
+        file_store.set(file_id, next_info)
+
+    if delete_disk and isinstance(output_path, str) and output_path.strip():
+        try:
+            if safe_path_in_dir(output_path, settings.OUTPUT_DIR) and os.path.isfile(output_path):
+                os.remove(output_path)
+        except OSError:
+            logger.warning("Failed to delete stale redacted output for %s: %s", file_id, output_path, exc_info=True)
+
+    return changed
+
+
+def repair_file_store_output_records() -> int:
+    """Drop unsafe output metadata while preserving historical completion state."""
+    repaired = 0
+    for file_id, info in file_store.items():
+        if not isinstance(info, dict):
+            continue
+        output_path = info.get("output_path")
+        if not output_path:
+            continue
+        if not isinstance(output_path, str):
+            if clear_file_output(file_id, delete_disk=False):
+                repaired += 1
+            continue
+        if not safe_path_in_dir(output_path, settings.OUTPUT_DIR):
+            if clear_file_output(file_id, delete_disk=False):
+                repaired += 1
+    return repaired
+
+
+def restore_file_store_output_from_history() -> int:
+    """Restore output metadata that was cleared even though processing history exists."""
+    restored = 0
+    for file_id, info in file_store.items():
+        if not isinstance(info, dict) or info.get("output_path"):
+            continue
+        history = info.get("redaction_history")
+        if not isinstance(history, list):
+            continue
+
+        latest_output = next(
+            (
+                item
+                for item in reversed(history)
+                if isinstance(item, dict) and isinstance(item.get("output_path"), str) and item["output_path"].strip()
+            ),
+            None,
+        )
+        if not latest_output:
+            continue
+
+        normalized_output_path = _normalize_store_path(latest_output.get("output_path"), settings.OUTPUT_DIR)
+        if not normalized_output_path or not safe_path_in_dir(normalized_output_path, settings.OUTPUT_DIR):
+            continue
+
+        next_info = dict(info)
+        next_info["output_path"] = normalized_output_path
+        for key in ("output_file_id", "entity_map", "redacted_count"):
+            if key in latest_output and latest_output[key] is not None:
+                next_info[key] = latest_output[key]
+        if not isinstance(next_info.get("redacted_count"), int):
+            inferred_count = recognition_count_from_stored_fields(next_info)
+            if inferred_count > 0:
+                next_info["redacted_count"] = inferred_count
+
+        file_store.set(file_id, next_info)
+        restored += 1
+
+    return restored
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +423,12 @@ def run_startup_migrations() -> None:
     repaired = repair_file_store_paths()
     if repaired:
         logger.info("Normalized %d file_store path records", repaired)
+    restored = restore_file_store_output_from_history()
+    if restored:
+        logger.info("Restored %d file_store output records from history", restored)
+    output_repaired = repair_file_store_output_records()
+    if output_repaired:
+        logger.info("Cleared %d unsafe file_store output records", output_repaired)
 
 
 # ---------------------------------------------------------------------------
@@ -377,22 +532,37 @@ async def process_upload(
     ), jid
 
 
-def register_file_with_job(job_id: str, file_id: str) -> None:
+def register_file_with_job(job_id: str, file_id: str) -> str:
     """Register uploaded file with a batch job (add as job item)."""
+    from app.services.batch_mode_validation import validate_file_allowed_for_job_type
     from app.services.job_store import JobStatus
+
     store = _get_job_store()
     row = store.get_job(job_id)
     if not row or row["status"] != JobStatus.DRAFT.value:
         raise ValueError("任务不存在或已不是草稿，无法追加文件")
+    validate_file_allowed_for_job_type(
+        job_type=row["job_type"],
+        file_info=file_store.get(file_id),
+        file_id=file_id,
+    )
     n = len(store.list_items(job_id))
-    store.add_item(job_id, file_id, sort_order=n)
-    store.touch_job_updated(job_id)
+    item_id = store.add_item(job_id, file_id, sort_order=n)
+    try:
+        store.touch_job_updated(job_id)
+    except Exception:
+        store.delete_item(item_id)
+        raise
+    return item_id
 
 
 async def rollback_upload(file_id: str, file_path: str) -> None:
     """Rollback a file upload by removing from store and disk."""
     async with _file_store_lock:
-        file_store.pop(file_id, None)
+        try:
+            file_store.pop(file_id, None)
+        except Exception:
+            logger.warning("Failed to remove rolled-back upload %s from file store", file_id, exc_info=True)
     if os.path.exists(file_path):
         os.remove(file_path)
 
@@ -407,10 +577,10 @@ def _get_job_store():
 # Batch download ZIP
 # ---------------------------------------------------------------------------
 
-def build_batch_zip(request: BatchDownloadRequest) -> tuple[bytes, str]:
+def build_batch_zip(request: BatchDownloadRequest) -> tuple[bytes, str, dict[str, Any]]:
     """
     Build a ZIP file containing requested files.
-    Returns (zip_bytes, filename). Raises ValueError on errors.
+    Returns (zip_bytes, filename, manifest). Raises ValueError on errors.
     """
     seen: set[str] = set()
     unique_ids: list[str] = []
@@ -419,46 +589,84 @@ def build_batch_zip(request: BatchDownloadRequest) -> tuple[bytes, str]:
             seen.add(fid)
             unique_ids.append(fid)
 
-    missing: list[str] = []
+    skipped: list[dict[str, str]] = []
+    included: list[dict[str, str]] = []
     pairs: list[tuple[str, str]] = []
     used_names: dict[str, int] = {}
+    item_status_map: dict[str, dict[str, str]] = {}
+    if request.redacted:
+        try:
+            item_status_map = _get_job_store().batch_find_item_statuses(unique_ids)
+        except Exception:
+            logger.warning("Unable to read job item statuses for redacted ZIP", exc_info=True)
 
     for fid in unique_ids:
         if fid not in file_store:
-            missing.append(fid)
+            skipped.append({"file_id": fid, "reason": "file_not_found"})
             continue
         info = file_store[fid]
+        original_filename = os.path.basename(info.get("original_filename", "file")) or "file"
         if request.redacted:
-            path = info.get("output_path")
-            if not path or not os.path.isfile(path):
-                missing.append(fid)
+            item_status = (item_status_map.get(fid) or {}).get("status")
+            if item_status and item_status != "completed":
+                skipped.append({"file_id": fid, "reason": "job_item_not_delivery_ready"})
                 continue
-            base = f"redacted_{os.path.basename(info.get('original_filename', 'file'))}"
+            path = info.get("output_path")
+            if not path:
+                skipped.append({"file_id": fid, "reason": "missing_redacted_output"})
+                continue
+            if not safe_path_in_dir(path, settings.OUTPUT_DIR):
+                skipped.append({"file_id": fid, "reason": "unsafe_path"})
+                continue
+            if not os.path.isfile(path):
+                skipped.append({"file_id": fid, "reason": "missing_redacted_output"})
+                continue
+            base = f"redacted_{original_filename}"
         else:
             path = info.get("file_path")
-            if not path or not os.path.isfile(path):
-                missing.append(fid)
+            if not path:
+                skipped.append({"file_id": fid, "reason": "missing_original_file"})
                 continue
-            base = os.path.basename(info.get("original_filename", "file"))
+            if not safe_path_in_dir(path, settings.UPLOAD_DIR):
+                skipped.append({"file_id": fid, "reason": "unsafe_path"})
+                continue
+            if not os.path.isfile(path):
+                skipped.append({"file_id": fid, "reason": "missing_original_file"})
+                continue
+            base = original_filename
 
         safe = os.path.basename(base) or "file"
         n = used_names.get(safe, 0)
         used_names[safe] = n + 1
         arcname = safe if n == 0 else f"{n}_{safe}"
         pairs.append((path, arcname))
+        included.append({
+            "file_id": fid,
+            "filename": original_filename,
+            "archive_name": arcname,
+        })
 
-    if missing:
-        raise ValueError(missing)  # caller turns into HTTPException with {"missing": ...}
     if not pairs:
         raise ValueError("没有可下载的文件（不存在或未匿名化）")
+
+    manifest = {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "redacted": bool(request.redacted),
+        "requested_count": len(unique_ids),
+        "included_count": len(included),
+        "skipped_count": len(skipped),
+        "included": included,
+        "skipped": skipped,
+    }
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for path, arcname in pairs:
             zf.write(path, arcname)
+        zf.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
     buf.seek(0)
     zip_filename = "redacted_batch.zip" if request.redacted else "original_batch.zip"
-    return buf.getvalue(), zip_filename
+    return buf.getvalue(), zip_filename, manifest
 
 
 # ---------------------------------------------------------------------------
@@ -504,6 +712,11 @@ async def delete_file(file_id: str) -> dict[str, Any] | None:
     op = snapshot.get("output_path", "")
     if op and os.path.exists(op) and safe_path_in_dir(op, settings.OUTPUT_DIR):
         os.remove(op)
+
+    try:
+        _get_job_store().delete_items_for_file(file_id)
+    except Exception:
+        logger.warning("Failed to delete job item references for file %s", file_id, exc_info=True)
 
     return snapshot
 

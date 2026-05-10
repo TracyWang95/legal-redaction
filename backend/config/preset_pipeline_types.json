@@ -3,351 +3,812 @@
     {
       "id": "PERSON",
       "name": "姓名",
-      "description": "自然人姓名、曾用名、昵称、绰号等",
+      "description": "自然人的姓名、别名、曾用名、网名。只表示人名。",
       "examples": [
         "张三",
-        "李明华",
-        "老王",
+        "李明",
         "John Smith"
       ],
-      "color": "#3B82F6",
-      "enabled": true,
-      "order": 1
-    },
-    {
-      "id": "ID_CARD",
-      "name": "身份证号",
-      "description": "18位/15位居民身份证号码",
-      "examples": [
-        "110101199003071234",
-        "11010119900307123X"
-      ],
-      "color": "#EF4444",
-      "enabled": true,
-      "order": 2
-    },
-    {
-      "id": "PASSPORT",
-      "name": "护照号/通行证",
-      "description": "护照、港澳通行证、台湾通行证号码",
-      "examples": [
-        "E12345678",
-        "G87654321",
-        "C12345678"
-      ],
-      "color": "#DC2626",
-      "enabled": true,
-      "order": 3
-    },
-    {
-      "id": "PHONE",
-      "name": "电话号码",
-      "description": "手机号、固话、传真、400电话等",
-      "examples": [
-        "13812345678",
-        "021-12345678",
-        "400-123-4567"
-      ],
-      "color": "#F97316",
-      "enabled": true,
-      "order": 4
-    },
-    {
-      "id": "EMAIL",
-      "name": "电子邮箱",
-      "description": "个人/工作/企业电子邮件地址",
-      "examples": [
-        "user@example.com",
-        "hr@company.cn"
-      ],
-      "color": "#06B6D4",
-      "enabled": true,
-      "order": 5
-    },
-    {
-      "id": "BANK_CARD",
-      "name": "银行卡号",
-      "description": "借记卡、信用卡卡号（16-19位）",
-      "examples": [
-        "6222020200012345678",
-        "4367421234567890"
-      ],
-      "color": "#EC4899",
-      "enabled": true,
-      "order": 6
-    },
-    {
-      "id": "BANK_ACCOUNT",
-      "name": "银行账号",
-      "description": "银行存款账号、对公账号、结算账号等数字账号",
-      "examples": [
-        "账号：1234567890123456789",
-        "对公账号：11001234567890"
-      ],
-      "color": "#DB2777",
-      "enabled": true,
-      "order": 7
-    },
-    {
-      "id": "BANK_NAME",
-      "name": "开户行/银行名称",
-      "description": "开户银行全称、支行名称、银行机构名",
-      "examples": [
-        "开户行：中国工商银行北京朝阳支行",
-        "招商银行深圳南山支行",
-        "中国建设银行XX分行营业部"
-      ],
-      "color": "#7C3AED",
-      "enabled": true,
-      "order": 7
-    },
-    {
-      "id": "SOCIAL_SECURITY",
-      "name": "社保号/公积金号",
-      "description": "社保卡号、医保号、公积金账号",
-      "examples": [
-        "社保卡号：12345678901234567",
-        "公积金账号：1234567890"
-      ],
-      "color": "#B91C1C",
-      "enabled": true,
-      "order": 8
-    },
-    {
-      "id": "QQ_WECHAT_ID",
-      "name": "社交账号",
-      "description": "QQ号、微信号、微博、抖音等社交平台账号",
-      "examples": [
-        "QQ：123456789",
-        "微信号：zhang_san_123"
-      ],
-      "color": "#8B5CF6",
-      "enabled": true,
-      "order": 9
-    },
-    {
-      "id": "COMPANY",
-      "name": "公司/企业名称",
-      "description": "商业企业名称，含全称、简称、曾用名、品牌名。法律文书中常以甲方、乙方、丙方、发包方、承包方、出借人、借款人、出卖人、买受人、委托方、受托方、供应商、承揽方、转让方、受让方等代称出现。",
-      "examples": [
-        "深圳市腾讯计算机系统有限公司",
-        "腾讯",
-        "甲方",
-        "乙方",
-        "丙方",
-        "发包方",
-        "承包方",
-        "出借人（公司）",
-        "借款人（公司）",
-        "出卖人",
-        "买受人",
-        "委托方",
-        "受托方",
-        "供应商",
-        "承揽方",
-        "转让方",
-        "受让方",
-        "XX有限责任公司",
-        "XX股份有限公司",
-        "XX集团",
-        "XX合伙企业"
-      ],
-      "color": "#059669",
+      "color": "#2563EB",
       "enabled": true,
       "order": 10
     },
     {
-      "id": "ORG",
-      "name": "机构/单位名称",
-      "description": "政府机关、法院、检察院、公安局、律所、银行、医院、学校、社会团体等非企业机构（含简称）",
+      "id": "ID_CARD",
+      "name": "身份证号",
+      "description": "居民身份证号码。只表示身份证号。",
       "examples": [
-        "某市中级人民法院",
-        "某区人民检察院",
-        "某市公安局XX分局",
-        "某某律师事务所",
-        "中国工商银行",
-        "XX大学附属医院",
-        "XX省高级人民法院"
+        "110101199001011234",
+        "11010119900101123X"
       ],
-      "color": "#10B981",
-      "enabled": true,
-      "order": 11
-    },
-    {
-      "id": "ADDRESS",
-      "name": "详细地址",
-      "description": "省市区街道门牌号、小区楼栋、写字楼等完整地址",
-      "examples": [
-        "北京市朝阳区建国路88号",
-        "住所地：XX大厦2001室"
-      ],
-      "color": "#6366F1",
-      "enabled": true,
-      "order": 11
-    },
-    {
-      "id": "BIRTH_DATE",
-      "name": "出生日期",
-      "description": "出生年月日",
-      "examples": [
-        "1990年3月7日",
-        "出生于1985-06-15"
-      ],
-      "color": "#84CC16",
-      "enabled": true,
-      "order": 12
-    },
-    {
-      "id": "DATE",
-      "name": "日期/时间",
-      "description": "事件日期、签订日期、裁判日期等",
-      "examples": [
-        "2024年1月1日",
-        "2024-01-01",
-        "签订日期：2024/3/20"
-      ],
-      "color": "#22D3EE",
-      "enabled": true,
-      "order": 13
-    },
-    {
-      "id": "LICENSE_PLATE",
-      "name": "车牌号",
-      "description": "机动车号牌",
-      "examples": [
-        "京A12345",
-        "沪B67890",
-        "粤AD12345"
-      ],
-      "color": "#14B8A6",
-      "enabled": true,
-      "order": 14
-    },
-    {
-      "id": "CASE_NUMBER",
-      "name": "案件编号",
-      "description": "法院案号、仲裁案号、公证书编号",
-      "examples": [
-        "(2024)京01民初123号",
-        "(2024)京仲裁字第001号"
-      ],
-      "color": "#8B5CF6",
-      "enabled": true,
-      "order": 15
-    },
-    {
-      "id": "CONTRACT_NO",
-      "name": "合同/文书编号",
-      "description": "合同号、协议号、订单号、发票号、保单号等",
-      "examples": [
-        "HT-2024-001",
-        "保单号：PICC2024001234"
-      ],
-      "color": "#64748B",
-      "enabled": true,
-      "order": 16
-    },
-    {
-      "id": "COMPANY_CODE",
-      "name": "信用代码/注册号",
-      "description": "统一社会信用代码、营业执照注册号",
-      "examples": [
-        "91110000100000000X",
-        "注册号：110000001234567"
-      ],
-      "color": "#059669",
-      "enabled": true,
-      "order": 17
-    },
-    {
-      "id": "AMOUNT",
-      "name": "金额/财务数据",
-      "description": "涉案金额、工资、借款、赔偿、违约金、利息等",
-      "examples": [
-        "人民币10万元",
-        "500,000元",
-        "借款本金50万元",
-        "违约金10%"
-      ],
-      "color": "#F43F5E",
+      "color": "#DC2626",
       "enabled": true,
       "order": 20
     },
     {
-      "id": "PROPERTY",
-      "name": "财产/资产",
-      "description": "房产证号、不动产权证号、股权、存款等",
+      "id": "PASSPORT",
+      "name": "护照号",
+      "description": "护照或出入境证件号码。只表示护照/出入境证件号。",
       "examples": [
-        "不动产权证号：京(2024)朝阳区001号",
-        "持有30%股权"
+        "E12345678",
+        "G87654321"
       ],
-      "color": "#FB7185",
-      "enabled": true,
-      "order": 21
-    },
-    {
-      "id": "LEGAL_PARTY",
-      "name": "当事人",
-      "description": "原告、被告、申请人、第三人、债权人、债务人等",
-      "examples": [
-        "原告张三",
-        "被告某公司",
-        "第三人赵六",
-        "被执行人"
-      ],
-      "color": "#F59E0B",
+      "color": "#B91C1C",
       "enabled": true,
       "order": 30
     },
     {
-      "id": "LAWYER",
-      "name": "律师/代理人",
-      "description": "律师、委托代理人、辩护人及所属律所",
+      "id": "SOCIAL_SECURITY",
+      "name": "社保号",
+      "description": "社保号、医保号、公积金号等社会保障类个人编号。",
       "examples": [
-        "北京某律所律师张三",
-        "辩护人：王某某"
+        "社保号123456789",
+        "医保号110100198901011234"
+      ],
+      "color": "#BE123C",
+      "enabled": true,
+      "order": 40
+    },
+    {
+      "id": "BIOMETRIC",
+      "name": "生物特征",
+      "description": "可用于识别个人的生物或行为特征，如指纹、人脸特征、声纹、虹膜、基因信息。",
+      "examples": [
+        "指纹",
+        "人脸特征",
+        "声纹",
+        "虹膜"
+      ],
+      "color": "#BE123C",
+      "enabled": true,
+      "order": 50
+    },
+    {
+      "id": "PHONE",
+      "name": "电话",
+      "description": "手机、座机、传真、热线等电话号码。只表示电话号码。",
+      "examples": [
+        "13800138000",
+        "010-88888888",
+        "+86 21 12345678"
+      ],
+      "color": "#059669",
+      "enabled": true,
+      "order": 60
+    },
+    {
+      "id": "EMAIL",
+      "name": "邮箱",
+      "description": "电子邮箱地址。",
+      "examples": [
+        "name@example.com",
+        "service@company.com"
+      ],
+      "color": "#0891B2",
+      "enabled": true,
+      "order": 70
+    },
+    {
+      "id": "ADDRESS",
+      "name": "地址",
+      "description": "住址、办公地址、通信地址、收货地址、邮编等地址文本。只表示地址。",
+      "examples": [
+        "北京市朝阳区xx路xx号",
+        "上海市浦东新区xx园区"
+      ],
+      "color": "#EA580C",
+      "enabled": true,
+      "order": 80
+    },
+    {
+      "id": "GPS_LOCATION",
+      "name": "位置",
+      "description": "经纬度、定位点、签到地点、轨迹、行踪记录。只表示位置或行踪。",
+      "examples": [
+        "31.2304,121.4737",
+        "定位点：116.397,39.908"
+      ],
+      "color": "#F97316",
+      "enabled": true,
+      "order": 90
+    },
+    {
+      "id": "USERNAME_PASSWORD",
+      "name": "登录账号",
+      "description": "登录名、用户ID、会员号、社交账号、平台账号等用于登录或识别账户主体的账号。不包含银行账号、银行卡号、案号、订单号等业务编号。",
+      "examples": [
+        "user_001",
+        "wxid_123456",
+        "客户号C2026001"
+      ],
+      "color": "#7C3AED",
+      "enabled": true,
+      "order": 100
+    },
+    {
+      "id": "AUTH_SECRET",
+      "name": "密码",
+      "description": "密码、验证码、Token、API Key、私钥、会话 Cookie 等认证秘密。",
+      "examples": [
+        "密码：Passw0rd",
+        "验证码123456",
+        "sk-xxxx"
+      ],
+      "color": "#9333EA",
+      "enabled": true,
+      "order": 110
+    },
+    {
+      "id": "BANK_CARD",
+      "name": "银行卡号",
+      "description": "银行卡、信用卡、借记卡、支付卡等金融卡片号码。只表示银行卡号，不包含车牌号、证件号或业务编号。",
+      "examples": [
+        "622202********1234",
+        "信用卡4200123456789012"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 120
+    },
+    {
+      "id": "BANK_ACCOUNT",
+      "name": "银行账号",
+      "description": "银行账户、对公账户、收款账号等非卡片形态的银行账号。",
+      "examples": [
+        "对公账号11001234567890",
+        "收款账号123456789012345"
+      ],
+      "color": "#C026D3",
+      "enabled": true,
+      "order": 130
+    },
+    {
+      "id": "AMOUNT",
+      "name": "金额",
+      "description": "货币金额，如工资、价格、余额、付款、报销、赔偿、税费。只表示金额。",
+      "examples": [
+        "人民币2,345.67元",
+        "工资8000元",
+        "税额800元"
+      ],
+      "color": "#CA8A04",
+      "enabled": true,
+      "order": 140
+    },
+    {
+      "id": "DEVICE_ID",
+      "name": "设备号",
+      "description": "设备号、MAC、IMEI、终端号、RFID 等设备标识。只表示设备号。",
+      "examples": [
+        "AA:BB:CC:DD:EE:FF",
+        "device-001",
+        "IMEI 860000000000000"
+      ],
+      "color": "#0F766E",
+      "enabled": true,
+      "order": 150
+    },
+    {
+      "id": "IP_ADDRESS",
+      "name": "IP地址",
+      "description": "IPv4 或 IPv6 地址。只表示 IP 地址。",
+      "examples": [
+        "192.168.1.1",
+        "2001:db8::1"
+      ],
+      "color": "#0D9488",
+      "enabled": true,
+      "order": 160
+    },
+    {
+      "id": "URL_WEBSITE",
+      "name": "网址",
+      "description": "URL、域名、链接、带参数的网址。只表示网址链接。",
+      "examples": [
+        "https://example.com/a?id=1",
+        "example.com"
+      ],
+      "color": "#0284C7",
+      "enabled": true,
+      "order": 170
+    },
+    {
+      "id": "ORG",
+      "name": "组织机构",
+      "description": "兜底型组织机构名称。通用默认清单优先使用公司名称、机构名称、机关单位、部门名称、项目名称等原子项；本项用于用户需要宽泛组织识别时手动选择。",
+      "examples": [
+        "某某科技有限公司",
+        "上海市第一人民医院",
+        "中国工商银行上海分行",
+        "某某律师事务所",
+        "北京市某区人民法院"
+      ],
+      "color": "#4F46E5",
+      "enabled": true,
+      "order": 180
+    },
+    {
+      "id": "COMPANY_NAME",
+      "name": "公司名称",
+      "description": "公司、企业、法人主体、个体工商户等经营主体名称。只表示主体名称，不包含统一社会信用代码、税号、地址、账号或联系人。",
+      "examples": [
+        "某某科技有限公司",
+        "某某股份有限公司",
+        "某某个体工商户"
+      ],
+      "color": "#2563EB",
+      "enabled": true,
+      "order": 181
+    },
+    {
+      "id": "INSTITUTION_NAME",
+      "name": "机构名称",
+      "description": "医院、学校、银行、协会、基金会、研究机构、检测机构、服务机构等非自然人机构名称。只表示机构名称，不包含部门、地址或编号。",
+      "examples": [
+        "上海市第一人民医院",
+        "某某大学",
+        "中国工商银行上海分行",
+        "某某检测中心"
+      ],
+      "color": "#0284C7",
+      "enabled": true,
+      "order": 182
+    },
+    {
+      "id": "GOVERNMENT_AGENCY",
+      "name": "机关单位",
+      "description": "政府机关、监管部门、公安机关、检察机关、法院、行政事业单位等机关单位名称。只表示机关单位名称，不包含案号、地址或经办人。",
+      "examples": [
+        "北京市市场监督管理局",
+        "上海市公安局浦东分局",
+        "某某人民法院"
+      ],
+      "color": "#0369A1",
+      "enabled": true,
+      "order": 183
+    },
+    {
+      "id": "WORK_UNIT",
+      "name": "工作单位",
+      "description": "个人所属、任职、就职、服务或派驻的单位名称。强调“某人的单位”，不包含职务、岗位或部门名称。",
+      "examples": [
+        "工作单位：某某科技有限公司",
+        "任职单位：某某医院",
+        "所在单位：某某学校"
+      ],
+      "color": "#0F766E",
+      "enabled": true,
+      "order": 184
+    },
+    {
+      "id": "DEPARTMENT_NAME",
+      "name": "部门名称",
+      "description": "组织内部的部门、科室、处室、分支机构、项目组、团队名称。只表示内部组织单元名称，不包含上级公司或机构名称。",
+      "examples": [
+        "法务部",
+        "心内科",
+        "人力资源部",
+        "第三项目组"
+      ],
+      "color": "#0891B2",
+      "enabled": true,
+      "order": 185
+    },
+    {
+      "id": "PROJECT_NAME",
+      "name": "项目名称",
+      "description": "项目、工程、课题、采购项目、服务项目、产品项目等项目名称。只表示项目名称，不包含项目编号或金额。",
+      "examples": [
+        "智慧园区建设项目",
+        "2026年信息化运维服务项目",
+        "某某课题"
+      ],
+      "color": "#4F46E5",
+      "enabled": true,
+      "order": 186
+    },
+    {
+      "id": "CREDIT_CODE",
+      "name": "统一社会信用代码",
+      "description": "企业、机构或社会组织的统一社会信用代码。只表示该代码，不包含公司名称、税号或其他业务编号。",
+      "examples": [
+        "91110108MA01XXXXXX",
+        "91310000XXXXXXXXXX"
+      ],
+      "color": "#B91C1C",
+      "enabled": true,
+      "order": 187
+    },
+    {
+      "id": "TAX_ID",
+      "name": "税号",
+      "description": "纳税人识别号、税务登记号、开票税号等税务编号。只表示税号，不包含统一社会信用代码以外的业务编号。",
+      "examples": [
+        "纳税人识别号91310000XXXXXXXXXX",
+        "税号110101XXXXXXXXX"
+      ],
+      "color": "#BE123C",
+      "enabled": true,
+      "order": 188
+    },
+    {
+      "id": "DATE",
+      "name": "日期",
+      "description": "年月日或日期范围。只表示日期，不包含具体时刻。",
+      "examples": [
+        "2026年5月9日",
+        "2026/05/09",
+        "2025-01至2025-12"
+      ],
+      "color": "#64748B",
+      "enabled": true,
+      "order": 200
+    },
+    {
+      "id": "TIME",
+      "name": "时间",
+      "description": "时分秒、具体时刻或时段。只表示时间，不包含年月日日期。",
+      "examples": [
+        "14:30",
+        "上午九点",
+        "9:00-10:30"
+      ],
+      "color": "#6B7280",
+      "enabled": true,
+      "order": 210
+    },
+    {
+      "id": "AGE",
+      "name": "年龄",
+      "description": "年龄或年龄段。只表示年龄。",
+      "examples": [
+        "35岁",
+        "未满18周岁",
+        "60岁以上"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 220
+    },
+    {
+      "id": "GENDER",
+      "name": "性别",
+      "description": "性别、性别身份或称谓中明确表达的性别信息。只表示性别。",
+      "examples": [
+        "男",
+        "女",
+        "非二元"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 230
+    },
+    {
+      "id": "NATIONALITY",
+      "name": "国籍",
+      "description": "国籍或公民身份。只表示国籍。",
+      "examples": [
+        "中国籍",
+        "美国公民"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 240
+    },
+    {
+      "id": "ETHNICITY",
+      "name": "民族",
+      "description": "民族、族裔、种族来源。只表示民族/族裔。",
+      "examples": [
+        "汉族",
+        "回族",
+        "亚裔"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 250
+    },
+    {
+      "id": "MARITAL_STATUS",
+      "name": "婚姻状态",
+      "description": "婚姻或伴侣状态。只表示婚姻状态。",
+      "examples": [
+        "已婚",
+        "未婚",
+        "离异"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 260
+    },
+    {
+      "id": "HEALTH_INFO",
+      "name": "健康信息",
+      "description": "疾病、诊断、病史、处方、检查结果、病历号、就诊记录、医保记录。",
+      "examples": [
+        "糖尿病史",
+        "门诊号MZ20260509",
+        "检查结果阳性"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 270
+    },
+    {
+      "id": "RELIGION",
+      "name": "宗教信仰",
+      "description": "宗教、信仰、哲学信念等信息。只表示宗教或信仰。",
+      "examples": [
+        "佛教",
+        "基督教",
+        "无宗教信仰"
+      ],
+      "color": "#BE185D",
+      "enabled": true,
+      "order": 280
+    },
+    {
+      "id": "POLITICAL",
+      "name": "政治面貌",
+      "description": "政治面貌、党派身份、政治观点等政治相关信息。",
+      "examples": [
+        "党员",
+        "群众",
+        "政治观点"
+      ],
+      "color": "#BE185D",
+      "enabled": true,
+      "order": 290
+    },
+    {
+      "id": "SEXUAL_ORIENTATION",
+      "name": "性取向",
+      "description": "性取向或性生活相关信息。只表示该类敏感事实。",
+      "examples": [
+        "同性恋",
+        "异性恋",
+        "双性恋"
+      ],
+      "color": "#BE185D",
+      "enabled": true,
+      "order": 300
+    },
+    {
+      "id": "CASE_NUMBER",
+      "name": "编号",
+      "description": "案号、合同号、协议号、保单号、订单号、工单号、发票号、项目编号、申请编号、报告编号等业务对象编号。只表示编号本身，不包含客户号、交易流水号、病历号等已有专门类型的编号。",
+      "examples": [
+        "案号（2026）京0101民初100号",
+        "编号BH-2026-0001",
+        "单号SO-2026-0509",
+        "流水号LS20260509001",
+        "订单号SO-2026-0509"
       ],
       "color": "#A855F7",
       "enabled": true,
-      "order": 31
+      "order": 310
     },
     {
-      "id": "JUDGE",
-      "name": "法官/书记员",
-      "description": "审判长、审判员、书记员、人民陪审员、法官助理",
+      "id": "LICENSE_PLATE",
+      "name": "车牌号",
+      "description": "机动车车牌号码。只表示车牌号。",
       "examples": [
-        "审判长：张某某",
-        "书记员：李某",
-        "法官助理：孙某"
+        "沪A12345",
+        "京B88888"
       ],
-      "color": "#0EA5E9",
+      "color": "#F59E0B",
       "enabled": true,
-      "order": 32
+      "order": 320
     },
     {
-      "id": "WITNESS",
-      "name": "证人/鉴定人",
-      "description": "证人、鉴定人、评估人、翻译人员",
+      "id": "VIN",
+      "name": "车架号",
+      "description": "车辆识别代号 VIN 或车架号。只表示车架号。",
       "examples": [
-        "证人张某",
-        "鉴定人：王某某"
+        "LSVAA123456789012"
       ],
-      "color": "#78716C",
+      "color": "#D97706",
       "enabled": true,
-      "order": 33
+      "order": 330
     },
     {
-      "id": "SEAL",
-      "name": "印章/公章",
-      "description": "PaddleOCR-VL可精确识别印章内的文字内容（公章、合同章、法院印章、财务章等）",
+      "id": "CRIMINAL_RECORD",
+      "name": "法律记录",
+      "description": "违法犯罪、处罚处分、诉讼仲裁、调查、失信、征信不良、合规风险等记录。",
       "examples": [
-        "XX有限公司公章",
-        "XX市中级人民法院",
-        "合同专用章"
+        "行政处罚记录",
+        "刑事判决",
+        "失信记录"
       ],
-      "color": "#DC143C",
+      "color": "#B91C1C",
       "enabled": true,
-      "order": 90
+      "order": 340
+    },
+    {
+      "id": "LEGAL_PLAINTIFF",
+      "name": "原告",
+      "description": "法律案件中的原告、申请人、上诉人等提出请求的一方。只表示该诉讼/程序角色对应的姓名或组织名称。",
+      "examples": [
+        "原告张三",
+        "申请人某某公司",
+        "上诉人李某"
+      ],
+      "color": "#7C3AED",
+      "enabled": true,
+      "order": 410
+    },
+    {
+      "id": "LEGAL_DEFENDANT",
+      "name": "被告",
+      "description": "法律案件中的被告、被申请人、被上诉人、被执行人等相对方。只表示该诉讼/程序角色对应的姓名或组织名称。",
+      "examples": [
+        "被告王某",
+        "被申请人某某公司",
+        "被执行人赵某"
+      ],
+      "color": "#8B5CF6",
+      "enabled": true,
+      "order": 420
+    },
+    {
+      "id": "LEGAL_THIRD_PARTY",
+      "name": "第三人",
+      "description": "法律案件中的第三人、利害关系人、案外人等非原被告但参与程序的主体。",
+      "examples": [
+        "第三人刘某",
+        "利害关系人某公司",
+        "案外人陈某"
+      ],
+      "color": "#A78BFA",
+      "enabled": true,
+      "order": 430
+    },
+    {
+      "id": "LEGAL_COURT",
+      "name": "法院",
+      "description": "法院、仲裁机构、调解组织等法律程序机构名称。只表示机构名称。",
+      "examples": [
+        "上海市浦东新区人民法院",
+        "北京市第一中级人民法院",
+        "中国国际经济贸易仲裁委员会"
+      ],
+      "color": "#6D28D9",
+      "enabled": true,
+      "order": 440
+    },
+    {
+      "id": "LEGAL_CASE_ID",
+      "name": "案号",
+      "description": "法院、仲裁、执行、侦查等法律程序中的案件编号或文书编号。",
+      "examples": [
+        "(2026)沪0101民初123号",
+        "(2025)京01执456号",
+        "沪公刑立字〔2026〕12号"
+      ],
+      "color": "#9333EA",
+      "enabled": true,
+      "order": 450
+    },
+    {
+      "id": "LEGAL_ATTORNEY",
+      "name": "代理律师",
+      "description": "律师、辩护人、诉讼代理人、委托代理人等法律服务人员姓名或称谓。",
+      "examples": [
+        "代理律师李律师",
+        "辩护人王某",
+        "委托诉讼代理人赵某"
+      ],
+      "color": "#5B21B6",
+      "enabled": true,
+      "order": 460
+    },
+    {
+      "id": "LEGAL_LAW_FIRM",
+      "name": "律所",
+      "description": "律师事务所、法律服务所、公证处等法律服务机构名称。",
+      "examples": [
+        "北京市某某律师事务所",
+        "上海某法律服务所",
+        "某某公证处"
+      ],
+      "color": "#7E22CE",
+      "enabled": true,
+      "order": 470
+    },
+    {
+      "id": "LEGAL_CLAIM",
+      "name": "诉讼请求",
+      "description": "起诉状、申请书、裁判文书中的诉讼请求、仲裁请求、执行请求或处理请求内容。",
+      "examples": [
+        "请求判令被告支付货款",
+        "请求解除合同",
+        "申请强制执行"
+      ],
+      "color": "#C084FC",
+      "enabled": true,
+      "order": 480
+    },
+    {
+      "id": "FIN_CUSTOMER_ID",
+      "name": "客户号",
+      "description": "银行、证券、保险、支付等金融机构分配给客户的客户编号、会员号或投资者编号。",
+      "examples": [
+        "客户号C20260001",
+        "投资者编号A123456",
+        "会员号M778899"
+      ],
+      "color": "#0E7490",
+      "enabled": true,
+      "order": 510
+    },
+    {
+      "id": "FIN_ACCOUNT_NAME",
+      "name": "账户户名",
+      "description": "银行账户、证券账户、支付账户等账户对应的户名或开户名称。",
+      "examples": [
+        "户名：张三",
+        "开户名称：某某有限公司",
+        "账户名称：李某"
+      ],
+      "color": "#0891B2",
+      "enabled": true,
+      "order": 520
+    },
+    {
+      "id": "FIN_INSTITUTION",
+      "name": "金融机构",
+      "description": "银行、证券公司、保险公司、基金公司、支付机构等金融机构名称。",
+      "examples": [
+        "中国某银行",
+        "某某证券股份有限公司",
+        "某支付有限公司"
+      ],
+      "color": "#0284C7",
+      "enabled": true,
+      "order": 530
+    },
+    {
+      "id": "FIN_TRANSACTION_ID",
+      "name": "交易流水号",
+      "description": "交易流水号、支付单号、清算流水、对账流水等金融交易唯一编号。",
+      "examples": [
+        "交易流水号202605090001",
+        "支付单号P20260509001",
+        "清算流水CL123456"
+      ],
+      "color": "#0369A1",
+      "enabled": true,
+      "order": 540
+    },
+    {
+      "id": "FIN_MERCHANT_ID",
+      "name": "商户号",
+      "description": "收单、支付、平台结算场景中的商户编号、门店编号或终端商户号。",
+      "examples": [
+        "商户号MCH123456",
+        "门店号S001",
+        "特约商户编号987654"
+      ],
+      "color": "#0F766E",
+      "enabled": true,
+      "order": 550
+    },
+    {
+      "id": "FIN_RISK_RATING",
+      "name": "风险评级",
+      "description": "客户风险等级、信用评级、授信评级、反洗钱风险等级等金融风险评价结果。",
+      "examples": [
+        "风险等级R3",
+        "信用评级AA",
+        "反洗钱高风险客户"
+      ],
+      "color": "#CA8A04",
+      "enabled": true,
+      "order": 570
+    },
+    {
+      "id": "MED_PATIENT",
+      "name": "患者",
+      "description": "病历、处方、检查报告中的患者、受检者、就诊人、住院人姓名或称谓。",
+      "examples": [
+        "患者张三",
+        "受检者李某",
+        "就诊人王某"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 610
+    },
+    {
+      "id": "MED_CLINICIAN",
+      "name": "医务人员",
+      "description": "医生、护士、检验师、审核医师、开单医师等医务人员姓名或工号。",
+      "examples": [
+        "主治医师李某",
+        "护士王某",
+        "检验师编号T001"
+      ],
+      "color": "#C026D3",
+      "enabled": true,
+      "order": 620
+    },
+    {
+      "id": "MED_INSTITUTION",
+      "name": "医疗机构",
+      "description": "医院、诊所、检验中心、体检机构、药房等医疗健康机构名称。",
+      "examples": [
+        "某某人民医院",
+        "某医学检验所",
+        "某社区卫生服务中心"
+      ],
+      "color": "#BE185D",
+      "enabled": true,
+      "order": 630
+    },
+    {
+      "id": "MED_DEPARTMENT",
+      "name": "科室",
+      "description": "医疗机构中的科室、病区、门诊、护理单元名称。",
+      "examples": [
+        "心内科",
+        "急诊科",
+        "三病区"
+      ],
+      "color": "#E11D48",
+      "enabled": true,
+      "order": 640
+    },
+    {
+      "id": "MED_RECORD_ID",
+      "name": "病历号",
+      "description": "门诊号、住院号、病历号、就诊卡号、检查申请号等医疗记录编号。",
+      "examples": [
+        "病历号MR20260001",
+        "住院号ZY123456",
+        "检查申请号LAB20260509"
+      ],
+      "color": "#F43F5E",
+      "enabled": true,
+      "order": 650
+    },
+    {
+      "id": "MED_DIAGNOSIS",
+      "name": "诊断",
+      "description": "诊断名称、疾病名称、症状结论、病程判断等医疗诊断信息。",
+      "examples": [
+        "高血压",
+        "2型糖尿病",
+        "肺部感染"
+      ],
+      "color": "#BE123C",
+      "enabled": true,
+      "order": 660
+    },
+    {
+      "id": "MED_MEDICATION",
+      "name": "用药",
+      "description": "药品名称、用药方案、剂量、频次、处方药物等用药信息。",
+      "examples": [
+        "阿莫西林",
+        "每日三次",
+        "胰岛素10单位"
+      ],
+      "color": "#9F1239",
+      "enabled": true,
+      "order": 670
+    },
+    {
+      "id": "MED_EXAM_RESULT",
+      "name": "检查结果",
+      "description": "检验值、影像结论、体检异常、病理结果等检查检验结果。",
+      "examples": [
+        "血糖7.8mmol/L",
+        "CT提示结节",
+        "病理结果阳性"
+      ],
+      "color": "#881337",
+      "enabled": true,
+      "order": 680
     }
   ],
   "has_image": [
@@ -444,7 +905,7 @@
     {
       "id": "receipt",
       "name": "小票/收据",
-      "description": "购物小票、收据",
+      "description": "购物小票、收据，通常包含交易明细、付款账号、门店和时间等隐私线索。",
       "examples": [],
       "color": "#6366F1",
       "enabled": true,
@@ -453,7 +914,7 @@
     {
       "id": "shipping_label",
       "name": "快递面单",
-      "description": "快递/物流面单",
+      "description": "快递/物流面单，通常包含姓名、电话、地址、运单号和二维码。",
       "examples": [],
       "color": "#8B5CF6",
       "enabled": true,
@@ -461,17 +922,17 @@
     },
     {
       "id": "official_seal",
-      "name": "公章",
-      "description": "公章、印章",
+      "name": "公章/印章区域",
+      "description": "公章、合同章、财务章、法院印章等视觉区域。",
       "examples": [],
       "color": "#A855F7",
       "enabled": true,
-      "order": 12
+      "order": 9
     },
     {
       "id": "whiteboard",
       "name": "白板",
-      "description": "白板内容",
+      "description": "白板内容，可能包含会议、项目、账号或客户信息。",
       "examples": [],
       "color": "#D946EF",
       "enabled": true,
@@ -480,7 +941,7 @@
     {
       "id": "sticky_note",
       "name": "便利贴",
-      "description": "便签、便利贴",
+      "description": "便签、便利贴，可能包含临时记录的账号、电话、地址或业务信息。",
       "examples": [],
       "color": "#EC4899",
       "enabled": true,
@@ -489,7 +950,7 @@
     {
       "id": "mobile_screen",
       "name": "手机屏幕",
-      "description": "手机屏幕显示区域",
+      "description": "手机屏幕显示区域，可能包含聊天、验证码、账号或通知内容。",
       "examples": [],
       "color": "#F43F5E",
       "enabled": true,
@@ -498,7 +959,7 @@
     {
       "id": "monitor_screen",
       "name": "电脑屏幕",
-      "description": "显示器屏幕区域",
+      "description": "显示器屏幕区域，可能包含业务系统、账号、客户或文档内容。",
       "examples": [],
       "color": "#64748B",
       "enabled": true,
@@ -511,7 +972,7 @@
       "examples": [],
       "color": "#78716C",
       "enabled": true,
-      "order": 17
+      "order": 10
     },
     {
       "id": "qr_code",
@@ -520,7 +981,7 @@
       "examples": [],
       "color": "#0D9488",
       "enabled": true,
-      "order": 18
+      "order": 11
     },
     {
       "id": "barcode",
@@ -529,16 +990,41 @@
       "examples": [],
       "color": "#059669",
       "enabled": true,
-      "order": 19
+      "order": 12
     },
     {
       "id": "paper",
       "name": "纸质文档",
-      "description": "纸张文档区域",
+      "description": "纸张文档区域。属于整页容器类，保留可选，但不作为系统默认勾选。",
       "examples": [],
       "color": "#7C3AED",
+      "enabled": false,
+      "order": 120
+    }
+  ],
+  "vlm": [
+    {
+      "id": "signature",
+      "name": "签字",
+      "description": "用视觉语言模型识别手写签名、签字笔迹和签署区域。",
+      "examples": [
+        "合同末页签字",
+        "手写姓名",
+        "签署栏笔迹"
+      ],
+      "color": "#2563EB",
       "enabled": true,
-      "order": 20
+      "order": 10,
+      "rules": [
+        "识别手写签名、签字笔迹、签署栏中的手写姓名。",
+        "只框住实际手写笔迹，不要框整行空白、表格背景或印刷标题。",
+        "同一处签字只输出一个紧贴边缘的框。"
+      ],
+      "checklist": [],
+      "negative_prompt_enabled": true,
+      "negative_prompt": "打印体姓名、空白签署栏、仅有横线或表格边框时不要输出。",
+      "few_shot_enabled": false,
+      "few_shot_samples": []
     }
   ]
 }

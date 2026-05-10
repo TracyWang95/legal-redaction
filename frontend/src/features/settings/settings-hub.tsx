@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InteractionLockOverlay } from '@/components/InteractionLockOverlay';
 import { useEntityTypes } from './hooks/use-entity-types';
 import { EntityTypeList } from './components/entity-type-list';
 import { EntityTypeDialog } from './components/entity-type-dialog';
@@ -14,7 +15,8 @@ import { PipelineConfigPanel } from './components/pipeline-config';
 
 export function SettingsHub() {
   const t = useT();
-  const panelIntroClass = 'surface-subtle px-4 py-3 text-sm text-muted-foreground';
+  const panelIntroClass =
+    'surface-subtle flex min-h-10 items-center px-4 py-2.5 text-xs leading-5 text-muted-foreground';
   const {
     entityTypes: _entityTypes,
     pipelines,
@@ -42,10 +44,21 @@ export function SettingsHub() {
     title: string;
     message: string;
     danger?: boolean;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
 
   const [editingType, setEditingType] = useState<(typeof _entityTypes)[number] | null>(null);
+  const [operationLoading, setOperationLoading] = useState(false);
+
+  const runLocked = async (action: () => void | Promise<void>) => {
+    if (operationLoading) return;
+    setOperationLoading(true);
+    try {
+      await action();
+    } finally {
+      setOperationLoading(false);
+    }
+  };
 
   const openAdd = (useLlm: boolean) => {
     setEditingType(null);
@@ -101,8 +114,8 @@ export function SettingsHub() {
 
   return (
     <div className="saas-page flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background">
-      <div className="page-shell">
-        <Tabs defaultValue="text" className="page-stack overflow-hidden gap-3">
+      <div className="page-shell !max-w-[min(100%,1920px)] !px-3 !py-2 sm:!px-4 sm:!py-3">
+        <Tabs defaultValue="text" className="page-stack gap-2.5 overflow-hidden">
           {loadError && (
             <Alert variant="destructive" data-testid="settings-load-error">
               <AlertDescription>{loadError}</AlertDescription>
@@ -114,10 +127,10 @@ export function SettingsHub() {
               className="rounded-xl border border-border/70 bg-muted/40 p-1"
               data-testid="settings-tabs"
             >
-              <TabsTrigger value="text" data-testid="tab-text">
+              <TabsTrigger value="text" className="whitespace-nowrap" data-testid="tab-text">
                 {t('settings.textRules')}
               </TabsTrigger>
-              <TabsTrigger value="vision" data-testid="tab-vision">
+              <TabsTrigger value="vision" className="whitespace-nowrap" data-testid="tab-vision">
                 {t('settings.visionRules')}
               </TabsTrigger>
             </TabsList>
@@ -125,7 +138,9 @@ export function SettingsHub() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => void handleExportPresets()}
+                className="h-8 whitespace-nowrap"
+                onClick={() => void runLocked(handleExportPresets)}
+                disabled={operationLoading}
                 data-testid="export-presets"
               >
                 {t('settings.exportPresets')}
@@ -133,7 +148,9 @@ export function SettingsHub() {
               <Button
                 size="sm"
                 variant="outline"
+                className="h-8 whitespace-nowrap"
                 onClick={() => importFileRef.current?.click()}
+                disabled={operationLoading}
                 data-testid="import-presets"
               >
                 {t('settings.importPresets')}
@@ -142,61 +159,21 @@ export function SettingsHub() {
                 ref={importFileRef}
                 type="file"
                 accept=".json"
-                onChange={handleImportPresets}
+                onChange={(event) => void runLocked(() => handleImportPresets(event))}
                 className="hidden"
               />
             </div>
           </div>
 
-          {}
           <TabsContent
             value="text"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
           >
             <div className={panelIntroClass} data-testid="settings-text-intro">
-              {t('settings.regex')} + {t('settings.aiSemantic')} | {t('settings.dualRules')}
+              {t('settings.textPipelineIntro')}
             </div>
-            <Tabs
-              defaultValue="regex"
-              className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
-            >
-              <div className="shrink-0 flex items-center gap-2">
-                <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1">
-                  <TabsTrigger value="regex" data-testid="subtab-regex">
-                    {t('settings.regex')}
-                    <span className="ml-1 text-muted-foreground">({regexTypes.length})</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="llm" data-testid="subtab-llm">
-                    {t('settings.semantic')}
-                    <span className="ml-1 text-muted-foreground">({llmTypes.length})</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-              <TabsContent value="regex" className="mt-0 flex min-h-0 flex-1 overflow-hidden">
-                <EntityTypeList
-                  types={regexTypes}
-                  variant="regex"
-                  onAdd={() => openAdd(false)}
-                  onEdit={openEdit}
-                  onDelete={(id) =>
-                    setConfirmState({
-                      title: t('common.delete'),
-                      message: t('settings.confirmDeleteType'),
-                      danger: true,
-                      onConfirm: () => void deleteType(id),
-                    })
-                  }
-                  onReset={() =>
-                    setConfirmState({
-                      title: t('settings.resetTextRules'),
-                      message: t('settings.confirmReset'),
-                      danger: true,
-                      onConfirm: () => void resetToDefault(),
-                    })
-                  }
-                />
-              </TabsContent>
-              <TabsContent value="llm" className="mt-0 flex min-h-0 flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
+              <div className="flex min-h-0 flex-1 overflow-hidden">
                 <EntityTypeList
                   types={llmTypes}
                   variant="llm"
@@ -207,7 +184,7 @@ export function SettingsHub() {
                       title: t('common.delete'),
                       message: t('settings.confirmDeleteType'),
                       danger: true,
-                      onConfirm: () => void deleteType(id),
+                      onConfirm: () => deleteType(id),
                     })
                   }
                   onReset={() =>
@@ -215,21 +192,45 @@ export function SettingsHub() {
                       title: t('settings.resetTextRules'),
                       message: t('settings.confirmReset'),
                       danger: true,
-                      onConfirm: () => void resetToDefault(),
+                      onConfirm: () => resetToDefault(),
                     })
                   }
                 />
-              </TabsContent>
-            </Tabs>
+              </div>
+              <div className="flex shrink-0 overflow-hidden">
+                <EntityTypeList
+                  types={regexTypes}
+                  variant="regex"
+                  compact
+                  onAdd={() => openAdd(false)}
+                  onEdit={openEdit}
+                  onDelete={(id) =>
+                    setConfirmState({
+                      title: t('common.delete'),
+                      message: t('settings.confirmDeleteType'),
+                      danger: true,
+                      onConfirm: () => deleteType(id),
+                    })
+                  }
+                  onReset={() =>
+                    setConfirmState({
+                      title: t('settings.resetTextRules'),
+                      message: t('settings.confirmReset'),
+                      danger: true,
+                      onConfirm: () => resetToDefault(),
+                    })
+                  }
+                />
+              </div>
+            </div>
           </TabsContent>
 
-          {}
           <TabsContent
             value="vision"
-            className="mt-0 flex min-h-0 flex-1 flex-col gap-4 overflow-hidden"
+            className="mt-0 flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
           >
             <div className={panelIntroClass} data-testid="settings-vision-intro">
-              {t('settings.pipelineDisplayName.ocr')} + {t('settings.pipelineDisplayName.image')} |{' '}
+              {t('settings.pipelineDisplayName.ocr')}、{t('settings.pipelineDisplayName.image')} ·{' '}
               {t('settings.twoMergedOutput')}
             </div>
             <PipelineConfigPanel
@@ -242,7 +243,7 @@ export function SettingsHub() {
                   title: t('common.delete'),
                   message: t('settings.confirmDeleteType'),
                   danger: true,
-                  onConfirm: () => void deletePipelineType(mode, id),
+                  onConfirm: () => deletePipelineType(mode, id),
                 })
               }
               onReset={() =>
@@ -250,7 +251,7 @@ export function SettingsHub() {
                   title: t('settings.resetVisionRules'),
                   message: t('settings.confirmResetPipelines'),
                   danger: true,
-                  onConfirm: () => void resetPipelines(),
+                  onConfirm: () => resetPipelines(),
                 })
               }
             />
@@ -258,7 +259,6 @@ export function SettingsHub() {
         </Tabs>
       </div>
 
-      {}
       <EntityTypeDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -283,13 +283,16 @@ export function SettingsHub() {
           title={confirmState.title}
           message={confirmState.message}
           danger={confirmState.danger}
-          onConfirm={() => {
-            confirmState.onConfirm();
-            setConfirmState(null);
-          }}
+          onConfirm={() =>
+            void runLocked(async () => {
+              setConfirmState(null);
+              await confirmState.onConfirm();
+            })
+          }
           onCancel={() => setConfirmState(null)}
         />
       )}
+      <InteractionLockOverlay active={operationLoading || saving} />
     </div>
   );
 }

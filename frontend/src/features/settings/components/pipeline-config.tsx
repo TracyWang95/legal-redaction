@@ -1,7 +1,8 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Plus, Upload, X } from 'lucide-react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -19,18 +20,132 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
 import {
   getPipelineTone,
   getToneColor,
   type PipelineConfig,
   type PipelineTypeConfig,
+  type VlmFewShotSample,
 } from '../hooks/use-entity-types';
+import type { PipelineMode } from '@/services/defaultRedactionPreset';
+
+const RECOGNITION_PAGE_SIZE = 9;
+
+type PromptRowForm = {
+  id: string;
+  text: string;
+};
+
+type SampleForm = {
+  id: string;
+  type: 'positive' | 'negative';
+  image: string;
+  label: string;
+  filename?: string | null;
+};
+
+type PipelineTypeForm = {
+  name: string;
+  description: string;
+  rulesText: string;
+  positivePrompts: PromptRowForm[];
+  negativePrompts: PromptRowForm[];
+  samples: SampleForm[];
+};
+
+const MAX_VLM_SAMPLES = 5;
+
+function localId() {
+  return `local_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function emptyPromptRow(text = ''): PromptRowForm {
+  return {
+    id: localId(),
+    text,
+  };
+}
+
+function emptyForm(): PipelineTypeForm {
+  return {
+    name: '',
+    description: '',
+    rulesText: '',
+    positivePrompts: [emptyPromptRow()],
+    negativePrompts: [emptyPromptRow()],
+    samples: [],
+  };
+}
+
+function positivePromptsFromType(type: PipelineTypeConfig): PromptRowForm[] {
+  if (type.checklist?.length) {
+    const rows = type.checklist
+      .map((item) => item.rule ?? item.positive_prompt ?? '')
+      .filter(Boolean)
+      .map((text) => emptyPromptRow(text));
+    if (rows.length) return rows;
+  }
+
+  const rows = (type.rules ?? []).filter(Boolean).map((rule) => emptyPromptRow(rule));
+  return rows.length ? rows : [emptyPromptRow()];
+}
+
+function negativePromptsFromType(type: PipelineTypeConfig): PromptRowForm[] {
+  const rowPrompts = (type.checklist ?? [])
+    .map((item) => item.negative_prompt ?? '')
+    .filter(Boolean);
+  const legacyPrompts = (type.negative_prompt ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const rows = [...rowPrompts, ...legacyPrompts].map((text) => emptyPromptRow(text));
+  return rows.length ? rows : [emptyPromptRow()];
+}
+
+function samplesFromType(type: PipelineTypeConfig): SampleForm[] {
+  return (type.few_shot_samples ?? []).map((sample) => ({
+    id: localId(),
+    type: sample.type === 'negative' ? 'negative' : 'positive',
+    image: sample.image,
+    label: sample.label ?? '',
+    filename: sample.filename ?? null,
+  }));
+}
+
+function readImageAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
 interface PipelineConfigPanelProps {
   loading: boolean;
   pipelines: PipelineConfig[];
-  onCreateType: (mode: 'ocr_has' | 'has_image', name: string, desc: string) => Promise<boolean>;
+  onCreateType: (
+    mode: PipelineMode,
+    name: string,
+    desc: string,
+    options?: Pick<
+      PipelineTypeConfig,
+      | 'rules'
+      | 'checklist'
+      | 'negative_prompt_enabled'
+      | 'negative_prompt'
+      | 'few_shot_enabled'
+      | 'few_shot_samples'
+    >,
+  ) => Promise<boolean>;
   onUpdateType: (
     mode: string,
     typeId: string,
@@ -49,58 +164,168 @@ export function PipelineConfigPanel({
   onReset,
 }: PipelineConfigPanelProps) {
   const t = useT();
-  const [activeSub, setActiveSub] = useState<'ocr_has' | 'has_image'>('ocr_has');
-  const [dialogMode, setDialogMode] = useState<'ocr_has' | 'has_image' | null>(null);
+  const [activeSub, setActiveSub] = useState<PipelineMode>('ocr_has');
+  const [dialogMode, setDialogMode] = useState<PipelineMode | null>(null);
   const [editing, setEditing] = useState<{ mode: string; type: PipelineTypeConfig } | null>(null);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState<PipelineTypeForm>(() => emptyForm());
   const [page, setPage] = useState(1);
+  const sampleInputRef = useRef<HTMLInputElement>(null);
 
   const ocrPipeline = pipelines.find((pipeline) => pipeline.mode === 'ocr_has');
   const imagePipeline = pipelines.find((pipeline) => pipeline.mode === 'has_image');
+  const vlmPipeline = pipelines.find((pipeline) => pipeline.mode === 'vlm');
   const activePipeline = pipelines.find((pipeline) => pipeline.mode === activeSub);
   const ocrLabel = t('settings.pipelineDisplayName.ocr');
   const imageLabel = t('settings.pipelineDisplayName.image');
+  const vlmLabel = t('settings.pipelineDisplayName.vlm');
 
-  const openCreate = (mode: 'ocr_has' | 'has_image') => {
+  const openCreate = (mode: PipelineMode) => {
     setEditing(null);
-    setForm({ name: '', description: '' });
+    setForm(emptyForm());
     setDialogMode(mode);
   };
 
   const openEdit = (mode: string, type: PipelineTypeConfig) => {
     setEditing({ mode, type: { ...type } });
-    setForm({ name: type.name, description: type.description ?? '' });
-    setDialogMode(mode as 'ocr_has' | 'has_image');
+    setForm({
+      name: type.name,
+      description: type.description ?? '',
+      rulesText: (type.rules ?? []).join('\n'),
+      positivePrompts: positivePromptsFromType(type),
+      negativePrompts: negativePromptsFromType(type),
+      samples: samplesFromType(type),
+    });
+    setDialogMode(mode as PipelineMode);
   };
 
   const handleSave = async () => {
     if (!dialogMode || !form.name.trim()) return;
 
+    const positiveRows =
+      dialogMode === 'vlm'
+        ? form.positivePrompts
+        : form.rulesText.split('\n').map((line) => emptyPromptRow(line));
+    const checklist = positiveRows
+      .map((item) => item.text.trim())
+      .filter(Boolean)
+      .map((rule) => ({
+        rule,
+        positive_prompt: null,
+        negative_prompt: null,
+      }));
+    const rules = checklist.map((item) => item.rule);
+    const negativePrompt = form.negativePrompts
+      .map((item) => item.text.trim())
+      .filter(Boolean)
+      .join('\n');
+    const samples: VlmFewShotSample[] = form.samples.map((sample) => ({
+      type: sample.type,
+      image: sample.image,
+      label: sample.label.trim() || null,
+      filename: sample.filename ?? null,
+    }));
     if (editing) {
       await onUpdateType(editing.mode, editing.type.id, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
         examples: editing.type.examples || [],
-        color: getToneColor(getPipelineTone(editing.mode as 'ocr_has' | 'has_image')),
+        color: getToneColor(getPipelineTone(editing.mode as PipelineMode)),
         enabled: editing.type.enabled,
         order: editing.type.order,
+        rules,
+        checklist,
+        negative_prompt_enabled: negativePrompt.length > 0,
+        negative_prompt: negativePrompt || null,
+        few_shot_enabled: samples.length > 0,
+        few_shot_samples: samples,
       });
     } else {
-      await onCreateType(dialogMode, form.name, form.description);
+      await onCreateType(dialogMode, form.name, form.description, {
+        rules,
+        checklist,
+        negative_prompt_enabled: negativePrompt.length > 0,
+        negative_prompt: negativePrompt || null,
+        few_shot_enabled: samples.length > 0,
+        few_shot_samples: samples,
+      });
     }
 
     setDialogMode(null);
     setEditing(null);
-    setForm({ name: '', description: '' });
+    setForm(emptyForm());
+  };
+
+  const updatePromptRow = (
+    group: 'positivePrompts' | 'negativePrompts',
+    rowId: string,
+    text: string,
+  ) => {
+    setForm((current) => ({
+      ...current,
+      [group]: current[group].map((row) => (row.id === rowId ? { ...row, text } : row)),
+    }));
+  };
+
+  const addPromptRow = (group: 'positivePrompts' | 'negativePrompts') => {
+    setForm((current) => ({
+      ...current,
+      [group]: [...current[group], emptyPromptRow()],
+    }));
+  };
+
+  const removePromptRow = (group: 'positivePrompts' | 'negativePrompts', rowId: string) => {
+    setForm((current) => {
+      const nextRows = current[group].filter((row) => row.id !== rowId);
+      return { ...current, [group]: nextRows.length ? nextRows : [emptyPromptRow()] };
+    });
+  };
+
+  const handleSampleUpload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const remaining = Math.max(0, MAX_VLM_SAMPLES - form.samples.length);
+    const selectedFiles = Array.from(files)
+      .filter((file) => file.type.startsWith('image/'))
+      .slice(0, remaining);
+    if (selectedFiles.length === 0) return;
+    const nextSamples = await Promise.all(
+      selectedFiles.map(async (file) => ({
+        id: localId(),
+        type: 'positive' as const,
+        image: await readImageAsDataUrl(file),
+        label: '',
+        filename: file.name,
+      })),
+    );
+    setForm((current) => ({
+      ...current,
+      samples: [...current.samples, ...nextSamples].slice(0, MAX_VLM_SAMPLES),
+    }));
+    if (sampleInputRef.current) sampleInputRef.current.value = '';
+  };
+
+  const updateSample = (sampleId: string, patch: Partial<Omit<SampleForm, 'id'>>) => {
+    setForm((current) => ({
+      ...current,
+      samples: current.samples.map((sample) =>
+        sample.id === sampleId ? { ...sample, ...patch } : sample,
+      ),
+    }));
+  };
+
+  const removeSample = (sampleId: string) => {
+    setForm((current) => ({
+      ...current,
+      samples: current.samples.filter((sample) => sample.id !== sampleId),
+    }));
   };
 
   const imageModeActive = activeSub === 'has_image';
-  const tone: SelectionTone = imageModeActive ? 'visual' : 'semantic';
+  const vlmModeActive = activeSub === 'vlm';
+  const tone: SelectionTone = imageModeActive || vlmModeActive ? 'visual' : 'semantic';
   const toneClasses = getSelectionToneClasses(tone);
-  const displayName = imageModeActive ? imageLabel : ocrLabel;
+  const displayName = vlmModeActive ? vlmLabel : imageModeActive ? imageLabel : ocrLabel;
   const activeCount = activePipeline?.types.length ?? 0;
-  const pageSize = 9;
-  const totalPages = Math.max(1, Math.ceil(activeCount / pageSize));
+  const totalPages = Math.max(1, Math.ceil(activeCount / RECOGNITION_PAGE_SIZE));
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting pagination when active tab changes
@@ -114,40 +339,49 @@ export function PipelineConfigPanel({
 
   const visibleTypes = useMemo(() => {
     if (!activePipeline) return [];
-    const start = (page - 1) * pageSize;
-    return activePipeline.types.slice(start, start + pageSize);
-  }, [activePipeline, page, pageSize]);
+    const start = (page - 1) * RECOGNITION_PAGE_SIZE;
+    return activePipeline.types.slice(start, start + RECOGNITION_PAGE_SIZE);
+  }, [activePipeline, page]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <div className="shrink-0 flex items-center gap-2">
-        <Tabs
-          value={activeSub}
-          onValueChange={(value) => setActiveSub(value as 'ocr_has' | 'has_image')}
-        >
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2">
+        <Tabs value={activeSub} onValueChange={(value) => setActiveSub(value as PipelineMode)}>
           <TabsList className="rounded-xl border border-border/70 bg-muted/40 p-1">
-            <TabsTrigger value="ocr_has" data-testid="pipeline-tab-ocr">
+            <TabsTrigger
+              value="ocr_has"
+              className="whitespace-nowrap"
+              data-testid="pipeline-tab-ocr"
+            >
               {ocrLabel}
               <span className="ml-1 text-muted-foreground">({ocrPipeline?.types.length ?? 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="has_image" data-testid="pipeline-tab-image">
+            <TabsTrigger
+              value="has_image"
+              className="whitespace-nowrap"
+              data-testid="pipeline-tab-image"
+            >
               {imageLabel}
               <span className="ml-1 text-muted-foreground">
                 ({imagePipeline?.types.length ?? 0})
               </span>
+            </TabsTrigger>
+            <TabsTrigger value="vlm" className="whitespace-nowrap" data-testid="pipeline-tab-vlm">
+              {vlmLabel}
+              <span className="ml-1 text-muted-foreground">({vlmPipeline?.types.length ?? 0})</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       <div
-        className="page-surface rounded-[24px] border border-border/70 bg-card shadow-[var(--shadow-control)]"
+        className="page-surface rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-control)]"
         data-testid="vision-pipeline-panel"
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-3.5">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
             <span className={cn('size-2 shrink-0 rounded-full', toneClasses.dot)} />
-            <span className="truncate text-sm font-semibold tracking-[-0.02em]">{displayName}</span>
+            <span className="truncate text-sm font-semibold tracking-normal">{displayName}</span>
             <Badge
               variant="secondary"
               className={cn(
@@ -159,16 +393,27 @@ export function PipelineConfigPanel({
             </Badge>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Button size="sm" variant="outline" onClick={onReset} data-testid="reset-pipelines">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 whitespace-nowrap"
+              onClick={onReset}
+              data-testid="reset-pipelines"
+            >
               {t('settings.resetVisionRules')}
             </Button>
-            <Button size="sm" onClick={() => openCreate(activeSub)} data-testid="add-pipeline-type">
+            <Button
+              size="sm"
+              className="h-8 whitespace-nowrap"
+              onClick={() => openCreate(activeSub)}
+              data-testid="add-pipeline-type"
+            >
               {t('settings.addNew')}
             </Button>
           </div>
         </div>
 
-        <div className="page-surface-body p-3">
+        <div className="page-surface-body flex overflow-hidden p-3">
           {loading ? (
             <div className="flex min-h-[240px] flex-1 items-center justify-center rounded-[20px] border border-dashed border-border/70 bg-muted/15 px-6 text-center">
               <p className="text-sm text-muted-foreground">{t('settings.loadingPipeline')}</p>
@@ -178,16 +423,16 @@ export function PipelineConfigPanel({
               <p className="text-sm text-muted-foreground">{t('settings.noTypeConfig')}</p>
             </div>
           ) : (
-            <div className="grid w-full grid-cols-3 grid-rows-[repeat(3,1fr)] gap-3">
+            <div className="grid h-full min-h-0 w-full flex-1 grid-cols-1 grid-rows-3 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visibleTypes.map((type) => (
                 <article
                   key={type.id}
-                  className="flex h-[148px] overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
+                  className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border"
                 >
-                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <span className="block truncate text-sm font-semibold leading-tight text-foreground">
+                        <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">
                           {type.name}
                         </span>
                       </div>
@@ -215,11 +460,11 @@ export function PipelineConfigPanel({
                       </div>
                     </div>
 
-                    <div className="min-h-0 flex-1 rounded-2xl border border-border/70 bg-muted/25 px-3 py-2.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    <div className="min-h-0 flex-1 rounded-xl border border-border/70 bg-muted/25 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold tracking-[0.02em] text-muted-foreground">
                         {t('settings.cardDescriptionLabel')}
                       </p>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-foreground">
+                      <p className="mt-1 line-clamp-4 text-xs leading-4 text-foreground">
                         {type.description || t('settings.semanticDescriptionPlaceholder')}
                       </p>
                     </div>
@@ -234,10 +479,11 @@ export function PipelineConfigPanel({
           <div className="page-surface-footer">
             <PaginationRail
               page={page}
-              pageSize={pageSize}
+              pageSize={RECOGNITION_PAGE_SIZE}
               totalItems={activeCount}
               totalPages={totalPages}
               onPageChange={setPage}
+              compact
             />
           </div>
         )}
@@ -252,17 +498,19 @@ export function PipelineConfigPanel({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>{editing ? t('settings.editType') : t('settings.addType')}</DialogTitle>
             <DialogDescription>
               {dialogMode === 'ocr_has'
                 ? t('settings.pipelineTypeDescOcr')
-                : t('settings.pipelineTypeDescImg')}
+                : dialogMode === 'vlm'
+                  ? t('settings.pipelineTypeDescVlm')
+                  : t('settings.pipelineTypeDescImg')}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-2">
+          <div className="flex max-h-[72vh] flex-col gap-4 overflow-y-auto py-2 pr-1">
             <div className="flex flex-col gap-1.5">
               <Label>{t('settings.nameLabel')} *</Label>
               <Input
@@ -292,6 +540,186 @@ export function PipelineConfigPanel({
             </div>
 
             <p className="text-xs text-muted-foreground">{t('settings.saveHint')}</p>
+            {dialogMode === 'vlm' && (
+              <>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>{t('settings.vlmPositivePromptsLabel')}</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 whitespace-nowrap"
+                      onClick={() => addPromptRow('positivePrompts')}
+                      data-testid="pipeline-add-positive-row"
+                    >
+                      <Plus className="size-3.5" />
+                      {t('settings.vlmPromptAdd')}
+                    </Button>
+                  </div>
+                  <div className="grid gap-2" data-testid="pipeline-type-positive-prompts">
+                    {form.positivePrompts.map((row, index) => (
+                      <div
+                        key={row.id}
+                        className="grid gap-2 rounded-xl border border-border/70 bg-muted/15 p-2 md:grid-cols-[minmax(0,1fr)_2rem]"
+                      >
+                        <Input
+                          value={row.text}
+                          onChange={(event) =>
+                            updatePromptRow('positivePrompts', row.id, event.target.value)
+                          }
+                          placeholder={t('settings.vlmPositivePromptPlaceholder')}
+                          aria-label={`${t('settings.vlmPositivePrompt')} ${index + 1}`}
+                          data-testid={`pipeline-positive-prompt-${index}`}
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 self-start text-muted-foreground hover:text-destructive"
+                          onClick={() => removePromptRow('positivePrompts', row.id)}
+                          aria-label={t('settings.vlmPromptRemove')}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <Label>{t('settings.vlmNegativePromptsLabel')}</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 whitespace-nowrap"
+                      onClick={() => addPromptRow('negativePrompts')}
+                      data-testid="pipeline-add-negative-row"
+                    >
+                      <Plus className="size-3.5" />
+                      {t('settings.vlmPromptAdd')}
+                    </Button>
+                  </div>
+                  <div className="grid gap-2" data-testid="pipeline-type-negative-prompts">
+                    {form.negativePrompts.map((row, index) => (
+                      <div
+                        key={row.id}
+                        className="grid gap-2 rounded-xl border border-border/70 bg-muted/15 p-2 md:grid-cols-[minmax(0,1fr)_2rem]"
+                      >
+                        <Input
+                          value={row.text}
+                          onChange={(event) =>
+                            updatePromptRow('negativePrompts', row.id, event.target.value)
+                          }
+                          placeholder={t('settings.vlmNegativePromptPlaceholder')}
+                          aria-label={`${t('settings.vlmNegativePrompt')} ${index + 1}`}
+                          data-testid={`pipeline-negative-prompt-${index}`}
+                        />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 self-start text-muted-foreground hover:text-destructive"
+                          onClick={() => removePromptRow('negativePrompts', row.id)}
+                          aria-label={t('settings.vlmPromptRemove')}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <Label>{t('settings.vlmSamplesLabel')}</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t('settings.vlmSamplesHint')}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1.5 whitespace-nowrap"
+                      onClick={() => sampleInputRef.current?.click()}
+                      disabled={form.samples.length >= MAX_VLM_SAMPLES}
+                      data-testid="pipeline-upload-sample"
+                    >
+                      <Upload className="size-3.5" />
+                      {t('settings.vlmSamplesUpload')}
+                    </Button>
+                    <input
+                      ref={sampleInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => void handleSampleUpload(event.target.files)}
+                    />
+                  </div>
+                  {form.samples.length > 0 && (
+                    <div className="grid gap-2 sm:grid-cols-2" data-testid="pipeline-sample-list">
+                      {form.samples.map((sample) => (
+                        <div
+                          key={sample.id}
+                          className="grid grid-cols-[4.5rem_minmax(0,1fr)_2rem] gap-2 rounded-xl border border-border/70 bg-muted/15 p-2"
+                        >
+                          <img
+                            src={sample.image}
+                            alt={sample.filename || t('settings.vlmSampleAlt')}
+                            className="h-[4.5rem] w-[4.5rem] rounded-lg border border-border/70 object-cover"
+                          />
+                          <div className="grid min-w-0 gap-2">
+                            <Select
+                              value={sample.type}
+                              onValueChange={(value) =>
+                                updateSample(sample.id, {
+                                  type: value === 'negative' ? 'negative' : 'positive',
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="positive">
+                                  {t('settings.vlmSamplePositive')}
+                                </SelectItem>
+                                <SelectItem value="negative">
+                                  {t('settings.vlmSampleNegative')}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              value={sample.label}
+                              onChange={(event) =>
+                                updateSample(sample.id, { label: event.target.value })
+                              }
+                              placeholder={t('settings.vlmSampleLabelPlaceholder')}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeSample(sample.id)}
+                            aria-label={t('settings.vlmSampleRemove')}
+                          >
+                            <X className="size-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>

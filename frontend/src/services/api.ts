@@ -24,6 +24,52 @@ import type {
 
 export { downloadFile, authenticatedBlobUrl };
 
+export interface BatchZipSkippedItem {
+  file_id: string;
+  reason: string;
+}
+
+export interface BatchZipManifestSummary {
+  requested_count: number;
+  included_count: number;
+  skipped_count: number;
+  redacted: boolean;
+  skipped: BatchZipSkippedItem[];
+}
+
+export type BatchZipBlob = Blob & {
+  batchManifest?: BatchZipManifestSummary;
+};
+
+function parseCountHeader(headers: Headers, name: string): number {
+  const raw = headers.get(name);
+  const parsed = raw ? Number.parseInt(raw, 10) : 0;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function parseSkippedHeader(headers: Headers): BatchZipSkippedItem[] {
+  const raw = headers.get('X-Batch-Zip-Skipped');
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item): BatchZipSkippedItem | null => {
+        if (!item || typeof item !== 'object') return null;
+        const fileId = typeof item.file_id === 'string' ? item.file_id : '';
+        const reason = typeof item.reason === 'string' ? item.reason : '';
+        return fileId && reason ? { file_id: fileId, reason } : null;
+      })
+      .filter((item): item is BatchZipSkippedItem => Boolean(item));
+  } catch {
+    return [];
+  }
+}
+
+export function getBatchZipManifest(blob: Blob): BatchZipManifestSummary | null {
+  return (blob as BatchZipBlob).batchManifest ?? null;
+}
+
 export const fileApi = {
   upload: async (
     file: File,
@@ -60,12 +106,16 @@ export const fileApi = {
       },
     }),
 
-  batchDownloadZip: async (fileIds: string[], redacted: boolean): Promise<Blob> => {
+  batchDownloadZip: async (
+    fileIds: string[],
+    redacted: boolean,
+    jobId?: string | null,
+  ): Promise<BatchZipBlob> => {
     const res = await authFetch('/api/v1/files/batch/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ file_ids: fileIds, redacted }),
+      body: JSON.stringify({ file_ids: fileIds, redacted, ...(jobId ? { job_id: jobId } : {}) }),
     });
     if (!res.ok) {
       let message = 'Failed to download archive';
@@ -77,7 +127,15 @@ export const fileApi = {
       }
       throw new Error(message);
     }
-    return res.blob();
+    const blob = (await res.blob()) as BatchZipBlob;
+    blob.batchManifest = {
+      requested_count: parseCountHeader(res.headers, 'X-Batch-Zip-Requested-Count'),
+      included_count: parseCountHeader(res.headers, 'X-Batch-Zip-Included-Count'),
+      skipped_count: parseCountHeader(res.headers, 'X-Batch-Zip-Skipped-Count'),
+      redacted: res.headers.get('X-Batch-Zip-Redacted') === 'true',
+      skipped: parseSkippedHeader(res.headers),
+    };
+    return blob;
   },
 
   getDownloadUrl: (fileId: string, redacted = false): string =>
@@ -98,7 +156,9 @@ export const redactionApi = {
     api.get(`/redaction/${fileId}/compare`),
 
   detectSensitiveRegions: async (fileId: string, page = 1): Promise<VisionResult> =>
-    api.post(`/redaction/${fileId}/vision?page=${page}`, undefined, { timeout: VISION_TIMEOUT }),
+    api.post(`/redaction/${fileId}/vision?page=${page}&include_result_image=false`, undefined, {
+      timeout: VISION_TIMEOUT,
+    }),
 
   getEntityTypes: async (): Promise<{ entity_types: EntityTypeConfigSimple[] }> =>
     api.get('/redaction/entity-types'),

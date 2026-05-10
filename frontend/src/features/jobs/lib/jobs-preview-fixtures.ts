@@ -18,6 +18,7 @@ function buildProgress(total: number, index: number): JobProgress {
     return {
       total_items: total,
       pending: 0,
+      processing: 0,
       queued: 0,
       parsing: 0,
       ner: 0,
@@ -35,10 +36,11 @@ function buildProgress(total: number, index: number): JobProgress {
     return {
       total_items: total,
       pending: 0,
+      processing: 1,
       queued: 1,
       parsing: 1,
       ner: 1,
-      vision: 1,
+      vision: 0,
       awaiting_review: 0,
       review_approved: 0,
       redacting: 0,
@@ -52,6 +54,7 @@ function buildProgress(total: number, index: number): JobProgress {
     return {
       total_items: total,
       pending: 0,
+      processing: 0,
       queued: 0,
       parsing: 0,
       ner: 0,
@@ -69,6 +72,7 @@ function buildProgress(total: number, index: number): JobProgress {
     return {
       total_items: total,
       pending: 0,
+      processing: 0,
       queued: 0,
       parsing: 0,
       ner: 0,
@@ -85,6 +89,7 @@ function buildProgress(total: number, index: number): JobProgress {
   return {
     total_items: total,
     pending: 0,
+    processing: 0,
     queued: 0,
     parsing: 0,
     ner: 0,

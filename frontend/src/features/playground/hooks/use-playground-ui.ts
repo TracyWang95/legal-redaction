@@ -311,6 +311,7 @@ export function usePlaygroundUI(options: UsePlaygroundUIOptions) {
     setClickedEntity,
     entityPopupPos,
     setEntityPopupPos,
+    getTypeConfig,
     // Refs
     contentRef,
     textScrollRef,

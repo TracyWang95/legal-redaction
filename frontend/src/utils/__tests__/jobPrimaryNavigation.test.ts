@@ -134,7 +134,7 @@ describe('resolveJobPrimaryNavigation', () => {
     expect(nav.kind).toBe('link');
     if (nav.kind === 'link') {
       expect(nav.to).toContain('step=3');
-      expect(nav.label).toBe('查看进度');
+      expect(nav.label).toBe('View progress');
     }
   });
 
@@ -148,6 +148,31 @@ describe('resolveJobPrimaryNavigation', () => {
     if (nav.kind === 'link') {
       expect(nav.to).toContain('step=4');
       expect(nav.to).toContain('itemId=i1');
+      expect(nav.label).toBe('Continue review');
+    }
+  });
+
+  it('uses localized labels when provided', () => {
+    const nav = resolveJobPrimaryNavigation({
+      ...base,
+      status: 'processing',
+      labels: {
+        continueConfig: '继续配置',
+        continueUpload: '继续上传',
+        continueRecognize: '继续识别',
+        continueReview: '继续审阅',
+        continueExport: '继续导出',
+        viewProgress: '查看进度',
+        downloadRedactedResult: '下载脱敏结果',
+        taskFailed: '任务已失败',
+        viewFailureDetail: '查看失败详情',
+        taskCancelled: '任务已取消',
+        viewDetail: '查看详情',
+      },
+    });
+    expect(nav.kind).toBe('link');
+    if (nav.kind === 'link') {
+      expect(nav.label).toBe('查看进度');
     }
   });
 

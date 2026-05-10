@@ -1,6 +1,8 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import { normalizeEntityTypeId } from '@/config/entityTypes';
+
 export type TextSegment =
   | { text: string; isMatch: false }
   | {
@@ -10,6 +12,39 @@ export type TextSegment =
       safeKey: string;
       matchIdx: number;
     };
+
+export interface EntityCoverageSource {
+  text: string;
+  type: string;
+  selected?: boolean;
+}
+
+export function buildEntityCoverageMap<T extends EntityCoverageSource>(
+  entities: T[],
+): Map<string, T> {
+  const byText = new Map<string, T>();
+  for (const entity of entities) {
+    if (!entity.text) continue;
+    const existing = byText.get(entity.text);
+    if (!existing || (existing.selected === false && entity.selected !== false)) {
+      byText.set(entity.text, entity);
+    }
+  }
+  return byText;
+}
+
+export function countTextMapOccurrences(text: string, map: Record<string, string>): number {
+  return buildTextSegments(text, map).reduce((sum, segment) => sum + (segment.isMatch ? 1 : 0), 0);
+}
+
+export function countEntityTextOccurrences(text: string, entities: EntityCoverageSource[]): number {
+  const coverageMap = buildEntityCoverageMap(entities);
+  const previewMap: Record<string, string> = {};
+  for (const key of coverageMap.keys()) {
+    previewMap[key] = key;
+  }
+  return countTextMapOccurrences(text, previewMap);
+}
 
 export function mergePreviewMapWithDocumentSlices(
   content: string,
@@ -62,11 +97,10 @@ export function buildFallbackPreviewEntityMap(
     DATE: ['日期/时间', '具体日期.年月日'],
     EMAIL: ['邮箱', '个人邮箱.地址'],
     LICENSE_PLATE: ['编号', '车牌.号码'],
-    CONTRACT_NO: ['编号', '合同编号.代码'],
+    CONTRACT_NO: ['编号', '业务编号.代码'],
     WORK_UNIT: ['组织', '工作单位.完整名称'],
     COMPANY_CODE: ['编号', '统一社会信用代码.代码'],
     AMOUNT: ['金额', '合同金额.数值'],
-    MONEY: ['金额', '合同金额.数值'],
   };
 
   const chineseNums = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
@@ -98,12 +132,13 @@ export function buildFallbackPreviewEntityMap(
       ADDRESS: '地址',
       BANK_CARD: '账号',
       CASE_NUMBER: '案号',
-      DATE: '日期',
+      DATE: '日期/时间',
       EMAIL: '邮箱',
       LICENSE_PLATE: '车牌',
-      CONTRACT_NO: '合同编号',
+      CONTRACT_NO: '编号',
       WORK_UNIT: '工作单位',
       COMPANY_CODE: '信用代码',
+      AMOUNT: '金额',
     };
     const label = typeLabels[typeKey] ?? '敏感信息';
     const numStr = count <= 10 ? chineseNums[count] : String(count);
@@ -111,7 +146,7 @@ export function buildFallbackPreviewEntityMap(
   };
 
   for (const e of selected) {
-    const typeKey = e.type || 'CUSTOM';
+    const typeKey = normalizeEntityTypeId(e.type || 'CUSTOM');
     typeCounters[typeKey] = (typeCounters[typeKey] || 0) + 1;
     const idx = typeCounters[typeKey];
     const t = e.text;

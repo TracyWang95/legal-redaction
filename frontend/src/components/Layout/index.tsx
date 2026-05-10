@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { Outlet, useLocation } from 'react-router-dom';
+import type { CSSProperties } from 'react';
 
 import { ToastContainer } from '@/components/Toast';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -15,12 +16,14 @@ export function Layout() {
   const location = useLocation();
 
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      className="h-dvh min-h-0 overflow-hidden"
+      style={{ '--sidebar-width': '17.5rem' } as CSSProperties}
+    >
       <OfflineBanner />
       <AppSidebar />
-      <SidebarInset className="h-dvh overflow-hidden">
+      <SidebarInset className="h-dvh overflow-hidden lg:h-[calc(100dvh-1rem)]">
         <AppHeader />
-        {}
         <main
           key={location.pathname}
           className="flex min-h-0 flex-1 flex-col overflow-hidden animate-fade-in"

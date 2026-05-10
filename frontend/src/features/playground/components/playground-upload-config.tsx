@@ -5,17 +5,38 @@ import { type FC, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PaginationRail } from '@/components/PaginationRail';
 import { getEntityTypeName } from '@/config/entityTypes';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getSelectionToneClasses, type SelectionTone } from '@/ui/selectionPalette';
+import { isHasImageModelTypeId } from '@/services/defaultRedactionPreset';
+import { localizeRecognitionTypeName } from '@/features/settings/lib/redaction-display';
 import type { usePlayground } from '../hooks/use-playground';
 
 type RecognitionCtx = ReturnType<typeof usePlayground>['recognition'];
+const CONFIG_TILE_PAGE_SIZE = 8;
+const VISION_PIPELINE_PAGE_SIZE = 4;
+const TEXT_SEMANTIC_PAGE_SIZE = 24;
+const TEXT_REGEX_PAGE_SIZE = 4;
+const CONFIG_TILE_GRID_CLASS =
+  'grid min-h-0 flex-1 auto-rows-fr grid-cols-2 gap-1.5 p-2 sm:grid-cols-3 xl:grid-cols-4';
+const TEXT_REGEX_TILE_GRID_CLASS =
+  'grid shrink-0 auto-rows-[2.42rem] grid-cols-2 gap-1.5 p-2 sm:grid-cols-3 xl:grid-cols-4';
+const TEXT_SEMANTIC_TILE_GRID_CLASS =
+  'grid shrink-0 auto-rows-[2.42rem] grid-cols-2 gap-1.5 p-2 sm:grid-cols-3 xl:grid-cols-4';
+const VISION_TILE_GRID_CLASS =
+  'grid min-h-0 flex-1 auto-rows-[minmax(1.75rem,1fr)] grid-cols-2 gap-1.5 p-2 sm:grid-cols-3 xl:grid-cols-4';
+const CONFIG_BUBBLE_CLASS =
+  'flex min-h-[2.42rem] min-w-0 cursor-pointer items-center gap-1.5 self-stretch overflow-hidden rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors';
 
-export function resolveTextTypeName(typeId: string, fallbackName?: string) {
-  return fallbackName?.trim() || getEntityTypeName(typeId);
+export function resolveTextTypeName(
+  typeId: string,
+  fallbackName: string | undefined,
+  t: (key: string) => string,
+) {
+  return localizeRecognitionTypeName({ id: typeId, name: fallbackName }, t) || getEntityTypeName(typeId);
 }
 
 export function ConfigEmptyState({ title, description }: { title: string; description: string }) {
@@ -30,10 +51,56 @@ export function ConfigEmptyState({ title, description }: { title: string; descri
   );
 }
 
+function ConfigLoadingState({
+  title,
+  itemCount = CONFIG_TILE_PAGE_SIZE,
+}: {
+  title: string;
+  itemCount?: number;
+}) {
+  const items = Array.from({ length: itemCount }, (_, idx) => idx + 1);
+
+  return (
+    <section className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden rounded-[18px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]">
+      <div className="flex shrink-0 items-center justify-between border-b px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <Skeleton className="size-2.5 rounded-full" />
+          <span className="sr-only">{title}</span>
+          <Skeleton className="h-4 w-36 rounded-md" />
+        </div>
+        <Skeleton className="h-6 w-16 rounded-full" />
+      </div>
+      <div className={CONFIG_TILE_GRID_CLASS}>
+        {items.map((item) => (
+          <div
+            key={item}
+            className="flex min-w-0 items-center gap-1.5 rounded-xl border border-border/70 px-2.5 py-1.5"
+          >
+            <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+            <Skeleton className="h-4 grow rounded-md" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ConfigGroupEmptyState({ label, compact = false }: { label: string; compact?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex flex-1 items-center justify-center rounded-xl border border-dashed border-border/70 bg-background/75 px-3 text-center text-xs leading-5 text-muted-foreground',
+        compact ? 'min-h-[2.1rem] text-[11px] leading-4 [&_span]:truncate' : 'min-h-[5.75rem]',
+      )}
+    >
+      <span className="min-w-0">{label}</span>
+    </div>
+  );
+}
+
 export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
   const [groupPages, setGroupPages] = useState<Record<string, number>>({});
-  const pageSize = 15;
 
   // Reset pagination when groups change or preset is applied
   useEffect(() => {
@@ -41,12 +108,13 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
     setGroupPages((current) => {
       const next = { ...current };
       rec.playgroundTextGroups.forEach((group) => {
+        const pageSize = group.key === 'regex' ? TEXT_REGEX_PAGE_SIZE : TEXT_SEMANTIC_PAGE_SIZE;
         const totalPages = Math.max(1, Math.ceil(group.types.length / pageSize));
         next[group.key] = Math.min(next[group.key] ?? 1, totalPages);
       });
       return next;
     });
-  }, [pageSize, rec.playgroundTextGroups]);
+  }, [rec.playgroundTextGroups]);
 
   // Jump to page 1 when preset selection changes so user sees the updated checkboxes
   useEffect(() => {
@@ -56,7 +124,13 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
   if (rec.textConfigState === 'loading') {
     return (
-      <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-2"
+        data-testid="playground-text-config-loading"
+        aria-label={t('playground.loading')}
+      >
+        <ConfigLoadingState title={t('playground.loading')} />
+      </div>
     );
   }
 
@@ -81,6 +155,8 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {rec.playgroundTextGroups.map((group) => {
+        const isRegexGroup = group.key === 'regex';
+        const pageSize = isRegexGroup ? TEXT_REGEX_PAGE_SIZE : TEXT_SEMANTIC_PAGE_SIZE;
         const ids = group.types.map((type) => type.id);
         const allOn = ids.length > 0 && ids.every((id) => rec.selectedTypes.includes(id));
         const toneClasses = getSelectionToneClasses(group.tone);
@@ -91,12 +167,15 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
         return (
           <section
             key={group.key}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className={cn(
+              'flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]',
+              'shrink-0 basis-auto',
+            )}
             data-testid={`playground-text-group-${group.key}`}
           >
             <div
               className={cn(
-                'flex items-center justify-between gap-2 border-b px-3 py-2',
+                'flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5',
                 toneClasses.headerSurface,
               )}
             >
@@ -123,46 +202,60 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6.5 rounded-full px-2 text-[10px]"
+                className="h-6 shrink-0 whitespace-nowrap rounded-full px-2 text-[10px]"
+                disabled={ids.length === 0}
                 onClick={() => rec.setPlaygroundTextTypeGroupSelection(ids, !allOn)}
               >
                 {allOn ? t('playground.clear') : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid flex-1 grid-cols-3 grid-rows-5 content-start gap-1.5 p-2">
-              {visibleTypes.map((type) => {
-                const checked = rec.selectedTypes.includes(type.id);
-                const typeName = resolveTextTypeName(type.id, type.name);
-                return (
-                  <label
-                    key={`${group.key}-${type.id}`}
-                    className={cn(
-                      'flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
-                      checked
-                        ? toneClasses.cardSelectedCompact
-                        : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
-                    )}
-                    title={type.description || typeName}
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => {
-                        rec.clearPlaygroundTextPresetTracking();
-                        rec.setSelectedTypes((previous: string[]) =>
-                          checked
-                            ? previous.filter((id) => id !== type.id)
-                            : [...previous, type.id],
-                        );
-                      }}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="min-w-0 truncate font-medium">{typeName}</span>
-                  </label>
-                );
-              })}
-            </div>
+            {group.types.length === 0 ? (
+              <div className={cn('flex min-h-0 flex-1', isRegexGroup ? 'p-1' : 'p-2')}>
+                <ConfigGroupEmptyState
+                  label={t('playground.customFallbackEmpty')}
+                  compact={isRegexGroup}
+                />
+              </div>
+            ) : (
+              <div
+                className={
+                  isRegexGroup ? TEXT_REGEX_TILE_GRID_CLASS : TEXT_SEMANTIC_TILE_GRID_CLASS
+                }
+              >
+                {visibleTypes.map((type) => {
+                  const checked = rec.selectedTypes.includes(type.id);
+                  const typeName = resolveTextTypeName(type.id, type.name, t);
+                  return (
+                    <label
+                      key={`${group.key}-${type.id}`}
+                      className={cn(
+                        CONFIG_BUBBLE_CLASS,
+                        checked
+                          ? toneClasses.cardSelectedCompact
+                          : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
+                      )}
+                      title={type.description || typeName}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => {
+                          rec.clearPlaygroundTextPresetTracking();
+                          rec.setSelectedTypes((previous: string[]) =>
+                            checked
+                              ? previous.filter((id) => id !== type.id)
+                              : [...previous, type.id],
+                          );
+                        }}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="min-w-0 truncate font-medium">{typeName}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
             {group.types.length > 0 && (
-              <div className="mt-auto border-t border-border/70 px-2 py-2">
+              <div className="mt-auto shrink-0 border-t border-border/70 px-1.5 py-1.5">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
@@ -188,7 +281,7 @@ export const TextTypeGroups: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
   const t = useT();
   const [pipelinePages, setPipelinePages] = useState<Record<string, number>>({});
-  const pageSize = 15;
+  const pageSize = VISION_PIPELINE_PAGE_SIZE;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clamping page indices when pipeline data changes
@@ -204,7 +297,13 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
 
   if (rec.visionConfigState === 'loading') {
     return (
-      <p className="py-10 text-center text-sm text-muted-foreground">{t('playground.loading')}</p>
+      <div
+        className="flex min-h-0 flex-1 flex-col gap-2"
+        data-testid="playground-vision-config-loading"
+        aria-label={t('playground.loading')}
+      >
+        <ConfigLoadingState title={t('playground.loading')} />
+      </div>
     );
   }
 
@@ -230,25 +329,35 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {rec.pipelines.map((pipeline) => {
         const isHasImage = pipeline.mode === 'has_image';
-        const selectedSet = isHasImage ? rec.selectedHasImageTypes : rec.selectedOcrHasTypes;
+        const isVlm = pipeline.mode === 'vlm';
+        const pipelineTypes = isHasImage
+          ? pipeline.types.filter((type) => isHasImageModelTypeId(type.id))
+          : pipeline.types;
+        const selectedSet = isHasImage
+          ? rec.selectedHasImageTypes
+          : isVlm
+            ? rec.selectedVlmTypes
+            : rec.selectedOcrHasTypes;
+        const recommendedIds = isHasImage
+          ? pipelineTypes.filter((type) => type.id !== 'paper').map((type) => type.id)
+          : pipelineTypes.map((type) => type.id);
         const allSelected =
-          pipeline.types.length > 0 &&
-          pipeline.types.every((type) => selectedSet.includes(type.id));
-        const tone: SelectionTone = isHasImage ? 'visual' : 'semantic';
+          recommendedIds.length > 0 && recommendedIds.every((id) => selectedSet.includes(id));
+        const tone: SelectionTone = isHasImage || isVlm ? 'visual' : 'semantic';
         const toneClasses = getSelectionToneClasses(tone);
-        const totalPages = Math.max(1, Math.ceil(pipeline.types.length / pageSize));
+        const totalPages = Math.max(1, Math.ceil(pipelineTypes.length / pageSize));
         const page = pipelinePages[pipeline.mode] ?? 1;
-        const visibleTypes = pipeline.types.slice((page - 1) * pageSize, page * pageSize);
+        const visibleTypes = pipelineTypes.slice((page - 1) * pageSize, page * pageSize);
 
         return (
           <section
             key={pipeline.mode}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
+            className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden rounded-[18px] border border-border/70 bg-[var(--surface-control)] shadow-[var(--shadow-sm)]"
             data-testid={`playground-pipeline-${pipeline.mode}`}
           >
             <div
               className={cn(
-                'flex items-center justify-between gap-2 border-b px-3 py-2',
+                'flex shrink-0 items-center justify-between gap-2 border-b px-3 py-1.5',
                 toneClasses.headerSurface,
               )}
             >
@@ -260,7 +369,11 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     toneClasses.titleText,
                   )}
                 >
-                  {isHasImage ? t('playground.imageFeatures') : t('playground.ocrText')}
+                  {isVlm
+                    ? t('playground.vlmRange')
+                    : isHasImage
+                      ? t('playground.visualRegionRange')
+                      : t('playground.imageTextRange')}
                 </span>
                 <Badge
                   variant="secondary"
@@ -269,66 +382,107 @@ export const VisionPipelines: FC<{ rec: RecognitionCtx }> = ({ rec }) => {
                     toneClasses.badgeText,
                   )}
                 >
-                  {pipeline.types.length}
+                  {pipelineTypes.length}
+                </Badge>
+                <Badge
+                  variant="secondary"
+                  className="rounded-full border border-border/70 bg-background/70 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow-none"
+                >
+                  {isVlm
+                    ? t('playground.vlmShort')
+                    : isHasImage
+                      ? t('playground.hasImageShort')
+                      : t('playground.ocrShort')}
                 </Badge>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6.5 rounded-full px-2 text-[10px]"
+                className="h-6 shrink-0 whitespace-nowrap rounded-full px-2 text-[10px]"
+                disabled={recommendedIds.length === 0}
                 onClick={() => {
                   rec.clearPlaygroundVisionPresetTracking();
-                  const ids = pipeline.types.map((type) => type.id);
                   if (allSelected) {
                     if (isHasImage) {
                       rec.updateHasImageTypes([]);
+                    } else if (isVlm) {
+                      rec.updateVlmTypes([]);
                     } else {
                       rec.updateOcrHasTypes([]);
                     }
                   } else {
                     if (isHasImage) {
-                      rec.updateHasImageTypes(ids);
+                      const optionalSelected = selectedSet.filter((id) => id === 'paper');
+                      rec.updateHasImageTypes([...recommendedIds, ...optionalSelected]);
+                    } else if (isVlm) {
+                      rec.updateVlmTypes(recommendedIds);
                     } else {
-                      rec.updateOcrHasTypes(ids);
+                      rec.updateOcrHasTypes(recommendedIds);
                     }
                   }
                 }}
               >
-                {allSelected ? t('playground.clear') : t('playground.selectAll')}
+                {allSelected
+                  ? t('playground.clear')
+                  : isHasImage
+                    ? t('playground.selectRecommended')
+                    : t('playground.selectAll')}
               </Button>
             </div>
-            <div className="grid flex-1 grid-cols-3 grid-rows-5 content-start gap-1.5 p-2">
-              {visibleTypes.map((type) => {
-                const checked = selectedSet.includes(type.id);
-                return (
-                  <label
-                    key={type.id}
-                    className={cn(
-                      'flex min-w-0 cursor-pointer items-center gap-1.5 self-stretch rounded-xl border px-2.5 py-1.5 text-[11px] leading-4 transition-colors',
-                      checked
-                        ? toneClasses.cardSelectedCompact
-                        : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
-                    )}
-                    title={type.description || type.name}
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() =>
-                        rec.toggleVisionType(type.id, pipeline.mode as 'ocr_has' | 'has_image')
-                      }
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="min-w-0 truncate font-medium">{type.name}</span>
-                  </label>
-                );
-              })}
-            </div>
-            {pipeline.types.length > 0 && (
-              <div className="mt-auto border-t border-border/70 px-2 py-2">
+            {pipelineTypes.length === 0 ? (
+              <div className="flex min-h-0 flex-1 p-2">
+                <ConfigGroupEmptyState label={t('playground.visionPipelineEmpty')} />
+              </div>
+            ) : (
+              <div className={VISION_TILE_GRID_CLASS}>
+                {visibleTypes.map((type) => {
+                  const checked = selectedSet.includes(type.id);
+                  const isPaperOptIn = isHasImage && type.id === 'paper';
+                  return (
+                    <label
+                      key={type.id}
+                      className={cn(
+                        CONFIG_BUBBLE_CLASS,
+                        checked
+                          ? toneClasses.cardSelectedCompact
+                          : 'border-border/70 bg-background hover:border-border hover:bg-accent/35',
+                      )}
+                      title={type.description || type.name}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() =>
+                          rec.toggleVisionType(type.id, pipeline.mode)
+                        }
+                        aria-label={
+                          isPaperOptIn
+                            ? t('playground.paperOptInAria')
+                            : localizeRecognitionTypeName(type, t)
+                        }
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="min-w-0 truncate font-medium">
+                        {localizeRecognitionTypeName(type, t)}
+                      </span>
+                      {isPaperOptIn && (
+                        <span
+                          aria-hidden="true"
+                          className="ml-auto shrink-0 whitespace-nowrap rounded-full border border-violet-200 bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-400/40 dark:text-violet-200"
+                        >
+                          {t('playground.paperOptInBadge')}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {pipelineTypes.length > 0 && (
+              <div className="mt-auto shrink-0 border-t border-border/70 px-1.5 py-1.5">
                 <PaginationRail
                   page={page}
                   pageSize={pageSize}
-                  totalItems={pipeline.types.length}
+                  totalItems={pipelineTypes.length}
                   totalPages={totalPages}
                   compact
                   onPageChange={(nextPage) => {

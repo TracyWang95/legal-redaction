@@ -27,16 +27,22 @@ export async function batchVision(
   page: number,
   selectedOcrHasTypes: string[],
   selectedHasImageTypes: string[],
+  selectedVlmTypes: string[],
   signal?: AbortSignal,
 ): Promise<VisionResult> {
   const data = {
     selected_ocr_has_types: selectedOcrHasTypes,
     selected_has_image_types: selectedHasImageTypes,
+    selected_vlm_types: selectedVlmTypes,
   };
-  return post<VisionResult>(`/redaction/${fileId}/vision?page=${page}`, data, {
-    signal,
-    timeout: BATCH_TIMEOUT,
-  });
+  return post<VisionResult>(
+    `/redaction/${fileId}/vision?page=${page}&include_result_image=false`,
+    data,
+    {
+      signal,
+      timeout: BATCH_TIMEOUT,
+    },
+  );
 }
 
 export async function batchGetFileRaw(fileId: string): Promise<Record<string, unknown>> {
@@ -111,6 +117,7 @@ export interface BatchWizardPersistedConfig {
   selectedEntityTypeIds: string[];
   ocrHasTypes: string[];
   hasImageTypes: string[];
+  vlmTypes?: string[];
   replacementMode: 'structured' | 'smart' | 'mask';
   /** 图片类批量：HaS Image 风格块级脱敏（与文本替换模式无关） */
   imageRedactionMethod?: 'mosaic' | 'blur' | 'fill';
@@ -146,11 +153,13 @@ export function loadBatchWizardConfig(
     if (!s) return null;
     const raw = JSON.parse(s) as Record<string, unknown>;
     const hasImageTypes = (raw.hasImageTypes as string[] | undefined) ?? [];
+    const vlmTypes = (raw.vlmTypes as string[] | undefined) ?? [];
     const base = raw as unknown as BatchWizardPersistedConfig;
     const legacyPid = (raw.presetId as string | null | undefined) ?? null;
     return {
       ...base,
       hasImageTypes,
+      vlmTypes,
       presetTextId:
         (raw.presetTextId as string | null | undefined) ?? legacyPid ?? base.presetTextId ?? null,
       presetVisionId:

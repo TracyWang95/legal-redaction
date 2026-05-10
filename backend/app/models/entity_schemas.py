@@ -84,9 +84,19 @@ class BoundingBox(BaseModel):
     type: str = Field(..., description="实体类型")
     text: str | None = Field(None, description="识别到的文本")
     selected: bool = Field(default=True, description="是否选中进行匿名化")
-    source: Literal["ocr_has", "has_image", "manual"] | None = Field(
+    confidence: float = Field(default=1.0, description="Detection confidence")
+    source: Literal["ocr_has", "has_image", "vlm", "manual"] | None = Field(
         default=None, description="来源: ocr_has=OCR+HaS, has_image=HaS Image YOLO, manual=手动"
     )
+    source_detail: str | None = Field(default=None, description="Detailed detector source")
+    evidence_source: Literal["ocr_has", "has_image_model", "vlm_model", "local_fallback", "manual"] | None = Field(
+        default=None,
+        description=(
+            "Detector evidence source. Keeps source backward-compatible while "
+            "distinguishing HaS Image model hits from local fallback detections."
+        ),
+    )
+    warnings: list[str] = Field(default_factory=list, description="Region quality warnings")
 
 
 # ============ 实体类型 / 匿名化端点响应 ============

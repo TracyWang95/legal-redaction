@@ -85,15 +85,8 @@ async def cleanup_all_data():
                         os.remove(fp)
                     except OSError:
                         pass
-    # 清任务
     store = get_job_store()
-    jobs_list, _ = store.list_jobs(page=1, page_size=10000)
-    jobs_count = len(jobs_list)
-    for j in jobs_list:
-        try:
-            store.delete_job(j["id"])
-        except Exception:
-            pass
+    jobs_count = store.clear_all_jobs()
     invalidate_dir_size_cache()
     logger.info("Cleanup: %d files, %d jobs", files_count, jobs_count)
     return {

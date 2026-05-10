@@ -45,7 +45,17 @@ vi.mock('@/services/defaultRedactionPreset', async (importOriginal) => {
   return { ...actual };
 });
 
-vi.mock('@/i18n', () => ({ t: (key: string) => key }));
+vi.mock('@/i18n', () => {
+  const translations: Record<string, string> = {
+    'settings.redaction.presetName.industry_finance_audit_sharing': '金融行业',
+    'settings.redaction.presetName.industry_contract_legal_disclosure': '法律行业',
+    'settings.redaction.presetName.industry_medical_record_release': '医疗行业',
+  };
+  return {
+    t: (key: string) => translations[key] ?? key,
+    useI18n: (selector: (state: { locale: 'zh' }) => unknown) => selector({ locale: 'zh' }),
+  };
+});
 
 vi.mock('@/components/Toast', () => ({
   showToast: vi.fn(),
@@ -96,8 +106,9 @@ export function makePipelines(): PipelineConfig[] {
       description: 'Image feature detection',
       enabled: true,
       types: [
-        { id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 },
-        { id: 'img_2', name: 'Image Type 2', color: '#b45309', enabled: true, order: 2 },
+        { id: 'face', name: 'Face', color: '#b45309', enabled: true, order: 1 },
+        { id: 'official_seal', name: 'Official seal', color: '#b45309', enabled: true, order: 2 },
+        { id: 'paper', name: 'Paper', color: '#7c3aed', enabled: true, order: 20 },
       ],
     },
   ];
@@ -124,7 +135,7 @@ export function makeVisionPreset(): RecognitionPreset {
     kind: 'vision',
     selectedEntityTypeIds: [],
     ocrHasTypes: ['ocr_1'],
-    hasImageTypes: ['img_1'],
+    hasImageTypes: ['face'],
     replacementMode: 'structured',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',

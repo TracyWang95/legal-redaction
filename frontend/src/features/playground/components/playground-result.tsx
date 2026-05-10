@@ -6,6 +6,9 @@ import {
   type Dispatch,
   type FC,
   type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -13,6 +16,7 @@ import { useT } from '@/i18n';
 import { RESULT_MARK_HIGHLIGHT_MS } from '@/constants/timing';
 import { cn } from '@/lib/utils';
 import { getEntityRiskConfig } from '@/config/entityTypes';
+import { buildTextSegments } from '@/utils/textRedactionSegments';
 import type { VersionHistoryEntry } from '@/types';
 import type { BoundingBox, Entity, FileInfo, VisionTypeConfig } from '../types';
 import { PlaygroundResultActionBar, RedactionReportSection } from './playground-result-action-bar';
@@ -33,6 +37,7 @@ export interface PlaygroundResultProps {
   isImageMode: boolean;
   imageUrl: string;
   redactedImageUrl?: string;
+  redactedImageError?: string | null;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -59,6 +64,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
   isImageMode,
   imageUrl,
   redactedImageUrl,
+  redactedImageError,
   currentPage,
   totalPages,
   onPageChange,
@@ -71,87 +77,87 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
 }) => {
   const t = useT();
   const [mobileTab, setMobileTab] = useState<'original' | 'redacted' | 'mapping'>('original');
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const clickCounterRef = useRef<Record<string, number>>({});
+  const activeMarkTimeoutRef = useRef<number | null>(null);
+  const activeMarksRef = useRef<HTMLElement[]>([]);
+  const resultReady = !isImageMode || Boolean(redactedImageUrl);
 
   const isTextPaginated = !isImageMode && totalPages > 1;
-  const pageEntities = isTextPaginated
-    ? entities.filter((entity) => Number(entity.page || 1) === currentPage)
-    : entities;
+  const pageEntities = useMemo(
+    () =>
+      isTextPaginated
+        ? entities.filter((entity) => Number(entity.page || 1) === currentPage)
+        : entities,
+    [currentPage, entities, isTextPaginated],
+  );
   const pages = fileInfo?.pages;
-  const displayContent =
-    isTextPaginated && Array.isArray(pages) && pages.length === totalPages
-      ? pages[currentPage - 1] ?? content
-      : content;
-  const displayEntityMap = isTextPaginated
-    ? Object.fromEntries(
-        Object.entries(entityMap).filter(([key]) =>
-          pageEntities.some((entity) => entity.text === key && entity.selected !== false),
-        ),
-      )
-    : entityMap;
-
-  const origToTypeId = new Map<string, string>();
-  for (const entity of pageEntities) {
-    if (!entity.selected || displayEntityMap[entity.text] === undefined) continue;
-    origToTypeId.set(entity.text, String(entity.type));
-    if (
-      typeof entity.start === 'number' &&
-      typeof entity.end === 'number' &&
-      entity.end <= (content || '').length
-    ) {
-      const slice = (content || '').slice(entity.start, entity.end);
-      if (slice && slice !== entity.text) origToTypeId.set(slice, String(entity.type));
-    }
-  }
-
-  const buildSegments = (text: string, map: Record<string, string>) => {
-    if (!text || Object.keys(map).length === 0) return [{ text, isMatch: false as const }];
-    const sortedKeys = Object.keys(map).sort((left, right) => right.length - left.length);
-    const regex = new RegExp(
-      `(${sortedKeys.map((key) => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
-      'g',
+  const displayContent = useMemo(
+    () =>
+      isTextPaginated && Array.isArray(pages) && pages.length === totalPages
+        ? (pages[currentPage - 1] ?? content)
+        : content,
+    [content, currentPage, isTextPaginated, pages, totalPages],
+  );
+  const displayEntityMap = useMemo(() => {
+    if (!isTextPaginated) return entityMap;
+    const selectedTexts = new Set(
+      pageEntities.filter((entity) => entity.selected !== false).map((entity) => entity.text),
     );
-    const parts = text.split(regex);
-    const counters: Record<string, number> = {};
+    return Object.fromEntries(Object.entries(entityMap).filter(([key]) => selectedTexts.has(key)));
+  }, [entityMap, isTextPaginated, pageEntities]);
 
-    return parts.map((part) => {
-      if (map[part] !== undefined) {
-        const safeKey = part.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
-        const matchIndex = counters[safeKey] || 0;
-        counters[safeKey] = matchIndex + 1;
-        return { text: part, isMatch: true as const, origKey: part, safeKey, matchIdx: matchIndex };
+  const origToTypeId = useMemo(() => {
+    const out = new Map<string, string>();
+    const fullContent = content || '';
+    for (const entity of pageEntities) {
+      if (!entity.selected || displayEntityMap[entity.text] === undefined) continue;
+      out.set(entity.text, String(entity.type));
+      if (
+        typeof entity.start === 'number' &&
+        typeof entity.end === 'number' &&
+        entity.end <= fullContent.length
+      ) {
+        const slice = fullContent.slice(entity.start, entity.end);
+        if (slice && slice !== entity.text) out.set(slice, String(entity.type));
       }
-      return { text: part, isMatch: false as const };
-    });
-  };
+    }
+    return out;
+  }, [content, displayEntityMap, pageEntities]);
 
-  const segments = buildSegments(displayContent, displayEntityMap);
+  const segments = useMemo(
+    () => buildTextSegments(displayContent, displayEntityMap),
+    [displayContent, displayEntityMap],
+  );
+  const matchCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const segment of segments) {
+      if (segment.isMatch) {
+        counts.set(segment.origKey, (counts.get(segment.origKey) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [segments]);
 
-  const markStyleForOrig = (origKey: string): CSSProperties => {
-    const typeId = origToTypeId.get(origKey) ?? '';
-    const config = getEntityRiskConfig(typeId || 'CUSTOM');
-    return {
-      backgroundColor: config.bgColor,
-      color: config.textColor,
-      boxShadow: `inset 0 -2px 0 ${config.color}55`,
-    };
-  };
+  const markStyleForOrig = useCallback(
+    (origKey: string): CSSProperties => {
+      const typeId = origToTypeId.get(origKey) ?? '';
+      const config = getEntityRiskConfig(typeId || 'CUSTOM');
+      return {
+        backgroundColor: config.bgColor,
+        color: config.textColor,
+        boxShadow: `inset 0 -2px 0 ${config.color}55`,
+      };
+    },
+    [origToTypeId],
+  );
 
-  const scrollToMatch = (original: string) => {
-    const safeKey = original.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
-    const originalMarks = document.querySelectorAll(
-      `.result-mark-orig[data-match-key="${safeKey}"]`,
-    );
-    const redactedMarks = document.querySelectorAll(
-      `.result-mark-redacted[data-match-key="${safeKey}"]`,
-    );
-    const total = Math.max(originalMarks.length, redactedMarks.length);
-    if (total === 0) return;
-
-    const index = (clickCounterRef.current[safeKey] || 0) % total;
-    clickCounterRef.current[safeKey] = index + 1;
-
-    document.querySelectorAll('.result-mark-active').forEach((element) => {
+  const clearActiveMarks = useCallback(() => {
+    if (activeMarkTimeoutRef.current !== null) {
+      window.clearTimeout(activeMarkTimeoutRef.current);
+      activeMarkTimeoutRef.current = null;
+    }
+    for (const element of activeMarksRef.current) {
       element.classList.remove(
         'result-mark-active',
         'ring-2',
@@ -159,87 +165,112 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
         'ring-blue-400/80',
         'scale-105',
       );
-    });
+    }
+    activeMarksRef.current = [];
+  }, []);
 
-    const originalElement = originalMarks[Math.min(index, originalMarks.length - 1)] as
-      | HTMLElement
-      | undefined;
-    originalElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    originalElement?.classList.add(
-      'result-mark-active',
-      'ring-2',
-      'ring-offset-1',
-      'ring-blue-400/80',
-      'scale-105',
-    );
+  useEffect(() => () => clearActiveMarks(), [clearActiveMarks]);
 
-    const redactedElement = redactedMarks[Math.min(index, redactedMarks.length - 1)] as
-      | HTMLElement
-      | undefined;
-    redactedElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    redactedElement?.classList.add(
-      'result-mark-active',
-      'ring-2',
-      'ring-offset-1',
-      'ring-blue-400/80',
-      'scale-105',
-    );
+  const scrollToMatch = useCallback(
+    (original: string) => {
+      const safeKey = original.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, '_');
+      const root = rootRef.current;
+      if (!root) return;
+      const originalMarks = root.querySelectorAll(`.result-mark-orig[data-match-key="${safeKey}"]`);
+      const redactedMarks = root.querySelectorAll(
+        `.result-mark-redacted[data-match-key="${safeKey}"]`,
+      );
+      const total = Math.max(originalMarks.length, redactedMarks.length);
+      if (total === 0) return;
 
-    setTimeout(() => {
-      document.querySelectorAll('.result-mark-active').forEach((element) => {
-        element.classList.remove(
-          'result-mark-active',
-          'ring-2',
-          'ring-offset-1',
-          'ring-blue-400/80',
-          'scale-105',
-        );
-      });
-    }, RESULT_MARK_HIGHLIGHT_MS);
-  };
+      const index = (clickCounterRef.current[safeKey] || 0) % total;
+      clickCounterRef.current[safeKey] = index + 1;
 
-  const renderOriginal = () =>
-    segments.map((segment, index) =>
-      segment.isMatch ? (
-        <mark
-          key={index}
-          data-match-key={segment.safeKey}
-          data-match-idx={segment.matchIdx}
-          style={markStyleForOrig(segment.origKey)}
-          className="result-mark-orig rounded-md px-0.5 transition-all duration-300"
-        >
-          {segment.text}
-        </mark>
-      ) : (
-        <span key={index}>{segment.text}</span>
+      clearActiveMarks();
+
+      const originalElement = originalMarks[Math.min(index, originalMarks.length - 1)] as
+        | HTMLElement
+        | undefined;
+      originalElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      originalElement?.classList.add(
+        'result-mark-active',
+        'ring-2',
+        'ring-offset-1',
+        'ring-blue-400/80',
+        'scale-105',
+      );
+
+      const redactedElement = redactedMarks[Math.min(index, redactedMarks.length - 1)] as
+        | HTMLElement
+        | undefined;
+      redactedElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      redactedElement?.classList.add(
+        'result-mark-active',
+        'ring-2',
+        'ring-offset-1',
+        'ring-blue-400/80',
+        'scale-105',
+      );
+
+      activeMarksRef.current = [originalElement, redactedElement].filter(Boolean) as HTMLElement[];
+      activeMarkTimeoutRef.current = window.setTimeout(() => {
+        clearActiveMarks();
+      }, RESULT_MARK_HIGHLIGHT_MS);
+    },
+    [clearActiveMarks],
+  );
+
+  const renderOriginal = useCallback(
+    () =>
+      segments.map((segment, index) =>
+        segment.isMatch ? (
+          <mark
+            key={index}
+            data-match-key={segment.safeKey}
+            data-match-idx={segment.matchIdx}
+            style={markStyleForOrig(segment.origKey)}
+            className="result-mark-orig rounded-md px-0.5 transition-all duration-300"
+          >
+            {segment.text}
+          </mark>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        ),
       ),
-    );
+    [markStyleForOrig, segments],
+  );
 
-  const renderRedacted = () =>
-    segments.map((segment, index) =>
-      segment.isMatch ? (
-        <mark
-          key={index}
-          data-match-key={segment.safeKey}
-          data-match-idx={segment.matchIdx}
-          style={markStyleForOrig(segment.origKey)}
-          className="result-mark-redacted rounded-md px-0.5 transition-all duration-300"
-        >
-          {entityMap[segment.origKey]}
-        </mark>
-      ) : (
-        <span key={index}>{segment.text}</span>
+  const renderRedacted = useCallback(
+    () =>
+      segments.map((segment, index) =>
+        segment.isMatch ? (
+          <mark
+            key={index}
+            data-match-key={segment.safeKey}
+            data-match-idx={segment.matchIdx}
+            style={markStyleForOrig(segment.origKey)}
+            className="result-mark-redacted rounded-md px-0.5 transition-all duration-300"
+          >
+            {displayEntityMap[segment.origKey]}
+          </mark>
+        ) : (
+          <span key={index}>{segment.text}</span>
+        ),
       ),
-    );
+    [displayEntityMap, markStyleForOrig, segments],
+  );
 
   return (
     <div
+      ref={rootRef}
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
       data-testid="playground-result"
     >
       <PlaygroundResultActionBar
         fileInfo={fileInfo}
         redactedCount={redactedCount}
+        resultReady={resultReady}
+        canDownload={resultReady}
         onBackToEdit={onBackToEdit}
         onReset={onReset}
         onDownload={onDownload}
@@ -279,6 +310,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           fileInfo={fileInfo}
           imageUrl={imageUrl}
           redactedImageUrl={redactedImageUrl}
+          redactedImageError={redactedImageError}
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={onPageChange}
@@ -287,6 +319,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           getVisionTypeConfig={getVisionTypeConfig}
           entityMap={entityMap}
           origToTypeId={origToTypeId}
+          matchCounts={matchCounts}
           scrollToMatch={scrollToMatch}
           mobileTab={mobileTab}
           versionHistory={versionHistory}
@@ -300,6 +333,7 @@ export const PlaygroundResult: FC<PlaygroundResultProps> = ({
           content={displayContent}
           entityMap={displayEntityMap}
           origToTypeId={origToTypeId}
+          matchCounts={matchCounts}
           scrollToMatch={scrollToMatch}
           mobileTab={mobileTab}
           versionHistory={versionHistory}

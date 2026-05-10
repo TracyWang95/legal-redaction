@@ -5,6 +5,8 @@
 import logging
 import os
 import sys
+from collections import OrderedDict
+from threading import Lock
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,27 @@ class FileParser:
 
     # 判断 PDF 是否为扫描件的文本密度阈值
     TEXT_DENSITY_THRESHOLD = 100  # 每页至少 100 个字符才认为是文本 PDF
+
+    _pdf_page_image_cache: OrderedDict[tuple[str, int, int, int, int], bytes] = OrderedDict()
+    _pdf_page_image_cache_lock = Lock()
+    _pdf_page_text_blocks_cache: OrderedDict[
+        tuple[str, int, int, int, int],
+        tuple[list["OCRTextBlock"], int, int],
+    ] = OrderedDict()
+    _pdf_page_text_blocks_cache_lock = Lock()
+
+    def __init__(self) -> None:
+        self.last_pdf_page_image_cache_hit: bool | None = None
+        self.last_pdf_page_text_blocks_cache_hit: bool | None = None
+
+    @staticmethod
+    def _pdf_page_cache_key(file_path: str, page: int, dpi: int) -> tuple[str, int, int, int, int]:
+        resolved = os.path.realpath(file_path)
+        try:
+            stat = os.stat(resolved)
+        except OSError:
+            stat = os.stat(file_path)
+        return (resolved, int(stat.st_mtime_ns), int(stat.st_size), int(page), int(dpi))
 
     async def parse(self, file_path: str, file_type: FileType) -> ParseResult:
         """
@@ -381,7 +404,25 @@ class FileParser:
     async def get_pdf_page_image(self, file_path: str, page: int, dpi: int = 150) -> bytes:
         """获取 PDF 指定页的图片"""
         _validate_path(file_path)
-        doc = fitz.open(file_path)
+        self.last_pdf_page_image_cache_hit = False
+        cache_key = self._pdf_page_cache_key(file_path, page, dpi)
+        resolved = cache_key[0]
+        cache_limit = int(settings.PDF_PAGE_IMAGE_CACHE_PAGES)
+        if cache_limit > 0:
+            with self._pdf_page_image_cache_lock:
+                cached = self._pdf_page_image_cache.get(cache_key)
+                if cached is not None:
+                    self._pdf_page_image_cache.move_to_end(cache_key)
+                    logger.debug(
+                        "PDF page image cache hit: %s page=%d dpi=%d",
+                        os.path.basename(file_path),
+                        page,
+                        dpi,
+                    )
+                    self.last_pdf_page_image_cache_hit = True
+                    return cached
+
+        doc = fitz.open(resolved)
 
         if page < 1 or page > len(doc):
             doc.close()
@@ -394,7 +435,109 @@ class FileParser:
         img_data = pix.tobytes("png")
 
         doc.close()
+        if cache_limit > 0:
+            with self._pdf_page_image_cache_lock:
+                self._pdf_page_image_cache[cache_key] = img_data
+                self._pdf_page_image_cache.move_to_end(cache_key)
+                while len(self._pdf_page_image_cache) > cache_limit:
+                    self._pdf_page_image_cache.popitem(last=False)
         return img_data
+
+    async def get_pdf_page_text_blocks(self, file_path: str, page: int, dpi: int = 150):
+        """Return native PDF text-layer blocks mapped into rendered-page pixels."""
+        _validate_path(file_path)
+        from app.services.hybrid_vision_service import OCRTextBlock
+
+        self.last_pdf_page_text_blocks_cache_hit = False
+        cache_key = self._pdf_page_cache_key(file_path, page, dpi)
+        resolved = cache_key[0]
+        cache_limit = int(settings.PDF_PAGE_TEXT_BLOCK_CACHE_PAGES)
+
+        def clone_blocks(blocks: list[OCRTextBlock]) -> list[OCRTextBlock]:
+            return [
+                OCRTextBlock(
+                    text=block.text,
+                    polygon=[[float(point[0]), float(point[1])] for point in block.polygon],
+                    confidence=float(block.confidence),
+                )
+                for block in blocks
+            ]
+
+        if cache_limit > 0:
+            with self._pdf_page_text_blocks_cache_lock:
+                cached = self._pdf_page_text_blocks_cache.get(cache_key)
+                if cached is not None:
+                    self._pdf_page_text_blocks_cache.move_to_end(cache_key)
+                    blocks, page_width, page_height = cached
+                    self.last_pdf_page_text_blocks_cache_hit = True
+                    logger.debug(
+                        "PDF text-layer cache hit: %s page=%d dpi=%d",
+                        os.path.basename(file_path),
+                        page,
+                        dpi,
+                    )
+                    return clone_blocks(blocks), page_width, page_height
+
+        doc = fitz.open(resolved)
+        try:
+            if page < 1 or page > len(doc):
+                raise ValueError(f"椤电爜瓒呭嚭鑼冨洿: {page}")
+
+            pdf_page = doc.load_page(page - 1)
+            zoom = dpi / 72
+            page_width = max(1, int(round(pdf_page.rect.width * zoom)))
+            page_height = max(1, int(round(pdf_page.rect.height * zoom)))
+            raw = pdf_page.get_text("dict")
+            blocks: list[OCRTextBlock] = []
+            for block in raw.get("blocks", []):
+                if block.get("type") != 0:
+                    continue
+                for line in block.get("lines", []):
+                    spans = line.get("spans", [])
+                    text = "".join(str(span.get("text", "")) for span in spans).strip()
+                    if not text:
+                        continue
+                    bbox = line.get("bbox")
+                    if not bbox and spans:
+                        span_bboxes = [span["bbox"] for span in spans if "bbox" in span]
+                        if not span_bboxes:
+                            continue
+                        bbox = (
+                            min(float(item[0]) for item in span_bboxes),
+                            min(float(item[1]) for item in span_bboxes),
+                            max(float(item[2]) for item in span_bboxes),
+                            max(float(item[3]) for item in span_bboxes),
+                        )
+                    if not bbox:
+                        continue
+                    x0, y0, x1, y1 = [float(value) * zoom for value in bbox]
+                    if x1 <= x0 or y1 <= y0:
+                        continue
+                    blocks.append(
+                        OCRTextBlock(
+                            text=text,
+                            polygon=[
+                                [x0, y0],
+                                [x1, y0],
+                                [x1, y1],
+                                [x0, y1],
+                            ],
+                            confidence=1.0,
+                        )
+                    )
+            if cache_limit > 0:
+                with self._pdf_page_text_blocks_cache_lock:
+                    self._pdf_page_text_blocks_cache[cache_key] = (
+                        clone_blocks(blocks),
+                        page_width,
+                        page_height,
+                    )
+                    self._pdf_page_text_blocks_cache.move_to_end(cache_key)
+                    while len(self._pdf_page_text_blocks_cache) > cache_limit:
+                        self._pdf_page_text_blocks_cache.popitem(last=False)
+            return blocks, page_width, page_height
+        finally:
+            doc.close()
 
     async def read_image(self, file_path: str) -> bytes:
         """读取图片文件"""

@@ -40,15 +40,27 @@ async def vision_detect(
     page: int,
     ocr_has_types: list[str] | None = None,
     has_image_types: list[str] | None = None,
-) -> None:
+    vlm_types: list[str] | None = None,
+    include_result_image: bool = False,
+    merge_existing: bool = False,
+    signature_ocr_has_types: list[str] | None = None,
+    signature_has_image_types: list[str] | None = None,
+    signature_vlm_types: list[str] | None = None,
+) -> Any:
     """Run dual-pipeline vision detection on a single page."""
     from app.services.redaction_orchestrator import detect_vision
-    await detect_vision(
+    return await detect_vision(
         file_id=file_id,
         page=page,
         selected_ocr_has_types=ocr_has_types,
         selected_has_image_types=has_image_types,
+        selected_vlm_types=vlm_types,
         has_request=True,
+        include_result_image=include_result_image,
+        merge_existing=merge_existing,
+        signature_selected_ocr_has_types=signature_ocr_has_types,
+        signature_selected_has_image_types=signature_has_image_types,
+        signature_selected_vlm_types=signature_vlm_types,
     )
 
 

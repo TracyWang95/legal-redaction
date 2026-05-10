@@ -50,10 +50,33 @@ export function RedactionPresetDialog({
 
   if (!modalOpen) return null;
 
+  const selectTextIds = (ids: string[]) => {
+    setPresetForm((current) => ({
+      ...current,
+      selectedEntityTypeIds: [...new Set([...current.selectedEntityTypeIds, ...ids])],
+    }));
+  };
+
+  const clearTextIds = (ids: string[]) => {
+    const drop = new Set(ids);
+    setPresetForm((current) => ({
+      ...current,
+      selectedEntityTypeIds: current.selectedEntityTypeIds.filter((id) => !drop.has(id)),
+    }));
+  };
+
+  const setPipelineIds = (mode: string, ids: string[]) => {
+    setPresetForm((current) => {
+      if (mode === 'ocr_has') return { ...current, ocrHasTypes: ids };
+      if (mode === 'vlm') return { ...current, vlmTypes: ids };
+      return { ...current, hasImageTypes: ids };
+    });
+  };
+
   return (
     <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-      <DialogContent className="flex max-h-[90vh] w-[90vw] max-w-3xl flex-col overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[calc(100dvh-3rem)] w-[calc(100vw-2rem)] max-w-7xl flex-col gap-3 overflow-hidden p-5 sm:p-6">
+        <DialogHeader className="pr-10">
           <DialogTitle>
             {editingPresetId
               ? t('settings.redaction.editTitle').replace(
@@ -68,8 +91,8 @@ export function RedactionPresetDialog({
           <DialogDescription>{t('settings.redaction.dialogDesc')}</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-5 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-4 py-1">
             <div className="max-w-sm space-y-1.5">
               <Label>{t('settings.redaction.nameLabel')} *</Label>
               <Input
@@ -83,20 +106,6 @@ export function RedactionPresetDialog({
             {(presetForm.kind === 'text' || presetForm.kind === 'full') && (
               <>
                 <TypeCheckboxGrid
-                  title={t('settings.redaction.regexGroup')}
-                  types={regexTypes}
-                  selectedIds={presetForm.selectedEntityTypeIds}
-                  onToggle={(id) =>
-                    setPresetForm((current) => ({
-                      ...current,
-                      selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
-                        ? current.selectedEntityTypeIds.filter((item) => item !== id)
-                        : [...current.selectedEntityTypeIds, id],
-                    }))
-                  }
-                  variant="regex"
-                />
-                <TypeCheckboxGrid
                   title={t('settings.redaction.semanticGroup')}
                   types={semanticTypes}
                   selectedIds={presetForm.selectedEntityTypeIds}
@@ -108,7 +117,25 @@ export function RedactionPresetDialog({
                         : [...current.selectedEntityTypeIds, id],
                     }))
                   }
+                  onSelectAll={selectTextIds}
+                  onClear={clearTextIds}
                   variant="semantic"
+                />
+                <TypeCheckboxGrid
+                  title={t('settings.redaction.regexGroup')}
+                  types={regexTypes}
+                  selectedIds={presetForm.selectedEntityTypeIds}
+                  onToggle={(id) =>
+                    setPresetForm((current) => ({
+                      ...current,
+                      selectedEntityTypeIds: current.selectedEntityTypeIds.includes(id)
+                        ? current.selectedEntityTypeIds.filter((item) => item !== id)
+                        : [...current.selectedEntityTypeIds, id],
+                    }))
+                  }
+                  onSelectAll={selectTextIds}
+                  onClear={clearTextIds}
+                  variant="regex"
                 />
               </>
             )}
@@ -122,6 +149,7 @@ export function RedactionPresetDialog({
                     pipeline={pipeline}
                     selectedOcr={presetForm.ocrHasTypes}
                     selectedImg={presetForm.hasImageTypes}
+                    selectedVlm={presetForm.vlmTypes ?? []}
                     onToggle={(mode, id) =>
                       setPresetForm((current) => {
                         if (mode === 'ocr_has') {
@@ -130,6 +158,13 @@ export function RedactionPresetDialog({
                             : [...current.ocrHasTypes, id];
                           return { ...current, ocrHasTypes: next };
                         }
+                        if (mode === 'vlm') {
+                          const currentVlmTypes = current.vlmTypes ?? [];
+                          const next = currentVlmTypes.includes(id)
+                            ? currentVlmTypes.filter((item) => item !== id)
+                            : [...currentVlmTypes, id];
+                          return { ...current, vlmTypes: next };
+                        }
 
                         const next = current.hasImageTypes.includes(id)
                           ? current.hasImageTypes.filter((item) => item !== id)
@@ -137,12 +172,14 @@ export function RedactionPresetDialog({
                         return { ...current, hasImageTypes: next };
                       })
                     }
+                    onSelectAll={setPipelineIds}
+                    onClear={(mode) => setPipelineIds(mode, [])}
                   />
                 ))}
           </div>
         </div>
 
-        <DialogFooter className="border-t pt-4">
+        <DialogFooter className="border-t pt-3">
           <Button variant="outline" onClick={() => setModalOpen(false)} data-testid="preset-cancel">
             {t('settings.cancel')}
           </Button>

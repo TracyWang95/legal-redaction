@@ -21,9 +21,14 @@ import type { BoundingBox, Entity } from '../types';
 export interface PlaygroundEntityPanelProps {
   isImageMode: boolean;
   isLoading: boolean;
+  recognitionIssue?: string | null;
   entities: Entity[];
+  entityTypes?: Array<{ id: string; name: string }>;
   visibleBoxes: BoundingBox[];
   selectedCount: number;
+  displaySelectedCount?: number;
+  displayTotalCount?: number;
+  displayStats?: Record<string, { total: number; selected: number }>;
   replacementMode: 'structured' | 'smart' | 'mask';
   setReplacementMode: (mode: 'structured' | 'smart' | 'mask') => void;
   clearPlaygroundTextPresetTracking: () => void;
@@ -40,9 +45,14 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
   ({
     isImageMode,
     isLoading,
+    recognitionIssue,
     entities,
+    entityTypes = [],
     visibleBoxes,
     selectedCount,
+    displaySelectedCount,
+    displayTotalCount,
+    displayStats,
     replacementMode,
     setReplacementMode,
     clearPlaygroundTextPresetTracking,
@@ -55,59 +65,81 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
     onRemoveEntity,
   }) => {
     const t = useT();
-    const stats = useMemo(() => computeEntityStats(entities), [entities]);
-    const totalCount = isImageMode ? visibleBoxes.length : entities.length;
+    const stats = useMemo(
+      () => (!isImageMode && displayStats ? displayStats : computeEntityStats(entities)),
+      [displayStats, entities, isImageMode],
+    );
+    const shownSelectedCount = isImageMode ? selectedCount : (displaySelectedCount ?? selectedCount);
+    const totalCount = isImageMode ? visibleBoxes.length : (displayTotalCount ?? entities.length);
+    const listTitle = isImageMode ? t('playground.regionList') : t('playground.results');
+    const typeNameById = useMemo(
+      () => new Map(entityTypes.map((type) => [type.id, type.name] as const)),
+      [entityTypes],
+    );
+    const disabledReason =
+      recognitionIssue && totalCount === 0
+        ? recognitionIssue
+        : totalCount === 0
+          ? t('playground.redactDisabledNoResults')
+          : shownSelectedCount === 0
+            ? t('playground.redactDisabledNoSelection')
+            : '';
 
     return (
       <div
-        className="flex min-h-0 w-full flex-shrink-0 flex-col gap-3 self-stretch overflow-x-hidden overflow-y-auto pr-1 lg:w-[320px] lg:max-w-[340px]"
+        className="flex min-h-0 w-full flex-shrink-0 flex-col gap-2.5 self-stretch overflow-x-hidden overflow-y-auto"
         data-testid="playground-entity-panel"
       >
         <Card className="overflow-hidden">
-          <CardContent className="flex flex-col gap-3 p-4">
-            <div className="space-y-1">
+          <CardContent className="flex flex-col gap-2.5 p-3.5">
+            <div className="space-y-0.5">
               <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 {t('playground.recognitionSection')}
               </div>
-              <p className="text-sm text-foreground">{t('playground.recognitionSectionDesc')}</p>
+              <p className="line-clamp-2 text-sm leading-5 text-foreground">
+                {t('playground.recognitionSectionDesc')}
+              </p>
             </div>
             <Button
               onClick={onRerunNer}
               disabled={isLoading}
-              className="w-full"
+              className="h-9 w-full whitespace-nowrap"
               data-testid="playground-rerun-btn"
             >
               {isLoading ? t('playground.recognizing') : t('playground.reRecognize')}
             </Button>
-            <p className="text-xs leading-6 text-muted-foreground">{t('playground.rerunHint')}</p>
+            <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {t('playground.rerunHint')}
+            </p>
           </CardContent>
         </Card>
 
         <Card className="overflow-hidden">
-          <CardHeader className="p-4 pb-3">
+          <CardHeader className="p-3.5 pb-2.5">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-sm">
-                  {isImageMode ? t('playground.regionList') : t('playground.results')}
+              <div className="min-w-0">
+                <CardTitle className="truncate text-sm">
+                  {t('playground.reviewSelection')}
                 </CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {t('playground.selectionSummary')
-                    .replace('{selected}', String(selectedCount))
+                    .replace('{selected}', String(shownSelectedCount))
                     .replace('{total}', String(totalCount))}
                 </p>
               </div>
-              <Badge variant="outline" className="rounded-full px-2.5 py-1 text-[11px]">
-                {selectedCount}/{totalCount}
+              <Badge variant="outline" className="shrink-0 rounded-full px-2.5 py-1 text-[11px]">
+                {shownSelectedCount}/{totalCount}
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3 p-4 pt-0">
+          <CardContent className="flex flex-col gap-2.5 p-3.5 pt-0">
             <div className="flex gap-2">
               <Button
                 variant="secondary"
                 size="sm"
-                className="flex-1"
+                className="min-w-0 flex-1 whitespace-nowrap px-2"
                 onClick={onSelectAll}
+                disabled={totalCount === 0}
                 data-testid="playground-select-all"
               >
                 {t('playground.selectAll')}
@@ -115,8 +147,9 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="min-w-0 flex-1 whitespace-nowrap px-2"
                 onClick={onDeselectAll}
+                disabled={totalCount === 0}
                 data-testid="playground-deselect-all"
               >
                 {t('playground.deselectAll')}
@@ -135,7 +168,7 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
             )}
 
             {!isImageMode && Object.keys(stats).length > 0 && (
-              <div className="space-y-2">
+              <div className="max-h-32 space-y-2 overflow-y-auto pr-1">
                 {ENTITY_GROUPS.map((group) => {
                   const groupedStats = Object.entries(stats).filter(([typeId]) =>
                     group.types.some((groupType) => groupType.id === typeId),
@@ -176,14 +209,16 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
         </Card>
 
         <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-4 py-3">
-            <div>
-              <span className="text-sm font-semibold text-foreground">
-                {isImageMode ? t('playground.regionList') : t('playground.results')}
+          <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-3.5">
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-foreground">
+                {listTitle}
               </span>
-              <p className="mt-1 text-xs text-muted-foreground">{t('playground.clickToEdit')}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {t('playground.clickToEdit')}
+              </p>
             </div>
-            <Badge variant="secondary" className="rounded-full px-2.5 py-1 text-[11px]">
+            <Badge variant="secondary" className="shrink-0 rounded-full px-2.5 py-1 text-[11px]">
               {totalCount}
             </Badge>
           </div>
@@ -191,23 +226,37 @@ export const PlaygroundEntityPanel: FC<PlaygroundEntityPanelProps> = memo(
             {isImageMode ? (
               <BoxList boxes={visibleBoxes} onToggle={onToggleBox} />
             ) : (
-              <EntityList entities={entities} onClick={onEntityClick} onRemove={onRemoveEntity} />
+              <EntityList
+                entities={entities}
+                typeNameById={typeNameById}
+                onClick={onEntityClick}
+                onRemove={onRemoveEntity}
+              />
             )}
           </ScrollArea>
         </Card>
 
+        {disabledReason && !isLoading && (
+          <RedactionBlockedNotice
+            totalCount={totalCount}
+            reason={disabledReason}
+            onRerunNer={onRerunNer}
+            onSelectAll={onSelectAll}
+          />
+        )}
         <Button
           onClick={onRedact}
-          disabled={selectedCount === 0 || isLoading}
+          disabled={shownSelectedCount === 0 || isLoading}
+          aria-describedby={disabledReason ? 'playground-redact-disabled-reason' : undefined}
           className={cn(
-            'h-12 rounded-2xl text-sm font-semibold shadow-[var(--shadow-control)]',
-            selectedCount === 0 && 'opacity-50',
+            'h-11 shrink-0 rounded-2xl text-sm font-semibold shadow-[var(--shadow-control)]',
+            shownSelectedCount === 0 && 'opacity-50',
           )}
           data-testid="playground-redact-btn"
         >
           {isLoading
             ? t('playground.processing')
-            : `${t('playground.startRedact')} (${selectedCount})`}
+            : `${t('playground.startRedact')} (${shownSelectedCount})`}
         </Button>
       </div>
     );
@@ -232,12 +281,12 @@ const ReplacementModeSelector: FC<{
       <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
         {t('playground.redactMode')}
       </label>
-      <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-1.5">
         {modes.map((item) => (
           <label
             key={item.value}
             className={cn(
-              'flex cursor-pointer flex-col rounded-2xl border px-3 py-3 transition-colors',
+              'flex min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-center transition-colors',
               mode === item.value
                 ? 'border-primary/50 bg-primary/5'
                 : 'border-border/70 bg-background hover:border-primary/30',
@@ -250,21 +299,54 @@ const ReplacementModeSelector: FC<{
                 value={item.value}
                 checked={mode === item.value}
                 onChange={() => onModeChange(item.value)}
-                className="accent-primary"
+                className="sr-only"
               />
-              <span className="text-sm font-medium text-foreground">{item.label}</span>
+              <span className="truncate text-xs font-medium text-foreground">{item.label}</span>
               {item.badge && (
-                <Badge variant="outline" className="rounded-full px-2 py-0.5 text-[10px]">
+                <Badge
+                  variant="outline"
+                  className="hidden shrink-0 rounded-full px-1.5 py-0 text-[9px] xl:inline-flex"
+                >
                   {item.badge}
                 </Badge>
               )}
             </div>
-            <span className="ml-6 mt-1 text-[11px] text-muted-foreground">
-              {getModePreview(item.value, sampleEntity)}
-            </span>
           </label>
         ))}
       </div>
+      <p className="truncate text-[11px] text-muted-foreground">
+        {getModePreview(mode, sampleEntity)}
+      </p>
+    </div>
+  );
+};
+
+const RedactionBlockedNotice: FC<{
+  totalCount: number;
+  reason: string;
+  onRerunNer: () => void;
+  onSelectAll: () => void;
+}> = ({ totalCount, reason, onRerunNer, onSelectAll }) => {
+  const t = useT();
+  const isEmpty = totalCount === 0;
+
+  return (
+    <div
+      id="playground-redact-disabled-reason"
+      className="flex shrink-0 items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/35 px-3 py-2 text-xs leading-5 text-muted-foreground"
+      data-testid="playground-redact-disabled-reason"
+    >
+      <p className="min-w-0 truncate">{reason}</p>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 shrink-0 whitespace-nowrap px-3 text-xs"
+        onClick={isEmpty ? onRerunNer : onSelectAll}
+        data-testid={isEmpty ? 'playground-disabled-rerun' : 'playground-disabled-select-all'}
+      >
+        {isEmpty ? t('playground.reRecognize') : t('playground.selectAll')}
+      </Button>
     </div>
   );
 };
@@ -276,9 +358,7 @@ const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
   const t = useT();
 
   if (boxes.length === 0) {
-    return (
-      <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>
-    );
+    return <EmptyDetectionState mode="image" />;
   }
 
   return (
@@ -326,16 +406,18 @@ const BoxList: FC<{ boxes: BoundingBox[]; onToggle: (id: string) => void }> = ({
 
 const EntityList: FC<{
   entities: Entity[];
+  typeNameById: Map<string, string>;
   onClick: (entity: Entity, event: ReactMouseEvent) => void;
   onRemove: (id: string) => void;
-}> = ({ entities, onClick, onRemove }) => {
+}> = ({ entities, typeNameById, onClick, onRemove }) => {
   const t = useT();
 
   if (entities.length === 0) {
-    return (
-      <p className="p-6 text-center text-sm text-muted-foreground">{t('playground.noResults')}</p>
-    );
+    return <EmptyDetectionState mode="text" />;
   }
+
+  const groupedTypeIds = new Set(ENTITY_GROUPS.flatMap((group) => group.types.map((type) => type.id)));
+  const customEntities = entities.filter((entity) => !groupedTypeIds.has(entity.type));
 
   return (
     <>
@@ -374,7 +456,7 @@ const EntityList: FC<{
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex flex-wrap items-center gap-1.5">
                       <Badge variant="secondary" className="text-[10px]">
-                        {getEntityTypeName(entity.type)}
+                        {typeNameById.get(entity.type) ?? getEntityTypeName(entity.type)}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">{sourceLabel}</span>
                     </div>
@@ -411,6 +493,83 @@ const EntityList: FC<{
           </div>
         );
       })}
+      {customEntities.length > 0 && (
+        <div key="custom">
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-background/95 px-3 py-2 backdrop-blur">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              {t('entityGroup.other')}
+            </span>
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {customEntities.length}
+            </span>
+          </div>
+
+          {customEntities.map((entity) => {
+            const sourceLabel =
+              entity.source === 'regex'
+                ? t('playground.sourceRegex')
+                : entity.source === 'manual'
+                  ? t('playground.sourceManual')
+                  : t('playground.sourceAi');
+
+            return (
+              <div
+                key={entity.id}
+                className="flex cursor-pointer items-center gap-2 border-b border-border/40 px-3 py-3 transition-colors hover:bg-accent/40"
+                onClick={(event) => onClick(entity, event)}
+                data-testid={`playground-entity-${entity.id}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {typeNameById.get(entity.type) ?? getEntityTypeName(entity.type)}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground">{sourceLabel}</span>
+                  </div>
+                  <p className="truncate text-sm text-foreground">{entity.text}</p>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-xl text-muted-foreground hover:text-destructive"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemove(entity.id);
+                  }}
+                  aria-label={t('playground.removeAnnotation')}
+                >
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
+  );
+};
+
+const EmptyDetectionState: FC<{ mode: 'text' | 'image' }> = ({ mode }) => {
+  const t = useT();
+  return (
+    <div className="space-y-2 p-6 text-center" data-testid="playground-empty-detections">
+      <p className="text-sm font-medium text-foreground">{t('playground.noResultsTitle')}</p>
+      <p className="mx-auto max-w-[240px] text-xs leading-5 text-muted-foreground">
+        {mode === 'image' ? t('playground.noResultsDescImage') : t('playground.noResultsDescText')}
+      </p>
+    </div>
   );
 };

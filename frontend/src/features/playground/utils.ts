@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { t } from '@/i18n';
+import { PLAYGROUND_VISION_PAGE_CONCURRENCY } from '@/constants/timing';
 import { authFetch, VISION_TIMEOUT } from '@/services/api-client';
 import {
   getSelectionMarkStyle,
@@ -63,8 +64,10 @@ export async function runVisionDetection(
   fileId: string,
   ocrHasTypes: string[],
   hasImageTypes: string[],
+  vlmTypes: string[],
   externalSignal?: AbortSignal,
   page = 1,
+  force = false,
 ): Promise<{ boxes: BoundingBox[]; resultImage?: string }> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), VISION_FETCH_TIMEOUT_MS);
@@ -80,12 +83,14 @@ export async function runVisionDetection(
 
   let res: Response;
   try {
-    res = await authFetch(`/api/v1/redaction/${fileId}/vision?page=${page}`, {
+    const query = `page=${page}&include_result_image=false${force ? '&force=true' : ''}`;
+    res = await authFetch(`/api/v1/redaction/${fileId}/vision?${query}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         selected_ocr_has_types: ocrHasTypes,
         selected_has_image_types: hasImageTypes,
+        selected_vlm_types: vlmTypes,
       }),
       signal: controller.signal,
     });
@@ -114,6 +119,101 @@ export async function runVisionDetection(
       }) as BoundingBox,
   );
   return { boxes, resultImage: data.result_image };
+}
+
+export interface VisionPageCompletePayload {
+  page: number;
+  pageBoxes: BoundingBox[];
+  completedPages: number;
+  totalPages: number;
+  totalBoxes: number;
+}
+
+interface RunVisionDetectionPagesOptions {
+  fileId: string;
+  ocrHasTypes: string[];
+  hasImageTypes: string[];
+  vlmTypes: string[];
+  totalPages: number;
+  signal?: AbortSignal;
+  concurrency?: number;
+  force?: boolean;
+  label: string;
+  setLoadingMessage?: (message: string) => void;
+  onPageComplete?: (payload: VisionPageCompletePayload) => void;
+}
+
+export async function runVisionDetectionPages({
+  fileId,
+  ocrHasTypes,
+  hasImageTypes,
+  vlmTypes,
+  totalPages,
+  signal,
+  concurrency = PLAYGROUND_VISION_PAGE_CONCURRENCY,
+  force = false,
+  label,
+  setLoadingMessage,
+  onPageComplete,
+}: RunVisionDetectionPagesOptions): Promise<{ boxes: BoundingBox[]; totalBoxes: number }> {
+  const pages = Array.from({ length: Math.max(1, totalPages) }, (_unused, index) => index + 1);
+  const maxWorkers = Math.max(1, Math.min(concurrency, pages.length));
+  const boxesByPage = new Map<number, BoundingBox[]>();
+  let nextIndex = 0;
+  let completedPages = 0;
+  let totalBoxes = 0;
+  setLoadingMessage?.(`${label} (0/${pages.length})`);
+
+  const runPage = async (page: number) => {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    let result: Awaited<ReturnType<typeof runVisionDetection>> | null = null;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        result = await runVisionDetection(
+          fileId,
+          ocrHasTypes,
+          hasImageTypes,
+          vlmTypes,
+          signal,
+          page,
+          force,
+        );
+        break;
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        if (attempt >= 2) throw error;
+        setLoadingMessage?.(`${label} (${completedPages}/${pages.length}) retry p.${page}`);
+      }
+    }
+    if (!result) throw new Error(t('playground.recognizeFailed'));
+    const pageBoxes = result.boxes.map((box) => ({
+      ...box,
+      page: Number(box.page || page),
+    }));
+    boxesByPage.set(page, pageBoxes);
+    totalBoxes += pageBoxes.length;
+    completedPages += 1;
+    setLoadingMessage?.(`${label} (${completedPages}/${pages.length})`);
+    onPageComplete?.({
+      page,
+      pageBoxes,
+      completedPages,
+      totalPages: pages.length,
+      totalBoxes,
+    });
+  };
+
+  async function worker() {
+    while (nextIndex < pages.length) {
+      const page = pages[nextIndex];
+      nextIndex += 1;
+      await runPage(page);
+    }
+  }
+
+  await Promise.all(Array.from({ length: maxWorkers }, () => worker()));
+  const boxes = pages.flatMap((page) => boxesByPage.get(page) ?? []);
+  return { boxes, totalBoxes };
 }
 
 export function computeEntityStats(

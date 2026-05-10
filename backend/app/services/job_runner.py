@@ -45,9 +45,8 @@ def _walk_job_to(store: JobStore, job_id: str, target: JobStatus) -> None:
     """Walk a job through valid transitions to reach the target status."""
     chain = [
         JobStatus.QUEUED,
-        JobStatus.RUNNING,
+        JobStatus.PROCESSING,
         JobStatus.AWAITING_REVIEW,
-        JobStatus.REDACTING,
         JobStatus.COMPLETED,
     ]
     for step in chain:
@@ -79,11 +78,11 @@ def _refresh_job_status(store: JobStore, job_id: str) -> None:
         elif all(s == JobItemStatus.CANCELLED.value for s in sts):
             store.update_job_status(job_id, JobStatus.CANCELLED)
         elif any(s in ACTIVE_ITEM_STATUSES for s in sts):
-            _walk_job_to(store, job_id, JobStatus.RUNNING)
+            _walk_job_to(store, job_id, JobStatus.PROCESSING)
         elif any(s == JobItemStatus.AWAITING_REVIEW.value for s in sts):
             _walk_job_to(store, job_id, JobStatus.AWAITING_REVIEW)
         elif any(s == JobItemStatus.REVIEW_APPROVED.value for s in sts):
-            _walk_job_to(store, job_id, JobStatus.REDACTING)
+            _walk_job_to(store, job_id, JobStatus.PROCESSING)
         elif any(s == JobItemStatus.FAILED.value for s in sts):
             active = {JobItemStatus.PENDING.value, JobItemStatus.PROCESSING.value,
                       JobItemStatus.QUEUED.value, JobItemStatus.PARSING.value,
@@ -129,9 +128,9 @@ async def _run_recognition(
         try:
             store.update_item_status(item_id, JobItemStatus.PARSING)
             try:
-                store.update_job_status(job_row["id"], JobStatus.RUNNING)
+                store.update_job_status(job_row["id"], JobStatus.PROCESSING)
             except Exception:
-                logger.debug("job %s already in non-DRAFT state, skip RUNNING transition", job_row["id"][:8])
+                logger.debug("job %s already in non-DRAFT state, skip PROCESSING transition", job_row["id"][:8])
             logger.info("[worker] item=%s file=%s → parse_file", item_id[:8], file_id[:8])
             await ports.parse_file(file_id)
 
@@ -225,17 +224,124 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
         await _ner(file_id, entity_type_ids)
 
     async def vision_pages(self, file_id: str, job_config: dict[str, Any]) -> None:
+        from app.core.config import settings
         from app.services.file_operations import get_file_info, vision_detect
+        from app.services.task_queue import _effective_vision_page_concurrency
+        from app.services.vision_config import resolve_optional_type_list
 
-        ocr_types = list(job_config.get("ocr_has_types") or job_config.get("selected_ocr_has_types") or [])
-        has_img = list(job_config.get("has_image_types") or job_config.get("selected_has_image_types") or [])
+        ocr_types = resolve_optional_type_list(job_config, "ocr_has_types", "selected_ocr_has_types")
+        has_img = resolve_optional_type_list(job_config, "has_image_types", "selected_has_image_types")
+        vlm_types = resolve_optional_type_list(job_config, "vlm_types", "selected_vlm_types")
         fi = get_file_info(file_id) or {}
         pages = int(fi.get("page_count") or 1)
         # Forward empty lists as-is — orchestrator treats [] as an explicit
-        # deselection of that pipeline; `or None` would collapse to None and
-        # trip the full-default fallback instead.
-        for p in range(1, max(1, pages) + 1):
-            await vision_detect(file_id, p, ocr_types, has_img)
+        # deselection of that pipeline. Missing selections stay None so the
+        # orchestrator can apply its default type set.
+        page_timeout = float(settings.BATCH_RECOGNITION_PAGE_TIMEOUT)
+        configured_page_concurrency = int(settings.BATCH_RECOGNITION_PAGE_CONCURRENCY)
+        gpu_memory = None
+        if pages > 1 and configured_page_concurrency > 1:
+            try:
+                from app.core.gpu_memory import query_gpu_memory
+
+                gpu_memory = query_gpu_memory()
+            except Exception:
+                logger.debug("unable to query GPU memory for runner vision concurrency", exc_info=True)
+        page_concurrency = _effective_vision_page_concurrency(
+            fi,
+            pages,
+            configured_page_concurrency,
+            gpu_memory=gpu_memory,
+        )
+        file_type_value = getattr(fi.get("file_type"), "value", fi.get("file_type"))
+        if pages > 1 and str(file_type_value or "").strip().lower() == "pdf_scanned":
+            try:
+                from app.services.vision_service import prime_pdf_text_layer_sparse_probe
+
+                await prime_pdf_text_layer_sparse_probe(
+                    str(fi.get("file_path") or ""),
+                    fi.get("file_type"),
+                    page=1,
+                )
+            except Exception:
+                logger.debug("unable to prime scanned PDF text-layer sparse probe", exc_info=True)
+        page_numbers = list(range(1, max(1, pages) + 1))
+
+        async def run_page_set(
+            *,
+            selected_ocr: list[str] | None,
+            selected_image: list[str] | None,
+            selected_vlm: list[str] | None,
+            concurrency: int,
+            merge_existing: bool = False,
+            signature_ocr: list[str] | None = None,
+            signature_image: list[str] | None = None,
+            signature_vlm: list[str] | None = None,
+            stage_name: str = "vision",
+        ) -> None:
+            page_sem = asyncio.Semaphore(max(1, concurrency))
+
+            async def run_page(p: int) -> None:
+                async with page_sem:
+                    try:
+                        await asyncio.wait_for(
+                            vision_detect(
+                                file_id,
+                                p,
+                                selected_ocr,
+                                selected_image,
+                                selected_vlm,
+                                merge_existing=merge_existing,
+                                signature_ocr_has_types=signature_ocr,
+                                signature_has_image_types=signature_image,
+                                signature_vlm_types=signature_vlm,
+                            ),
+                            timeout=page_timeout,
+                        )
+                    except TimeoutError as exc:
+                        raise TimeoutError(
+                            f"{stage_name} page {p}/{pages} timed out after {page_timeout:.0f}s"
+                        ) from exc
+
+            tasks = [asyncio.create_task(run_page(p)) for p in page_numbers]
+            try:
+                for task in asyncio.as_completed(tasks):
+                    await task
+            except Exception:
+                for task in tasks:
+                    task.cancel()
+                raise
+
+        if pages > 1 and vlm_types:
+            logger.info(
+                "Vision multi-page scheduling: OCR+HaS/HaS Image first (concurrency=%d), then VLM merge pass (concurrency=1)",
+                page_concurrency,
+            )
+            await run_page_set(
+                selected_ocr=ocr_types,
+                selected_image=has_img,
+                selected_vlm=[],
+                concurrency=page_concurrency,
+                stage_name="vision non-VLM",
+            )
+            await run_page_set(
+                selected_ocr=[],
+                selected_image=[],
+                selected_vlm=vlm_types,
+                concurrency=1,
+                merge_existing=True,
+                signature_ocr=ocr_types,
+                signature_image=has_img,
+                signature_vlm=vlm_types,
+                stage_name="vision VLM",
+            )
+        else:
+            await run_page_set(
+                selected_ocr=ocr_types,
+                selected_image=has_img,
+                selected_vlm=vlm_types,
+                concurrency=page_concurrency,
+            )
 
     async def execute_redaction(self, file_id: str, job_config: dict[str, Any]) -> None:
         from app.models.schemas import BoundingBox, Entity, RedactionConfig, ReplacementMode
@@ -282,7 +388,7 @@ class DefaultJobRunnerPorts(JobRunnerPorts):
             custom_entity_types=list(job_config.get("custom_entity_types") or []),
             custom_replacements=dict(job_config.get("custom_replacements") or {}),
             image_redaction_method=job_config.get("image_redaction_method"),
-            image_redaction_strength=int(job_config.get("image_redaction_strength") or 25),
+            image_redaction_strength=int(job_config.get("image_redaction_strength") or 75),
             image_fill_color=str(job_config.get("image_fill_color") or "#000000"),
         )
         await execute_redaction_request(file_id, entities, boxes_flat, cfg)

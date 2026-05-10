@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from openai import OpenAI
 
-
 BASE_URL = "http://127.0.0.1:8080/v1"
 
 

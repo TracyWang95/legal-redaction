@@ -1,13 +1,14 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useDropzone } from 'react-dropzone';
+import { startTransition, useState, useCallback, useEffect, useRef } from 'react';
+import { useDropzone, type FileRejection } from 'react-dropzone';
 import { authFetch } from '@/services/api-client';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { localizeErrorMessage } from '@/utils/localizeError';
-import { safeJson, runVisionDetection } from '../utils';
+import { ACCEPTED_UPLOAD_FILE_TYPES } from '@/utils/fileUploadAccept';
+import { safeJson, runVisionDetectionPages } from '../utils';
 import type {
   FileInfo,
   Entity,
@@ -17,6 +18,19 @@ import type {
   ParseResponse,
   NerResponse,
 } from '../types';
+
+const PLAYGROUND_MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+async function responseErrorMessage(res: Response, fallbackKey: string) {
+  try {
+    const data = await safeJson<{ detail?: unknown; message?: unknown; error?: unknown }>(res);
+    const detail = data.detail ?? data.message ?? data.error;
+    if (typeof detail === 'string' && detail.trim()) return detail;
+  } catch {
+    // Keep the localized fallback when the response body is not JSON.
+  }
+  return t(fallbackKey);
+}
 
 export interface PendingFile {
   fileId: string;
@@ -31,6 +45,8 @@ export interface UsePlaygroundFileOptions {
   latestOcrHasTypesRef: React.RefObject<string[]>;
   /** Ref to latest selectedHasImageTypes for use in async callbacks */
   latestHasImageTypesRef: React.RefObject<string[]>;
+  /** Ref to latest selectedVlmTypes for use in async callbacks */
+  latestVlmTypesRef?: React.RefObject<string[]>;
   /** Ref to latest selectedTypes for use in async callbacks */
   latestSelectedTypesRef: React.RefObject<string[]>;
   /** Reset entity history */
@@ -41,6 +57,8 @@ export interface UsePlaygroundFileOptions {
   setEntities: React.Dispatch<React.SetStateAction<Entity[]>>;
   /** Set bounding boxes from recognition result */
   setBoundingBoxes: React.Dispatch<React.SetStateAction<BoundingBox[]>>;
+  /** Return a user-facing reason when automatic recognition should not run yet */
+  getRecognitionBlocker?: (file: PendingFile) => string | null;
 }
 
 export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
@@ -52,24 +70,14 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [uploadIssue, setUploadIssue] = useState<string | null>(null);
+  const [recognitionIssue, setRecognitionIssue] = useState<string | null>(null);
 
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
 
   const isImageMode = !!fileInfo && (fileInfo.file_type === 'image' || !!fileInfo.is_scanned);
-
-  // --- Loading elapsed timer ---
-  const [loadingElapsedSec, setLoadingElapsedSec] = useState(0);
-  useEffect(() => {
-    if (!isLoading) {
-      setLoadingElapsedSec(0);
-      return;
-    }
-    setLoadingElapsedSec(0);
-    const id = window.setInterval(() => setLoadingElapsedSec((s) => s + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [isLoading]);
 
   // --- Cleanup abort on unmount ---
   useEffect(() => {
@@ -78,22 +86,58 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
     };
   }, []);
 
-  const resetRecognizedState = useCallback(() => {
-    const opts = optionsRef.current;
-    setStage('upload');
-    setFileInfo(null);
-    setContent('');
-    opts.setEntities([]);
-    opts.setBoundingBoxes([]);
-    opts.resetEntityHistory();
-    opts.resetImageHistory();
+  const cancelProcessing = useCallback((notify = true) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setPendingFile(null);
+    setIsLoading(false);
+    setLoadingMessage('');
+    setRecognitionIssue(null);
+    if (notify) {
+      showToast(t('playground.cancelled'), 'info');
+    }
   }, []);
+
+  const rejectionMessage = useCallback((rejection: FileRejection): string => {
+    const firstError = rejection.errors[0];
+    if (firstError?.code === 'file-too-large') {
+      return t('playground.upload.rejectTooLarge')
+        .replace('{filename}', rejection.file.name)
+        .replace('{max}', '50 MB');
+    }
+    if (firstError?.code === 'file-invalid-type') {
+      return t('playground.upload.rejectInvalidType').replace('{filename}', rejection.file.name);
+    }
+    if (firstError?.code === 'too-many-files') {
+      return t('playground.upload.rejectTooMany');
+    }
+    return firstError?.message || t('playground.upload.rejectGeneric');
+  }, []);
+
+  const onDropRejected = useCallback(
+    (rejections: FileRejection[]) => {
+      const message = rejections[0]
+        ? rejectionMessage(rejections[0])
+        : t('playground.upload.rejectGeneric');
+      setUploadIssue(message);
+      showToast(message, 'error');
+    },
+    [rejectionMessage],
+  );
 
   // --- File upload ---
   const handleFileDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     const file = acceptedFiles[0];
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setIsLoading(true);
+    setStage('upload');
+    setUploadIssue(null);
+    setRecognitionIssue(null);
 
     const opts = optionsRef.current;
     try {
@@ -102,14 +146,26 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
       formData.append('file', file);
       formData.append('upload_source', 'playground');
 
-      const uploadRes = await authFetch('/api/v1/files/upload', { method: 'POST', body: formData });
-      if (!uploadRes.ok) throw new Error(t('playground.uploadFailed'));
+      const uploadRes = await authFetch('/api/v1/files/upload', {
+        method: 'POST',
+        body: formData,
+        signal,
+      });
+      if (signal.aborted) return;
+      if (!uploadRes.ok) {
+        throw new Error(await responseErrorMessage(uploadRes, 'playground.uploadFailed'));
+      }
       const uploadData = await safeJson<UploadResponse>(uploadRes);
+      if (signal.aborted) return;
 
       setLoadingMessage(t('playground.parsing'));
-      const parseRes = await authFetch(`/api/v1/files/${uploadData.file_id}/parse`);
-      if (!parseRes.ok) throw new Error(t('playground.parseFailed'));
+      const parseRes = await authFetch(`/api/v1/files/${uploadData.file_id}/parse`, { signal });
+      if (signal.aborted) return;
+      if (!parseRes.ok) {
+        throw new Error(await responseErrorMessage(parseRes, 'playground.parseFailed'));
+      }
       const parseData = await safeJson<ParseResponse>(parseRes);
+      if (signal.aborted) return;
 
       const isScanned = parseData.is_scanned || false;
       const pageCount = Math.max(1, Number(parseData.page_count || 1));
@@ -139,9 +195,14 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
         content: parsedContent,
       });
     } catch (err) {
+      if (signal.aborted) return;
       showToast(localizeErrorMessage(err, 'playground.processFailed'), 'error');
       setIsLoading(false);
       setLoadingMessage('');
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
     }
   }, []);
 
@@ -158,12 +219,30 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
 
     const opts = optionsRef.current;
 
+    const blocker = opts.getRecognitionBlocker?.(pendingFile) ?? null;
+    if (blocker) {
+      setRecognitionIssue(blocker);
+      setStage('preview');
+      setIsLoading(false);
+      setLoadingMessage('');
+      showToast(blocker, 'info');
+      return;
+    }
+
     const doRecognition = async () => {
       try {
+        setRecognitionIssue(null);
         const isImage = fileType === 'image' || isScanned;
         if (isImage) {
           const ocrTypes = opts.latestOcrHasTypesRef.current;
           const hiTypes = opts.latestHasImageTypesRef.current;
+          const vlmTypes = opts.latestVlmTypesRef?.current ?? [];
+          if (ocrTypes.length === 0 && hiTypes.length === 0 && vlmTypes.length === 0) {
+            opts.setBoundingBoxes([]);
+            opts.resetImageHistory();
+            setStage('preview');
+            return;
+          }
           const vLabel =
             ocrTypes.length > 0 && hiTypes.length > 0
               ? t('playground.loading.visionHybrid')
@@ -177,32 +256,22 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
           opts.setBoundingBoxes([]);
           opts.resetImageHistory();
           const totalPages = Math.max(1, pageCount);
-          let totalBoxes = 0;
-          for (let page = 1; page <= totalPages; page += 1) {
-            setLoadingMessage(`${vLabel} (${page}/${totalPages})`);
-            let result: Awaited<ReturnType<typeof runVisionDetection>> | null = null;
-            for (let attempt = 1; attempt <= 2; attempt += 1) {
-              try {
-                result = await runVisionDetection(fileId, ocrTypes, hiTypes, signal, page);
-                break;
-              } catch (error) {
-                if (signal.aborted) return;
-                if (attempt >= 2) throw error;
-                setLoadingMessage(`${vLabel} (${page}/${totalPages}) · retry ${attempt}`);
-              }
-            }
-            if (!result) {
-              throw new Error(t('playground.recognizeFailed'));
-            }
-            if (signal.aborted) return;
-            const pageBoxes = result.boxes.map((box) => ({
-              ...box,
-              page: Number(box.page || page),
-            }));
-            totalBoxes += pageBoxes.length;
-            opts.setBoundingBoxes((prev) => [...prev, ...pageBoxes]);
-          }
-
+          const { totalBoxes } = await runVisionDetectionPages({
+            fileId,
+            ocrHasTypes: ocrTypes,
+            hasImageTypes: hiTypes,
+            vlmTypes,
+            totalPages,
+            signal,
+            label: vLabel,
+            setLoadingMessage,
+            onPageComplete: ({ pageBoxes }) => {
+              startTransition(() => {
+                opts.setBoundingBoxes((prev) => [...prev, ...pageBoxes]);
+              });
+            },
+          });
+          if (signal.aborted) return;
           showToast(
             t('playground.toast.detectedRegions').replace('{count}', String(totalBoxes)),
             'success',
@@ -240,36 +309,35 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
             ),
             'success',
           );
-        }
-        if (signal.aborted) return;
-        setStage('preview');
-      } catch (err) {
-        if (signal.aborted) return;
-        resetRecognizedState();
-        showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
-      } finally {
-        if (!signal.aborted) {
-          setIsLoading(false);
-          setLoadingMessage('');
+      }
+      if (signal.aborted) return;
+      setStage('preview');
+    } catch (err) {
+      if (signal.aborted) return;
+      const message = localizeErrorMessage(err, 'playground.recognizeFailed');
+      setRecognitionIssue(message);
+      setStage('preview');
+      showToast(message, 'error');
+    } finally {
+      if (!signal.aborted) {
+        setIsLoading(false);
+        setLoadingMessage('');
         }
       }
     };
 
     doRecognition();
-  }, [pendingFile, resetRecognizedState]);
+  }, [pendingFile]);
 
   // --- Dropzone ---
   const dropzone = useDropzone({
     onDrop: handleFileDrop,
-    accept: {
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/pdf': ['.pdf'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-    },
+    onDropRejected,
+    accept: ACCEPTED_UPLOAD_FILE_TYPES,
+    maxSize: PLAYGROUND_MAX_FILE_SIZE,
     maxFiles: 1,
     disabled: isLoading,
+    noClick: true,
   });
 
   return {
@@ -283,7 +351,10 @@ export function usePlaygroundFile(options: UsePlaygroundFileOptions) {
     setIsLoading,
     loadingMessage,
     setLoadingMessage,
-    loadingElapsedSec,
+    cancelProcessing,
+    uploadIssue,
+    recognitionIssue,
+    setRecognitionIssue,
     isImageMode,
     dropzone,
   };

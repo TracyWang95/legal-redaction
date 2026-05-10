@@ -30,7 +30,7 @@ export const PlaygroundEntityPopover: FC = () => {
             className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
             style={{ backgroundColor: risk.bgColor, color: risk.textColor }}
           >
-            {getEntityTypeName(ui.clickedEntity.type)}
+            {ui.getTypeConfig(ui.clickedEntity.type).name || getEntityTypeName(ui.clickedEntity.type)}
           </span>
           <span className="truncate text-xs text-muted-foreground">{ui.clickedEntity.text}</span>
         </div>

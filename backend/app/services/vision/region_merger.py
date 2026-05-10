@@ -62,15 +62,75 @@ def merge_regions(
     Merge two region lists, dropping entries from *regions2* that overlap with
     an existing entry in *regions1* above *iou_threshold*.
     """
-    merged = list(regions1)
+    priority = {
+        "PERSON": 6,
+        "PHONE": 6,
+        "ID_CARD": 6,
+        "BANK_ACCOUNT": 6,
+        "BANK_CARD": 6,
+        "BANK_NAME": 6,
+        "AMOUNT": 6,
+        "COMPANY": 5,
+        "ORG": 4,
+        "LEGAL_PARTY": 3,
+    }
 
-    for r2 in regions2:
-        is_duplicate = False
-        for r1 in merged:
-            if calc_iou_regions(r1, r2) >= iou_threshold:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            merged.append(r2)
+    def compact(text: str | None) -> str:
+        return "".join(str(text or "").split())
+
+    def overlap_ratio(a: SensitiveRegion, b: SensitiveRegion) -> float:
+        x1 = max(a.left, b.left)
+        y1 = max(a.top, b.top)
+        x2 = min(a.left + a.width, b.left + b.width)
+        y2 = min(a.top + a.height, b.top + b.height)
+        if x2 <= x1 or y2 <= y1:
+            return 0.0
+        inter = (x2 - x1) * (y2 - y1)
+        smaller = max(1, min(a.width * a.height, b.width * b.height))
+        return inter / smaller
+
+    def area(region: SensitiveRegion) -> int:
+        return max(1, region.width * region.height)
+
+    def should_replace(existing: SensitiveRegion, candidate: SensitiveRegion) -> bool:
+        existing_priority = priority.get(existing.entity_type, 1)
+        candidate_priority = priority.get(candidate.entity_type, 1)
+        if candidate_priority > existing_priority:
+            return True
+        if candidate_priority < existing_priority:
+            return False
+
+        if candidate.entity_type == existing.entity_type and overlap_ratio(candidate, existing) >= 0.7:
+            candidate_text = compact(candidate.text)
+            existing_text = compact(existing.text)
+            candidate_is_tighter = area(candidate) < area(existing) * 0.9
+            if candidate_is_tighter and len(candidate_text) <= len(existing_text):
+                return True
+        return False
+
+    def duplicate_index(candidate: SensitiveRegion, merged: list[SensitiveRegion]) -> int | None:
+        candidate_text = compact(candidate.text)
+        for idx, existing in enumerate(merged):
+            same_text_overlap = (
+                candidate_text
+                and candidate_text == compact(existing.text)
+                and overlap_ratio(candidate, existing) >= 0.7
+            )
+            if (
+                same_text_overlap
+                or calc_iou_regions(existing, candidate) >= iou_threshold
+            ):
+                return idx
+        return None
+
+    merged: list[SensitiveRegion] = []
+    for region in [*regions1, *regions2]:
+        idx = duplicate_index(region, merged)
+        if idx is None:
+            merged.append(region)
+            continue
+        existing = merged[idx]
+        if should_replace(existing, region):
+            merged[idx] = region
 
     return merged

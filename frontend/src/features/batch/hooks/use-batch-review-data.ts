@@ -14,9 +14,17 @@ import {
   flattenBoundingBoxesFromStore,
   type BatchWizardPersistedConfig,
 } from '@/services/batchPipeline';
+import { isDefaultExcludedPipelineTypeId } from '@/services/defaultRedactionPreset';
+import { buildFallbackPreviewEntityMap } from '@/utils/textRedactionSegments';
 import { getItemReviewDraft } from '@/services/jobsApi';
 import { getPreviewReviewPayload } from '../lib/batch-preview-fixtures';
-import type { BatchRow, ReviewEntity, Step, TextEntityType } from '../types';
+import type {
+  BatchRow,
+  ReviewEntity,
+  ReviewVisionPageQuality,
+  Step,
+  TextEntityType,
+} from '../types';
 import { fetchCachedBatchPreviewMap, normalizeReviewEntity } from './use-batch-wizard-utils';
 
 export interface ReviewDataDeps {
@@ -44,11 +52,15 @@ export interface ReviewDataDeps {
   setPreviewEntityMap: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setReviewImagePreview: React.Dispatch<React.SetStateAction<string>>;
   setReviewDraftError: React.Dispatch<React.SetStateAction<string | null>>;
+  setReviewLoadError: React.Dispatch<React.SetStateAction<string | null>>;
   setReviewEntities: React.Dispatch<React.SetStateAction<ReviewEntity[]>>;
   setReviewBoxes: React.Dispatch<React.SetStateAction<EditorBox[]>>;
   setReviewCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   setReviewTotalPages: React.Dispatch<React.SetStateAction<number>>;
   setReviewPages: React.Dispatch<React.SetStateAction<string[]>>;
+  setReviewVisionQualityByPage: React.Dispatch<
+    React.SetStateAction<Record<number, ReviewVisionPageQuality>>
+  >;
   setReviewTextContent: React.Dispatch<React.SetStateAction<string>>;
   setReviewOrigImageBlobUrl: React.Dispatch<React.SetStateAction<string>>;
   setReviewTextUndoStack: React.Dispatch<React.SetStateAction<ReviewEntity[][]>>;
@@ -84,7 +96,45 @@ function normalizePage(page: unknown, fallback = 1): number {
   return Number.isFinite(n) && n > 0 ? Math.trunc(n) : fallback;
 }
 
-function normalizeReviewBox(raw: Record<string, unknown>, index: number, pageFallback = 1): EditorBox {
+function normalizeVisionQualityByPage(raw: unknown): Record<number, ReviewVisionPageQuality> {
+  if (!raw || typeof raw !== 'object') return {};
+  const normalized: Record<number, ReviewVisionPageQuality> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== 'object') continue;
+    const page = normalizePage(key, 0);
+    if (page <= 0) continue;
+    const record = value as Record<string, unknown>;
+    const warnings = Array.isArray(record.warnings)
+      ? record.warnings.filter((warning): warning is string => typeof warning === 'string')
+      : [];
+    const pipelineStatus =
+      record.pipeline_status && typeof record.pipeline_status === 'object'
+        ? (record.pipeline_status as Record<string, Record<string, unknown>>)
+        : {};
+    normalized[page] = {
+      warnings,
+      pipeline_status: Object.fromEntries(
+        Object.entries(pipelineStatus).map(([name, status]) => [
+          name,
+          {
+            ran: Boolean(status.ran),
+            skipped: Boolean(status.skipped),
+            failed: Boolean(status.failed),
+            region_count: typeof status.region_count === 'number' ? status.region_count : undefined,
+            error: typeof status.error === 'string' ? status.error : null,
+          },
+        ]),
+      ),
+    };
+  }
+  return normalized;
+}
+
+function normalizeReviewBox(
+  raw: Record<string, unknown>,
+  index: number,
+  pageFallback = 1,
+): EditorBox {
   return {
     id: String(raw.id ?? `bbox_${index}`),
     x: Number(raw.x),
@@ -97,7 +147,30 @@ function normalizeReviewBox(raw: Record<string, unknown>, index: number, pageFal
     selected: raw.selected !== false,
     confidence: typeof raw.confidence === 'number' ? raw.confidence : undefined,
     source: (raw.source as EditorBox['source']) || undefined,
+    evidence_source:
+      typeof raw.evidence_source === 'string'
+        ? (raw.evidence_source as EditorBox['evidence_source'])
+        : undefined,
+    source_detail: raw.source_detail ? String(raw.source_detail) : undefined,
+    warnings: Array.isArray(raw.warnings)
+      ? raw.warnings.filter((warning): warning is string => typeof warning === 'string')
+      : undefined,
   };
+}
+
+export function sanitizeReviewBoxSelection(
+  box: EditorBox,
+  cfg: Pick<BatchWizardPersistedConfig, 'hasImageTypes'>,
+): EditorBox {
+  const type = String(box.type ?? '');
+  if (
+    box.source === 'has_image' &&
+    isDefaultExcludedPipelineTypeId('has_image', type) &&
+    !cfg.hasImageTypes.includes(type)
+  ) {
+    return { ...box, selected: false };
+  }
+  return box;
 }
 
 function boxesToDraftPayload(boxes: EditorBox[]): Array<Record<string, unknown>> {
@@ -113,7 +186,18 @@ function boxesToDraftPayload(boxes: EditorBox[]): Array<Record<string, unknown>>
     selected: box.selected,
     source: box.source,
     confidence: box.confidence,
+    evidence_source: box.evidence_source,
+    source_detail: box.source_detail,
+    warnings: box.warnings,
   }));
+}
+
+function normalizeEntityMap(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const entries = Object.entries(raw as Record<string, unknown>)
+    .filter(([key, value]) => key && typeof value === 'string' && value)
+    .map(([key, value]) => [key, value as string]);
+  return Object.fromEntries(entries);
 }
 
 export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
@@ -133,7 +217,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     reviewItemId,
     reviewLoading,
     reviewTextContent,
-    previewEntityMap: _previewEntityMap,
+    previewEntityMap,
     reviewDraftInitializedRef,
     reviewDraftDirtyRef,
     reviewLastSavedJsonRef,
@@ -142,11 +226,13 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setPreviewEntityMap,
     setReviewImagePreview,
     setReviewDraftError,
+    setReviewLoadError,
     setReviewEntities,
     setReviewBoxes,
     setReviewCurrentPage,
     setReviewTotalPages,
     setReviewPages,
+    setReviewVisionQualityByPage,
     setReviewTextContent,
     setReviewOrigImageBlobUrl,
     setReviewTextUndoStack,
@@ -159,9 +245,9 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   } = deps;
   void _textTypes;
   void _reviewBoxes;
-  void _previewEntityMap;
 
   const reviewLoadSeqRef = useRef(0);
+  const autoLoadedReviewKeyRef = useRef('');
   const rerunAbortRef = useRef<AbortController | null>(null);
   const loadDataAbortRef = useRef<AbortController | null>(null);
   // Per-page cached scanned-PDF preview image to eliminate blank-flash on page
@@ -251,18 +337,21 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         setReviewOrigImageBlobUrl(cached);
         scheduleNeighbors();
       } else {
-        authFetch(`/api/v1/redaction/${reviewFile.file_id}/preview-image?page=${reviewCurrentPage}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bounding_boxes: [],
-            config: {
-              replacement_mode: 'structured',
-              entity_types: [],
-              custom_replacements: {},
-            },
-          }),
-        })
+        authFetch(
+          `/api/v1/redaction/${reviewFile.file_id}/preview-image?page=${reviewCurrentPage}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bounding_boxes: [],
+              config: {
+                replacement_mode: 'structured',
+                entity_types: [],
+                custom_replacements: {},
+              },
+            }),
+          },
+        )
           .then(async (res) => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = (await res.json()) as PreviewImageResponse;
@@ -286,12 +375,12 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       cancelled = true;
       if (currentBlobUrl.startsWith('blob:')) URL.revokeObjectURL(currentBlobUrl);
     };
-  }, [reviewFile, reviewCurrentPage, setReviewOrigImageBlobUrl]);
+  }, [reviewFile, reviewCurrentPage, reviewTotalPages, setReviewOrigImageBlobUrl]);
 
   useLayoutEffect(() => {
     if (step !== 4 || !reviewFile) return;
     setReviewLoading(true);
-  }, [step, reviewFile, setReviewLoading]);
+  }, [step, reviewFile?.file_id, setReviewLoading]);
 
   const loadReviewData = useCallback(
     async (fileId: string, isImage: boolean) => {
@@ -303,6 +392,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       reviewLoadSeqRef.current = loadSeq;
 
       setReviewLoading(true);
+      setReviewLoadError(null);
       setPreviewEntityMap({});
       setReviewImagePreview('');
       setReviewDraftError(null);
@@ -312,6 +402,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       setReviewCurrentPage(1);
       setReviewTotalPages(1);
       setReviewPages([]);
+      setReviewVisionQualityByPage({});
       reviewDraftInitializedRef.current = false;
       reviewDraftDirtyRef.current = false;
       if (reviewAutosaveTimerRef.current !== null) {
@@ -348,7 +439,13 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           setReviewTextContent(previewPayload.content);
           setReviewTextUndoStack([]);
           setReviewTextRedoStack([]);
-          const map = await fetchCachedBatchPreviewMap(previewPayload.entities, cfg.replacementMode);
+          setPreviewEntityMap(
+            buildFallbackPreviewEntityMap(previewPayload.entities, cfg.replacementMode),
+          );
+          const map = await fetchCachedBatchPreviewMap(
+            previewPayload.entities,
+            cfg.replacementMode,
+          );
           if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
           setPreviewEntityMap(map);
           reviewLastSavedJsonRef.current = JSON.stringify({
@@ -357,6 +454,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           });
         }
         reviewDraftInitializedRef.current = true;
+        setReviewLoadError(null);
         setReviewLoading(false);
         return;
       }
@@ -371,7 +469,13 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           entities?: Array<Record<string, unknown>>;
           bounding_boxes?: Array<Record<string, unknown>>;
         } | null = null;
-        if (activeJobId && linkedItemId) {
+        const isReadOnlyOutputRow =
+          reviewFile?.reviewConfirmed === true ||
+          reviewFile?.has_output === true ||
+          reviewFile?.analyzeStatus === 'completed';
+        const shouldLoadServerDraft =
+          !isReadOnlyOutputRow || Boolean(reviewFile?.hasReviewDraft);
+        if (activeJobId && linkedItemId && shouldLoadServerDraft) {
           try {
             const loadedDraft = await getItemReviewDraft(activeJobId, linkedItemId);
             if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
@@ -387,8 +491,13 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
               ? draft.bounding_boxes
               : flattenBoundingBoxesFromStore(info.bounding_boxes);
           const pageCountFromInfo = normalizePage(info.page_count, 1);
-          const boxes = raw.map((box, index) => normalizeReviewBox(box, index, 1));
-          const maxBoxPage = boxes.reduce((max, box) => Math.max(max, normalizePage(box.page, 1)), 1);
+          const boxes = raw
+            .map((box, index) => normalizeReviewBox(box, index, 1))
+            .map((box) => sanitizeReviewBoxSelection(box, { hasImageTypes: cfg.hasImageTypes }));
+          const maxBoxPage = boxes.reduce(
+            (max, box) => Math.max(max, normalizePage(box.page, 1)),
+            1,
+          );
           const totalPages = Math.max(1, pageCountFromInfo, maxBoxPage);
 
           setReviewTextContent('');
@@ -396,6 +505,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           setReviewBoxes(boxes);
           setReviewCurrentPage(1);
           setReviewTotalPages(totalPages);
+          setReviewVisionQualityByPage(normalizeVisionQualityByPage(info.vision_quality));
           setReviewImageUndoStack([]);
           setReviewImageRedoStack([]);
           reviewLastSavedJsonRef.current = JSON.stringify({
@@ -425,21 +535,30 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           setReviewBoxes([]);
           const contentStr = typeof info.content === 'string' ? info.content : '';
           const rawPages = Array.isArray(info.pages) ? (info.pages as unknown[]) : [];
-          const pagesArr = rawPages.filter(
-            (page): page is string => typeof page === 'string',
-          );
+          const pagesArr = rawPages.filter((page): page is string => typeof page === 'string');
           const pageCountFromInfo = normalizePage(info.page_count, 1);
           const textTotalPages = Math.max(1, pageCountFromInfo, pagesArr.length);
           setReviewCurrentPage(1);
           setReviewTotalPages(textTotalPages);
           setReviewPages(pagesArr);
+          setReviewVisionQualityByPage({});
           setReviewEntities(mapped);
           setReviewTextContent(contentStr);
           setReviewTextUndoStack([]);
           setReviewTextRedoStack([]);
-          const map = await fetchCachedBatchPreviewMap(mapped, cfg.replacementMode);
+          const storedMap = normalizeEntityMap(info.entity_map);
+          const fallbackMap = buildFallbackPreviewEntityMap(mapped, cfg.replacementMode);
+          if (Object.keys(storedMap).length > 0) {
+            setPreviewEntityMap(storedMap);
+          } else {
+            setPreviewEntityMap(fallbackMap);
+          }
+          const map =
+            isReadOnlyOutputRow && Object.keys(storedMap).length > 0
+              ? storedMap
+              : await fetchCachedBatchPreviewMap(mapped, cfg.replacementMode);
           if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
-          setPreviewEntityMap(map);
+          setPreviewEntityMap(Object.keys(map).length > 0 ? map : fallbackMap);
           reviewLastSavedJsonRef.current = JSON.stringify({
             entities: mapped.map((entity) => ({
               id: entity.id,
@@ -459,6 +578,15 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
         }
 
         reviewDraftInitializedRef.current = true;
+        setReviewLoadError(null);
+      } catch (error) {
+        if (loadSeq !== reviewLoadSeqRef.current || controller.signal.aborted) return;
+        const message = localizeErrorMessage(error, 'batchWizard.step4.loadFailed');
+        reviewDraftInitializedRef.current = false;
+        reviewDraftDirtyRef.current = false;
+        setReviewLoadError(message);
+        setReviewDraftError(message);
+        setMsg({ text: message, tone: 'err' });
       } finally {
         if (loadSeq === reviewLoadSeqRef.current && !controller.signal.aborted) {
           setReviewLoading(false);
@@ -467,9 +595,14 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     },
     [
       activeJobId,
+      cfg.hasImageTypes,
       cfg.replacementMode,
       isPreviewMode,
       itemIdByFileIdRef,
+      reviewFile?.analyzeStatus,
+      reviewFile?.hasReviewDraft,
+      reviewFile?.has_output,
+      reviewFile?.reviewConfirmed,
       reviewAutosaveTimerRef,
       reviewDraftDirtyRef,
       reviewDraftInitializedRef,
@@ -482,6 +615,8 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       setReviewImagePreview,
       setReviewImageRedoStack,
       setReviewImageUndoStack,
+      setMsg,
+      setReviewLoadError,
       setReviewLoading,
       setReviewOrigImageBlobUrl,
       setReviewPages,
@@ -489,17 +624,40 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
       setReviewTextRedoStack,
       setReviewTextUndoStack,
       setReviewTotalPages,
+      setReviewVisionQualityByPage,
     ],
   );
 
   useEffect(() => {
-    if (step !== 4 || !reviewFile) return;
-    void loadReviewData(reviewFile.file_id, reviewFile.isImageMode === true);
-  }, [step, reviewFile, loadReviewData]);
+    if (step !== 4 || !reviewFile) {
+      autoLoadedReviewKeyRef.current = '';
+      return;
+    }
+    const isImage = reviewFile.isImageMode === true;
+    const key = `${reviewFile.file_id}:${reviewItemId ?? 'pending-item'}:${
+      isImage ? 'image' : 'text'
+    }`;
+    if (autoLoadedReviewKeyRef.current === key) return;
+    autoLoadedReviewKeyRef.current = key;
+    void loadReviewData(reviewFile.file_id, isImage);
+  }, [step, reviewFile?.file_id, reviewFile?.isImageMode, reviewItemId, loadReviewData]);
 
   const rerunCurrentItemRecognition = useCallback(async () => {
     if (!reviewFile) return;
     const isImage = reviewFile.isImageMode === true;
+    const hasManualDraft =
+      reviewDraftDirtyRef.current ||
+      reviewEntities.length > 0 ||
+      _reviewBoxes.length > 0 ||
+      visibleReviewBoxes.length > 0;
+    if (
+      hasManualDraft &&
+      typeof window !== 'undefined' &&
+      !window.confirm(t('batchWizard.step4.rerunRecognitionConfirm'))
+    ) {
+      setMsg({ text: t('batchWizard.step4.rerunRecognitionCancelled'), tone: 'neutral' });
+      return;
+    }
 
     rerunAbortRef.current?.abort();
     const controller = new AbortController();
@@ -526,15 +684,19 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
           for (let attempt = 1; attempt <= 2; attempt += 1) {
             const timer = window.setTimeout(() => controller.abort(), VISION_TIMEOUT);
             try {
-              res = await authFetch(`/api/v1/redaction/${reviewFile.file_id}/vision?page=${page}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  selected_ocr_has_types: cfg.ocrHasTypes,
-                  selected_has_image_types: cfg.hasImageTypes,
-                }),
-                signal: controller.signal,
-              });
+              res = await authFetch(
+                `/api/v1/redaction/${reviewFile.file_id}/vision?page=${page}&include_result_image=false&force=true`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    selected_ocr_has_types: cfg.ocrHasTypes,
+                    selected_has_image_types: cfg.hasImageTypes,
+                    selected_vlm_types: cfg.vlmTypes ?? [],
+                  }),
+                  signal: controller.signal,
+                },
+              );
             } finally {
               window.clearTimeout(timer);
             }
@@ -546,12 +708,31 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
 
           if (controller.signal.aborted) return;
           if (!res || !res.ok) throw new Error(t('error.visionDetectionFailed'));
-          const data = (await res.json()) as { bounding_boxes?: Array<Record<string, unknown>> };
+          const data = (await res.json()) as {
+            bounding_boxes?: Array<Record<string, unknown>>;
+            warnings?: unknown[];
+            pipeline_status?: Record<string, Record<string, unknown>>;
+          };
           if (controller.signal.aborted) return;
 
           const pageBoxes = (data.bounding_boxes || []).map((box, index) =>
             normalizeReviewBox(box, index, page),
           );
+          setReviewVisionQualityByPage((prev) => ({
+            ...prev,
+            [page]: {
+              warnings: Array.isArray(data.warnings)
+                ? data.warnings.filter((warning): warning is string => typeof warning === 'string')
+                : [],
+              pipeline_status:
+                normalizeVisionQualityByPage({
+                  [page]: {
+                    pipeline_status: data.pipeline_status ?? {},
+                    warnings: data.warnings ?? [],
+                  },
+                })[page]?.pipeline_status ?? {},
+            },
+          }));
           maxBoxPage = pageBoxes.reduce(
             (max, box) => Math.max(max, normalizePage(box.page, 1)),
             maxBoxPage,
@@ -607,10 +788,14 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     }
   }, [
     reviewFile,
+    reviewEntities.length,
+    _reviewBoxes.length,
+    visibleReviewBoxes.length,
     reviewTotalPages,
     cfg.selectedEntityTypeIds,
     cfg.ocrHasTypes,
     cfg.hasImageTypes,
+    cfg.vlmTypes,
     cfg.replacementMode,
     reviewDraftDirtyRef,
     setMsg,
@@ -623,6 +808,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     setReviewTextRedoStack,
     setReviewTextUndoStack,
     setReviewTotalPages,
+    setReviewVisionQualityByPage,
   ]);
 
   useEffect(() => {
@@ -665,10 +851,12 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
   useEffect(() => {
     if (isPreviewMode) return;
     if (step !== 4 || !reviewFile || reviewLoading || reviewFile.isImageMode) return;
-    if (!reviewTextContent || reviewEntities.length === 0) {
+    if (!reviewTextContent) {
       setPreviewEntityMap({});
       return;
     }
+    if (reviewEntities.length === 0) return;
+    if (reviewFile.has_output === true && Object.keys(previewEntityMap).length > 0) return;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
@@ -689,6 +877,7 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
     reviewTextContent,
     reviewLoading,
     cfg.replacementMode,
+    previewEntityMap,
     isPreviewMode,
     setPreviewEntityMap,
   ]);
@@ -718,13 +907,16 @@ export function useBatchReviewData(deps: ReviewDataDeps): ReviewDataState {
               selected: box.selected,
               source: box.source,
               confidence: box.confidence,
+              evidence_source: box.evidence_source,
+              source_detail: box.source_detail,
+              warnings: box.warnings,
             })),
           config: {
             replacement_mode: ReplacementMode.STRUCTURED,
             entity_types: [],
             custom_replacements: {},
             image_redaction_method: cfg.imageRedactionMethod ?? 'mosaic',
-            image_redaction_strength: cfg.imageRedactionStrength ?? 25,
+            image_redaction_strength: cfg.imageRedactionStrength ?? 75,
             image_fill_color: cfg.imageFillColor ?? '#000000',
           },
         });

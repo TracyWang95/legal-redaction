@@ -2,128 +2,96 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Sparkles, Upload, ScanText, ShieldCheck, Layers3 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowRight, Layers3, Upload, X } from 'lucide-react';
 import { useT } from '../i18n';
 import { STORAGE_KEYS } from '@/constants/storage-keys';
 import { getStorageItem, setStorageItem } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 
-type Step = {
-  title: string;
-  description: string;
-  icon: typeof Sparkles;
-};
+const ONBOARDING_ROUTES = new Set(['/batch']);
 
 export function OnboardingGuide() {
   const location = useLocation();
   const t = useT();
   const [show, setShow] = useState(false);
-  const [step, setStep] = useState(0);
-
-  const steps: Step[] = [
-    { title: t('onboarding.step1.title'), description: t('onboarding.step1.desc'), icon: Sparkles },
-    { title: t('onboarding.step2.title'), description: t('onboarding.step2.desc'), icon: Upload },
-    { title: t('onboarding.step3.title'), description: t('onboarding.step3.desc'), icon: ScanText },
-    {
-      title: t('onboarding.step4.title'),
-      description: t('onboarding.step4.desc'),
-      icon: ShieldCheck,
-    },
-    { title: t('onboarding.step5.title'), description: t('onboarding.step5.desc'), icon: Layers3 },
-  ];
+  const shouldOfferOnboarding = ONBOARDING_ROUTES.has(location.pathname);
+  const isBatchEntry = location.pathname === '/batch';
 
   useEffect(() => {
-    if (location.pathname !== '/') {
+    if (
+      !shouldOfferOnboarding ||
+      getStorageItem<boolean>(STORAGE_KEYS.ONBOARDING_COMPLETED, false)
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with external system (route + localStorage)
       setShow(false);
       return;
     }
-    setShow(!getStorageItem<boolean>(STORAGE_KEYS.ONBOARDING_COMPLETED, false));
-  }, [location.pathname]);
+    const timer = window.setTimeout(() => {
+      setShow(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [shouldOfferOnboarding]);
 
   const finish = useCallback(() => {
     setStorageItem(STORAGE_KEYS.ONBOARDING_COMPLETED, true);
     setShow(false);
   }, []);
 
-  const current = steps[step];
-  const isLast = step === steps.length - 1;
-  const Icon = current.icon;
+  if (!show || !shouldOfferOnboarding) return null;
 
   return (
-    <Dialog
-      open={show}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) finish();
-      }}
+    <aside
+      role="complementary"
+      aria-labelledby="onboarding-title"
+      className="fixed bottom-4 right-4 z-40 w-[calc(100vw-2rem)] max-w-[22rem] rounded-2xl border border-border/80 bg-background/95 p-3 shadow-[var(--shadow-lg)] backdrop-blur md:bottom-5 md:right-5"
     >
-      <DialogContent
-        className="w-full max-w-lg overflow-hidden rounded-[28px] p-0 [&>button]:hidden"
-        aria-labelledby="onboarding-title"
-      >
-        <DialogTitle className="sr-only">{current.title}</DialogTitle>
-        <DialogDescription className="sr-only">{current.description}</DialogDescription>
-        <div className="h-1.5 bg-muted">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-accent-500 transition-all duration-500 ease-out"
-            style={{ width: `${((step + 1) / steps.length) * 100}%` }}
-          />
+      <div className="flex items-start gap-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-foreground text-background">
+          <Upload className="h-3.5 w-3.5" />
         </div>
-
-        <div className="space-y-6 p-7">
-          <div className="flex items-center justify-between">
-            <span className="saas-kicker">
-              {step + 1} / {steps.length}
-            </span>
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1">
+              <p className="saas-kicker">{t('onboarding.step1.title')}</p>
+              <h2 id="onboarding-title" className="text-base font-semibold text-foreground">
+                {t('onboarding.step2.title')}
+              </h2>
+            </div>
             <button
               type="button"
               onClick={finish}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              aria-label={t('onboarding.skip')}
             >
-              {t('onboarding.skip')}
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-foreground text-background">
-              <Icon className="h-5 w-5" />
-            </div>
-            <div className="space-y-3">
-              <h2
-                id="onboarding-title"
-                className="text-xl font-semibold tracking-[-0.03em] text-foreground"
-              >
-                {current.title}
-              </h2>
-              <p className="text-sm leading-7 text-muted-foreground">{current.description}</p>
-            </div>
+          <p className="text-sm leading-5 text-muted-foreground">{t('onboarding.step2.desc')}</p>
+
+          <div className="flex items-start gap-2 rounded-xl bg-muted/60 p-2.5 text-sm leading-5 text-muted-foreground">
+            <Layers3 className="h-4 w-4 shrink-0 text-foreground" />
+            <span>{t('onboarding.step5.desc')}</span>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1.5">
-              {steps.map((_, index) => (
-                <span
-                  key={index}
-                  className={`h-1.5 rounded-full transition-all ${index === step ? 'w-8 bg-foreground' : 'w-1.5 bg-border'}`}
-                />
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              {step > 0 && (
-                <Button variant="outline" onClick={() => setStep((s) => s - 1)}>
-                  {t('onboarding.prev')}
-                </Button>
-              )}
-              <Button onClick={isLast ? finish : () => setStep((s) => s + 1)}>
-                {isLast ? t('onboarding.start') : t('onboarding.next')}
+          <div className="flex flex-wrap justify-end gap-2">
+            {isBatchEntry && (
+              <Button asChild size="sm" onClick={finish}>
+                <Link to="/single">
+                  {t('start.entry.playground.cta')}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
               </Button>
-            </div>
+            )}
+            {!isBatchEntry && (
+              <Button size="sm" onClick={finish}>
+                {t('onboarding.start')}
+              </Button>
+            )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </aside>
   );
 }

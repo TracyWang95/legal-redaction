@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useT } from '@/i18n';
+import { useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { InteractionLockOverlay } from '@/components/InteractionLockOverlay';
 import { useRedactionPresets } from './hooks/use-redaction-presets';
 import { PresetColumn } from './components/preset-column';
 import { RedactionBridgeConfig } from './redaction-bridge-config';
@@ -15,6 +17,17 @@ import { RedactionPresetDialog } from './redaction-preset-dialog';
 export function RedactionList() {
   const t = useT();
   const state = useRedactionPresets();
+  const [operationLoading, setOperationLoading] = useState(false);
+
+  const runLocked = async (action: () => void | Promise<void>) => {
+    if (operationLoading) return;
+    setOperationLoading(true);
+    try {
+      await action();
+    } finally {
+      setOperationLoading(false);
+    }
+  };
 
   if (state.loading) {
     return (
@@ -51,12 +64,12 @@ export function RedactionList() {
           </Alert>
         )}
 
-        <Card className="page-surface overflow-hidden">
-          <CardHeader className="pb-3">
+        <Card className="page-surface overflow-hidden rounded-2xl border-border/70 shadow-[var(--shadow-control)]">
+          <CardHeader className="px-4 pb-2 pt-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <CardTitle className="text-sm">{t('settings.redaction.configTitle')}</CardTitle>
-                <CardDescription className="mt-0.5 text-xs">
+                <CardDescription className="mt-0.5 text-xs leading-5">
                   {t('settings.redaction.configDesc')}
                 </CardDescription>
               </div>
@@ -64,6 +77,7 @@ export function RedactionList() {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="h-8 whitespace-nowrap"
                   onClick={() => state.openNew('text')}
                   data-testid="new-text-preset"
                 >
@@ -72,6 +86,7 @@ export function RedactionList() {
                 <Button
                   size="sm"
                   variant="outline"
+                  className="h-8 whitespace-nowrap"
                   onClick={() => state.openNew('vision')}
                   data-testid="new-vision-preset"
                 >
@@ -81,7 +96,7 @@ export function RedactionList() {
             </div>
           </CardHeader>
 
-          <CardContent className="page-surface-body flex flex-col gap-4 p-6">
+          <CardContent className="page-surface-body flex flex-col gap-3 p-4">
             <RedactionBridgeConfig
               bridgeText={state.bridgeText}
               bridgeVision={state.bridgeVision}
@@ -93,7 +108,7 @@ export function RedactionList() {
               setBridgeVision={state.setBridgeVision}
             />
 
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <PresetColumn
                 title={t('settings.redaction.textColumn')}
                 defaultPreset={state.defaultTextPreset}
@@ -109,7 +124,7 @@ export function RedactionList() {
                     title: t('common.delete'),
                     message: t('settings.redaction.confirmDelete'),
                     danger: true,
-                    onConfirm: () => void state.removePreset(id),
+                    onConfirm: () => state.removePreset(id),
                   })
                 }
               />
@@ -128,7 +143,7 @@ export function RedactionList() {
                     title: t('common.delete'),
                     message: t('settings.redaction.confirmDelete'),
                     danger: true,
-                    onConfirm: () => void state.removePreset(id),
+                    onConfirm: () => state.removePreset(id),
                   })
                 }
               />
@@ -156,13 +171,17 @@ export function RedactionList() {
           title={state.confirmState.title}
           message={state.confirmState.message}
           danger={state.confirmState.danger}
-          onConfirm={() => {
-            state.confirmState!.onConfirm();
-            state.setConfirmState(null);
-          }}
+          onConfirm={() =>
+            void runLocked(async () => {
+              const action = state.confirmState?.onConfirm;
+              state.setConfirmState(null);
+              await action?.();
+            })
+          }
           onCancel={() => state.setConfirmState(null)}
         />
       )}
+      <InteractionLockOverlay active={operationLoading || state.saving} />
     </div>
   );
 }

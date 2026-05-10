@@ -50,6 +50,11 @@ export function usePlaygroundEntities() {
     [],
   );
 
+  const cancelRerunNerText = useCallback(() => {
+    nerAbortRef.current?.abort();
+    nerAbortRef.current = null;
+  }, []);
+
   const handleRerunNerText = useCallback(
     async (
       fileId: string,
@@ -57,8 +62,7 @@ export function usePlaygroundEntities() {
       setIsLoading: (v: boolean) => void,
       setLoadingMessage: (v: string) => void,
     ) => {
-      // Abort any in-flight NER request before starting a new one
-      nerAbortRef.current?.abort();
+      if (nerAbortRef.current) return;
       const controller = new AbortController();
       nerAbortRef.current = controller;
 
@@ -91,6 +95,9 @@ export function usePlaygroundEntities() {
         if (controller.signal.aborted) return;
         showToast(localizeErrorMessage(err, 'playground.recognizeFailed'), 'error');
       } finally {
+        if (nerAbortRef.current === controller) {
+          nerAbortRef.current = null;
+        }
         if (!controller.signal.aborted) {
           setIsLoading(false);
           setLoadingMessage('');
@@ -109,5 +116,6 @@ export function usePlaygroundEntities() {
     selectAllEntities,
     deselectAllEntities,
     handleRerunNerText,
+    cancelRerunNerText,
   };
 }

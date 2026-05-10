@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from difflib import SequenceMatcher
 
 from PIL import Image, ImageDraw, ImageFont
@@ -40,9 +39,11 @@ def match_ocr_to_vlm(
     def normalize_text(text: str) -> str:
         if not text:
             return ""
-        text = re.sub(r"\s+", "", text)
-        text = re.sub(r"[^\w\u4e00-\u9fff]", "", text)
-        return text
+        return "".join(
+            ch
+            for ch in text
+            if not ch.isspace() and (ch.isalnum() or ch == "_" or "\u4e00" <= ch <= "\u9fff")
+        )
 
     refined_regions: list[SensitiveRegion] = []
 

@@ -162,7 +162,13 @@ def auth_integration_client(tmp_data_dir: str) -> Generator[TestClient, None, No
     app.dependency_overrides.clear()
 
     import app.core.auth as _auth_mod
+    import app.core.token_blacklist as _blacklist_mod
+    from app.core.token_blacklist import TokenBlacklist
+
+    _prev_auth_file = _auth_mod._AUTH_FILE
+    _prev_blacklist = _blacklist_mod._instance
     _auth_mod._AUTH_FILE = os.path.join(tmp_data_dir, "data", "auth.json")
+    _blacklist_mod._instance = TokenBlacklist(os.path.join(tmp_data_dir, "data", "token_blacklist.sqlite3"))
 
     # Patch the cached settings singleton so require_auth actually enforces auth
     from app.core.config import settings
@@ -178,6 +184,8 @@ def auth_integration_client(tmp_data_dir: str) -> Generator[TestClient, None, No
         yield client
 
     settings.AUTH_ENABLED = _orig_auth
+    _auth_mod._AUTH_FILE = _prev_auth_file
+    _blacklist_mod._instance = _prev_blacklist
     app.dependency_overrides.clear()
     for key in ("UPLOAD_DIR", "OUTPUT_DIR", "DATA_DIR", "JOB_DB_PATH",
                 "AUTH_ENABLED", "DEBUG"):

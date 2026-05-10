@@ -52,6 +52,8 @@ class EntityType(str, Enum):
     BANK_CARD = "BANK_CARD"             # [D] 银行卡号
     BANK_ACCOUNT = "BANK_ACCOUNT"       # [D] 银行账号
     WECHAT_ALIPAY = "WECHAT_ALIPAY"     # [D] 微信/支付宝账号
+    USERNAME_PASSWORD = "USERNAME_PASSWORD"  # [D] 账号
+    AUTH_SECRET = "AUTH_SECRET"         # [D] 密码/密钥
     IP_ADDRESS = "IP_ADDRESS"           # [D] IP地址
     MAC_ADDRESS = "MAC_ADDRESS"         # [D] MAC地址
     DEVICE_ID = "DEVICE_ID"             # [D] 设备标识
@@ -65,19 +67,21 @@ class EntityType(str, Enum):
     BIRTH_DATE = "BIRTH_DATE"           # [Q] 出生日期
     AGE = "AGE"                         # [Q] 年龄
     GENDER = "GENDER"                   # [Q] 性别
-    NATIONALITY = "NATIONALITY"         # [Q] 国籍/民族
+    NATIONALITY = "NATIONALITY"         # [Q] 国籍
+    ETHNICITY = "ETHNICITY"             # [Q] 民族/族裔
+    MARITAL_STATUS = "MARITAL_STATUS"   # [Q] 婚姻状态
     ADDRESS = "ADDRESS"                 # [Q] 详细地址
     POSTAL_CODE = "POSTAL_CODE"         # [Q] 邮政编码
     GPS_LOCATION = "GPS_LOCATION"       # [Q] GPS坐标
-    OCCUPATION = "OCCUPATION"           # [Q] 职业/职务
     EDUCATION = "EDUCATION"             # [Q] 教育背景
     WORK_UNIT = "WORK_UNIT"             # [Q] 工作单位
     DATE = "DATE"                       # [Q] 日期
     TIME = "TIME"                       # [Q] 时间
+    URL_WEBSITE = "URL_WEBSITE"         # [Q] 网址
     LICENSE_PLATE = "LICENSE_PLATE"     # [Q] 车牌号
     VIN = "VIN"                         # [Q] 车架号/VIN
-    CASE_NUMBER = "CASE_NUMBER"         # [Q] 案件编号
-    CONTRACT_NO = "CONTRACT_NO"         # [Q] 合同编号
+    CASE_NUMBER = "CASE_NUMBER"         # [Q] 编号
+    CONTRACT_NO = "CONTRACT_NO"         # [Q] 历史别名，按 CASE_NUMBER 处理
     ORG = "ORG"                         # [Q] 机构名称
     COMPANY_CODE = "COMPANY_CODE"       # [Q] 统一社会信用代码
 
@@ -89,6 +93,7 @@ class EntityType(str, Enum):
     CRIMINAL_RECORD = "CRIMINAL_RECORD" # [S] 犯罪记录
     POLITICAL = "POLITICAL"             # [S] 政治面貌
     RELIGION = "RELIGION"               # [S] 宗教信仰
+    SEXUAL_ORIENTATION = "SEXUAL_ORIENTATION" # [S] 性取向
 
     # === 其他 ===
     CUSTOM = "CUSTOM"                   # 自定义类型

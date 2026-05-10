@@ -30,7 +30,7 @@ export function JobStatusBadge({ status }: { status: string }) {
   return (
     <Badge
       variant="outline"
-      className={cn('text-2xs font-medium', statusToneClass(status))}
+      className={cn('shrink-0 whitespace-nowrap text-2xs font-medium', statusToneClass(status))}
       title={meta.description}
       data-testid="job-status-badge"
     >
@@ -41,7 +41,11 @@ export function JobStatusBadge({ status }: { status: string }) {
 
 export function JobTypeBadge({ jobType: _jobType }: { jobType: JobTypeApi }) {
   return (
-    <Badge variant="secondary" className="text-2xs font-semibold" data-testid="job-type-badge">
+    <Badge
+      variant="secondary"
+      className="shrink-0 whitespace-nowrap text-2xs font-semibold"
+      data-testid="job-type-badge"
+    >
       {t('jobs.batchTask')}
     </Badge>
   );
@@ -51,7 +55,10 @@ export function RedactionStateBadge({ state }: { state: RedactionState }) {
   return (
     <Badge
       variant="outline"
-      className={cn('text-2xs font-medium', REDACTION_STATE_CLASS[state])}
+      className={cn(
+        'shrink-0 whitespace-nowrap text-2xs font-medium',
+        REDACTION_STATE_CLASS[state],
+      )}
       data-testid="redaction-state-badge"
     >
       {getRedactionStateLabel(state)}

@@ -13,7 +13,7 @@ function buildHistoryPreviewRows(): FileListItem[] {
     { prefix: '扫描卷宗', type: FileType.PDF, source: 'batch' as const },
     { prefix: '签章复核', type: FileType.PDF_SCANNED, source: 'batch' as const },
     { prefix: '现场影像', type: FileType.IMAGE, source: 'playground' as const },
-    { prefix: '庭审材料', type: FileType.DOCX, source: 'batch' as const },
+    { prefix: '审计材料', type: FileType.DOCX, source: 'batch' as const },
   ];
 
   for (let index = 0; index < PREVIEW_ROW_COUNT; index += 1) {
@@ -27,9 +27,7 @@ function buildHistoryPreviewRows(): FileListItem[] {
           ? 'awaiting_review'
           : statusCycle === 2
             ? 'review_approved'
-            : statusCycle === 3
-              ? 'completed'
-              : 'completed';
+            : 'completed';
 
     rows.push({
       file_id: `preview-history-${index + 1}`,
@@ -66,6 +64,7 @@ function buildHistoryPreviewRows(): FileListItem[] {
               progress: {
                 total_items: 12,
                 pending: 0,
+                processing: statusCycle === 2 ? 1 : 0,
                 queued: 0,
                 parsing: 0,
                 ner: 0,
@@ -109,7 +108,7 @@ export function isHistoryPreviewRow(row: FileListItem): boolean {
 }
 
 export function buildHistoryPreviewCompare(row: FileListItem): CompareData {
-  const baseText = `文件 ${row.original_filename} 的示例对比结果已生成，用来检查列表、翻页和对比弹窗的排版。`;
+  const baseText = `文件 ${row.original_filename} 的示例对比结果已生成，用于检查列表、分页和对比弹窗的排版。`;
   return {
     file_id: row.file_id,
     original_content: `${baseText}\n原文包含张宁、310101199201013422、静安区南京西路 88 号。`,

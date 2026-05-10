@@ -11,8 +11,13 @@ export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
 const DEFAULT_API_PREFIX = '/api/v1';
 const RAW_API_PREFIX = import.meta.env.VITE_API_PREFIX ?? DEFAULT_API_PREFIX;
 
-function normalizeApiPrefix(prefix: string): string {
-  const withLeadingSlash = prefix.startsWith('/') ? prefix : `/${prefix}`;
+export function normalizeApiPrefix(prefix: string): string {
+  const trimmed = String(prefix || '').trim();
+  if (!trimmed) return DEFAULT_API_PREFIX;
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/+$/, '') || DEFAULT_API_PREFIX;
+  }
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   const normalized = withLeadingSlash.replace(/\/+$/, '');
   return normalized || DEFAULT_API_PREFIX;
 }
@@ -89,9 +94,7 @@ function normalizeApiInput(input: RequestInfo | URL): RequestInfo | URL {
 
 export function getCsrfToken(): string | null {
   if (typeof document === 'undefined') return null;
-  const raw = document.cookie
-    .split('; ')
-    .find((cookie) => cookie.startsWith('csrf_token='));
+  const raw = document.cookie.split('; ').find((cookie) => cookie.startsWith('csrf_token='));
   if (!raw) return null;
   return decodeURIComponent(raw.slice('csrf_token='.length));
 }

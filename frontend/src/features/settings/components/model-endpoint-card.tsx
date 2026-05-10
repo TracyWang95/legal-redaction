@@ -46,58 +46,71 @@ export function ModelEndpointCard({
   const t = useT();
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
+    <Card className="overflow-hidden rounded-2xl border-border/70 shadow-[var(--shadow-control)]">
+      <CardHeader className="px-4 pb-2 pt-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1">
             <CardTitle className="text-base">{title}</CardTitle>
-            <CardDescription className="text-xs leading-relaxed">{description}</CardDescription>
+            <CardDescription className="max-w-3xl text-xs leading-5">{description}</CardDescription>
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <Badge variant="secondary" className="whitespace-nowrap text-[10px] leading-4">
+                {t('common.enabled')}
+              </Badge>
+              {liveStatus === 'online' && (
+                <Badge
+                  className={`whitespace-nowrap text-[10px] leading-4 ${tonePanelClass.success}`}
+                >
+                  {t('common.online')}
+                </Badge>
+              )}
+              {liveStatus === 'offline' && (
+                <Badge variant="destructive" className="whitespace-nowrap text-[10px] leading-4">
+                  {t('common.offline')}
+                </Badge>
+              )}
+              {liveStatus === undefined && (
+                <Badge variant="outline" className="whitespace-nowrap text-[10px] leading-4">
+                  {t('common.checking')}
+                </Badge>
+              )}
+              {tags?.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="whitespace-nowrap text-[10px] leading-4"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
           </div>
-          <Button size="sm" onClick={onSave} disabled={saving} data-testid="save-endpoint">
+          <Button
+            size="sm"
+            className="h-8 shrink-0 whitespace-nowrap"
+            onClick={onSave}
+            disabled={saving}
+            data-testid="save-endpoint"
+          >
             {saving ? t('common.saving') : t('common.saveConfig')}
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium">{title}</span>
-          <Badge variant="secondary" className="text-xs">
-            {t('common.enabled')}
-          </Badge>
-          {liveStatus === 'online' && (
-            <Badge className={`text-xs ${tonePanelClass.success}`}>{t('common.online')}</Badge>
-          )}
-          {liveStatus === 'offline' && (
-            <Badge variant="destructive" className="text-xs">
-              {t('common.offline')}
-            </Badge>
-          )}
-          {liveStatus === undefined && (
-            <Badge variant="outline" className="text-xs">
-              {t('common.checking')}
-            </Badge>
-          )}
-          {tags?.map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>{endpointLabel ?? t('common.endpointUrl')}</Label>
-          <div className="flex items-center gap-2">
+      <CardContent className="space-y-3 px-4 pb-4 pt-0">
+        <div className="space-y-1">
+          <Label className="text-xs">{endpointLabel ?? t('common.endpointUrl')}</Label>
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
             <Input
               value={endpointUrl}
               onChange={(e) => onEndpointChange(e.target.value)}
               placeholder={placeholder ?? 'http://127.0.0.1:8080/v1'}
-              className="flex-1 font-mono text-sm"
+              className="h-9 min-w-0 flex-1 font-mono text-sm"
               data-testid="endpoint-url"
             />
             <Button
               size="sm"
               variant="outline"
+              className="h-9 shrink-0 whitespace-nowrap"
               onClick={onTest}
               disabled={testing}
               data-testid="test-endpoint"
@@ -111,7 +124,7 @@ export function ModelEndpointCard({
         {testResult && (
           <div
             className={cn(
-              'rounded-lg border p-3 text-sm',
+              'rounded-lg border px-3 py-2 text-xs leading-5',
               testResult.success ? tonePanelClass.success : tonePanelClass.danger,
             )}
           >

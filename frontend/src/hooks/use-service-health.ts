@@ -3,9 +3,27 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
-interface ServiceInfo {
+export interface ServiceInfo {
   name: string;
-  status: 'online' | 'offline' | 'checking';
+  status: 'online' | 'offline' | 'checking' | 'busy' | 'degraded';
+  detail?: ServiceDetail | null;
+}
+
+export type ServiceStatus = ServiceInfo['status'];
+export type ServiceRuntimeMode = 'gpu' | 'cpu' | 'unknown';
+export interface ServiceDetail {
+  runtime?: string | null;
+  runtime_mode?: ServiceRuntimeMode;
+  gpu_available?: boolean | null;
+  device?: string | null;
+  gpu_only_mode?: boolean | null;
+  cpu_fallback_risk?: boolean | null;
+}
+
+export interface GpuProcessInfo {
+  pid: number;
+  name: string;
+  used_mb?: number | null;
 }
 
 export interface ServicesHealth {
@@ -13,15 +31,33 @@ export interface ServicesHealth {
   probe_ms?: number;
   checked_at?: string;
   gpu_memory?: { used_mb: number; total_mb: number } | null;
+  gpu_processes?: GpuProcessInfo[];
   services: {
     paddle_ocr: ServiceInfo;
     has_ner: ServiceInfo;
     has_image: ServiceInfo;
+    vlm?: ServiceInfo;
   };
 }
 
 const HEALTH_TIMEOUT_MS = 55_000;
 const HEALTH_POLL_INTERVAL_MS = 15_000;
+
+const LIVE_SERVICE_STATUSES = new Set([
+  'online',
+  'busy',
+  'running',
+  'processing',
+  'inferencing',
+  'loading',
+]);
+
+const serviceFallbacks: Required<ServicesHealth['services']> = {
+  paddle_ocr: { name: 'PaddleOCR', status: 'offline' },
+  has_ner: { name: 'HaS Text', status: 'offline' },
+  has_image: { name: 'HaS Image', status: 'offline' },
+  vlm: { name: 'VLM', status: 'offline' },
+};
 
 type HealthStoreSnapshot = {
   health: ServicesHealth | null;
@@ -51,6 +87,100 @@ function updateSnapshot(next: Partial<HealthStoreSnapshot>) {
   emitHealthChange();
 }
 
+function normalizeService(value: unknown, fallback: ServiceInfo): ServiceInfo {
+  if (!value || typeof value !== 'object') return fallback;
+  const raw = value as Partial<ServiceInfo>;
+  const normalizedStatus = typeof raw.status === 'string' && LIVE_SERVICE_STATUSES.has(raw.status)
+    ? 'online'
+    : raw.status;
+  const detail = normalizeServiceDetail(raw.detail);
+
+  return {
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : fallback.name,
+    status:
+      normalizedStatus === 'online' ||
+      normalizedStatus === 'offline' ||
+      normalizedStatus === 'checking' ||
+      normalizedStatus === 'degraded'
+        ? normalizedStatus
+        : fallback.status,
+    detail,
+  };
+}
+
+function normalizeServiceDetail(value: unknown): ServiceDetail | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const raw = value as Record<string, unknown>;
+  const detail: ServiceDetail = {};
+  if (typeof raw.runtime === 'string') detail.runtime = raw.runtime;
+  if (
+    raw.runtime_mode === 'gpu' ||
+    raw.runtime_mode === 'cpu' ||
+    raw.runtime_mode === 'unknown'
+  ) {
+    detail.runtime_mode = raw.runtime_mode;
+  }
+  if (typeof raw.gpu_available === 'boolean' || raw.gpu_available === null) {
+    detail.gpu_available = raw.gpu_available;
+  }
+  if (typeof raw.device === 'string') detail.device = raw.device;
+  if (typeof raw.gpu_only_mode === 'boolean' || raw.gpu_only_mode === null) {
+    detail.gpu_only_mode = raw.gpu_only_mode;
+  }
+  if (typeof raw.cpu_fallback_risk === 'boolean' || raw.cpu_fallback_risk === null) {
+    detail.cpu_fallback_risk = raw.cpu_fallback_risk;
+  }
+  return Object.keys(detail).length ? detail : undefined;
+}
+
+function normalizeGpuProcesses(value: unknown): GpuProcessInfo[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const raw = item as Partial<GpuProcessInfo>;
+    if (typeof raw.pid !== 'number') return [];
+    return [
+      {
+        pid: raw.pid,
+        name: typeof raw.name === 'string' ? raw.name : '',
+        used_mb: typeof raw.used_mb === 'number' ? raw.used_mb : null,
+      },
+    ];
+  });
+}
+
+export function normalizeHealthPayload(value: unknown): ServicesHealth {
+  const data = value && typeof value === 'object' ? (value as Partial<ServicesHealth>) : {};
+  const services = data.services && typeof data.services === 'object' ? data.services : {};
+  const normalizedServices = {
+    paddle_ocr: normalizeService(
+      (services as Partial<ServicesHealth['services']>).paddle_ocr,
+      serviceFallbacks.paddle_ocr,
+    ),
+    has_ner: normalizeService(
+      (services as Partial<ServicesHealth['services']>).has_ner,
+      serviceFallbacks.has_ner,
+    ),
+    has_image: normalizeService(
+      (services as Partial<ServicesHealth['services']>).has_image,
+      serviceFallbacks.has_image,
+    ),
+    vlm: normalizeService(
+      (services as Partial<ServicesHealth['services']>).vlm,
+      serviceFallbacks.vlm,
+    ),
+  };
+
+  return {
+    all_online: Object.values(normalizedServices).every((service) => service.status === 'online'),
+    probe_ms: typeof data.probe_ms === 'number' ? data.probe_ms : undefined,
+    checked_at: typeof data.checked_at === 'string' ? data.checked_at : undefined,
+    gpu_memory: data.gpu_memory ?? null,
+    gpu_processes: normalizeGpuProcesses((data as { gpu_processes?: unknown }).gpu_processes),
+    services: normalizedServices,
+  };
+}
+
 async function runHealthCheck(showChecking: boolean) {
   if (activeFetch) {
     if (showChecking && !snapshot.checking) updateSnapshot({ checking: true });
@@ -72,7 +202,7 @@ async function runHealthCheck(showChecking: boolean) {
         updateSnapshot({ health: null, roundTripMs: null });
         return;
       }
-      const data = (await res.json()) as ServicesHealth;
+      const data = normalizeHealthPayload(await res.json().catch(() => ({})));
       updateSnapshot({
         health: data,
         roundTripMs: Math.round(performance.now() - t0),

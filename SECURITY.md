@@ -1,45 +1,54 @@
-# Security Policy / 安全策略
+# Security Policy
 
-## Supported Versions / 支持版本
+DataInfra · RedactionEverything is designed for local or private-network processing of sensitive documents. Security issues should be handled privately and promptly.
 
-| Version | Status |
-|---|---|
-| `main` branch | :white_check_mark: Supported / 支持中 |
+## Supported Versions
 
-## Reporting a Vulnerability / 报告漏洞
+| Version       | Status    |
+| ------------- | --------- |
+| `main` branch | Supported |
 
-If you discover a security vulnerability, please follow responsible disclosure:
+## Reporting A Vulnerability
 
-如果你发现安全漏洞，请遵循负责任的披露流程：
+Please do not open a public issue for security vulnerabilities.
 
-1. **Do not** open a public Issue. / **不要**在公开 Issue 中描述漏洞细节。
-2. Use [GitHub Security Advisories](https://github.com/TracyWang95/DataInfra-RedactionEverything/security/advisories/new) to report privately. / 使用 GitHub Security Advisories 私下报告。
-3. Or contact the maintainer directly via [GitHub profile](https://github.com/TracyWang95). / 或通过 GitHub 主页联系维护者。
+Use one of these private channels:
 
-We will acknowledge receipt within **48 hours** and aim to provide a fix within **7 days**.
+1. Open a GitHub Security Advisory: <https://github.com/TracyWang95/DataInfra-RedactionEverything/security/advisories/new>
+2. Contact the maintainer through the GitHub profile: <https://github.com/TracyWang95>
 
-我们会在 **48 小时**内确认收到，并在 **7 天**内提供修复方案。
+We aim to acknowledge valid reports within 48 hours and provide a fix or mitigation plan within 7 days when practical.
 
-## Security Design / 安全设计原则
+## Security Design Principles
 
-| Principle / 原则 | Implementation / 实现 |
-|---|---|
-| **无云端依赖** | 所有 AI 推理（OCR、NER、Vision）本地运行，零外部 API 调用 |
-| **数据隔离** | 上传文件仅存储在本地文件系统 `backend/uploads/` |
-| **网络边界** | 服务设计为内网部署，请勿暴露到公网 |
-| **模型来源** | 模型权重仅从官方渠道下载（[Hugging Face](https://huggingface.co/xuanwulab)、[PaddlePaddle](https://www.paddlepaddle.org.cn/)） |
+| Principle                      | Implementation                                                                            |
+| ------------------------------ | ----------------------------------------------------------------------------------------- |
+| Local-first processing         | OCR, NER, and vision inference are designed to run locally or inside your private network |
+| No cloud dependency by default | Core processing does not require uploading documents to a cloud API                       |
+| File isolation                 | Uploaded files and generated outputs stay under backend-managed storage directories       |
+| Authentication                 | Production deployments should keep `AUTH_ENABLED=true`                                    |
+| Review before export           | Batch processing supports human review before producing final redacted outputs            |
+| Service visibility             | Health checks expose whether OCR, NER, and vision services are online, busy, or offline   |
 
-## Deployment Best Practices / 部署建议
+## Deployment Recommendations
 
-- 部署在 **VPN 或防火墙**后，不要将 3000、8000、8080-8082 端口暴露到不信任的网络
-- 生产环境启用 **`AUTH_ENABLED=true`** 开启 JWT 认证
-- 定期清理 `backend/uploads/` 和 `backend/outputs/` 中的已处理文件
-- 保持依赖更新：`pip install --upgrade` + `npm audit`
-- 使用**加密存储**保护存放敏感文档的主机文件系统
+- Run the system behind a VPN, reverse proxy, or internal network boundary
+- Do not expose ports `3000`, `8000`, or `8080-8082` directly to the public internet
+- Keep `AUTH_ENABLED=true` outside isolated local development
+- Use strong passwords and rotate credentials when staff changes
+- Restrict filesystem permissions for `backend/uploads`, `backend/outputs`, and `backend/data`
+- Regularly clean processed files that are no longer needed
+- Keep Python and Node dependencies updated
+- Use disk encryption on machines that store sensitive source documents
+- Avoid committing sample documents, generated redaction outputs, `.env`, tokens, or local database files
 
-## Data Handling / 数据处理
+## Data Handling
 
-- 不收集、不传输任何遥测数据或使用分析
-- 所有处理在内存和本地磁盘完成
-- 任务队列数据库仅存储任务元数据，不包含文档内容
-- 用户负责处理完成后的敏感文件管理和清除
+The application does not need telemetry or analytics to process documents. Uploaded content is processed in memory and local storage controlled by the backend. Operators are responsible for retention, backup, and deletion policies in their own deployment.
+
+## Dependency And Model Supply Chain
+
+- Install dependencies from trusted package indexes
+- Download model weights from official or organization-approved sources
+- Verify model filenames, checksums, and expected runtime behavior before production use
+- Pin and review dependency updates for deployments that process regulated data

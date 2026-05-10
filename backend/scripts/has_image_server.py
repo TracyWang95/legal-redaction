@@ -11,11 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import logging
 import os
 import sys
 import time
 from io import BytesIO
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,17 +28,61 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from app.core.has_image_categories import (  # noqa: E402
-    SLUG_TO_CLASS_ID,
     class_index_to_slug,
     slug_list_to_class_indices,
 )
 
 app = FastAPI(title="HaS Image Service", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"], allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"])
+logger = logging.getLogger("has_image_server")
 
 _model = None
 _ready = False
 _weights_path = ""
+_device = "unknown"
+_gpu_available = False
+
+
+def _allow_cpu() -> bool:
+    return os.environ.get("HAS_IMAGE_ALLOW_CPU", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_device() -> str:
+    global _gpu_available
+    try:
+        import torch
+
+        _gpu_available = bool(torch.cuda.is_available() and torch.cuda.device_count() > 0)
+    except Exception as exc:
+        _gpu_available = False
+        if not _allow_cpu():
+            print(f"[HaS-Image] FATAL: unable to inspect CUDA availability: {exc}", flush=True)
+            sys.exit(1)
+
+    configured = os.environ.get("HAS_IMAGE_DEVICE", "").strip()
+    if configured:
+        if configured.lower() == "cpu" and not _allow_cpu():
+            print(
+                "[HaS-Image] FATAL: HAS_IMAGE_DEVICE=cpu is blocked by GPU-only mode. "
+                "Set HAS_IMAGE_ALLOW_CPU=1 for debug-only CPU mode.",
+                flush=True,
+            )
+            sys.exit(1)
+        return configured
+
+    if _gpu_available:
+        return "0"
+    if _allow_cpu():
+        print("[HaS-Image] WARN: HAS_IMAGE_ALLOW_CPU=1; running CPU inference.", flush=True)
+        return "cpu"
+
+    print(
+        "[HaS-Image] FATAL: no CUDA GPU detected. "
+        "HaS Image defaults to GPU-only mode to avoid silent CPU fallback. "
+        "Set HAS_IMAGE_ALLOW_CPU=1 only for debug-only CPU mode.",
+        flush=True,
+    )
+    sys.exit(1)
 
 
 def _default_weights() -> str:
@@ -62,7 +107,7 @@ def _default_weights() -> str:
 
 
 def init_model() -> None:
-    global _model, _ready, _weights_path
+    global _model, _ready, _weights_path, _device
     _weights_path = _default_weights()
     if not os.path.isfile(_weights_path):
         print(f"[HaS-Image] WARN: 权重不存在: {_weights_path}", flush=True)
@@ -74,16 +119,17 @@ def init_model() -> None:
     except ImportError as e:
         print(f"[HaS-Image] FATAL: pip install ultralytics — {e}", flush=True)
         sys.exit(1)
+    _device = _resolve_device()
     print(f"[HaS-Image] Loading {_weights_path} ...", flush=True)
     _model = YOLO(_weights_path)
     _ready = True
-    print("[HaS-Image] Ready.", flush=True)
+    print(f"[HaS-Image] Ready on device={_device}.", flush=True)
 
 
 class DetectRequest(BaseModel):
     image_base64: str = Field(..., description="图片 base64（可含 data URL 前缀）")
     conf: float = Field(default=0.25, ge=0.01, le=1.0)
-    categories: Optional[List[str]] = Field(
+    categories: list[str] | None = Field(
         default=None,
         description="英文 category slug 列表，空或 null 表示 21 类全跑",
     )
@@ -99,7 +145,7 @@ class DetectBox(BaseModel):
 
 
 class DetectResponse(BaseModel):
-    boxes: List[DetectBox]
+    boxes: list[DetectBox]
     elapsed: float
     model: str
 
@@ -111,7 +157,7 @@ def _decode_b64(data: str) -> bytes:
     return base64.b64decode(s, validate=False)
 
 
-def _predict_sync(image_bytes: bytes, conf: float, classes: Optional[List[int]]) -> List[DetectBox]:
+def _predict_sync(image_bytes: bytes, conf: float, classes: list[int] | None) -> list[DetectBox]:
     if _model is None:
         return []
     if classes is not None and len(classes) == 0:
@@ -121,11 +167,11 @@ def _predict_sync(image_bytes: bytes, conf: float, classes: Optional[List[int]])
     if img.mode != "RGB":
         img = img.convert("RGB")
     w, h = img.size
-    kwargs: dict[str, Any] = {"conf": conf, "verbose": False}
+    kwargs: dict[str, Any] = {"conf": conf, "verbose": False, "device": _device}
     if classes is not None:
         kwargs["classes"] = classes
     results = _model.predict(img, **kwargs)
-    out: List[DetectBox] = []
+    out: list[DetectBox] = []
     if not results:
         return out
     r0 = results[0]
@@ -157,11 +203,19 @@ def _predict_sync(image_bytes: bytes, conf: float, classes: Optional[List[int]])
 
 @app.get("/health")
 async def health():
+    runtime_mode = "gpu" if _gpu_available and str(_device).lower() != "cpu" else "cpu"
+    gpu_only_mode = not _allow_cpu()
     return {
         "status": "ok" if _ready else "unavailable",
         "ready": _ready,
         "model": "HaS-Image-YOLO11",
         "weights": _weights_path,
+        "runtime": "ultralytics-yolo",
+        "runtime_mode": runtime_mode,
+        "gpu_available": _gpu_available,
+        "device": _device,
+        "gpu_only_mode": gpu_only_mode,
+        "cpu_fallback_risk": (not gpu_only_mode) or runtime_mode != "gpu",
     }
 
 
@@ -179,10 +233,14 @@ async def detect(req: DetectRequest):
         return DetectResponse(boxes=[], elapsed=0.0, model=os.path.basename(_weights_path))
     start = time.perf_counter()
     loop = asyncio.get_event_loop()
-    boxes = await loop.run_in_executor(
-        None,
-        lambda: _predict_sync(raw, req.conf, classes),
-    )
+    try:
+        boxes = await loop.run_in_executor(
+            None,
+            lambda: _predict_sync(raw, req.conf, classes),
+        )
+    except Exception as exc:
+        logger.exception("HaS Image prediction failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     elapsed = time.perf_counter() - start
     print(f"[HaS-Image] {len(boxes)} boxes in {elapsed:.2f}s", flush=True)
     return DetectResponse(boxes=boxes, elapsed=elapsed, model=os.path.basename(_weights_path))

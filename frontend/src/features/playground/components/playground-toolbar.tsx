@@ -24,11 +24,11 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = memo(
 
     return (
       <div
-        className="flex shrink-0 items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl"
+        className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background/80 px-4 py-2.5 backdrop-blur-xl"
         data-testid="playground-toolbar"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/60 text-foreground">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/60 text-foreground">
             <FileText className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -45,7 +45,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = memo(
               variant="outline"
               size="sm"
               onClick={onPopout}
-              className="h-9 rounded-xl border-0 bg-transparent px-3 text-xs shadow-none"
+              className="h-8 whitespace-nowrap rounded-xl border-0 bg-transparent px-3 text-xs shadow-none"
               data-testid="playground-popout-btn"
             >
               <ArrowUpRight data-icon="inline-start" />
@@ -60,7 +60,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = memo(
             disabled={!canUndo}
             title={t('playground.undo')}
             data-testid="playground-undo-btn"
-            className="h-9 rounded-xl px-3 text-xs"
+            className="h-8 whitespace-nowrap rounded-xl px-3 text-xs"
           >
             <Undo2 data-icon="inline-start" />
             {t('playground.undo')}
@@ -73,7 +73,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = memo(
             disabled={!canRedo}
             title={t('playground.redo')}
             data-testid="playground-redo-btn"
-            className="h-9 rounded-xl px-3 text-xs"
+            className="h-8 whitespace-nowrap rounded-xl px-3 text-xs"
           >
             <Redo2 data-icon="inline-start" />
             {t('playground.redo')}
@@ -83,7 +83,7 @@ export const PlaygroundToolbar: FC<PlaygroundToolbarProps> = memo(
             variant="ghost"
             size="sm"
             onClick={onReset}
-            className="h-9 rounded-xl px-3 text-xs text-muted-foreground"
+            className="h-8 whitespace-nowrap rounded-xl px-3 text-xs text-muted-foreground"
             data-testid="playground-reset-btn"
           >
             <RotateCcw data-icon="inline-start" />

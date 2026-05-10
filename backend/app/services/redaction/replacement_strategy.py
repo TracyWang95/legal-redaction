@@ -5,6 +5,7 @@
 """
 import logging
 
+from app.models.type_mapping import canonical_type_id, cn_to_id
 from app.models.schemas import (
     Entity,
     EntityType,
@@ -13,6 +14,17 @@ from app.models.schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _raw_entity_type_id(entity_type: object) -> str:
+    return entity_type.value if isinstance(entity_type, EntityType) else str(entity_type)
+
+
+def _type_key_for_entity(entity: Entity) -> str:
+    raw_type = _raw_entity_type_id(entity.type).strip()
+    if raw_type.lower().startswith("custom_"):
+        return raw_type.lower()
+    return canonical_type_id(raw_type)
 
 
 class RedactionContext:
@@ -45,10 +57,14 @@ class RedactionContext:
         获取实体的替换文本
         确保同一实体在整个文档中使用相同的替换
         """
-        # 使用 coref_id 作为主键以保持指代一致
-        entity_key = entity.coref_id or entity.text
+        type_key = _type_key_for_entity(entity)
+        # 使用兼容的 coref_id 作为主键以保持指代一致；模型误标的结构化标签不参与映射复用。
+        entity_key = self._coref_key_for_entity(entity, type_key)
         if entity_key in self._coref_map:
-            return self._coref_map[entity_key]
+            replacement = self._coref_map[entity_key]
+            if entity.text not in self.entity_map:
+                self.entity_map[entity.text] = replacement
+            return replacement
 
         # 根据模式生成替换文本
         if self.mode == ReplacementMode.CUSTOM:
@@ -74,8 +90,7 @@ class RedactionContext:
 
     def _generate_smart_replacement(self, entity: Entity) -> str:
         """生成智能替换文本"""
-        entity_type = entity.type
-        type_key = entity_type.value if isinstance(entity_type, EntityType) else str(entity_type)
+        type_key = _type_key_for_entity(entity)
 
         # 获取计数器
         if type_key not in self.type_counters:
@@ -85,7 +100,7 @@ class RedactionContext:
 
         # 根据类型生成替换文本（使用统一映射）
         from app.models.type_mapping import id_to_label
-        label = id_to_label(type_key)
+        label = self._get_type_label(type_key) or id_to_label(type_key)
 
         # 使用中文数字编号
         chinese_nums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"]
@@ -100,7 +115,7 @@ class RedactionContext:
         """生成掩码替换文本"""
         text = entity.text
         length = len(text)
-        type_key = entity.type.value if isinstance(entity.type, EntityType) else str(entity.type)
+        type_key = _type_key_for_entity(entity)
 
         if type_key == "PERSON":
             # 人名：保留姓，其他用 *
@@ -132,9 +147,14 @@ class RedactionContext:
 
     def _generate_structured_replacement(self, entity: Entity) -> str:
         """生成结构化语义标签"""
-        type_key = entity.type.value if isinstance(entity.type, EntityType) else str(entity.type)
+        type_key = _type_key_for_entity(entity)
 
-        if entity.coref_id and entity.coref_id.startswith("<") and entity.coref_id.endswith(">"):
+        if (
+            entity.coref_id
+            and entity.coref_id.startswith("<")
+            and entity.coref_id.endswith(">")
+            and self._is_structured_tag_compatible(type_key, entity.coref_id)
+        ):
             return entity.coref_id
 
         if entity.text in self.structured_tag_map:
@@ -157,11 +177,10 @@ class RedactionContext:
             "BANK_CARD": ("编号", "银行卡.号码"),
             "CASE_NUMBER": ("编号", "案件编号.号码"),
             "DATE": ("日期/时间", "具体日期.年月日"),
-            "MONEY": ("金额", "合同金额.数值"),
             "AMOUNT": ("金额", "合同金额.数值"),
             "EMAIL": ("邮箱", "个人邮箱.地址"),
             "LICENSE_PLATE": ("编号", "车牌.号码"),
-            "CONTRACT_NO": ("编号", "合同编号.代码"),
+            "CONTRACT_NO": ("编号", "业务编号.代码"),
         }
 
         if type_key not in self.type_counters:
@@ -169,13 +188,22 @@ class RedactionContext:
         self.type_counters[type_key] += 1
         index = self.type_counters[type_key]
 
+        if type_key.lower().startswith("custom_"):
+            label = self._get_type_label(type_key) or type_key
+            builtin_type_key = self._get_custom_builtin_type_key(type_key, set(structured_map))
+            builtin_type_name = structured_map.get(builtin_type_key or "")
+            if builtin_type_name:
+                _, path = builtin_type_name
+                return f"<{label}[{index:03d}].{path}>"
+            return f"<{label}[{index:03d}].完整值>"
+
         type_name = structured_map.get(type_key)
         if type_name:
             category, path = type_name
             return f"<{category}[{index:03d}].{path}>"
 
         # 自定义或未知类型兜底
-        label = type_key
+        label = self._get_type_label(type_key) or type_key
         return f"<{label}[{index:03d}].完整名称>"
 
     def _get_tag_template(self, type_key: str) -> str | None:
@@ -188,11 +216,69 @@ class RedactionContext:
             return None
         return None
 
+    def _get_type_label(self, type_key: str) -> str | None:
+        cfg = self._get_type_config(type_key)
+        name = str(getattr(cfg, "name", "") or "").strip() if cfg else ""
+        return name or None
+
+    def _get_type_config(self, type_key: str):
+        try:
+            from app.services.entity_type_service import entity_types_db
+            return entity_types_db.get(type_key)
+        except (ImportError, KeyError, AttributeError):
+            return None
+
+    def _get_custom_builtin_type_key(self, type_key: str, supported_type_keys: set[str]) -> str | None:
+        cfg = self._get_type_config(type_key)
+        if not cfg:
+            return None
+
+        values = [
+            str(getattr(cfg, "name", "") or "").strip(),
+            str(getattr(cfg, "description", "") or "").strip(),
+        ]
+        for value in values:
+            if not value:
+                continue
+            mapped = cn_to_id(value)
+            if mapped in supported_type_keys:
+                return mapped
+        return None
+
+    def _coref_key_for_entity(self, entity: Entity, type_key: str) -> str:
+        coref_id = entity.coref_id
+        if not coref_id:
+            return entity.text
+        if coref_id.startswith("<") and coref_id.endswith(">"):
+            if self._is_structured_tag_compatible(type_key, coref_id):
+                return coref_id
+            return f"{type_key}:{entity.text}"
+        return coref_id
+
+    @staticmethod
+    def _is_structured_tag_compatible(type_key: str, tag: str) -> bool:
+        tag_head = tag[1:].split("[", 1)[0]
+        compatible_heads = {
+            "PERSON": {"人名", "人物", "自然人"},
+            "ORG": {"组织", "机构", "机构信息", "单位"},
+            "ADDRESS": {"地址", "地点", "地理位置"},
+            "ID_CARD": {"证件", "证件号码", "身份证", "编号"},
+            "BANK_CARD": {"银行卡", "金融账户", "编号"},
+            "BANK_ACCOUNT": {"金融账户", "银行账号", "账号", "编号"},
+            "CASE_NUMBER": {"案件", "案件信息", "案号", "编号"},
+            "DATE": {"时间", "时间信息", "日期", "日期/时间"},
+            "AMOUNT": {"财务信息", "金额"},
+            "LICENSE_PLATE": {"车辆信息", "车牌", "编号"},
+            "PHONE": {"电话", "联系方式"},
+            "EMAIL": {"邮箱", "邮件"},
+        }
+        return tag_head in compatible_heads.get(type_key, {tag_head})
+
 
 def build_preview_entity_map(entities: list[Entity], config: RedactionConfig) -> dict[str, str]:
     """
     计算与 execute 一致的「原文 -> 替换」映射，不落盘、不写文件。
-    供批量向导第 4 步与 Playground 一致的三列预览。
+    供批量向导第 4 步与单文件处理一致的三列预览。
     """
     context = RedactionContext(config.replacement_mode)
     context.set_custom_replacements(dict(config.custom_replacements or {}))

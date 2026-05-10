@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { setActivePresetTextId, setActivePresetVisionId } from '@/services/activePresetBridge';
 import type { RecognitionPreset } from '@/services/presetsApi';
+import { localizePresetName } from './lib/redaction-display';
 
 const DEFAULT_PRESET_OPTION = '__default__';
 
@@ -41,18 +42,20 @@ export function RedactionBridgeConfig({
 
   return (
     <>
-      <div className="rounded-lg border bg-muted/30 px-3 py-2 text-xs">
-        <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="surface-subtle flex flex-col gap-2 px-3 py-2 text-xs leading-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="shrink-0 text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
           {t('settings.redaction.currentSelection')}
         </p>
-        <p>
-          <span className="text-muted-foreground">{t('settings.redaction.currentText')}</span>
-          <span className="font-medium">{summaryTextLabel}</span>
-        </p>
-        <p className="mt-0.5">
-          <span className="text-muted-foreground">{t('settings.redaction.currentVision')}</span>
-          <span className="font-medium">{summaryVisionLabel}</span>
-        </p>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-1">
+          <p className="min-w-0">
+            <span className="text-muted-foreground">{t('settings.redaction.currentText')}</span>
+            <span className="font-medium">{summaryTextLabel}</span>
+          </p>
+          <p className="min-w-0">
+            <span className="text-muted-foreground">{t('settings.redaction.currentVision')}</span>
+            <span className="font-medium">{summaryVisionLabel}</span>
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-2 md:grid-cols-2">
@@ -76,7 +79,7 @@ export function RedactionBridgeConfig({
                 </SelectItem>
                 {textPresets.map((preset) => (
                   <SelectItem key={preset.id} value={preset.id}>
-                    {preset.name}
+                    {localizePresetName(preset, t)}
                     {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
                   </SelectItem>
                 ))}
@@ -105,7 +108,7 @@ export function RedactionBridgeConfig({
                 </SelectItem>
                 {visionPresets.map((preset) => (
                   <SelectItem key={preset.id} value={preset.id}>
-                    {preset.name}
+                    {localizePresetName(preset, t)}
                     {preset.kind === 'full' ? ` (${t('settings.redaction.kind.full')})` : ''}
                   </SelectItem>
                 ))}

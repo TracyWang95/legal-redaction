@@ -23,12 +23,15 @@ import {
 import {
   buildDefaultPipelineTypeIds,
   buildDefaultTextTypeIds,
+  isDefaultExcludedPipelineTypeId,
+  isDefaultExcludedTextTypeId,
 } from '@/services/defaultRedactionPreset';
 import {
   fetchRecognitionEntityTypes,
   fetchRecognitionPipelines,
   fetchRecognitionPresets,
 } from '@/services/recognition-config';
+import { localizePresetName } from '@/features/settings/lib/redaction-display';
 import {
   previewBatchConfig,
   previewPipelines,
@@ -43,6 +46,13 @@ import {
   defaultConfig,
 } from './use-batch-wizard-utils';
 
+function localizePresetList(presets: RecognitionPreset[]): RecognitionPreset[] {
+  return presets.map((preset) => ({
+    ...preset,
+    name: localizePresetName(preset, t),
+  }));
+}
+
 export interface BatchConfigState {
   cfg: BatchWizardPersistedConfig;
   setCfg: React.Dispatch<React.SetStateAction<BatchWizardPersistedConfig>>;
@@ -52,6 +62,9 @@ export interface BatchConfigState {
   presets: RecognitionPreset[];
   textPresets: RecognitionPreset[];
   visionPresets: RecognitionPreset[];
+  presetLoadError: string | null;
+  presetReloading: boolean;
+  retryLoadPresets: () => Promise<void>;
   confirmStep1: boolean;
   setConfirmStep1: React.Dispatch<React.SetStateAction<boolean>>;
   isStep1Complete: boolean;
@@ -62,6 +75,7 @@ export interface BatchConfigState {
   batchDefaultTextTypeIds: string[];
   batchDefaultOcrHasTypeIds: string[];
   batchDefaultHasImageTypeIds: string[];
+  batchDefaultVlmTypeIds: string[];
   setConfigLoadError: (msg: string) => void;
 }
 
@@ -77,6 +91,8 @@ export function useBatchConfig(
   const [pipelines, setPipelines] = useState<PipelineCfg[]>([]);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [presets, setPresets] = useState<RecognitionPreset[]>([]);
+  const [presetLoadError, setPresetLoadError] = useState<string | null>(null);
+  const [presetReloading, setPresetReloading] = useState(false);
   const [confirmStep1, setConfirmStep1] = useState(false);
   const [jobPriority, setJobPriority] = useState<number>(0);
 
@@ -92,6 +108,8 @@ export function useBatchConfig(
       setTextTypes(previewTextTypes);
       setPipelines(previewPipelines);
       setPresets(previewPresets);
+      setPresetLoadError(null);
+      setPresetReloading(false);
       setCfg({ ...previewBatchConfig });
       setConfirmStep1(true);
       setJobPriority(5);
@@ -104,37 +122,66 @@ export function useBatchConfig(
     }
     (async () => {
       try {
-        const [types, pipes, presetRes] = await Promise.all([
+        const presetFetch = fetchRecognitionPresets()
+          .then((value) => ({ ok: true as const, value }))
+          .catch(() => ({ ok: false as const, value: [] as RecognitionPreset[] }));
+        const [types, pipes, presetResult] = await Promise.all([
           fetchRecognitionEntityTypes(true, 25_000),
           fetchRecognitionPipelines(25_000) as Promise<PipelineCfg[]>,
-          fetchRecognitionPresets().catch(() => [] as RecognitionPreset[]),
+          presetFetch,
         ]);
         if (cancelled) return;
         setTextTypes(types);
         setPipelines(pipes);
-        setPresets(Array.isArray(presetRes) ? presetRes : []);
+        setPresetLoadError(presetResult.ok ? null : t('batchWizard.step1.presetLoadError'));
+        setPresets(Array.isArray(presetResult.value) ? localizePresetList(presetResult.value) : []);
 
         const persisted = loadBatchWizardConfig(mode);
         const defaultTextTypeIds = buildDefaultTextTypeIds(types);
         const defaultOcrHasTypeIds = buildDefaultPipelineTypeIds(pipes, 'ocr_has');
         const defaultHasImageTypeIds = buildDefaultPipelineTypeIds(pipes, 'has_image');
+        const defaultVlmTypeIds = buildDefaultPipelineTypeIds(pipes, 'vlm');
         const ocrIds = pipes
           .filter((p) => p.mode === 'ocr_has' && p.enabled)
           .flatMap((p) => p.types.filter((tt) => tt.enabled).map((tt) => tt.id));
         const hiIds = pipes
           .filter((p) => p.mode === 'has_image' && p.enabled)
           .flatMap((p) => p.types.filter((tt) => tt.enabled).map((tt) => tt.id));
+        const vlmIds = pipes
+          .filter((p) => p.mode === 'vlm' && p.enabled)
+          .flatMap((p) => p.types.filter((tt) => tt.enabled).map((tt) => tt.id));
 
-        const presetList: RecognitionPreset[] = Array.isArray(presetRes) ? presetRes : [];
-        const selectedEntityTypeIds = persisted?.selectedEntityTypeIds?.length
+        const presetList: RecognitionPreset[] = Array.isArray(presetResult.value)
+          ? localizePresetList(presetResult.value)
+          : [];
+        const persistedTextIds = persisted?.selectedEntityTypeIds?.length
           ? persisted.selectedEntityTypeIds.filter((id) => types.some((tt) => tt.id === id))
+          : [];
+        const persistedLooksLikeOldTextDefault =
+          persistedTextIds.some(isDefaultExcludedTextTypeId) &&
+          defaultTextTypeIds.every((id) => persistedTextIds.includes(id));
+        const selectedEntityTypeIds = persistedTextIds.length
+          ? persistedLooksLikeOldTextDefault
+            ? defaultTextTypeIds
+            : persistedTextIds
           : defaultTextTypeIds;
-        const filteredOcrHas = persisted?.ocrHasTypes?.length
+        const persistedOcrHas = persisted?.ocrHasTypes?.length
           ? persisted.ocrHasTypes.filter((id) => ocrIds.includes(id))
+          : [];
+        const persistedLooksLikeOldOcrDefault =
+          persistedOcrHas.some((id) => isDefaultExcludedPipelineTypeId('ocr_has', id)) &&
+          defaultOcrHasTypeIds.every((id) => persistedOcrHas.includes(id));
+        const filteredOcrHas = persistedOcrHas.length
+          ? persistedLooksLikeOldOcrDefault
+            ? defaultOcrHasTypeIds
+            : persistedOcrHas
           : defaultOcrHasTypeIds;
         const filteredHasImg = persisted?.hasImageTypes?.length
           ? persisted.hasImageTypes.filter((id) => hiIds.includes(id))
           : defaultHasImageTypeIds;
+        const filteredVlm = persisted?.vlmTypes?.length
+          ? persisted.vlmTypes.filter((id) => vlmIds.includes(id))
+          : defaultVlmTypeIds;
         const ocrHas =
           persisted?.ocrHasTypes?.length && filteredOcrHas.length === 0
             ? defaultOcrHasTypeIds
@@ -143,41 +190,70 @@ export function useBatchConfig(
           persisted?.hasImageTypes?.length && filteredHasImg.length === 0
             ? defaultHasImageTypeIds
             : filteredHasImg;
+        const vlm =
+          persisted?.vlmTypes?.length && filteredVlm.length === 0
+            ? defaultVlmTypeIds
+            : filteredVlm;
+        const applyFetchedTextPresetWithFallback = (preset: RecognitionPreset) => {
+          const applied = applyTextPresetFields(preset, types);
+          return {
+            ...applied,
+            selectedEntityTypeIds:
+              preset.selectedEntityTypeIds.length > 0 && applied.selectedEntityTypeIds.length === 0
+                ? [...defaultTextTypeIds]
+                : applied.selectedEntityTypeIds,
+          };
+        };
+        const applyFetchedVisionPresetWithFallback = (preset: RecognitionPreset) => {
+          const applied = applyVisionPresetFields(preset, pipes);
+          return {
+            ...applied,
+            ocrHasTypes:
+              preset.ocrHasTypes.length > 0 && applied.ocrHasTypes.length === 0
+                ? [...defaultOcrHasTypeIds]
+                : applied.ocrHasTypes,
+            hasImageTypes:
+              preset.hasImageTypes.length > 0 && applied.hasImageTypes.length === 0
+                ? [...defaultHasImageTypeIds]
+                : applied.hasImageTypes,
+            vlmTypes:
+              (preset.vlmTypes ?? []).length > 0 && (applied.vlmTypes ?? []).length === 0
+                ? [...defaultVlmTypeIds]
+                : (applied.vlmTypes ?? []),
+          };
+        };
 
         let next: BatchWizardPersistedConfig = {
           selectedEntityTypeIds,
           ocrHasTypes: ocrHas,
           hasImageTypes: hasImg,
+          vlmTypes: vlm,
           replacementMode: persisted?.replacementMode ?? 'structured',
           imageRedactionMethod: persisted?.imageRedactionMethod ?? 'mosaic',
-          imageRedactionStrength: persisted?.imageRedactionStrength ?? 25,
+          imageRedactionStrength: persisted?.imageRedactionStrength ?? 75,
           imageFillColor: persisted?.imageFillColor ?? '#000000',
           presetTextId: null,
           presetVisionId: null,
           executionDefault: persisted?.executionDefault === 'local' ? 'local' : 'queue',
         };
 
-        const tid = persisted?.presetTextId ?? null;
-        const vid = persisted?.presetVisionId ?? null;
-        const pt = tid ? presetList.find((x) => x.id === tid && presetAppliesText(x)) : undefined;
-        const pv = vid ? presetList.find((x) => x.id === vid && presetAppliesVision(x)) : undefined;
-        if (pt) next = { ...next, ...applyTextPresetFields(pt, types), presetTextId: pt.id };
-        if (pv) next = { ...next, ...applyVisionPresetFields(pv, pipes), presetVisionId: pv.id };
-        if (!pt && persisted === null) {
-          const bid = getActivePresetTextId();
-          const ptB = bid
-            ? presetList.find((x) => x.id === bid && presetAppliesText(x))
-            : undefined;
-          if (ptB) next = { ...next, ...applyTextPresetFields(ptB, types), presetTextId: ptB.id };
-        }
-        if (!pv && persisted === null) {
-          const bid = getActivePresetVisionId();
-          const pvB = bid
-            ? presetList.find((x) => x.id === bid && presetAppliesVision(x))
-            : undefined;
-          if (pvB)
-            next = { ...next, ...applyVisionPresetFields(pvB, pipes), presetVisionId: pvB.id };
-        }
+        const bridgeTextId = getActivePresetTextId();
+        const bridgeVisionId = getActivePresetVisionId();
+        const textPresetCandidates = [bridgeTextId, persisted?.presetTextId ?? null].filter(
+          Boolean,
+        ) as string[];
+        const visionPresetCandidates = [bridgeVisionId, persisted?.presetVisionId ?? null].filter(
+          Boolean,
+        ) as string[];
+        const pt = textPresetCandidates
+          .map((id) => presetList.find((x) => x.id === id && presetAppliesText(x)))
+          .find(Boolean);
+        const pv = visionPresetCandidates
+          .map((id) => presetList.find((x) => x.id === id && presetAppliesVision(x)))
+          .find(Boolean);
+        if (pt) next = { ...next, ...applyFetchedTextPresetWithFallback(pt), presetTextId: pt.id };
+        if (pv)
+          next = { ...next, ...applyFetchedVisionPresetWithFallback(pv), presetVisionId: pv.id };
         setCfg(next);
       } catch {
         setMsg({ text: t('batchWizard.waitConfig'), tone: 'err' });
@@ -189,6 +265,19 @@ export function useBatchConfig(
       cancelled = true;
     };
   }, [activeJobId, isPreviewMode, mode, setActiveJobId, setMsg]);
+
+  const retryLoadPresets = useCallback(async () => {
+    setPresetReloading(true);
+    try {
+      const presetRes = await fetchRecognitionPresets();
+      setPresets(Array.isArray(presetRes) ? localizePresetList(presetRes) : []);
+      setPresetLoadError(null);
+    } catch {
+      setPresetLoadError(t('batchWizard.step1.presetLoadError'));
+    } finally {
+      setPresetReloading(false);
+    }
+  }, []);
 
   // Refresh text types when entity types are changed in Settings
   useEffect(() => {
@@ -216,13 +305,69 @@ export function useBatchConfig(
     () => buildDefaultPipelineTypeIds(pipelines, 'has_image'),
     [pipelines],
   );
+  const batchDefaultVlmTypeIds = useMemo(
+    () => buildDefaultPipelineTypeIds(pipelines, 'vlm'),
+    [pipelines],
+  );
+
+  const applyTextPresetWithFallback = useCallback(
+    (preset: RecognitionPreset) => {
+      const applied = applyTextPresetFields(preset, textTypes);
+      return {
+        ...applied,
+        selectedEntityTypeIds:
+          preset.selectedEntityTypeIds.length > 0 && applied.selectedEntityTypeIds.length === 0
+            ? [...batchDefaultTextTypeIds]
+            : applied.selectedEntityTypeIds,
+      };
+    },
+    [batchDefaultTextTypeIds, textTypes],
+  );
+
+  const applyVisionPresetWithFallback = useCallback(
+    (preset: RecognitionPreset) => {
+      const applied = applyVisionPresetFields(preset, pipelines);
+      const recoveredOcr =
+        preset.ocrHasTypes.length > 0 && applied.ocrHasTypes.length === 0
+          ? [...batchDefaultOcrHasTypeIds]
+          : applied.ocrHasTypes;
+      const recoveredImage =
+        preset.hasImageTypes.length > 0 && applied.hasImageTypes.length === 0
+          ? [...batchDefaultHasImageTypeIds]
+          : applied.hasImageTypes;
+      const recoveredVlm =
+        (preset.vlmTypes ?? []).length > 0 && (applied.vlmTypes ?? []).length === 0
+          ? [...batchDefaultVlmTypeIds]
+          : (applied.vlmTypes ?? []);
+      return {
+        ...applied,
+        ocrHasTypes: recoveredOcr,
+        hasImageTypes: recoveredImage,
+        vlmTypes: recoveredVlm,
+      };
+    },
+    [batchDefaultHasImageTypeIds, batchDefaultOcrHasTypeIds, batchDefaultVlmTypeIds, pipelines],
+  );
 
   const isStep1Complete = useMemo(() => {
     if (!confirmStep1 || !configLoaded) return false;
     const anyTextSelected = cfg.selectedEntityTypeIds.length > 0;
-    const anyVisionSelected = cfg.ocrHasTypes.length > 0 || cfg.hasImageTypes.length > 0;
+    const anyVisionSelected =
+      cfg.ocrHasTypes.length > 0 ||
+      cfg.hasImageTypes.length > 0 ||
+      (cfg.vlmTypes ?? []).length > 0;
+    if (mode === 'text') return anyTextSelected;
+    if (mode === 'image') return anyVisionSelected;
     return anyTextSelected || anyVisionSelected;
-  }, [configLoaded, cfg.selectedEntityTypeIds, cfg.ocrHasTypes, cfg.hasImageTypes, confirmStep1]);
+  }, [
+    configLoaded,
+    cfg.selectedEntityTypeIds,
+    cfg.ocrHasTypes,
+    cfg.hasImageTypes,
+    cfg.vlmTypes,
+    confirmStep1,
+    mode,
+  ]);
 
   // Preset change handlers
   const onBatchTextPresetChange = useCallback(
@@ -240,10 +385,27 @@ export function useBatchConfig(
       const p = presets.find((x) => x.id === id);
       if (p && presetAppliesText(p)) {
         setActivePresetTextId(p.id);
-        setCfg((c) => ({ ...c, ...applyTextPresetFields(p, textTypes), presetTextId: p.id }));
+        if (mode !== 'text' && presetAppliesVision(p)) {
+          setActivePresetVisionId(p.id);
+          setCfg((c) => ({
+            ...c,
+            ...applyTextPresetWithFallback(p),
+            ...applyVisionPresetWithFallback(p),
+            presetTextId: p.id,
+            presetVisionId: p.id,
+          }));
+          return;
+        }
+        setCfg((c) => ({ ...c, ...applyTextPresetWithFallback(p), presetTextId: p.id }));
       }
     },
-    [batchDefaultTextTypeIds, presets, textTypes],
+    [
+      applyTextPresetWithFallback,
+      applyVisionPresetWithFallback,
+      batchDefaultTextTypeIds,
+      mode,
+      presets,
+    ],
   );
 
   const onBatchVisionPresetChange = useCallback(
@@ -255,31 +417,41 @@ export function useBatchConfig(
           presetVisionId: null,
           ocrHasTypes: [...batchDefaultOcrHasTypeIds],
           hasImageTypes: [...batchDefaultHasImageTypeIds],
+          vlmTypes: [...batchDefaultVlmTypeIds],
         }));
         return;
       }
       const p = presets.find((x) => x.id === id);
       if (p && presetAppliesVision(p)) {
         setActivePresetVisionId(p.id);
-        const applied = applyVisionPresetFields(p, pipelines);
-        const recoveredOcr =
-          p.ocrHasTypes.length > 0 && applied.ocrHasTypes.length === 0
-            ? [...batchDefaultOcrHasTypeIds]
-            : applied.ocrHasTypes;
-        const recoveredImage =
-          p.hasImageTypes.length > 0 && applied.hasImageTypes.length === 0
-            ? [...batchDefaultHasImageTypeIds]
-            : applied.hasImageTypes;
+        if (mode !== 'image' && presetAppliesText(p)) {
+          setActivePresetTextId(p.id);
+          setCfg((c) => ({
+            ...c,
+            ...applyTextPresetWithFallback(p),
+            ...applyVisionPresetWithFallback(p),
+            presetTextId: p.id,
+            presetVisionId: p.id,
+          }));
+          return;
+        }
+        const applied = applyVisionPresetWithFallback(p);
         setCfg((c) => ({
           ...c,
           ...applied,
-          ocrHasTypes: recoveredOcr,
-          hasImageTypes: recoveredImage,
           presetVisionId: p.id,
         }));
       }
     },
-    [batchDefaultOcrHasTypeIds, batchDefaultHasImageTypeIds, presets, pipelines],
+    [
+      applyTextPresetWithFallback,
+      applyVisionPresetWithFallback,
+      batchDefaultHasImageTypeIds,
+      batchDefaultOcrHasTypeIds,
+      batchDefaultVlmTypeIds,
+      mode,
+      presets,
+    ],
   );
 
   const setConfigLoadError = useCallback(
@@ -298,6 +470,9 @@ export function useBatchConfig(
     presets,
     textPresets,
     visionPresets,
+    presetLoadError,
+    presetReloading,
+    retryLoadPresets,
     confirmStep1,
     setConfirmStep1,
     isStep1Complete,
@@ -308,6 +483,7 @@ export function useBatchConfig(
     batchDefaultTextTypeIds,
     batchDefaultOcrHasTypeIds,
     batchDefaultHasImageTypeIds,
+    batchDefaultVlmTypeIds,
     setConfigLoadError,
   };
 }

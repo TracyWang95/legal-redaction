@@ -38,12 +38,16 @@ export function mapBackendStatus(status: string): BatchRow['analyzeStatus'] {
     case 'cancelled':
       return 'failed';
     case 'awaiting_review':
+    case 'reviewing':
       return 'awaiting_review';
     case 'review_approved':
       return 'review_approved';
     case 'redacting':
       return 'redacting';
     case 'completed':
+    case 'reviewed':
+    case 'redacted':
+    case 'exported':
       return 'completed';
     case 'processing':
     case 'parsing':
@@ -63,6 +67,18 @@ export function deriveReviewConfirmed(item: {
   return item.status === 'review_approved' || item.status === 'redacting';
 }
 
+export function isJobConfigLockedError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const status = (error as { status?: unknown }).status;
+  if (status === 409) return true;
+  const message = String((error as { message?: unknown; detail?: unknown }).message ?? '').toLowerCase();
+  const detail = String((error as { detail?: unknown }).detail ?? '').toLowerCase();
+  return (
+    (message.includes('config') && message.includes('locked')) ||
+    (detail.includes('config') && detail.includes('locked'))
+  );
+}
+
 export function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -77,9 +93,10 @@ export function defaultConfig(): BatchWizardPersistedConfig {
     selectedEntityTypeIds: [],
     ocrHasTypes: [],
     hasImageTypes: [],
+    vlmTypes: [],
     replacementMode: 'structured',
     imageRedactionMethod: 'mosaic',
-    imageRedactionStrength: 25,
+    imageRedactionStrength: 75,
     imageFillColor: '#000000',
     presetTextId: null,
     presetVisionId: null,
@@ -112,6 +129,7 @@ export function buildJobConfigForWorker(
     entity_type_ids: c.selectedEntityTypeIds,
     ocr_has_types: c.ocrHasTypes,
     has_image_types: c.hasImageTypes,
+    vlm_types: c.vlmTypes ?? [],
     replacement_mode: c.replacementMode,
     image_redaction_method: c.imageRedactionMethod,
     image_redaction_strength: c.imageRedactionStrength,
@@ -140,6 +158,10 @@ export function mergeJobConfigIntoWizardCfg(
       Array.isArray(jc.has_image_types) && (jc.has_image_types as string[]).length
         ? (jc.has_image_types as string[])
         : c.hasImageTypes,
+    vlmTypes:
+      Array.isArray(jc.vlm_types) && (jc.vlm_types as string[]).length
+        ? (jc.vlm_types as string[])
+        : (c.vlmTypes ?? []),
     replacementMode:
       jc.replacement_mode === 'smart' ||
       jc.replacement_mode === 'mask' ||
@@ -211,16 +233,23 @@ export function applyTextPresetFields(
 export function applyVisionPresetFields(
   p: RecognitionPreset,
   pipelines: PipelineCfg[],
-): Pick<BatchWizardPersistedConfig, 'ocrHasTypes' | 'hasImageTypes' | 'presetVisionId'> {
+): Pick<
+  BatchWizardPersistedConfig,
+  'ocrHasTypes' | 'hasImageTypes' | 'vlmTypes' | 'presetVisionId'
+> {
   const ocrIds = pipelines
     .filter((pl) => pl.mode === 'ocr_has' && pl.enabled)
     .flatMap((pl) => pl.types.filter((tt) => tt.enabled).map((tt) => tt.id));
   const hiIds = pipelines
     .filter((pl) => pl.mode === 'has_image' && pl.enabled)
     .flatMap((pl) => pl.types.filter((tt) => tt.enabled).map((tt) => tt.id));
+  const vlmIds = pipelines
+    .filter((pl) => pl.mode === 'vlm' && pl.enabled)
+    .flatMap((pl) => pl.types.filter((tt) => tt.enabled).map((tt) => tt.id));
   return {
     ocrHasTypes: p.ocrHasTypes.filter((id: string) => ocrIds.includes(id)),
     hasImageTypes: p.hasImageTypes.filter((id: string) => hiIds.includes(id)),
+    vlmTypes: (p.vlmTypes ?? []).filter((id: string) => vlmIds.includes(id)),
     presetVisionId: p.id,
   };
 }
@@ -293,7 +322,7 @@ function shortHash(input: string): string {
  * entity-set + replacement-mode combinations are served from cache.
  *
  * The cache key is derived from a hash of the entities array (id + text +
- * type + selected) plus the replacement mode.  `staleTime: 60 s` keeps
+ * type + span + coref/replacement + selected) plus the replacement mode.  `staleTime: 60 s` keeps
  * results warm during typical review navigation.
  */
 export function fetchCachedBatchPreviewMap(
@@ -305,7 +334,10 @@ export function fetchCachedBatchPreviewMap(
     JSON.stringify(
       entities
         .filter((e) => e.selected !== false)
-        .map((e) => `${e.id}|${e.text}|${e.type}|${e.selected}`),
+        .map(
+          (e) =>
+            `${e.id}|${e.text}|${e.type}|${e.start}|${e.end}|${e.coref_id ?? ''}|${e.replacement ?? ''}|${e.selected}`,
+        ),
     ) +
       '|' +
       replacementMode,

@@ -37,11 +37,11 @@ class RedactionConfig(BaseModel):
     custom_replacements: dict[str, str] = Field(default_factory=dict)
     # 图片 / 扫描件块级匿名化（与 HaS Image 文档一致：mosaic / blur / fill），与文本 replacement_mode 独立
     image_redaction_method: Literal["mosaic", "blur", "fill"] | None = Field(
-        default=None,
-        description="图片类：马赛克、高斯模糊、纯色填充；未传时图片仍按 fill 处理",
+        default="mosaic",
+        description="图片类：马赛克、高斯模糊、纯色填充；未传时图片默认按 mosaic/75 处理",
     )
     image_redaction_strength: int = Field(
-        default=25,
+        default=75,
         ge=1,
         le=100,
         description="马赛克块尺寸 / 模糊半径的相对强度（1–100）",
@@ -115,6 +115,7 @@ class VisionDetectRequest(BaseModel):
     """视觉识别请求体"""
     selected_ocr_has_types: list[str] | None = None
     selected_has_image_types: list[str] | None = None
+    selected_vlm_types: list[str] | None = None
 
 
 class RedactionReport(BaseModel):

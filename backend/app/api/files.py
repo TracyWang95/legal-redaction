@@ -9,6 +9,7 @@ import logging
 import os
 import shutil
 import uuid
+import json
 
 import aiofiles
 
@@ -19,6 +20,7 @@ from fastapi import APIRouter, Body, Depends, File, Form, Header, HTTPException,
 from fastapi.responses import FileResponse, Response
 
 import app.services.file_management_service as _fms
+import app.services.job_management_service as _jms
 from app.api.jobs import get_job_store
 from app.core.audit import audit_log
 from app.core.config import settings
@@ -54,7 +56,7 @@ async def list_files(
     page_size: int = Query(20, ge=1, le=100, description="每页条数"),
     source: str | None = Query(
         None,
-        description="按来源筛选：playground（仅 Playground）| batch（批量/任务）；不传为全部",
+        description="按来源筛选：playground（单文件流程，兼容旧 API 值）| batch（批量/任务）；不传为全部",
     ),
     embed_job: bool = Query(
         False,
@@ -95,6 +97,18 @@ async def list_files(
 
     raw_items = _fms.build_file_list_items(filtered_entries, item_status_map)
     items = _fms.group_and_sort_items(raw_items)
+    stats = {
+        "total_files": len(items),
+        "redacted_files": sum(1 for it in items if it.has_output),
+        "awaiting_review_files": sum(
+            1
+            for it in items
+            if str(it.item_status or "").lower() in {"awaiting_review", "review_approved"}
+        ),
+        "unredacted_files": sum(1 for it in items if not it.has_output),
+        "entity_sum": sum(int(it.entity_count or 0) for it in items),
+        "size_bytes": sum(int(it.file_size or 0) for it in items),
+    }
 
     total = len(items)
     start = (page - 1) * page_size
@@ -115,14 +129,49 @@ async def list_files(
         total=total,
         page=page,
         page_size=page_size,
+        stats=stats,
     )
 
 
 @router.post("/files/batch/download")
-async def batch_download_zip(request: BatchDownloadRequest):
+async def batch_download_zip(
+    request: BatchDownloadRequest,
+    store: JobStore = Depends(get_job_store),
+):
     """将多个文件打包为 ZIP 下载。"""
+    if request.redacted and request.job_id:
+        unique_file_ids = list(dict.fromkeys(request.file_ids))
+        if not store.get_job(request.job_id):
+            raise HTTPException(status_code=404, detail="job not found")
+        job_file_ids = {str(item["file_id"]) for item in store.list_items(request.job_id)}
+        missing_from_job = [file_id for file_id in unique_file_ids if file_id not in job_file_ids]
+        if missing_from_job:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "redacted export file selection does not belong to the job",
+                    "missing": missing_from_job,
+                },
+            )
+        try:
+            report = _jms.build_export_report(
+                store,
+                request.job_id,
+                selected_file_ids=unique_file_ids,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+        if not report.get("summary", {}).get("ready_for_delivery"):
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "redacted export is not ready for delivery",
+                    "summary": report.get("summary", {}),
+                    "redacted_zip": report.get("redacted_zip", {}),
+                },
+            )
     try:
-        zip_bytes, filename = _fms.build_batch_zip(request)
+        zip_bytes, filename, manifest = _fms.build_batch_zip(request)
     except ValueError as exc:
         detail = exc.args[0] if exc.args else str(exc)
         if isinstance(detail, list):
@@ -131,7 +180,18 @@ async def batch_download_zip(request: BatchDownloadRequest):
     return Response(
         content=zip_bytes,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Batch-Zip-Included-Count": str(manifest.get("included_count", 0)),
+            "X-Batch-Zip-Skipped-Count": str(manifest.get("skipped_count", 0)),
+            "X-Batch-Zip-Requested-Count": str(manifest.get("requested_count", 0)),
+            "X-Batch-Zip-Redacted": "true" if manifest.get("redacted") else "false",
+            "X-Batch-Zip-Skipped": json.dumps(
+                (manifest.get("skipped", []) or [])[:20],
+                ensure_ascii=True,
+                separators=(",", ":"),
+            ),
+        },
     )
 
 
@@ -206,14 +266,21 @@ async def upload_file(
         )
         response, jid = response_and_jid
     except ValueError as exc:
+        await _fms.rollback_upload(file_id, file_path)
         raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        logger.exception("Failed to register uploaded file metadata, rolling back %s", file_id)
+        await _fms.rollback_upload(file_id, file_path)
+        raise HTTPException(status_code=500, detail="文件注册失败，文件已回滚")
 
     if jid:
         try:
             _fms.register_file_with_job(jid, response.file_id)
         except ValueError as exc:
+            await _fms.rollback_upload(response.file_id, file_path)
             raise HTTPException(status_code=400, detail=str(exc))
         except HTTPException:
+            await _fms.rollback_upload(response.file_id, file_path)
             raise
         except Exception:
             logger.exception("Failed to register file %s with job %s, rolling back", response.file_id, jid)
@@ -256,10 +323,15 @@ async def hybrid_ner_extract(
     2. Stage 2: 正则识别（高置信度模式匹配）
     3. Stage 3: 交叉验证 + 指代消解
     """
-    if hasattr(request, 'entity_type_ids') and request.entity_type_ids and len(request.entity_type_ids) > 200:
+    if request.entity_type_ids is not None and len(request.entity_type_ids) > 200:
         raise HTTPException(status_code=400, detail="实体类型数量超过上限（200）")
 
     try:
+        logger.info(
+            "[hybrid_ner_extract] file_id=%s requested_entity_type_ids=%s",
+            file_id,
+            request.entity_type_ids,
+        )
         ner_result = await _fms.run_hybrid_ner(file_id, entity_type_ids=request.entity_type_ids)
     except ValueError as exc:
         detail = str(exc)
@@ -354,13 +426,15 @@ async def download_file(file_id: str, redacted: bool = False):
         raise HTTPException(status_code=404, detail="文件不存在")
 
     if redacted:
-        if "output_path" not in snapshot:
+        file_path = snapshot.get("output_path")
+        if not file_path:
             raise HTTPException(status_code=400, detail="文件尚未匿名化")
-        file_path = snapshot["output_path"]
-        filename = f"redacted_{snapshot['original_filename']}"
+        filename = f"redacted_{snapshot.get('original_filename') or file_id}"
     else:
-        file_path = snapshot["file_path"]
-        filename = snapshot["original_filename"]
+        file_path = snapshot.get("file_path")
+        if not file_path:
+            raise HTTPException(status_code=400, detail="missing original file path")
+        filename = snapshot.get("original_filename") or file_id
 
     # 路径遍历保护
     expected_dir = settings.OUTPUT_DIR if redacted else settings.UPLOAD_DIR
@@ -396,7 +470,9 @@ async def get_page_image(file_id: str, page: int = 1, redacted: bool = False):
             raise HTTPException(status_code=400, detail="文件尚未匿名化")
         expected_dir = settings.OUTPUT_DIR
     else:
-        file_path = snapshot["file_path"]
+        file_path = snapshot.get("file_path")
+        if not file_path:
+            raise HTTPException(status_code=400, detail="missing original file path")
         expected_dir = settings.UPLOAD_DIR
 
     if not _fms.safe_path_in_dir(file_path, expected_dir):

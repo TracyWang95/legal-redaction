@@ -1,44 +1,49 @@
-# FastAPI 框架
-fastapi>=0.115.0
+# FastAPI framework
+fastapi>=0.136.1
 uvicorn[standard]>=0.32.0
-python-multipart>=0.0.18
+python-multipart>=0.0.26
 
-# 数据验证
+# Data validation
 pydantic>=2.10.0
 pydantic-settings>=2.7.0
 
-# 文件处理
+# File processing
 python-docx==1.2.0
 PyMuPDF==1.27.2.2
-Pillow>=11.0.0
+Pillow>=12.2.0
 pdf2image==1.17.0
-pywin32==311; sys_platform == 'win32'  # Windows: 用于处理 .doc 文件
+pywin32==311; sys_platform == 'win32'  # Windows: .doc processing
 
-# HTTP 客户端
+# HTTP client
 httpx>=0.28.0
 
-# GPU 显存（侧栏 /health/services；NVML，不依赖 PATH 中的 nvidia-smi）
+# GPU memory checks for /health/services through NVML.
 nvidia-ml-py>=12.535.133
 aiofiles>=24.1.0
 
-# HaS Image（YOLO11）和 OCR（PaddleOCR-VL）已拆分为独立微服务：
-#   - Dockerfile.vision + requirements-vision.lock（端口 8080 视觉模型）
-#   - Dockerfile.ocr    + requirements-ocr.lock   （端口 8081 OCR/HaS Image）
-# 主后端不再直接依赖 ultralytics / paddleocr，因此这里不列出。
-# 如需本地跑微服务，请分别 pip install -r requirements-vision.lock / requirements-ocr.lock。
+# Local app/model environment. PaddlePaddle GPU is installed explicitly by
+# `npm run setup` from the official CUDA wheel index, and is repeated here so
+# `pip install -r backend/requirements.txt` keeps the app venv complete.
+# vLLM intentionally lives in .venv-vllm because its Torch/CUDA stack conflicts
+# with Paddle/PaddleX when installed into the same environment.
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu129/
+paddlepaddle-gpu==3.3.0
+paddleocr[doc-parser]==3.5.0
+llama-cpp-python[server]>=0.3.16
 
-# 工具库
-PyJWT>=2.8.0
+# Utility libraries
+PyJWT>=2.12.0
 passlib[bcrypt]==1.7.4
 
-# 可观测性
+# Observability
 python-json-logger>=2.0.0
 prometheus-client>=0.20.0
 
-# 安全（可选：文件加密需要 cryptography，病毒扫描需要 pyclamd + ClamAV daemon）
-cryptography>=42.0.0
-# pyclamd>=0.4.0  # 按需安装，需配合 ClamAV daemon
+# Security
+cryptography>=46.0.7
+# pyclamd>=0.4.0  # Optional; requires a ClamAV daemon.
 
-# 开发工具
-python-dotenv>=1.0.1
-pytest>=8.0.0
+# Development tools
+python-dotenv>=1.2.2
+pytest>=9.0.3
+setuptools>=77,<81

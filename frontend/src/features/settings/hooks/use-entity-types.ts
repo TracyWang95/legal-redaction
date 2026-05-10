@@ -7,6 +7,7 @@ import { fetchWithTimeout } from '@/utils/fetchWithTimeout';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
 import { selectionToneHex, type SelectionTone } from '@/ui/selectionPalette';
+import type { PipelineMode } from '@/services/defaultRedactionPreset';
 import {
   fetchRecognitionEntityTypes,
   fetchRecognitionPipelines,
@@ -33,10 +34,29 @@ export interface PipelineTypeConfig {
   color: string;
   enabled: boolean;
   order: number;
+  rules?: string[];
+  checklist?: VlmChecklistItem[];
+  negative_prompt_enabled?: boolean;
+  negative_prompt?: string | null;
+  few_shot_enabled?: boolean;
+  few_shot_samples?: VlmFewShotSample[];
+}
+
+export interface VlmChecklistItem {
+  rule: string;
+  positive_prompt?: string | null;
+  negative_prompt?: string | null;
+}
+
+export interface VlmFewShotSample {
+  type: 'positive' | 'negative';
+  image: string;
+  label?: string | null;
+  filename?: string | null;
 }
 
 export interface PipelineConfig {
-  mode: 'ocr_has' | 'has_image';
+  mode: PipelineMode;
   name: string;
   description: string;
   enabled: boolean;
@@ -70,15 +90,15 @@ export function getEntityTypeTone(useLlm: boolean): SelectionTone {
   return useLlm ? 'semantic' : 'regex';
 }
 
-export function getPipelineTone(mode: 'ocr_has' | 'has_image'): SelectionTone {
-  return mode === 'has_image' ? 'visual' : 'semantic';
+export function getPipelineTone(mode: PipelineMode): SelectionTone {
+  return mode === 'ocr_has' ? 'semantic' : 'visual';
 }
 
 export function getToneColor(tone: SelectionTone): string {
   return selectionToneHex[tone];
 }
 
-export function buildPipelineTypeId(name: string, mode: 'ocr_has' | 'has_image') {
+export function buildPipelineTypeId(name: string, mode: PipelineMode) {
   const normalized = name
     .trim()
     .replace(/[^a-zA-Z0-9]+/g, '_')
@@ -125,7 +145,19 @@ export function useEntityTypes() {
                 name: t('settings.pipelineDisplayName.image'),
                 description: t('settings.pipelineDescription.image'),
               }
-            : p,
+            : p.mode === 'ocr_has'
+              ? {
+                  ...p,
+                  name: t('settings.pipelineDisplayName.ocr'),
+                  description: t('settings.pipelineDescription.ocr'),
+                }
+              : p.mode === 'vlm'
+                ? {
+                    ...p,
+                    name: t('settings.pipelineDisplayName.vlm'),
+                    description: t('settings.pipelineDescription.vlm'),
+                  }
+                : p,
       );
       setPipelines(normalized);
     } catch (err) {
@@ -142,8 +174,17 @@ export function useEntityTypes() {
     fetchPipelines();
   }, [fetchEntityTypes, fetchPipelines]);
 
-  const regexTypes = useMemo(() => entityTypes.filter((t) => t.regex_pattern), [entityTypes]);
-  const llmTypes = useMemo(() => entityTypes.filter((t) => t.use_llm), [entityTypes]);
+  const regexTypes = useMemo(
+    () =>
+      entityTypes.filter(
+        (t) => t.enabled !== false && t.id.startsWith('custom_') && t.regex_pattern,
+      ),
+    [entityTypes],
+  );
+  const llmTypes = useMemo(
+    () => entityTypes.filter((t) => t.enabled !== false && t.use_llm),
+    [entityTypes],
+  );
 
   const createType = useCallback(
     async (newType: {
@@ -221,7 +262,7 @@ export function useEntityTypes() {
         await fetchEntityTypes();
         window.dispatchEvent(new CustomEvent('entity-types-changed'));
       } else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
       }
     },
@@ -237,7 +278,20 @@ export function useEntityTypes() {
   }, [fetchEntityTypes]);
 
   const createPipelineType = useCallback(
-    async (mode: 'ocr_has' | 'has_image', name: string, description: string) => {
+    async (
+      mode: PipelineMode,
+      name: string,
+      description: string,
+      options?: Pick<
+        PipelineTypeConfig,
+        | 'rules'
+        | 'checklist'
+        | 'negative_prompt_enabled'
+        | 'negative_prompt'
+        | 'few_shot_enabled'
+        | 'few_shot_samples'
+      >,
+    ) => {
       const typeId = buildPipelineTypeId(name, mode);
       const res = await authFetch(`/api/v1/vision-pipelines/${mode}/types`, {
         method: 'POST',
@@ -250,11 +304,17 @@ export function useEntityTypes() {
           color: getToneColor(getPipelineTone(mode)),
           enabled: true,
           order: 100,
+          rules: options?.rules ?? [],
+          checklist: options?.checklist ?? [],
+          negative_prompt_enabled: options?.negative_prompt_enabled ?? false,
+          negative_prompt: options?.negative_prompt ?? null,
+          few_shot_enabled: options?.few_shot_enabled ?? false,
+          few_shot_samples: options?.few_shot_samples ?? [],
         }),
       });
       if (res.ok) await fetchPipelines();
       else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         showToast(d.detail || t('settings.createFailed'), 'error');
       }
       return res.ok;
@@ -275,7 +335,7 @@ export function useEntityTypes() {
       });
       if (res.ok) await fetchPipelines();
       else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         showToast(d.detail || t('settings.saveFailed'), 'error');
       }
       return res.ok;
@@ -290,7 +350,7 @@ export function useEntityTypes() {
       });
       if (res.ok) await fetchPipelines();
       else {
-        const d = await res.json();
+        const d = await res.json().catch(() => ({}));
         showToast(d.detail || t('settings.deleteTypeFailed'), 'error');
       }
     },

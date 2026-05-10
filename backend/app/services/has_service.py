@@ -10,6 +10,7 @@ HaS (Hide And Seek) 本地匿名化模型服务
 4. 支持信息还原
 """
 
+import asyncio
 import logging
 import re
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 from typing import Any
 
 from app.models.schemas import Entity
+from app.models.type_mapping import canonical_type_id
 from app.services.has_client import HaSClient
 
 # 类型别名，兼容 EntityTypeConfig 和 CustomEntityType
@@ -27,7 +29,6 @@ class HaSService:
     """HaS NER 服务 - 用于混合 NER 架构"""
 
     # 统一引用 models/type_mapping.py 的单一数据源
-    from app.models.type_mapping import TYPE_CN_TO_ID as TYPE_MAPPING_CN_TO_ID
     from app.models.type_mapping import TYPE_ID_TO_CN as TYPE_MAPPING_ID_TO_CN
 
     def __init__(self, base_url: str | None = None):
@@ -43,14 +44,131 @@ class HaSService:
     ) -> list[str]:
         """将实体类型配置转换为 HaS 需要的中文类型列表"""
         chinese_types = []
+        seen = set()
         for et in entity_types:
             # 优先使用映射
-            if et.id in self.TYPE_MAPPING_ID_TO_CN:
-                chinese_types.append(self.TYPE_MAPPING_ID_TO_CN[et.id])
+            type_id = canonical_type_id(getattr(et, "id", ""))
+            if type_id in self.TYPE_MAPPING_ID_TO_CN:
+                chinese_type = self.TYPE_MAPPING_ID_TO_CN[type_id]
             else:
                 # 自定义类型使用名称
-                chinese_types.append(et.name)
+                chinese_type = et.name
+            if chinese_type and chinese_type not in seen:
+                seen.add(chinese_type)
+                chinese_types.append(chinese_type)
         return chinese_types
+
+    def _convert_entity_types_to_guidance(
+        self,
+        entity_types: list[EntityTypeConfig],
+    ) -> list[dict[str, Any]]:
+        from app.core.config import settings
+
+        guidance: list[dict[str, Any]] = []
+        for entity_type in entity_types:
+            raw_type_id = str(getattr(entity_type, "id", "") or "").strip()
+            type_id = canonical_type_id(raw_type_id)
+            is_custom = self._is_custom_type_id(raw_type_id) or self._is_custom_type_id(type_id)
+            if not is_custom and not settings.HAS_NER_BUILTIN_GUIDANCE_ENABLED:
+                continue
+            chinese_types = self._convert_entity_types_to_chinese([entity_type])
+            if not chinese_types:
+                continue
+            description = str(getattr(entity_type, "description", "") or "").strip()
+            examples = list(getattr(entity_type, "examples", []) or [])
+            if not description and not examples:
+                continue
+            guidance.append({
+                "type": chinese_types[0],
+                "description": description,
+                "examples": examples,
+            })
+        return guidance
+
+    def _iter_ner_type_batches(
+        self,
+        entity_types: list[EntityTypeConfig],
+    ) -> list[list[EntityTypeConfig]]:
+        from app.core.config import settings
+
+        seen_chinese_types: set[str] = set()
+        ordered_types: list[EntityTypeConfig] = []
+        builtin_types: list[EntityTypeConfig] = []
+        custom_types: list[EntityTypeConfig] = []
+
+        for entity_type in entity_types:
+            chinese_types = self._convert_entity_types_to_chinese([entity_type])
+            if not chinese_types:
+                continue
+            chinese_type = chinese_types[0]
+            if chinese_type in seen_chinese_types:
+                continue
+            seen_chinese_types.add(chinese_type)
+            ordered_types.append(entity_type)
+
+            raw_type_id = str(getattr(entity_type, "id", "") or "").strip()
+            type_id = canonical_type_id(raw_type_id)
+            if self._is_custom_type_id(raw_type_id) or self._is_custom_type_id(type_id):
+                custom_types.append(entity_type)
+            else:
+                builtin_types.append(entity_type)
+
+        def chunk(items: list[EntityTypeConfig], size: int) -> list[list[EntityTypeConfig]]:
+            return [items[index:index + size] for index in range(0, len(items), size)]
+
+        if len(ordered_types) <= settings.HAS_NER_SINGLE_PASS_MAX_TYPES:
+            return [ordered_types]
+
+        batches: list[list[EntityTypeConfig]] = []
+        batches.extend(chunk(builtin_types, settings.HAS_NER_MAX_TYPES_PER_REQUEST))
+        batches.extend(chunk(custom_types, settings.HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST))
+        return batches
+
+    @staticmethod
+    def _is_custom_type_id(type_id: str | None) -> bool:
+        return str(type_id or "").strip().lower().startswith("custom_")
+
+    def _build_requested_type_lookup(
+        self,
+        entity_types: list[EntityTypeConfig],
+    ) -> tuple[set[str], dict[str, str], list[tuple[str, str]]]:
+        requested_type_ids: set[str] = set()
+        requested_type_by_name: dict[str, str] = {}
+        custom_requested_types: list[tuple[str, str]] = []
+
+        for entity_type in entity_types:
+            raw_type_id = str(getattr(entity_type, "id", "") or "").strip()
+            if not raw_type_id:
+                continue
+            type_id = canonical_type_id(raw_type_id)
+            requested_type_ids.add(type_id)
+
+            target_type_id = raw_type_id if self._is_custom_type_id(raw_type_id) else type_id
+            exact_names = {
+                raw_type_id,
+                type_id,
+                str(getattr(entity_type, "name", "") or "").strip(),
+                *self._convert_entity_types_to_chinese([entity_type]),
+            }
+            for type_name in exact_names:
+                if type_name:
+                    requested_type_by_name[type_name] = target_type_id
+
+            if self._is_custom_type_id(raw_type_id) or self._is_custom_type_id(type_id):
+                custom_requested_types.append((raw_type_id, str(getattr(entity_type, "name", "") or "").strip()))
+
+        return requested_type_ids, requested_type_by_name, custom_requested_types
+
+    def _resolve_result_type_id(
+        self,
+        result_type_name: str,
+        requested_type_by_name: dict[str, str],
+        custom_requested_types: list[tuple[str, str]],
+    ) -> str | None:
+        result_type_name = str(result_type_name or "").strip()
+        if not result_type_name:
+            return None
+        return requested_type_by_name.get(result_type_name)
 
     async def extract_entities(
         self,
@@ -72,10 +190,50 @@ class HaSService:
 
         # 转换实体类型为中文
         chinese_types = self._convert_entity_types_to_chinese(entity_types)
+        (
+            requested_type_ids,
+            requested_type_by_name,
+            custom_requested_types,
+        ) = self._build_requested_type_lookup(entity_types)
 
         try:
-            # 调用 HaS NER
-            ner_result = self.client.ner(content, chinese_types)
+            # 调用 HaS NER。全选默认清单时类型很多，小模型容易把大量空
+            # bucket 也输出出来并触发 JSON 截断；按类型分组能让每次响应
+            # 保持短而完整，同时仍然完全依赖 HaS 语义识别。
+            from app.core.config import settings
+
+            ner_result: dict[str, list[str]] = {}
+            batches = self._iter_ner_type_batches(entity_types)
+            max_parallel = max(1, int(settings.HAS_NER_MAX_PARALLEL_REQUESTS))
+            semaphore = asyncio.Semaphore(max_parallel)
+
+            async def run_batch(batch: list[EntityTypeConfig]) -> dict[str, list[str]]:
+                batch_chinese_types = self._convert_entity_types_to_chinese(batch)
+                if not batch_chinese_types:
+                    return {}
+                async with semaphore:
+                    return await asyncio.to_thread(
+                        self.client.ner,
+                        content,
+                        batch_chinese_types,
+                        type_guidance=self._convert_entity_types_to_guidance(batch),
+                    )
+
+            batch_results = await asyncio.gather(
+                *(run_batch(batch) for batch in batches),
+                return_exceptions=True,
+            )
+            for batch_result in batch_results:
+                if isinstance(batch_result, Exception):
+                    logger.warning("HaS NER batch failed: %s", batch_result)
+                    continue
+                for result_type, values in batch_result.items():
+                    if not isinstance(values, list):
+                        continue
+                    bucket = ner_result.setdefault(result_type, [])
+                    for value in values:
+                        if value and value not in bucket:
+                            bucket.append(value)
 
             if not ner_result:
                 return []
@@ -87,10 +245,22 @@ class HaSService:
 
             for chinese_type, entity_list in ner_result.items():
                 # 映射中文类型到英文ID
-                entity_type_id = self.TYPE_MAPPING_CN_TO_ID.get(chinese_type, chinese_type.upper())
+                raw_entity_type_id = self._resolve_result_type_id(
+                    chinese_type,
+                    requested_type_by_name,
+                    custom_requested_types,
+                )
 
                 for entity_text in entity_list:
                     if not entity_text:
+                        continue
+
+                    entity_type_id = self._coerce_result_type(
+                        raw_entity_type_id,
+                        requested_type_ids,
+                        entity_text,
+                    )
+                    if entity_type_id is None:
                         continue
 
                     # 在原文中查找所有出现位置
@@ -128,6 +298,22 @@ class HaSService:
         except Exception as e:
             logger.exception("HaS NER 失败: %s", e)
             return []
+
+    def _coerce_result_type(
+        self,
+        entity_type_id: str,
+        requested_type_ids: set[str | None],
+        entity_text: str,
+    ) -> str | None:
+        """Keep HaS output aligned with the caller-selected recognition list."""
+        raw_entity_type_id = str(entity_type_id or "").strip()
+        canonical_entity_type_id = canonical_type_id(entity_type_id)
+
+        if canonical_entity_type_id not in requested_type_ids:
+            return None
+        if self._is_custom_type_id(raw_entity_type_id):
+            return raw_entity_type_id
+        return canonical_entity_type_id
 
     async def hide_text(
         self,
@@ -167,6 +353,11 @@ class HaSService:
             return []
 
         chinese_types = self._convert_entity_types_to_chinese(entity_types)
+        (
+            _requested_type_ids,
+            requested_type_by_name,
+            custom_requested_types,
+        ) = self._build_requested_type_lookup(entity_types)
 
         try:
             masked_text, mapping = self.client.hide(
@@ -220,9 +411,13 @@ class HaSService:
                 continue
 
             entity_type_cn = tag_info.get("entity_type") or "自定义"
-            entity_type_id = self.TYPE_MAPPING_CN_TO_ID.get(
-                entity_type_cn, entity_type_cn.upper()
+            entity_type_id = self._resolve_result_type_id(
+                entity_type_cn,
+                requested_type_by_name,
+                custom_requested_types,
             )
+            if entity_type_id is None:
+                continue
 
             start = found_pos
             end = found_pos + len(found_text)

@@ -12,6 +12,7 @@ import type { VersionHistoryEntry } from '@/types';
 export interface MappingColumnProps {
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
+  matchCounts?: Map<string, number>;
   scrollToMatch: (orig: string) => void;
   content?: string;
   versionHistory: VersionHistoryEntry[];
@@ -24,6 +25,7 @@ export interface MappingColumnProps {
 export const MappingColumn: FC<MappingColumnProps> = ({
   entityMap,
   origToTypeId,
+  matchCounts,
   scrollToMatch,
   content,
   versionHistory,
@@ -43,22 +45,23 @@ export const MappingColumn: FC<MappingColumnProps> = ({
         className,
       )}
     >
-      <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-4 py-3">
-        <span className="text-xs font-semibold">{t('playground.mappingRecords')}</span>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-muted/30 px-4">
+        <span className="truncate text-xs font-semibold">{t('playground.mappingRecords')}</span>
+        <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
           {Object.keys(entityMap).length}
         </span>
       </div>
       <ScrollArea className="flex-1">
         {Object.entries(entityMap).map(([original, replacement], index) => {
           const config = getEntityRiskConfig(origToTypeId.get(original) ?? 'CUSTOM');
-          const count = content ? content.split(original).length - 1 : 0;
+          const count =
+            matchCounts?.get(original) ?? (content ? content.split(original).length - 1 : 0);
 
           return (
             <button
               key={index}
               onClick={() => scrollToMatch(original)}
-              className="mx-2 my-2 w-[calc(100%-1rem)] rounded-2xl border px-3 py-3 text-left shadow-sm transition-all hover:brightness-[0.99]"
+              className="mx-2 my-1.5 w-[calc(100%-1rem)] rounded-2xl border px-3 py-2 text-left shadow-sm transition-all hover:brightness-[0.99]"
               style={{ borderLeft: `3px solid ${config.color}`, backgroundColor: config.bgColor }}
               data-testid={`playground-mapping-${index}`}
             >
@@ -104,20 +107,20 @@ export const MappingColumn: FC<MappingColumnProps> = ({
           );
         })}
         {Object.keys(entityMap).length === 0 && (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            {t('playground.noRecords')}
-          </p>
+          <div className="m-3 rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center">
+            <p className="text-xs font-medium text-foreground">{t('playground.noRecords')}</p>
+          </div>
         )}
       </ScrollArea>
 
       {versionHistory.length > 0 && (
-        <div className="border-t border-border/60">
+        <div className="shrink-0 border-t border-border/60">
           <Button
             variant="ghost"
-            className="h-auto w-full justify-between px-4 py-3"
+            className="h-10 w-full justify-between px-4 py-0"
             onClick={() => setVersionHistoryOpen((open) => !open)}
           >
-            <span className="text-xs font-semibold">{t('playground.versionHistory')}</span>
+            <span className="truncate text-xs font-semibold">{t('playground.versionHistory')}</span>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] tabular-nums text-muted-foreground">
                 {versionHistory.length}
@@ -139,7 +142,7 @@ export const MappingColumn: FC<MappingColumnProps> = ({
           </Button>
 
           {versionHistoryOpen && (
-            <div className="space-y-1.5 px-3 pb-3">
+            <div className="max-h-40 space-y-1.5 overflow-y-auto px-3 pb-3">
               {versionHistory.map((version, index) => (
                 <div
                   key={index}
@@ -151,14 +154,16 @@ export const MappingColumn: FC<MappingColumnProps> = ({
                       {version.created_at ? new Date(version.created_at).toLocaleString() : ''}
                     </span>
                   </div>
-                  <div className="mt-1 flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">
+                  <div className="mt-1 flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[10px] text-muted-foreground">
                       {t('playground.versionItems').replace(
                         '{count}',
                         String(version.redacted_count),
                       )}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{version.mode}</span>
+                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                      {version.mode}
+                    </span>
                   </div>
                 </div>
               ))}

@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { showToast } from '@/components/Toast';
 import { t } from '@/i18n';
+import { useServiceHealth, type ServicesHealth } from '@/hooks/use-service-health';
 import { authFetch, downloadFile } from '@/services/api-client';
 import type { VersionHistoryEntry } from '@/types';
 import { localizeErrorMessage } from '@/utils/localizeError';
@@ -15,15 +16,32 @@ import { usePlaygroundHistory } from './use-playground-history';
 import { usePlaygroundImage } from './use-playground-image';
 import { usePlaygroundRecognition } from './use-playground-recognition';
 
+type ServiceKey = keyof ServicesHealth['services'];
+
+const BLOCKING_SERVICE_STATUSES = new Set(['offline', 'degraded']);
+
+function isServiceBlocked(health: ServicesHealth | null, key: ServiceKey) {
+  const status = health?.services[key]?.status;
+  return typeof status === 'string' && BLOCKING_SERVICE_STATUSES.has(status);
+}
+
+function serviceLabel(health: ServicesHealth, key: ServiceKey) {
+  const service = health.services[key];
+  if (!service) return String(key);
+  return `${t(`health.service.${key}`)}：${t(`health.${service.status}`)}`;
+}
+
 export function usePlayground() {
   const recognition = usePlaygroundRecognition();
+  const { health, checking: healthChecking } = useServiceHealth();
 
   const latestOcrHasTypesRef = useRef(recognition.selectedOcrHasTypes);
   const latestHasImageTypesRef = useRef(recognition.selectedHasImageTypes);
-  const latestSelectedTypesRef = useRef(recognition.selectedTypes);
+  const latestVlmTypesRef = useRef(recognition.selectedVlmTypes);
+  const latestSelectedTypesRef = recognition.selectedTypesRef;
   latestOcrHasTypesRef.current = recognition.selectedOcrHasTypes;
   latestHasImageTypesRef.current = recognition.selectedHasImageTypes;
-  latestSelectedTypesRef.current = recognition.selectedTypes;
+  latestVlmTypesRef.current = recognition.selectedVlmTypes;
 
   const entityCtx = usePlaygroundEntities();
 
@@ -33,21 +51,61 @@ export function usePlayground() {
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [redactedCount, setRedactedCount] = useState(0);
   const [entityMap, setEntityMap] = useState<Record<string, string>>({});
+  const [redactionVersion, setRedactionVersion] = useState(0);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const latestFileIdRef = useRef<string | null>(null);
   const asyncResultEpochRef = useRef(0);
+  const redactionAbortRef = useRef<AbortController | null>(null);
+  const redactionInFlightRef = useRef(false);
+
+  const getRecognitionBlocker = useCallback(
+    (file: { fileType: string; isScanned: boolean; content: string }) => {
+      if (!health || healthChecking) return null;
+
+      const requiredServices = new Set<ServiceKey>();
+      const isImage = file.fileType === 'image' || file.isScanned;
+      if (isImage) {
+        if (latestOcrHasTypesRef.current.length > 0) {
+          requiredServices.add('paddle_ocr');
+          requiredServices.add('has_ner');
+        }
+        if (latestHasImageTypesRef.current.length > 0) {
+          requiredServices.add('has_image');
+        }
+        if (latestVlmTypesRef.current.length > 0) {
+          requiredServices.add('vlm');
+        }
+      } else if (file.content && latestSelectedTypesRef.current.length > 0) {
+        requiredServices.add('has_ner');
+      }
+
+      const blocked = [...requiredServices].filter((key) => isServiceBlocked(health, key));
+      if (blocked.length === 0) return null;
+
+      return t('playground.recognitionPausedModelServices').replace(
+        '{services}',
+        blocked.map((key) => serviceLabel(health, key)).join(', '),
+      );
+    },
+    [health, healthChecking],
+  );
 
   const fileCtx = usePlaygroundFile({
     latestOcrHasTypesRef,
     latestHasImageTypesRef,
+    latestVlmTypesRef,
     latestSelectedTypesRef,
     resetEntityHistory: entityCtx.entityHistory.reset,
     resetImageHistory: () => imageCtx.imageHistory.reset(),
     setEntities: entityCtx.setEntities,
     setBoundingBoxes: (val) => imageCtx.setBoundingBoxes(val),
+    getRecognitionBlocker,
   });
 
   const imageCtx = usePlaygroundImage({
     fileInfo: fileCtx.fileInfo,
+    redactionVersion,
+    showRedactedPreview: fileCtx.stage === 'result',
   });
 
   const { setTypeTab } = recognition;
@@ -60,9 +118,24 @@ export function usePlayground() {
     asyncResultEpochRef.current += 1;
   }, [fileCtx.fileInfo?.file_id]);
 
+  useEffect(
+    () => () => {
+      redactionAbortRef.current?.abort();
+    },
+    [],
+  );
+
   const allSelectedVisionTypes = useMemo(
-    () => [...recognition.selectedOcrHasTypes, ...recognition.selectedHasImageTypes],
-    [recognition.selectedOcrHasTypes, recognition.selectedHasImageTypes],
+    () => [
+      ...recognition.selectedOcrHasTypes,
+      ...recognition.selectedHasImageTypes,
+      ...recognition.selectedVlmTypes,
+    ],
+    [
+      recognition.selectedOcrHasTypes,
+      recognition.selectedHasImageTypes,
+      recognition.selectedVlmTypes,
+    ],
   );
 
   const historyCtx = usePlaygroundHistory({
@@ -83,23 +156,35 @@ export function usePlayground() {
 
   const handleRerunNer = useCallback(async () => {
     if (!fileCtx.fileInfo) return;
+    const blocker = getRecognitionBlocker({
+      fileType: fileCtx.fileInfo.file_type || '',
+      isScanned: Boolean(fileCtx.fileInfo.is_scanned),
+      content: fileCtx.content,
+    });
+    if (blocker) {
+      fileCtx.setRecognitionIssue(blocker);
+      showToast(blocker, 'info');
+      return;
+    }
+    fileCtx.setRecognitionIssue(null);
     if (fileCtx.isImageMode) {
       await imageCtx.handleRerunNerImage(
         fileCtx.fileInfo.file_id,
         recognition.selectedOcrHasTypes,
         recognition.selectedHasImageTypes,
+        recognition.selectedVlmTypes,
         fileCtx.setIsLoading,
         fileCtx.setLoadingMessage,
       );
     } else {
       await entityCtx.handleRerunNerText(
         fileCtx.fileInfo.file_id,
-        recognition.selectedTypes,
+        recognition.selectedTypesRef.current,
         fileCtx.setIsLoading,
         fileCtx.setLoadingMessage,
       );
     }
-  }, [entityCtx, fileCtx, imageCtx, recognition]);
+  }, [entityCtx, fileCtx, getRecognitionBlocker, imageCtx, recognition]);
 
   const presetSeqRef = useRef(recognition.presetApplySeq);
   useEffect(() => {
@@ -118,42 +203,60 @@ export function usePlayground() {
 
   const handleRedact = useCallback(async () => {
     if (!fileCtx.fileInfo) return;
+    if (redactionInFlightRef.current) return;
+
+    redactionAbortRef.current?.abort();
+    const controller = new AbortController();
+    redactionAbortRef.current = controller;
+    redactionInFlightRef.current = true;
+    const { signal } = controller;
 
     const fileId = fileCtx.fileInfo.file_id;
     fileCtx.setIsLoading(true);
     fileCtx.setLoadingMessage(t('playground.redacting'));
 
     try {
-      const selectedEntities = entityCtx.entities.filter((e) => e.selected);
-      const selectedBoxes = imageCtx.boundingBoxes.filter((b) => b.selected);
+      const selectedEntities = entityCtx.entities.filter((e) => e.selected !== false);
+      const selectedBoxes = imageCtx.boundingBoxes.filter((b) => b.selected !== false);
+      const requestedRedactionItemCount = fileCtx.isImageMode
+        ? selectedBoxes.length
+        : selectedEntities.length;
 
       const res = await authFetch('/api/v1/redaction/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           file_id: fileId,
-          entities: selectedEntities,
-          bounding_boxes: selectedBoxes,
+          entities: entityCtx.entities,
+          bounding_boxes: imageCtx.boundingBoxes,
           config: {
             replacement_mode: recognition.replacementMode,
             entity_types: [],
             custom_replacements: {},
           },
         }),
+        signal,
       });
+      if (signal.aborted) return;
 
       if (!res.ok) throw new Error(t('playground.redactFailed'));
       const result = await safeJson<RedactionResult>(res);
+      if (signal.aborted) return;
+      const completedCount = requestedRedactionItemCount;
       setEntityMap(result.entity_map || {});
-      setRedactedCount(result.redacted_count || 0);
+      setRedactedCount(completedCount);
+      setRedactionVersion((version) => version + 1);
       fileCtx.setStage('result');
 
       latestFileIdRef.current = fileId;
       const asyncResultEpoch = asyncResultEpochRef.current + 1;
       asyncResultEpochRef.current = asyncResultEpoch;
 
-      const loadAsyncResult = async <T,>(url: string): Promise<T> => {
-        const response = await authFetch(url);
+      const loadAsyncResult = async <T>(url: string): Promise<T> => {
+        const response = await authFetch(url, { signal });
+        if (signal.aborted) {
+          throw new DOMException('Aborted', 'AbortError');
+        }
         if (!response.ok) {
           throw new Error(`Failed to load ${url}`);
         }
@@ -184,12 +287,22 @@ export function usePlayground() {
           }
         });
 
-      showToast(`Completed ${result.redacted_count} redactions.`, 'success');
+      showToast(
+        t('playground.toast.redactDone').replace('{count}', String(completedCount)),
+        'success',
+      );
     } catch (err) {
+      if (signal.aborted) return;
       showToast(localizeErrorMessage(err, 'playground.redactFailed'), 'error');
     } finally {
-      fileCtx.setIsLoading(false);
-      fileCtx.setLoadingMessage('');
+      if (redactionAbortRef.current === controller) {
+        redactionAbortRef.current = null;
+      }
+      redactionInFlightRef.current = false;
+      if (!signal.aborted) {
+        fileCtx.setIsLoading(false);
+        fileCtx.setLoadingMessage('');
+      }
     }
   }, [
     canApplyAsyncResult,
@@ -199,15 +312,57 @@ export function usePlayground() {
     recognition.replacementMode,
   ]);
 
-  const handleReset = useCallback(() => {
+  const cancelProcessing = useCallback(() => {
+    asyncResultEpochRef.current += 1;
+    redactionAbortRef.current?.abort();
+    redactionAbortRef.current = null;
+    redactionInFlightRef.current = false;
+    fileCtx.cancelProcessing(false);
+    entityCtx.cancelRerunNerText();
+    imageCtx.cancelRerunNerImage();
+    fileCtx.setIsLoading(false);
+    fileCtx.setLoadingMessage('');
+    showToast(t('playground.cancelled'), 'info');
+  }, [entityCtx, fileCtx, imageCtx]);
+
+  const hasResetRisk = useMemo(
+    () =>
+      fileCtx.stage !== 'upload' ||
+      fileCtx.fileInfo !== null ||
+      fileCtx.content.length > 0 ||
+      entityCtx.entities.length > 0 ||
+      imageCtx.boundingBoxes.length > 0 ||
+      redactedCount > 0 ||
+      Object.keys(entityMap).length > 0 ||
+      redactionReport !== null ||
+      versionHistory.length > 0,
+    [
+      entityCtx.entities.length,
+      entityMap,
+      fileCtx.content.length,
+      fileCtx.fileInfo,
+      fileCtx.stage,
+      imageCtx.boundingBoxes.length,
+      redactedCount,
+      redactionReport,
+      versionHistory.length,
+    ],
+  );
+
+  const performReset = useCallback(() => {
     asyncResultEpochRef.current += 1;
     latestFileIdRef.current = null;
+    redactionAbortRef.current?.abort();
+    redactionAbortRef.current = null;
+    redactionInFlightRef.current = false;
+    setResetConfirmOpen(false);
     fileCtx.setStage('upload');
     fileCtx.setFileInfo(null);
     fileCtx.setContent('');
     entityCtx.setEntities([]);
     setRedactedCount(0);
     setEntityMap({});
+    setRedactionVersion(0);
     setRedactionReport(null);
     setReportOpen(false);
     entityCtx.entityHistory.reset();
@@ -217,12 +372,30 @@ export function usePlayground() {
     setVersionHistoryOpen(false);
   }, [entityCtx, fileCtx, imageCtx]);
 
+  const handleReset = useCallback(() => {
+    if (hasResetRisk) {
+      setResetConfirmOpen(true);
+      return;
+    }
+    performReset();
+  }, [hasResetRisk, performReset]);
+
+  const confirmReset = useCallback(() => {
+    performReset();
+  }, [performReset]);
+
+  const cancelReset = useCallback(() => {
+    setResetConfirmOpen(false);
+  }, []);
+
   const handleDownload = useCallback(() => {
     if (!fileCtx.fileInfo) return;
     downloadFile(
       `/api/v1/files/${fileCtx.fileInfo.file_id}/download?redacted=true`,
       `redacted_${fileCtx.fileInfo.filename}`,
-    ).catch(() => {});
+    ).catch((err) => {
+      showToast(localizeErrorMessage(err, 'common.downloadFailed'), 'error');
+    });
   }, [fileCtx.fileInfo]);
 
   const openPopout = useCallback(() => {
@@ -243,7 +416,8 @@ export function usePlayground() {
     visibleBoxes: imageCtx.visibleBoxes,
     isLoading: fileCtx.isLoading,
     loadingMessage: fileCtx.loadingMessage,
-    loadingElapsedSec: fileCtx.loadingElapsedSec,
+    uploadIssue: fileCtx.uploadIssue,
+    recognitionIssue: fileCtx.recognitionIssue,
     entityMap,
     redactedCount,
     redactionReport,
@@ -265,11 +439,16 @@ export function usePlayground() {
     removeEntity: entityCtx.removeEntity,
     handleRerunNer,
     handleRedact,
+    cancelProcessing,
     handleReset,
+    resetConfirmOpen,
+    confirmReset,
+    cancelReset,
     handleDownload,
     dropzone: fileCtx.dropzone,
     imageUrl: imageCtx.imageUrl,
     redactedImageUrl: imageCtx.redactedImageUrl,
+    redactedImageError: imageCtx.redactedImageError,
     currentPage: imageCtx.currentPage,
     setCurrentPage: imageCtx.setCurrentPage,
     totalPages: imageCtx.totalPages,

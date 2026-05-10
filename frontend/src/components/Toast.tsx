@@ -24,11 +24,23 @@ const TOAST_ICON_CLASS: Record<ToastType, string> = {
   info: 'text-[var(--info-foreground)]',
 };
 
-export function showToast(message: string, type: ToastType = 'info') {
+function normalizeToastMessage(message: unknown): string {
+  if (typeof message === 'string' && message.trim()) return message.trim();
+  if (message instanceof Error && message.message.trim()) return message.message.trim();
+  if (message && typeof message === 'object') {
+    const detail = (message as { detail?: unknown }).detail;
+    if (typeof detail === 'string' && detail.trim()) return detail.trim();
+    const nestedMessage = (message as { message?: unknown }).message;
+    if (typeof nestedMessage === 'string' && nestedMessage.trim()) return nestedMessage.trim();
+  }
+  return '操作失败，请稍后重试';
+}
+
+export function showToast(message: unknown, type: ToastType = 'info') {
   const Icon = TOAST_ICON[type];
 
-  toast(message, {
-    duration: 3500,
+  toast(normalizeToastMessage(message), {
+    duration: 2400,
     className: [
       'rounded-2xl border px-4 py-3 shadow-[var(--shadow-lg)] backdrop-blur-xl',
       TOAST_CLASS[type],
@@ -41,7 +53,7 @@ export function showToast(message: string, type: ToastType = 'info') {
 export function ToastContainer() {
   return (
     <Toaster
-      position="bottom-right"
+      position="top-center"
       theme="light"
       gap={10}
       closeButton

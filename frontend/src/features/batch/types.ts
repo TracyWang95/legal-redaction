@@ -22,7 +22,7 @@ import type { FileListItem } from '@/types';
 export type Step = 1 | 2 | 3 | 4 | 5;
 
 export interface PipelineCfg {
-  mode: 'ocr_has' | 'has_image';
+  mode: 'ocr_has' | 'has_image' | 'vlm';
   name: string;
   description: string;
   enabled: boolean;
@@ -50,8 +50,49 @@ export interface BatchRow extends FileListItem {
     | 'failed';
   analyzeError?: string;
   isImageMode?: boolean;
+  hasReviewDraft?: boolean;
   reviewConfirmed?: boolean;
   page_count?: number;
+  recognitionStage?: string | null;
+  recognitionCurrent?: number;
+  recognitionTotal?: number;
+  recognitionMessage?: string | null;
+}
+
+export interface BatchUploadIssue {
+  id: string;
+  filename: string;
+  reason: string;
+}
+
+export interface BatchUploadProgress {
+  total: number;
+  completed: number;
+  failed: number;
+  inFlight: number;
+  currentFile?: string;
+}
+
+export interface ReviewPageSummary {
+  page: number;
+  hitCount: number;
+  selectedCount: number;
+  issueCount: number;
+  visited: boolean;
+  current: boolean;
+}
+
+export interface ReviewVisionPipelineStatus {
+  ran?: boolean;
+  skipped?: boolean;
+  failed?: boolean;
+  region_count?: number;
+  error?: string | null;
+}
+
+export interface ReviewVisionPageQuality {
+  warnings: string[];
+  pipeline_status: Record<string, ReviewVisionPipelineStatus>;
 }
 
 export type ReviewEntity = {
@@ -74,3 +115,40 @@ export const RECOGNITION_DONE_STATUSES: ReadonlySet<BatchRow['analyzeStatus']> =
   'redacting',
   'completed',
 ]);
+
+export const RECOGNITION_ACTIVE_STATUSES: ReadonlySet<BatchRow['analyzeStatus']> = new Set([
+  'pending',
+  'parsing',
+  'analyzing',
+]);
+
+export function hasReviewableRecognitionRows(
+  rows: readonly Pick<BatchRow, 'analyzeStatus'>[],
+): boolean {
+  return rows.some((row) => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus));
+}
+
+export function isBatchReadyForExportReview(
+  rows: readonly Pick<BatchRow, 'analyzeStatus' | 'reviewConfirmed'>[],
+): boolean {
+  return (
+    rows.length > 0 &&
+    rows.every(
+      (row) =>
+        row.analyzeStatus === 'failed' ||
+        (row.analyzeStatus === 'completed' && row.reviewConfirmed === true),
+    )
+  );
+}
+
+export function isRecognitionSettledForReview(
+  rows: readonly Pick<BatchRow, 'analyzeStatus'>[],
+): boolean {
+  return (
+    rows.length > 0 &&
+    hasReviewableRecognitionRows(rows) &&
+    rows.every(
+      (row) => RECOGNITION_DONE_STATUSES.has(row.analyzeStatus) || row.analyzeStatus === 'failed',
+    )
+  );
+}

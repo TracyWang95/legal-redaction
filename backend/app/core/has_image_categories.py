@@ -23,7 +23,8 @@ class HasImageCategory:
     description_zh: str
 
 
-# 顺序必须与模型 0..20 一致
+# 顺序必须与模型 0..20 一致；不要在这里加入 signature/handwriting 等
+# OCR、规则或本地 fallback 证据，它们不是 HaS Image YOLO 类。
 HAS_IMAGE_CATEGORIES: tuple[HasImageCategory, ...] = (
     HasImageCategory(0, "face", "人脸", "人体面部区域"),
     HasImageCategory(1, "fingerprint", "指纹", "指纹、捺印区域"),
@@ -48,9 +49,52 @@ HAS_IMAGE_CATEGORIES: tuple[HasImageCategory, ...] = (
     HasImageCategory(20, "paper", "纸质文档", "纸张文档区域"),
 )
 
+HAS_IMAGE_MODEL_CLASS_COUNT = 21
 SLUG_TO_CLASS_ID: dict[str, int] = {c.id: c.class_id for c in HAS_IMAGE_CATEGORIES}
 CLASS_ID_TO_SLUG: dict[int, str] = {c.class_id: c.id for c in HAS_IMAGE_CATEGORIES}
 SLUG_TO_NAME_ZH: dict[str, str] = {c.id: c.name_zh for c in HAS_IMAGE_CATEGORIES}
+HAS_IMAGE_MODEL_SLUGS = frozenset(SLUG_TO_CLASS_ID)
+OCR_FALLBACK_ONLY_VISUAL_SLUGS = frozenset({
+    "signature",
+    "handwritten",
+    "hand_written",
+    "handwriting",
+    "handwritten_signature",
+})
+
+# HaS Image 的 21 类完整保留；默认仅去掉“纸质文档”这种整页容器类，
+# 避免一上来产生整页大框。其他视觉隐私目标默认启用。
+DEFAULT_EXCLUDED_HAS_IMAGE_SLUGS = frozenset({
+    "paper",
+})
+DEFAULT_HAS_IMAGE_SLUGS: tuple[str, ...] = tuple(
+    c.id for c in HAS_IMAGE_CATEGORIES if c.id not in DEFAULT_EXCLUDED_HAS_IMAGE_SLUGS
+)
+
+
+def normalize_visual_slug(value: object) -> str:
+    return str(value or "").strip().lower().replace("-", "_")
+
+
+def is_has_image_model_slug(value: object) -> bool:
+    return normalize_visual_slug(value) in HAS_IMAGE_MODEL_SLUGS
+
+
+def filter_has_image_model_slugs(slugs: list[str] | None) -> list[str] | None:
+    if slugs is None:
+        return None
+    return [
+        slug
+        for raw in slugs
+        if (slug := normalize_visual_slug(raw)) in HAS_IMAGE_MODEL_SLUGS
+    ]
+
+
+def has_only_ocr_fallback_visual_slugs(slugs: list[str] | None) -> bool:
+    if not slugs:
+        return False
+    normalized = [normalize_visual_slug(slug) for slug in slugs]
+    return all(slug in OCR_FALLBACK_ONLY_VISUAL_SLUGS for slug in normalized)
 
 
 def slug_list_to_class_indices(slugs: list[str] | None) -> list[int] | None:
@@ -63,11 +107,7 @@ def slug_list_to_class_indices(slugs: list[str] | None) -> list[int] | None:
         return None
     if len(slugs) == 0:
         return []
-    out: list[int] = []
-    for s in slugs:
-        if s in SLUG_TO_CLASS_ID:
-            out.append(SLUG_TO_CLASS_ID[s])
-    return out
+    return [SLUG_TO_CLASS_ID[slug] for slug in filter_has_image_model_slugs(slugs) or []]
 
 
 def class_index_to_slug(idx: int) -> str:

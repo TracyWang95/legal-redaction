@@ -15,6 +15,9 @@ import { useAuth } from './features/auth/auth-context';
 const Playground = React.lazy(() =>
   import('./features/playground').then((m) => ({ default: m.Playground })),
 );
+const StartPage = React.lazy(() =>
+  import('./features/home').then((m) => ({ default: m.StartPage })),
+);
 const Batch = React.lazy(() => import('./features/batch').then((m) => ({ default: m.Batch })));
 const BatchHub = React.lazy(() =>
   import('./features/batch').then((m) => ({ default: m.BatchHub })),
@@ -93,18 +96,29 @@ function AuthStatusErrorPage() {
 }
 
 const prefetchRoutes = () => {
-  import('./features/batch');
-  import('./features/history');
-  import('./features/jobs');
+  const routes = [
+    () => import('./features/playground'),
+    () => import('./features/home'),
+    () => import('./features/batch'),
+    () => import('./features/history'),
+    () => import('./features/jobs'),
+  ];
+
+  void Promise.allSettled(routes.map((route) => route()));
 };
 
 if (typeof window !== 'undefined') {
   if ('requestIdleCallback' in window) {
     (
-      window as Window & { requestIdleCallback: (callback: () => void) => void }
-    ).requestIdleCallback(prefetchRoutes);
+      window as Window & {
+        requestIdleCallback: (
+          callback: () => void,
+          options?: { timeout?: number },
+        ) => number;
+      }
+    ).requestIdleCallback(prefetchRoutes, { timeout: 1200 });
   } else {
-    setTimeout(prefetchRoutes, ROUTE_PREFETCH_DELAY_MS);
+    setTimeout(prefetchRoutes, Math.min(ROUTE_PREFETCH_DELAY_MS, 400));
   }
 }
 
@@ -128,7 +142,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!status) return <AuthStatusErrorPage />;
 
   if (status.auth_enabled && !status.authenticated) {
-    const next = encodeURIComponent(getNextLocation(location.pathname, location.search, location.hash));
+    const next = encodeURIComponent(
+      getNextLocation(location.pathname, location.search, location.hash),
+    );
     return <Navigate to={`/auth?next=${next}`} replace />;
   }
 
@@ -151,11 +167,11 @@ function AuthRoute() {
   );
 }
 
-const VALID_BATCH_MODES = new Set(['text', 'image', 'smart']);
+const COMPAT_BATCH_MODES = new Set(['text', 'image', 'smart']);
 
 function BatchRoute() {
   const { batchMode } = useParams();
-  if (!batchMode || !VALID_BATCH_MODES.has(batchMode)) {
+  if (!batchMode || !COMPAT_BATCH_MODES.has(batchMode) || batchMode !== 'smart') {
     return <Navigate to="/batch" replace />;
   }
   return (
@@ -194,6 +210,22 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: (
+          <LazyPage>
+            <StartPage />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'single',
+        element: (
+          <LazyPage>
+            <Playground />
+          </LazyPage>
+        ),
+      },
+      {
+        path: 'playground',
         element: (
           <LazyPage>
             <Playground />

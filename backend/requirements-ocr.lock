@@ -3,11 +3,12 @@
 #
 # NOTE: Base image should include CUDA runtime for GPU inference.
 # Consider nvidia/cuda:12.x-runtime or PaddlePaddle official GPU image.
-paddlepaddle-gpu==3.0.0
-paddleocr==2.9.1
-fastapi==0.117.1
+--extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cu129/
+paddlepaddle-gpu==3.3.0
+paddleocr[doc-parser]==3.5.0
+fastapi==0.136.1
 uvicorn==0.35.0
 httpx==0.28.1
 numpy>=1.24.0
-Pillow>=10.0.0
+Pillow>=12.2.0
 pydantic>=2.0.0

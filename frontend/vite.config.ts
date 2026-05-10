@@ -6,19 +6,19 @@ import path from 'path'
 // https://vitejs.dev/config/
 const backendProxy = {
   '/api': {
-    target: 'http://localhost:8000',
+    target: 'http://127.0.0.1:8000',
     changeOrigin: true,
   },
   '/health': {
-    target: 'http://localhost:8000',
+    target: 'http://127.0.0.1:8000',
     changeOrigin: true,
   },
   '/uploads': {
-    target: 'http://localhost:8000',
+    target: 'http://127.0.0.1:8000',
     changeOrigin: true,
   },
   '/outputs': {
-    target: 'http://localhost:8000',
+    target: 'http://127.0.0.1:8000',
     changeOrigin: true,
   },
 } as const;

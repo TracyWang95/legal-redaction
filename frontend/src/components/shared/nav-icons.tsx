@@ -3,22 +3,24 @@
 
 import {
   Play,
-  Archive,
+  Files,
   Clock,
   ClipboardCheck,
+  Home,
   ListChecks,
   Settings,
-  Eye,
+  ServerCog,
   Type,
 } from 'lucide-react';
 
 export {
+  Home as HomeIcon,
   Play as PlayIcon,
-  Archive as BatchIcon,
+  Files as BatchIcon,
   Clock as HistoryIcon,
   ClipboardCheck as JobsCenterIcon,
   ListChecks as ListIcon,
   Settings as RulesIcon,
-  Eye as ModelIcon,
+  ServerCog as ModelIcon,
   Type as TextModelNavIcon,
 };

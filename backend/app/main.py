@@ -24,7 +24,8 @@ from app.core.auth import require_auth
 from app.core.config import settings
 from app.core.errors import AppError, app_error_handler, http_exception_handler, validation_exception_handler
 from app.core.gpu_memory import query_gpu_memory as _query_gpu_memory
-from app.core.health_checks import check_has_ner, check_sync
+from app.core.gpu_memory import query_gpu_processes as _query_gpu_processes
+from app.core.health_checks import check_has_ner_health, check_ocr_health_sync, check_service_health_sync
 from app.core.logging_config import setup_logging
 from app.models.schemas import HealthResponse
 
@@ -32,64 +33,91 @@ from app.models.schemas import HealthResponse
 setup_logging(json_mode=settings.LOG_JSON and not settings.DEBUG, level=logging.DEBUG if settings.DEBUG else logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def _storage_files() -> list[tuple[str, str]]:
+    files: list[tuple[str, str]] = []
+    for directory in (settings.UPLOAD_DIR, settings.OUTPUT_DIR):
+        if not os.path.isdir(directory):
+            continue
+        for fname in os.listdir(directory):
+            fpath = os.path.join(directory, fname)
+            if os.path.isfile(fpath):
+                files.append((directory, fpath))
+    return files
+
+
+def _known_file_store_paths(file_store) -> set[str]:
+    known_paths: set[str] = set()
+    snapshot = dict(file_store.items())
+    for info in snapshot.values():
+        if not isinstance(info, dict):
+            continue
+        for key in ("file_path", "output_path"):
+            path = info.get(key)
+            if path:
+                known_paths.add(os.path.realpath(path))
+    return known_paths
+
+
+def _job_referenced_upload_paths() -> set[str]:
+    """Protect upload files that are still referenced by batch jobs."""
+    try:
+        from app.services.job_store import get_job_store
+
+        referenced_file_ids = get_job_store().list_referenced_file_ids()
+    except Exception:
+        logger.exception("Orphan cleanup: failed to read job item file references")
+        return set()
+
+    if not referenced_file_ids or not os.path.isdir(settings.UPLOAD_DIR):
+        return set()
+
+    known_paths: set[str] = set()
+    for fname in os.listdir(settings.UPLOAD_DIR):
+        stem, _ext = os.path.splitext(fname)
+        if stem in referenced_file_ids:
+            known_paths.add(os.path.realpath(os.path.join(settings.UPLOAD_DIR, fname)))
+    return known_paths
+
 def cleanup_orphan_files() -> int:
     """Remove orphan files from upload/output directories that are not tracked in file_store.
 
-    Safety guard: if file_store has far fewer entries than the number of files
-    on disk, skip cleanup entirely to avoid accidental mass deletion (e.g. after
-    a failed migration that left file_store empty).
+    Safety guard: if no persisted state can explain any file while the storage
+    directories are populated, skip cleanup entirely to avoid accidental mass
+    deletion after a failed migration.
     """
     import time
 
     from app.services.file_management_service import get_file_store
     file_store = get_file_store()
 
-    # Count files on disk first
-    disk_count = 0
-    for directory in (settings.UPLOAD_DIR, settings.OUTPUT_DIR):
-        if os.path.isdir(directory):
-            disk_count += sum(1 for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f)))
-
-    store_count = len(file_store)
-    # Safety: if disk has files but file_store is nearly empty, something is wrong — skip cleanup
-    if disk_count > 5 and store_count < disk_count // 2:
+    disk_files = _storage_files()
+    disk_count = len(disk_files)
+    known_paths = _known_file_store_paths(file_store)
+    known_paths.update(_job_referenced_upload_paths())
+    # Safety: if populated storage has no known references, something is wrong.
+    if disk_count > 5 and not known_paths:
         logger.warning(
-            "Orphan cleanup SKIPPED: disk has %d files but file_store only tracks %d. "
+            "Orphan cleanup SKIPPED: disk has %d files but no file_store/job references were found. "
             "Possible migration issue — refusing to delete.",
-            disk_count, store_count,
+            disk_count,
         )
         return 0
 
-    # Build known paths set
-    known_paths = set()
-    snapshot = dict(file_store.items())
-    for info in snapshot.values():
-        if isinstance(info, dict):
-            fp = info.get("file_path")
-            if fp:
-                known_paths.add(os.path.realpath(fp))
-            op = info.get("output_path")
-            if op:
-                known_paths.add(os.path.realpath(op))
-
     removed = 0
-    for directory in (settings.UPLOAD_DIR, settings.OUTPUT_DIR):
-        if not os.path.isdir(directory):
+    for _directory, fpath in disk_files:
+        real = os.path.realpath(fpath)
+        if real in known_paths:
             continue
-        for fname in os.listdir(directory):
-            fpath = os.path.join(directory, fname)
-            if not os.path.isfile(fpath):
-                continue
-            real = os.path.realpath(fpath)
-            if real not in known_paths:
-                age = time.time() - os.path.getmtime(fpath)
-                if age > settings.ORPHAN_CLEANUP_AGE_SEC:
-                    try:
-                        os.remove(fpath)
-                        removed += 1
-                        logger.info("Orphan cleanup: removed %s (age %.0fs)", fname, age)
-                    except OSError:
-                        pass
+        age = time.time() - os.path.getmtime(fpath)
+        if age <= settings.ORPHAN_CLEANUP_AGE_SEC:
+            continue
+        try:
+            os.remove(fpath)
+            removed += 1
+            logger.info("Orphan cleanup: removed %s (age %.0fs)", os.path.basename(fpath), age)
+        except OSError:
+            logger.exception("Orphan cleanup: failed to remove %s", fpath)
     return removed
 
 
@@ -405,29 +433,55 @@ async def services_health():
     import asyncio
     import time
     from datetime import datetime
+    from app.services import model_config_service
+    from app.core.health_checks import get_vlm_runtime_detail
 
     services = {}
 
     # 在线程池中并行检查所有服务（避免阻塞事件循环）
     loop = asyncio.get_event_loop()
     t0 = time.perf_counter()
-    ocr_url = f"{settings.OCR_BASE_URL}/health"
+    ocr_url = f"{model_config_service.get_paddle_ocr_base_url()}/health"
     ocr_timeout = float(settings.OCR_HEALTH_PROBE_TIMEOUT)
-    ocr_result, has_result, has_image_result = await asyncio.gather(
+    vlm_base = model_config_service.get_vlm_base_url()
+    vlm_url = f"{vlm_base}/models" if vlm_base.rstrip("/").endswith("/v1") else f"{vlm_base}/v1/models"
+    ocr_result, has_result, has_image_result, vlm_result = await asyncio.gather(
         loop.run_in_executor(
             None,
-            lambda: check_sync(ocr_url, "PaddleOCR-VL-1.5", ocr_timeout),
+            lambda: check_ocr_health_sync(ocr_url, "PaddleOCR-VL-1.5-0.9B", ocr_timeout),
         ),
-        loop.run_in_executor(None, check_has_ner),
-        loop.run_in_executor(None, check_sync, f"{settings.HAS_IMAGE_BASE_URL}/health", "HaS Image YOLO"),
+        loop.run_in_executor(None, check_has_ner_health),
+        loop.run_in_executor(
+            None,
+            lambda: check_service_health_sync(
+                f"{model_config_service.get_has_image_base_url()}/health",
+                "HaS Image YOLO",
+                service_kind="has_image",
+            ),
+        ),
+        loop.run_in_executor(
+            None,
+            lambda: check_service_health_sync(
+                vlm_url,
+                settings.VLM_MODEL_NAME,
+                timeout=3.0,
+                service_kind="model",
+            ),
+        ),
     )
     probe_ms = round((time.perf_counter() - t0) * 1000, 1)
 
-    gpu_mem = await loop.run_in_executor(None, _query_gpu_memory)
+    gpu_mem, gpu_processes = await asyncio.gather(
+        loop.run_in_executor(None, _query_gpu_memory),
+        loop.run_in_executor(None, _query_gpu_processes),
+    )
 
-    services["paddle_ocr"] = {"name": ocr_result[0], "status": "online" if ocr_result[1] else "offline"}
-    services["has_ner"] = {"name": has_result[0], "status": "online" if has_result[1] else "offline"}
-    services["has_image"] = {"name": has_image_result[0], "status": "online" if has_image_result[1] else "offline"}
+    services["paddle_ocr"] = ocr_result.as_service_payload()
+    services["has_ner"] = has_result.as_service_payload()
+    services["has_image"] = has_image_result.as_service_payload()
+    services["vlm"] = vlm_result.as_service_payload()
+    if services["vlm"]["status"] == "online":
+        services["vlm"].setdefault("detail", {}).update(get_vlm_runtime_detail())
     all_online = all(s["status"] == "online" for s in services.values())
 
     return {
@@ -436,6 +490,7 @@ async def services_health():
         "probe_ms": probe_ms,
         "checked_at": datetime.now(UTC).isoformat(),
         "gpu_memory": gpu_mem,
+        "gpu_processes": gpu_processes,
     }
 
 

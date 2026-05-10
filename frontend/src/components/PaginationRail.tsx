@@ -1,6 +1,7 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+import { ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,10 +22,14 @@ type PaginationRailProps = {
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
   pageSizeOptions?: readonly number[];
+  rangeLabel?: string;
   perPageLabel?: string;
   itemsUnitLabel?: string;
   className?: string;
   compact?: boolean;
+  disabled?: boolean;
+  reserveWhenEmpty?: boolean;
+  testIdPrefix?: string;
 };
 
 export function PaginationRail({
@@ -35,45 +40,67 @@ export function PaginationRail({
   onPageChange,
   onPageSizeChange,
   pageSizeOptions,
+  rangeLabel,
   perPageLabel,
   itemsUnitLabel,
   className,
   compact = false,
+  disabled = false,
+  reserveWhenEmpty = false,
+  testIdPrefix,
 }: PaginationRailProps) {
   const t = useT();
 
-  if (totalItems <= 0) return null;
+  if (totalItems <= 0 && !reserveWhenEmpty) return null;
 
-  const rangeStart = (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(totalItems, page * pageSize);
+  const safeTotalItems = Math.max(0, totalItems);
+  const safeTotalPages = Math.max(1, totalPages);
+  const safePageSize = Math.max(1, pageSize);
+  const safePage = Math.min(Math.max(1, page), safeTotalPages);
+  const hasItems = safeTotalItems > 0;
+  const rangeStart = hasItems ? (safePage - 1) * safePageSize + 1 : 0;
+  const rangeEnd = hasItems ? Math.min(safeTotalItems, safePage * safePageSize) : 0;
+  const pageButtonDisabled = disabled || !hasItems;
+  const rangeTemplate = rangeLabel ?? t('jobs.showRange');
+  const pageSizeUnit = itemsUnitLabel ?? t('jobs.itemsUnit');
+  const getTestId = (suffix: string) => (testIdPrefix ? `${testIdPrefix}-${suffix}` : undefined);
+  const formatPageSizeOption = (size: number) => `${size} ${pageSizeUnit}`.trim();
 
   return (
-    <div className={cn('pagination-rail', compact && 'pagination-rail--compact', className)}>
+    <div
+      className={cn(
+        'pagination-rail overflow-x-auto overflow-y-hidden',
+        compact && 'pagination-rail--compact',
+        className,
+      )}
+      data-testid="pagination-rail"
+    >
       <div className="pagination-rail__meta">
         <div className="pagination-rail__meta-group">
-          <span className="truncate">
-            {t('jobs.showRange')
+          <span className="block min-w-0 truncate whitespace-nowrap tabular-nums">
+            {rangeTemplate
               .replace('{start}', String(rangeStart))
               .replace('{end}', String(rangeEnd))
-              .replace('{total}', String(totalItems))}
+              .replace('{total}', String(safeTotalItems))}
           </span>
           <span className="pagination-rail__separator">|</span>
         </div>
-        <span className="pagination-rail__pill">
-          {page} / {totalPages}
+        <span className="pagination-rail__pill tabular-nums">
+          {safePage} / {safeTotalPages}
         </span>
         {onPageSizeChange && pageSizeOptions && pageSizeOptions.length > 0 && (
-          <div className="pagination-rail__meta-group">
+          <div className="pagination-rail__meta-group shrink-0">
             <span className="pagination-rail__separator">|</span>
-            <span>{perPageLabel ?? t('jobs.perPage')}</span>
+            <span className="shrink-0 whitespace-nowrap">{perPageLabel ?? t('jobs.perPage')}</span>
             <Select
-              value={String(pageSize)}
+              value={String(safePageSize)}
+              disabled={disabled}
               onValueChange={(value) => onPageSizeChange(Number(value))}
             >
               <SelectTrigger
                 className={cn(
-                  'pagination-rail__page-size h-9 rounded-xl text-xs',
-                  compact && 'h-8 rounded-lg text-[11px]',
+                  'pagination-rail__page-size h-9 w-[5.75rem] shrink-0 justify-between rounded-xl text-xs tabular-nums',
+                  compact && 'h-8 w-[5.25rem] rounded-lg text-[11px]',
                 )}
               >
                 <SelectValue />
@@ -82,7 +109,7 @@ export function PaginationRail({
                 <SelectGroup>
                   {pageSizeOptions.map((size) => (
                     <SelectItem key={size} value={String(size)}>
-                      {size} {itemsUnitLabel ?? t('jobs.itemsUnit')}
+                      {formatPageSizeOption(size)}
                     </SelectItem>
                   ))}
                 </SelectGroup>
@@ -96,60 +123,50 @@ export function PaginationRail({
         <Button
           variant="outline"
           size="sm"
-          disabled={page <= 1}
+          disabled={pageButtonDisabled || safePage <= 1}
           onClick={() => onPageChange(1)}
           title={t('jobs.firstPage')}
-          className={cn('h-8 rounded-xl px-2.5', compact && 'h-6.5 rounded-lg px-2')}
+          className={cn('size-8 rounded-xl p-0', compact && 'size-7 rounded-lg')}
+          data-testid={getTestId('first')}
         >
-          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-            />
-          </svg>
+          <ChevronsLeft data-icon="inline-start" />
         </Button>
         <Button
           variant="outline"
           size="sm"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
+          disabled={pageButtonDisabled || safePage <= 1}
+          onClick={() => onPageChange(safePage - 1)}
           className={cn(
-            'h-8 rounded-xl whitespace-nowrap',
-            compact && 'h-6.5 rounded-lg px-2 text-[10px]',
+            'h-8 min-w-14 rounded-xl whitespace-nowrap',
+            compact && 'h-7 min-w-11 rounded-lg px-2 text-[10px]',
           )}
+          data-testid={getTestId('prev')}
         >
           {t('jobs.prevPage')}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
+          disabled={pageButtonDisabled || safePage >= safeTotalPages}
+          onClick={() => onPageChange(safePage + 1)}
           className={cn(
-            'h-8 rounded-xl whitespace-nowrap',
-            compact && 'h-6.5 rounded-lg px-2 text-[10px]',
+            'h-8 min-w-14 rounded-xl whitespace-nowrap',
+            compact && 'h-7 min-w-11 rounded-lg px-2 text-[10px]',
           )}
+          data-testid={getTestId('next')}
         >
           {t('jobs.nextPage')}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(totalPages)}
+          disabled={pageButtonDisabled || safePage >= safeTotalPages}
+          onClick={() => onPageChange(safeTotalPages)}
           title={t('jobs.lastPage')}
-          className={cn('h-8 rounded-xl px-2.5', compact && 'h-6.5 rounded-lg px-2')}
+          className={cn('size-8 rounded-xl p-0', compact && 'size-7 rounded-lg')}
+          data-testid={getTestId('last')}
         >
-          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 5l7 7-7 7M5 5l7 7-7 7"
-            />
-          </svg>
+          <ChevronsRight data-icon="inline-start" />
         </Button>
       </div>
     </div>

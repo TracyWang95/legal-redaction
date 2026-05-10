@@ -1,24 +1,27 @@
 // Copyright 2026 DataInfra-RedactionEverything Contributors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { authFetch } from '@/services/api-client';
 import { t } from '@/i18n';
-import { JOBS_LIST_POLL_MS } from '@/constants/timing';
+import { JOBS_LIST_POLL_HIDDEN_MS, JOBS_LIST_POLL_MS } from '@/constants/timing';
 import {
   deleteJob,
   getJobsBatch,
   listJobs,
   requeueFailed,
   type JobDetail,
+  type JobListStats,
   type JobProgress,
+  type JobStatusFilterApi,
   type JobSummary,
-  type JobTypeApi,
 } from '@/services/jobsApi';
 import { showToast } from '@/components/Toast';
 import { localizeErrorMessage } from '@/utils/localizeError';
+import { getStorageItem, setStorageItem } from '@/lib/storage';
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+const PAGE_SIZE_OPTIONS = [10, 20] as const;
+export type JobsStatusFilter = JobStatusFilterApi | 'all';
 const DELETABLE_STATUSES = new Set([
   'draft',
   'awaiting_review',
@@ -32,6 +35,158 @@ export { PAGE_SIZE_OPTIONS, ACTIVE_STATUSES };
 
 export function canDeleteJob(status: string): boolean {
   return DELETABLE_STATUSES.has(status);
+}
+
+export function hasRefreshableJobWork(job: Pick<JobSummary, 'status' | 'progress'>): boolean {
+  if (ACTIVE_STATUSES.has(job.status)) return true;
+  if (['completed', 'failed', 'cancelled', 'draft'].includes(job.status)) return false;
+  const progress = job.progress;
+  return (
+    progress.pending +
+      progress.queued +
+      progress.processing +
+      progress.parsing +
+      progress.ner +
+      progress.vision +
+      progress.review_approved +
+      progress.redacting >
+    0
+  );
+}
+
+type CachedJobsList = {
+  capturedAt: number;
+  tab: JobsStatusFilter;
+  page: number;
+  pageSize: number;
+  total: number;
+  jobs: JobSummary[];
+  stats?: JobListStats;
+};
+
+const EMPTY_JOB_LIST_STATS: JobListStats = {
+  total_jobs: 0,
+  draft_jobs: 0,
+  active_jobs: 0,
+  awaiting_review_jobs: 0,
+  completed_jobs: 0,
+  risk_jobs: 0,
+  total_items: 0,
+  active_items: 0,
+  awaiting_review_items: 0,
+  completed_items: 0,
+  risk_items: 0,
+};
+
+const JOBS_LIST_CACHE_PREFIX = 'jobs:list-cache:v1';
+const JOBS_LIST_CACHE_TTL_MS = 30_000;
+const MAX_JOBS_LIST_CACHE_ROWS = 120;
+
+function makeJobsListCacheKey(tab: JobsStatusFilter, page: number, pageSize: number): string {
+  return `${JOBS_LIST_CACHE_PREFIX}:${tab}:${page}:${pageSize}`;
+}
+
+function isFreshJobsListCache(entry: CachedJobsList): boolean {
+  return Date.now() - entry.capturedAt <= JOBS_LIST_CACHE_TTL_MS;
+}
+
+function readJobsListCache(
+  tab: JobsStatusFilter,
+  page: number,
+  pageSize: number,
+  opts?: { allowStale?: boolean },
+): CachedJobsList | null {
+  const payload = getStorageItem<CachedJobsList | null>(
+    makeJobsListCacheKey(tab, page, pageSize),
+    null,
+  );
+  if (!payload || !Array.isArray(payload.jobs)) return null;
+  if (typeof payload.capturedAt !== 'number') return null;
+  if (!opts?.allowStale && !isFreshJobsListCache(payload)) return null;
+  if (payload.jobs.length > MAX_JOBS_LIST_CACHE_ROWS) return null;
+  return {
+    capturedAt: payload.capturedAt,
+    tab: payload.tab,
+    page: payload.page,
+    pageSize: payload.pageSize,
+    total: payload.total,
+    jobs: payload.jobs,
+    stats: payload.stats,
+  };
+}
+
+function writeJobsListCache(entry: CachedJobsList): void {
+  const { tab, page, pageSize, total, jobs, capturedAt } = entry;
+  setStorageItem(makeJobsListCacheKey(tab, page, pageSize), {
+    capturedAt,
+    tab,
+    page,
+    pageSize,
+    total,
+    jobs,
+    stats: entry.stats,
+  });
+}
+
+function normalizeJobsListResult(
+  result: Awaited<ReturnType<typeof listJobs>>,
+  fallbackPage: number,
+  fallbackPageSize: number,
+) {
+  return {
+    ...result,
+    jobs: Array.isArray(result?.jobs) ? result.jobs : [],
+    total: typeof result?.total === 'number' ? result.total : 0,
+    page: typeof result?.page === 'number' ? result.page : fallbackPage,
+    page_size: typeof result?.page_size === 'number' ? result.page_size : fallbackPageSize,
+    stats: result.stats ?? EMPTY_JOB_LIST_STATS,
+  };
+}
+
+function prefetchAdjacentJobsPages(params: {
+  tab: JobsStatusFilter;
+  page: number;
+  pageSize: number;
+  total: number;
+}): void {
+  const totalPages = Math.max(1, Math.ceil(params.total / params.pageSize));
+  const pages = [params.page + 1, params.page - 1].filter(
+    (page, index, arr) =>
+      page >= 1 &&
+      page <= totalPages &&
+      arr.indexOf(page) === index &&
+      !readJobsListCache(params.tab, page, params.pageSize),
+  );
+  if (pages.length === 0) return;
+
+  const status = params.tab === 'all' ? undefined : params.tab;
+  for (const page of pages) {
+    void listJobs({ status, page, page_size: params.pageSize })
+      .then((response) => {
+        const result = normalizeJobsListResult(response, page, params.pageSize);
+        writeJobsListCache({
+          capturedAt: Date.now(),
+          tab: params.tab,
+          page: Math.max(1, result.page),
+          pageSize: Math.max(1, result.page_size),
+          total: Math.max(0, result.total),
+          jobs: result.jobs.slice(0, MAX_JOBS_LIST_CACHE_ROWS),
+          stats: result.stats,
+        });
+      })
+      .catch(() => {
+        /* keep interactive pagination independent of prefetch failures */
+      });
+  }
+}
+
+function scheduleAdjacentJobsPrefetch(params: Parameters<typeof prefetchAdjacentJobsPages>[0]): void {
+  if (import.meta.env.MODE === 'test') return;
+  const schedule =
+    typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+      ? window.setTimeout
+      : setTimeout;
+  schedule(() => prefetchAdjacentJobsPages(params), 250);
 }
 
 function jobsPollSignature(jobs: JobSummary[]): string {
@@ -48,9 +203,17 @@ function jobsPollSignature(jobs: JobSummary[]): string {
         job.updated_at,
         job.title ?? '',
         job.progress.total_items,
+        job.progress.processing,
+        job.progress.queued,
+        job.progress.parsing,
+        job.progress.ner,
+        job.progress.vision,
         job.progress.awaiting_review,
+        job.progress.review_approved,
+        job.progress.redacting,
         job.progress.completed,
         job.progress.failed,
+        job.progress.cancelled ?? 0,
         job.nav_hints?.item_count ?? '',
         job.nav_hints?.wizard_furthest_step ?? '',
         job.nav_hints?.batch_step1_configured === true ? '1' : '0',
@@ -84,7 +247,7 @@ export function buildProgressSummary(
   if (finishedCount >= itemCount) return t('jobs.allFilesProcessed');
 
   const waiting = progress.pending + progress.queued;
-  const processing = progress.parsing + progress.ner + progress.vision;
+  const processing = progress.processing + progress.parsing + progress.ner + progress.vision;
   const review = progress.awaiting_review;
   const generating = progress.review_approved + progress.redacting;
   const failed = progress.failed;
@@ -108,13 +271,19 @@ export function buildProgressSummary(
 }
 
 export function useJobs() {
-  const [tab, setTab] = useState<JobTypeApi | 'all'>('all');
-  const [rows, setRows] = useState<JobSummary[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const initialJobsCache = readJobsListCache('all', 1, 10, { allowStale: true });
+  const [tab, setTab] = useState<JobsStatusFilter>('all');
+  const [rows, setRows] = useState<JobSummary[]>(() => initialJobsCache?.jobs ?? []);
+  const [total, setTotal] = useState(() => initialJobsCache?.total ?? 0);
+  const [listStats, setListStats] = useState<JobListStats>(
+    () => initialJobsCache?.stats ?? EMPTY_JOB_LIST_STATS,
+  );
+  const [page, setPage] = useState(() => initialJobsCache?.page ?? 1);
+  const [pageSize, setPageSize] = useState(() => initialJobsCache?.pageSize ?? 10);
+  const [rowsPageSize, setRowsPageSize] = useState(() => initialJobsCache?.pageSize ?? 10);
   const [jumpPage, setJumpPage] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => initialJobsCache === null);
+  const [tableLoading, setTableLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -125,69 +294,125 @@ export function useJobs() {
   const [jobDetails, setJobDetails] = useState<Record<string, JobDetail>>({});
   const [detailLoadingIds, setDetailLoadingIds] = useState<Set<string>>(() => new Set());
   const [requeueingJobId, setRequeuingJobId] = useState<string | null>(null);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
+  const rowsRef = useRef<JobSummary[]>(rows);
+  const listRequestSeqRef = useRef(0);
+  const nextListLoadSilentRef = useRef(
+    initialJobsCache !== null && isFreshJobsListCache(initialJobsCache),
+  );
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const hasActiveJobs = useMemo(() => rows.some(hasRefreshableJobWork), [rows]);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const load = useCallback(
-    async (opts?: { targetPage?: number; targetPageSize?: number }) => {
+    async (opts?: { targetPage?: number; targetPageSize?: number; silent?: boolean }) => {
       const targetPage = opts?.targetPage ?? page;
       const targetPageSize = opts?.targetPageSize ?? pageSize;
-      const hasRows = rows.length > 0;
-      if (hasRows) setRefreshing(true);
-      else setLoading(true);
-      setErr(null);
+      const silent = opts?.silent === true;
+      const requestSeq = ++listRequestSeqRef.current;
+      const hasRows = rowsRef.current.length > 0;
+      if (!hasRows) {
+        setLoading(true);
+      } else if (!silent) {
+        setRefreshing(true);
+        setTableLoading(true);
+      }
+      if (!silent) setErr(null);
       try {
-        const jobType = tab === 'all' ? undefined : tab;
-        let result = await listJobs({
-          job_type: jobType,
-          page: targetPage,
-          page_size: targetPageSize,
-        });
-        result = {
-          ...result,
-          jobs: Array.isArray(result?.jobs) ? result.jobs : [],
-          total: typeof result?.total === 'number' ? result.total : 0,
-          page: typeof result?.page === 'number' ? result.page : targetPage,
-          page_size: typeof result?.page_size === 'number' ? result.page_size : targetPageSize,
-        };
+        const status = tab === 'all' ? undefined : tab;
+        let result = normalizeJobsListResult(
+          await listJobs({
+            status,
+            page: targetPage,
+            page_size: targetPageSize,
+          }),
+          targetPage,
+          targetPageSize,
+        );
         const resolvedTotalPages = Math.max(1, Math.ceil(result.total / result.page_size));
         if (targetPage > resolvedTotalPages && result.total > 0) {
-          result = await listJobs({
-            job_type: jobType,
-            page: resolvedTotalPages,
-            page_size: targetPageSize,
-          });
-          result = {
-            ...result,
-            jobs: Array.isArray(result?.jobs) ? result.jobs : [],
-            total: typeof result?.total === 'number' ? result.total : 0,
-            page: typeof result?.page === 'number' ? result.page : resolvedTotalPages,
-            page_size: typeof result?.page_size === 'number' ? result.page_size : targetPageSize,
-          };
+          result = normalizeJobsListResult(
+            await listJobs({
+              status,
+              page: resolvedTotalPages,
+              page_size: targetPageSize,
+            }),
+            resolvedTotalPages,
+            targetPageSize,
+          );
         }
+        if (requestSeq !== listRequestSeqRef.current) return null;
+        const safePage = Math.max(1, result.page);
+        const safePageSize = Math.max(1, result.page_size);
+        const safeTotal = Math.max(0, result.total);
         setRows((prev) =>
           jobsPollSignature(prev) === jobsPollSignature(result.jobs) ? prev : result.jobs,
         );
-        setTotal((prev) => (prev === result.total ? prev : result.total));
-        setPage((prev) => (prev === result.page ? prev : result.page));
-        setPageSize((prev) => (prev === result.page_size ? prev : result.page_size));
-        return result;
+        setRowsPageSize((prev) => (prev === safePageSize ? prev : safePageSize));
+        setTotal((prev) => (prev === safeTotal ? prev : safeTotal));
+        setListStats(result.stats ?? EMPTY_JOB_LIST_STATS);
+        setPage((prev) => (prev === safePage ? prev : safePage));
+        setPageSize((prev) => (prev === safePageSize ? prev : safePageSize));
+        writeJobsListCache({
+          capturedAt: Date.now(),
+          tab,
+          page: safePage,
+          pageSize: safePageSize,
+          total: safeTotal,
+          jobs: result.jobs.slice(0, MAX_JOBS_LIST_CACHE_ROWS),
+          stats: result.stats,
+        });
+        scheduleAdjacentJobsPrefetch({
+          tab,
+          page: safePage,
+          pageSize: safePageSize,
+          total: safeTotal,
+        });
+        return {
+          ...result,
+          total: safeTotal,
+          page: safePage,
+          page_size: safePageSize,
+        };
       } catch (error) {
-        setErr(localizeErrorMessage(error, 'jobs.loadFailed'));
+        if (requestSeq !== listRequestSeqRef.current) return null;
+        if (!silent) setErr(localizeErrorMessage(error, 'jobs.loadFailed'));
         if (!hasRows) {
           setRows([]);
           setTotal(0);
+          setListStats(EMPTY_JOB_LIST_STATS);
           setPage(targetPage);
           setPageSize(targetPageSize);
         }
         return null;
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (requestSeq === listRequestSeqRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+          setTableLoading(false);
+        }
       }
     },
-    [page, pageSize, rows.length, tab],
+    [page, pageSize, tab],
   );
+
+  const showCachedJobsList = useCallback((entry: CachedJobsList) => {
+    setRows((prev) =>
+      jobsPollSignature(prev) === jobsPollSignature(entry.jobs) ? prev : entry.jobs,
+    );
+    setRowsPageSize((prev) => (prev === entry.pageSize ? prev : entry.pageSize));
+    setTotal((prev) => (prev === entry.total ? prev : entry.total));
+    setListStats(entry.stats ?? EMPTY_JOB_LIST_STATS);
+    setPage((prev) => (prev === entry.page ? prev : entry.page));
+    setPageSize((prev) => (prev === entry.pageSize ? prev : entry.pageSize));
+    setLoading(false);
+    setRefreshing(false);
+    setTableLoading(false);
+  }, []);
 
   const fetchJobDetails = useCallback(async (jobIds: string[]) => {
     const ids = [...new Set(jobIds)].filter(Boolean);
@@ -239,27 +464,74 @@ export function useJobs() {
   }, []);
 
   useEffect(() => {
-    void load();
+    const silent = nextListLoadSilentRef.current;
+    nextListLoadSilentRef.current = false;
+    void load({ silent });
   }, [load]);
 
   useEffect(() => {
-    const hasActiveJobs = rows.some(
-      (j) => !['completed', 'failed', 'cancelled', 'draft'].includes(j.status),
-    );
     if (!hasActiveJobs) return;
-    const tick = () => {
-      if (document.visibilityState === 'visible') void load();
+    let cancelled = false;
+    let inFlight = false;
+    let timer: ReturnType<typeof window.setTimeout> | null = null;
+
+    const clearPollTimer = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
     };
-    const timer = setInterval(tick, JOBS_LIST_POLL_MS);
-    document.addEventListener('visibilitychange', tick);
+
+    const scheduleNextPoll = () => {
+      if (cancelled) return;
+      clearPollTimer();
+      const hidden = typeof document !== 'undefined' && document.visibilityState !== 'visible';
+      timer = window.setTimeout(
+        () => {
+          void poll();
+        },
+        hidden ? JOBS_LIST_POLL_HIDDEN_MS : JOBS_LIST_POLL_MS,
+      );
+    };
+
+    const poll = async () => {
+      if (cancelled || inFlight) return;
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        scheduleNextPoll();
+        return;
+      }
+      inFlight = true;
+      try {
+        await load({ silent: true });
+      } finally {
+        inFlight = false;
+        scheduleNextPoll();
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      clearPollTimer();
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        void poll();
+      } else {
+        scheduleNextPoll();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    scheduleNextPoll();
     return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', tick);
+      cancelled = true;
+      clearPollTimer();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     };
-  }, [rows, load]);
+  }, [hasActiveJobs, load]);
 
   const refreshList = useCallback(async () => {
-    const result = await load({ targetPage: page });
+    const result = await load({ targetPage: page, silent: false });
     if (!result) return;
     const expandedVisibleIds = [...expandedJobIds].filter((id) =>
       result.jobs.some((job) => job.id === id),
@@ -270,21 +542,66 @@ export function useJobs() {
   const goPage = (next: number) => {
     const clamped = Math.min(Math.max(1, next), totalPages);
     if (clamped === page) return;
-    setPage(clamped);
+    const cached = readJobsListCache(tab, clamped, pageSize, { allowStale: true });
+    nextListLoadSilentRef.current = cached !== null && isFreshJobsListCache(cached);
+    listRequestSeqRef.current += 1;
+    setErr(null);
+    setLoading(false);
+    if (cached) {
+      showCachedJobsList(cached);
+      if (!isFreshJobsListCache(cached)) {
+        setRefreshing(true);
+        setTableLoading(true);
+      }
+    } else {
+      setRefreshing(true);
+      setTableLoading(true);
+      setPage(clamped);
+    }
     setJumpPage('');
   };
 
   const changePageSize = (next: number) => {
     if (next === pageSize) return;
-    setPageSize(next);
-    setPage(1);
+    const cached = readJobsListCache(tab, 1, next, { allowStale: true });
+    nextListLoadSilentRef.current = cached !== null && isFreshJobsListCache(cached);
+    listRequestSeqRef.current += 1;
+    setErr(null);
+    setLoading(false);
+    if (cached) {
+      showCachedJobsList(cached);
+      if (!isFreshJobsListCache(cached)) {
+        setRefreshing(true);
+        setTableLoading(true);
+      }
+    } else {
+      setRefreshing(true);
+      setTableLoading(true);
+      setPageSize(next);
+      setPage(1);
+    }
     setJumpPage('');
   };
 
-  const changeTab = (next: JobTypeApi | 'all') => {
+  const changeTab = (next: JobsStatusFilter) => {
     if (next === tab) return;
+    const cached = readJobsListCache(next, 1, pageSize, { allowStale: true });
+    nextListLoadSilentRef.current = cached !== null && isFreshJobsListCache(cached);
+    listRequestSeqRef.current += 1;
+    setErr(null);
+    setLoading(false);
+    if (cached) {
+      showCachedJobsList(cached);
+      if (!isFreshJobsListCache(cached)) {
+        setRefreshing(true);
+        setTableLoading(true);
+      }
+    } else {
+      setRefreshing(true);
+      setTableLoading(true);
+      setPage(1);
+    }
     setTab(next);
-    setPage(1);
     setJumpPage('');
   };
 
@@ -307,10 +624,10 @@ export function useJobs() {
 
   const requestDelete = useCallback(
     (job: JobSummary) => {
-      if (!canDeleteJob(job.status) || deletingJobId) return;
+      if (!canDeleteJob(job.status) || deletingJobId || requeueingJobId || cleanupLoading) return;
       setDeleteCandidate(job);
     },
-    [deletingJobId],
+    [cleanupLoading, deletingJobId, requeueingJobId],
   );
 
   const cancelDelete = useCallback(() => {
@@ -368,7 +685,14 @@ export function useJobs() {
   );
 
   const onCleanup = useCallback(async () => {
+    if (cleanupLoading || deletingJobId || requeueingJobId) return;
     setCleanupConfirmOpen(false);
+    setCleanupLoading(true);
+    setRows([]);
+    setTotal(0);
+    setListStats(EMPTY_JOB_LIST_STATS);
+    setPage(1);
+    setErr(null);
     try {
       const res = await authFetch('/api/v1/safety/cleanup', { method: 'POST' });
       if (!res.ok) throw new Error(t('safety.cleanup.failed'));
@@ -379,31 +703,29 @@ export function useJobs() {
           .replace('{jobs}', String(data.jobs_removed)),
         'success',
       );
-      void refreshList();
     } catch {
       showToast(t('safety.cleanup.failed'), 'error');
+      void refreshList();
+    } finally {
+      setCleanupLoading(false);
     }
-  }, [refreshList]);
+  }, [cleanupLoading, deletingJobId, refreshList, requeueingJobId]);
 
   const visibleRows = useMemo(() => rows, [rows]);
-  const tableBusy = loading || refreshing || deletingJobId !== null;
+  const interactionLocked = deletingJobId !== null || requeueingJobId !== null;
+  const tableBusy = loading || refreshing || tableLoading || interactionLocked;
   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = total === 0 ? 0 : Math.min(page * pageSize, total);
 
   const pageMetrics = useMemo(
-    () =>
-      visibleRows.reduce(
-        (acc, job) => {
-          if (job.status === 'draft') acc.draft += 1;
-          else if (ACTIVE_STATUSES.has(job.status)) acc.processing += 1;
-          else if (job.status === 'awaiting_review') acc.awaitingReview += 1;
-          else if (job.status === 'completed') acc.completed += 1;
-          else if (job.status === 'failed' || job.status === 'cancelled') acc.risk += 1;
-          return acc;
-        },
-        { draft: 0, processing: 0, awaitingReview: 0, completed: 0, risk: 0 },
-      ),
-    [visibleRows],
+    () => ({
+      totalJobs: listStats.total_jobs,
+      activeJobs: listStats.active_jobs,
+      awaitingReviewItems: listStats.awaiting_review_items,
+      completedItems: listStats.completed_items,
+      riskItems: listStats.risk_items,
+    }),
+    [listStats],
   );
 
   return {
@@ -412,13 +734,16 @@ export function useJobs() {
     total,
     page,
     pageSize,
+    rowsPageSize,
     jumpPage,
     loading,
+    tableLoading,
     refreshing,
     cleanupConfirmOpen,
     err,
     notice,
     deletingJobId,
+    cleanupLoading,
     deleteCandidate,
     expandedJobIds,
     jobDetails,
@@ -426,6 +751,7 @@ export function useJobs() {
     requeueingJobId,
     totalPages,
     tableBusy,
+    interactionLocked,
     rangeStart,
     rangeEnd,
     pageMetrics,

@@ -40,6 +40,9 @@ Thumbs.db
 *.gguf
 *.bin
 *.safetensors
+*.pt
+*.onnx
+*.engine
 
 # Logs
 *.log

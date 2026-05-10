@@ -30,6 +30,7 @@ import {
   fetchRecognitionPipelines,
   fetchRecognitionPresets,
 } from '@/services/recognition-config';
+import { localizePipelineConfig, localizePresetName } from '../lib/redaction-display';
 import type { EntityTypeConfig, PipelineConfig } from './use-entity-types';
 
 function sortPresets(presets: RecognitionPreset[]): RecognitionPreset[] {
@@ -58,6 +59,7 @@ export function useRedactionPresets() {
     selectedEntityTypeIds: [],
     ocrHasTypes: [],
     hasImageTypes: [],
+    vlmTypes: [],
     replacementMode: 'structured',
   });
   const [saving, setSaving] = useState(false);
@@ -68,7 +70,7 @@ export function useRedactionPresets() {
     title: string;
     message: string;
     danger?: boolean;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
   } | null>(null);
 
   const presetKindLabel = useCallback(
@@ -82,7 +84,12 @@ export function useRedactionPresets() {
 
   const reloadPresets = useCallback(async () => {
     try {
-      setPresets(await fetchRecognitionPresets());
+      setPresets(
+        (await fetchRecognitionPresets()).map((preset) => ({
+          ...preset,
+          name: localizePresetName(preset, t),
+        })),
+      );
     } catch {
       setPresets([]);
       setLoadError((current) => current ?? t('settings.loadFailed'));
@@ -106,11 +113,8 @@ export function useRedactionPresets() {
     try {
       setLoadError(null);
       setPipelines(
-        ((await fetchRecognitionPipelines(3_500)) as PipelineConfig[]).map(
-          (pipeline: PipelineConfig) =>
-            pipeline.mode === 'has_image'
-              ? { ...pipeline, name: t('settings.pipelineDisplayName.image') }
-              : pipeline,
+        ((await fetchRecognitionPipelines(3_500)) as PipelineConfig[]).map((pipeline) =>
+          localizePipelineConfig(pipeline, t),
         ),
       );
     } catch {
@@ -156,7 +160,10 @@ export function useRedactionPresets() {
     [effectivePresets],
   );
   const regexTypes = useMemo(
-    () => effectiveEntityTypes.filter((type) => type.enabled !== false && type.regex_pattern),
+    () =>
+      effectiveEntityTypes.filter(
+        (type) => type.enabled !== false && type.id.startsWith('custom_') && type.regex_pattern,
+      ),
     [effectiveEntityTypes],
   );
   const semanticTypes = useMemo(
@@ -175,6 +182,7 @@ export function useRedactionPresets() {
       selectedEntityTypeIds: buildDefaultTextTypeIds(effectiveEntityTypes),
       ocrHasTypes: [],
       hasImageTypes: [],
+      vlmTypes: [],
       replacementMode: 'structured',
       created_at: '',
       updated_at: '',
@@ -190,6 +198,7 @@ export function useRedactionPresets() {
       selectedEntityTypeIds: [],
       ocrHasTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has'),
       hasImageTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'has_image'),
+      vlmTypes: buildDefaultPipelineTypeIds(effectivePipelines, 'vlm'),
       replacementMode: 'structured',
       created_at: '',
       updated_at: '',
@@ -232,6 +241,7 @@ export function useRedactionPresets() {
       const textIds = buildDefaultTextTypeIds(effectiveEntityTypes);
       const ocrIds = buildDefaultPipelineTypeIds(effectivePipelines, 'ocr_has');
       const imageIds = buildDefaultPipelineTypeIds(effectivePipelines, 'has_image');
+      const vlmIds = buildDefaultPipelineTypeIds(effectivePipelines, 'vlm');
 
       if (kind === 'text') {
         return {
@@ -240,6 +250,7 @@ export function useRedactionPresets() {
           selectedEntityTypeIds: textIds,
           ocrHasTypes: [],
           hasImageTypes: [],
+          vlmTypes: [],
           replacementMode: 'structured',
         };
       }
@@ -251,6 +262,7 @@ export function useRedactionPresets() {
           selectedEntityTypeIds: [],
           ocrHasTypes: ocrIds,
           hasImageTypes: imageIds,
+          vlmTypes: vlmIds,
           replacementMode: 'structured',
         };
       }
@@ -261,6 +273,7 @@ export function useRedactionPresets() {
         selectedEntityTypeIds: textIds,
         ocrHasTypes: ocrIds,
         hasImageTypes: imageIds,
+        vlmTypes: vlmIds,
         replacementMode: 'structured',
       };
     },
@@ -275,6 +288,7 @@ export function useRedactionPresets() {
   };
 
   const openEdit = (preset: RecognitionPreset) => {
+    if (preset.readonly) return;
     setExpanded(null);
     setEditingPresetId(preset.id);
     setPresetForm({
@@ -283,6 +297,7 @@ export function useRedactionPresets() {
       selectedEntityTypeIds: [...preset.selectedEntityTypeIds],
       ocrHasTypes: [...preset.ocrHasTypes],
       hasImageTypes: [...preset.hasImageTypes],
+      vlmTypes: [...(preset.vlmTypes ?? [])],
       replacementMode: preset.replacementMode,
     });
     setModalOpen(true);
@@ -296,7 +311,7 @@ export function useRedactionPresets() {
 
     const normalized: PresetPayload =
       presetForm.kind === 'text'
-        ? { ...presetForm, ocrHasTypes: [], hasImageTypes: [], replacementMode: 'structured' }
+        ? { ...presetForm, ocrHasTypes: [], hasImageTypes: [], vlmTypes: [], replacementMode: 'structured' }
         : presetForm.kind === 'vision'
           ? { ...presetForm, selectedEntityTypeIds: [], replacementMode: 'structured' }
           : presetForm;

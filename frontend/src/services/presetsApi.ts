@@ -15,9 +15,11 @@ export interface RecognitionPreset {
   selectedEntityTypeIds: string[];
   ocrHasTypes: string[];
   hasImageTypes: string[];
+  vlmTypes?: string[];
   replacementMode: ReplacementMode;
   created_at: string;
   updated_at: string;
+  readonly?: boolean;
 }
 
 export interface PresetPayload {
@@ -26,6 +28,7 @@ export interface PresetPayload {
   selectedEntityTypeIds: string[];
   ocrHasTypes: string[];
   hasImageTypes: string[];
+  vlmTypes: string[];
   replacementMode: ReplacementMode;
 }
 

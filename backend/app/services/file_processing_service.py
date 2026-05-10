@@ -44,7 +44,7 @@ def _assign_pages_to_entities(entities: list, pages: list[str] | None) -> None:
         except (TypeError, ValueError):
             start = 0
         page_num = last_page
-        for r_start, r_end, p in ranges:
+        for _r_start, r_end, p in ranges:
             if start < r_end:
                 page_num = p
                 break
@@ -66,6 +66,7 @@ async def parse_file(file_id: str) -> dict[str, Any]:
     Parse an uploaded file. Returns ParseResult-compatible dict.
     Raises ValueError if file not found.
     """
+    from app.models.schemas import FileType
     from app.services.file_parser import FileParser
 
     file_store, _file_store_lock = _store_and_lock()
@@ -78,9 +79,14 @@ async def parse_file(file_id: str) -> dict[str, Any]:
 
     file_path = snapshot["file_path"]
     file_type = snapshot["file_type"]
+    parser_file_type = (
+        FileType.PDF
+        if str(getattr(file_type, "value", file_type)) == FileType.PDF_SCANNED.value
+        else file_type
+    )
 
     parser = FileParser()
-    result = await parser.parse(file_path, file_type)
+    result = await parser.parse(file_path, parser_file_type)
 
     async with _file_store_lock:
         if file_id in file_store:
@@ -132,12 +138,12 @@ async def run_hybrid_ner(file_id: str, entity_type_ids: list[str] | None = None)
 
     content = snapshot["content"]
 
-    from app.services.entity_type_service import entity_types_db, get_enabled_types
+    from app.services.entity_type_service import get_default_generic_types, resolve_requested_entity_types
 
-    if entity_type_ids:
-        entity_types = [entity_types_db[tid] for tid in entity_type_ids if tid in entity_types_db]
+    if entity_type_ids is None:
+        entity_types = get_default_generic_types()
     else:
-        entity_types = get_enabled_types()
+        entity_types = resolve_requested_entity_types(entity_type_ids)
 
     warnings: list[str] = []
     if len(content) > HybridNERService.MAX_TEXT_LENGTH:
@@ -145,6 +151,12 @@ async def run_hybrid_ner(file_id: str, entity_type_ids: list[str] | None = None)
             f"文本过长（{len(content)} 字符），已截断至 {HybridNERService.MAX_TEXT_LENGTH} 字符，"
             "超出部分未进行识别。"
         )
+
+    logger.info(
+        "Hybrid NER requested types=%s resolved=%s",
+        entity_type_ids,
+        [getattr(entity_type, "id", None) for entity_type in entity_types],
+    )
 
     try:
         entities = await perform_hybrid_ner(content, entity_types)
@@ -169,7 +181,15 @@ async def run_hybrid_ner(file_id: str, entity_type_ids: list[str] | None = None)
 
     async with _file_store_lock:
         if file_id in file_store:
-            file_store.update_fields(file_id, {"entities": entities})
+            file_store.update_fields(file_id, {
+                "entities": entities,
+                "recognition_config": {
+                    "entity_type_ids": entity_type_ids,
+                    "resolved_entity_type_ids": [
+                        getattr(entity_type, "id", None) for entity_type in entity_types
+                    ],
+                },
+            })
 
     return {
         "entities": entities,
@@ -197,12 +217,12 @@ async def run_default_ner(file_id: str, entity_type_ids: list[str] | None = None
     if snapshot.get("is_scanned", False):
         return {"entities": [], "entity_count": 0, "entity_summary": {}}
 
-    from app.services.entity_type_service import entity_types_db, get_enabled_types
+    from app.services.entity_type_service import get_default_generic_types, resolve_requested_entity_types
 
-    if entity_type_ids:
-        entity_types = [entity_types_db[tid] for tid in entity_type_ids if tid in entity_types_db]
+    if entity_type_ids is None:
+        entity_types = get_default_generic_types()
     else:
-        entity_types = get_enabled_types()
+        entity_types = resolve_requested_entity_types(entity_type_ids)
     try:
         entities = await perform_hybrid_ner(snapshot["content"], entity_types)
     except Exception as e:
@@ -224,7 +244,15 @@ async def run_default_ner(file_id: str, entity_type_ids: list[str] | None = None
 
     async with _file_store_lock:
         if file_id in file_store:
-            file_store.update_fields(file_id, {"entities": entities})
+            file_store.update_fields(file_id, {
+                "entities": entities,
+                "recognition_config": {
+                    "entity_type_ids": entity_type_ids,
+                    "resolved_entity_type_ids": [
+                        getattr(entity_type, "id", None) for entity_type in entity_types
+                    ],
+                },
+            })
 
     return {
         "entities": entities,

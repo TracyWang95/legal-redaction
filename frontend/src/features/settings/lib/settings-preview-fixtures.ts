@@ -24,7 +24,7 @@ export type PreviewPipelineType = {
 };
 
 export type PreviewPipeline = {
-  mode: 'ocr_has' | 'has_image';
+  mode: 'ocr_has' | 'has_image' | 'vlm';
   name: string;
   description: string;
   enabled: boolean;
@@ -103,7 +103,7 @@ export function buildPreviewEntityTypes(t: Translate): PreviewEntityType[] {
       id: 'case_number',
       name: t('entity.CASE_NUMBER'),
       color: '#0f766e',
-      regex_pattern: '[（(]?20\\d{2}[）)]?[A-Za-z\\u4e00-\\u9fa5]{1,6}\\d{2,6}号',
+      regex_pattern: '(?:\\(|（)20\\d{2}(?:\\)|）)[A-Za-z\\u4e00-\\u9fa5]{1,6}\\d{2,6}号?',
       enabled: true,
       order: 9,
     },
@@ -251,8 +251,8 @@ export function buildPreviewPipelines(t: Translate): PreviewPipeline[] {
   ];
   const imageBaseTypes: PreviewPipelineType[] = [
     {
-      id: 'signature_region',
-      name: t('settings.preview.signatureRegion'),
+      id: 'receipt_region',
+      name: t('settings.preview.receiptRegion'),
       color: '#dc2626',
       enabled: true,
       order: 1,
@@ -346,7 +346,7 @@ export function buildPreviewPresets(t: Translate): RecognitionPreset[] {
       kind: 'vision',
       selectedEntityTypeIds: [],
       ocrHasTypes: ['seal_text', 'handwritten_name'],
-      hasImageTypes: ['signature_region', 'portrait_face', 'stamp_region'],
+      hasImageTypes: ['receipt_region', 'portrait_face', 'stamp_region'],
       replacementMode: 'structured',
       created_at: now,
       updated_at: now,
@@ -357,7 +357,7 @@ export function buildPreviewPresets(t: Translate): RecognitionPreset[] {
       kind: 'full',
       selectedEntityTypeIds: ['person_name', 'project_name', 'company_name'],
       ocrHasTypes: ['seal_text'],
-      hasImageTypes: ['signature_region', 'stamp_region'],
+      hasImageTypes: ['receipt_region', 'stamp_region'],
       replacementMode: 'structured',
       created_at: now,
       updated_at: now,
@@ -368,7 +368,7 @@ export function buildPreviewPresets(t: Translate): RecognitionPreset[] {
       kind: 'full',
       selectedEntityTypeIds: ['person_name', 'case_number', 'company_name', 'address'],
       ocrHasTypes: ['seal_text', 'margin_note'],
-      hasImageTypes: ['signature_region', 'watermark_region'],
+      hasImageTypes: ['qr_region', 'watermark_region'],
       replacementMode: 'structured',
       created_at: now,
       updated_at: now,

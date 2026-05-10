@@ -8,6 +8,7 @@ build/
 # Test artifacts
 test-results/
 playwright-report/
+e2e-screenshots/
 output/
 *.png
 test-doc*.docx

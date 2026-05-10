@@ -58,6 +58,7 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
     settings.AUTH_ENABLED = True
 
     import app.core.auth as _auth_mod
+    _prev_auth_file = _auth_mod._AUTH_FILE
     _auth_mod._AUTH_FILE = os.path.join(tmp_data_dir, "data", "auth.json")
 
     from app.api.auth import _auth_limiter
@@ -67,6 +68,7 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
         yield client
 
     settings.AUTH_ENABLED = _prev_auth
+    _auth_mod._AUTH_FILE = _prev_auth_file
     app.dependency_overrides.clear()
     for key in ("UPLOAD_DIR", "OUTPUT_DIR", "DATA_DIR", "JOB_DB_PATH",
                 "AUTH_ENABLED", "DEBUG"):

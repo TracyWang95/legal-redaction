@@ -127,6 +127,14 @@ class Settings(BaseSettings):
     HAS_IMAGE_TIMEOUT: float = 120.0
     HAS_IMAGE_CONF: float = 0.25
 
+    # OpenAI-compatible VLM service for checklist-driven visual features.
+    VLM_BASE_URL: str = "http://127.0.0.1:8090"
+    VLM_MODEL_NAME: str = "GLM-4.6V-Flash-Q4"
+    VLM_TIMEOUT: float = 35.0
+    VLM_COORD_MODE: int = 1000
+    VLM_MAX_IMAGE_SIDE: int = 512
+    VLM_CONCURRENCY: int = 1
+
     # 本地持久化（空串 = 跟随 DATA_DIR 自动派生，见 model_validator）
     FILE_STORE_PATH: str = ""
     JOB_DB_PATH: str = ""
@@ -139,15 +147,68 @@ class Settings(BaseSettings):
     OCR_BASE_URL: str = "http://127.0.0.1:8082"
     # VL 推理常 >120s（大图/CPU/显卡繁忙时）；可用环境变量 OCR_TIMEOUT 覆盖
     OCR_TIMEOUT: float = 360.0
+    # PaddleOCR-VL generation budget. Long scanned contract pages can exceed
+    # 512 tokens; keep this configurable so accuracy and latency can be tuned
+    # per GPU.
+    OCR_MAX_NEW_TOKENS: int = 1024
     # 主后端探测 OCR /health 的超时（秒）；首启加载模型较慢，过短会误显示「离线」
-    OCR_HEALTH_PROBE_TIMEOUT: float = 45.0
+    OCR_HEALTH_PROBE_TIMEOUT: float = 5.0
+    BATCH_RECOGNITION_PAGE_TIMEOUT: float = 180.0
+    # Per-file page-level concurrency for vision recognition. This is not batch
+    # item concurrency; JOB_CONCURRENCY controls how many job items the worker
+    # consumes at once. The runtime caps this value to the current file's page
+    # count, and the validator below clamps operator overrides to 1..4. Lower
+    # this to 1 when GPU memory is already above 90% or model services are cold.
+    BATCH_RECOGNITION_PAGE_CONCURRENCY: int = 2
+    # Run OCR+HaS and HaS Image sequentially by default. On a single shared GPU,
+    # parallel page-internal inference has higher tail latency in practice.
+    VISION_DUAL_PIPELINE_PARALLEL: bool = True
+    # PP-StructureV3 table fallback exposed by the same OCR microservice.
+    # It is slower than PaddleOCR-VL, so the backend only calls it for pages
+    # that look table-heavy or where VL produced too few text boxes.
+    OCR_STRUCTURE_ENABLED: bool = True
+    OCR_STRUCTURE_MIN_VL_BOXES: int = 12
+    # For document redaction, PP-StructureV3 is usually much faster and returns
+    # tighter OCR text boxes than PaddleOCR-VL. Use it as the primary text OCR
+    # path, then fall back to VL only when the result is too sparse or visual
+    # regions such as seals are explicitly needed from OCR.
+    OCR_STRUCTURE_PRIMARY: bool = True
+    OCR_STRUCTURE_PRIMARY_MIN_BOXES: int = 8
+    OCR_TEXT_BLOCK_CACHE_TTL_SEC: float = 300.0
+    OCR_TEXT_BLOCK_CACHE_MAX_ITEMS: int = 128
+    OCR_REQUIRE_VL_FOR_VISUAL_REGIONS: bool = False
+    # For born-digital PDFs, use the native text layer as OCR coordinates and
+    # still let HaS Text decide semantics. Scanned PDFs automatically fall back
+    # to the image OCR path when the text layer is too sparse.
+    PDF_TEXT_LAYER_VISION_ENABLED: bool = True
+    PDF_TEXT_LAYER_MIN_CHARS: int = 80
     # True: OCR 服务离线时直接报错而非尝试 CPU 回退（防止超慢推理阻塞队列）
     OCR_REQUIRE_GPU: bool = False
 
-    # 文本 NER：HaS Text 0209 Q4_K_M（llama-server，默认 8080/v1，OpenAI 兼容）
+    # 文本 NER：HaS Text（默认 vLLM 8080/v1，OpenAI 兼容；llama.cpp 仅保留为旧调试入口）
     HAS_LLAMACPP_BASE_URL: str = "http://127.0.0.1:8080/v1"
     HAS_MODEL_PATH: str = "./models/has/HaS_Text_0209_0.6B_Q4_K_M.gguf"
+    HAS_TEXT_RUNTIME: str = ""
+    HAS_TEXT_VLLM_BASE_URL: str = "http://127.0.0.1:8080/v1"
+    HAS_TEXT_MODEL_NAME: str = ""
     HAS_TIMEOUT: float = 120.0
+    HAS_NER_CONTEXT_TOKENS: int = 8192
+    HAS_NER_MAX_TOKENS: int = 3072
+    HAS_NER_MAX_TYPES_PER_REQUEST: int = 128
+    HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST: int = 16
+    HAS_NER_SINGLE_PASS_MAX_TYPES: int = 128
+    HAS_NER_MAX_PARALLEL_REQUESTS: int = 3
+    HAS_NER_BUILTIN_GUIDANCE_ENABLED: bool = False
+    HAS_NER_CACHE_TTL_SEC: float = 300.0
+    HAS_NER_CACHE_MAX_ITEMS: int = 256
+    # Keep HaS Text OCR requests bounded. Scanned PDFs can produce coarse page
+    # aggregates; HaS still decides semantics, but the backend should not send
+    # unbounded OCR text into a cold local NER queue.
+    HAS_VISION_MAX_TEXT_CHARS: int = 32_000
+    HAS_VISION_MAX_BLOCK_CHARS: int = 8_000
+    # Conservative default keeps existing recall; raise only to skip low-signal
+    # OCR pages before sending them to HaS Text.
+    HAS_VISION_MIN_TEXT_CHARS_FOR_NER: int = 1
 
     # 兼容旧环境变量 HAS_BASE_URL
     HAS_BASE_URL: str | None = None
@@ -167,9 +228,108 @@ class Settings(BaseSettings):
     def _validate_job_concurrency(cls, v: int) -> int:
         return max(1, min(16, v))
 
+    @field_validator("BATCH_RECOGNITION_PAGE_CONCURRENCY")
+    @classmethod
+    def _validate_batch_page_concurrency(cls, v: int) -> int:
+        return max(1, min(4, v))
+
+    @field_validator("OCR_MAX_NEW_TOKENS")
+    @classmethod
+    def _validate_ocr_max_new_tokens(cls, v: int) -> int:
+        return max(128, min(4096, v))
+
+    @field_validator("PDF_TEXT_LAYER_MIN_CHARS")
+    @classmethod
+    def _validate_pdf_text_layer_min_chars(cls, v: int) -> int:
+        return max(0, min(10_000, v))
+
+    @field_validator("OCR_TEXT_BLOCK_CACHE_TTL_SEC")
+    @classmethod
+    def _validate_ocr_text_block_cache_ttl_sec(cls, v: float) -> float:
+        return max(0.0, min(3600.0, v))
+
+    @field_validator("OCR_TEXT_BLOCK_CACHE_MAX_ITEMS")
+    @classmethod
+    def _validate_ocr_text_block_cache_max_items(cls, v: int) -> int:
+        return max(0, min(4096, v))
+
+    @field_validator("HAS_NER_CACHE_TTL_SEC")
+    @classmethod
+    def _validate_has_ner_cache_ttl_sec(cls, v: float) -> float:
+        return max(0.0, min(3600.0, v))
+
+    @field_validator("HAS_NER_MAX_TOKENS")
+    @classmethod
+    def _validate_has_ner_max_tokens(cls, v: int) -> int:
+        return max(128, min(4096, v))
+
+    @field_validator("HAS_NER_CONTEXT_TOKENS")
+    @classmethod
+    def _validate_has_ner_context_tokens(cls, v: int) -> int:
+        return max(512, min(262_144, v))
+
+    @field_validator("HAS_NER_MAX_TYPES_PER_REQUEST")
+    @classmethod
+    def _validate_has_ner_max_types_per_request(cls, v: int) -> int:
+        return max(1, min(96, v))
+
+    @field_validator("HAS_NER_SINGLE_PASS_MAX_TYPES")
+    @classmethod
+    def _validate_has_ner_single_pass_max_types(cls, v: int) -> int:
+        return max(1, min(128, v))
+
+    @field_validator("HAS_NER_MAX_PARALLEL_REQUESTS")
+    @classmethod
+    def _validate_has_ner_max_parallel_requests(cls, v: int) -> int:
+        return max(1, min(8, v))
+
+    @field_validator("HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST")
+    @classmethod
+    def _validate_has_ner_custom_max_types_per_request(cls, v: int) -> int:
+        return max(1, min(16, v))
+
+    @field_validator("HAS_NER_CACHE_MAX_ITEMS")
+    @classmethod
+    def _validate_has_ner_cache_max_items(cls, v: int) -> int:
+        return max(0, min(4096, v))
+
+    @field_validator("HAS_VISION_MAX_TEXT_CHARS")
+    @classmethod
+    def _validate_has_vision_max_text_chars(cls, v: int) -> int:
+        return max(1_000, min(1_000_000, v))
+
+    @field_validator("HAS_VISION_MAX_BLOCK_CHARS")
+    @classmethod
+    def _validate_has_vision_max_block_chars(cls, v: int) -> int:
+        return max(0, min(100_000, v))
+
+    @field_validator("HAS_VISION_MIN_TEXT_CHARS_FOR_NER")
+    @classmethod
+    def _validate_has_vision_min_text_chars_for_ner(cls, v: int) -> int:
+        return max(1, min(10_000, v))
+
     # 后台工作循环 / 清理
     WORKER_LOOP_INTERVAL_SEC: float = 2.0
     ORPHAN_CLEANUP_AGE_SEC: int = 3600
+
+    REDACTION_PDF_JPEG_QUALITY: int = 88
+    PDF_PAGE_IMAGE_CACHE_PAGES: int = 32
+    PDF_PAGE_TEXT_BLOCK_CACHE_PAGES: int = 64
+
+    @field_validator("REDACTION_PDF_JPEG_QUALITY")
+    @classmethod
+    def _validate_redaction_pdf_jpeg_quality(cls, v: int) -> int:
+        return max(60, min(95, v))
+
+    @field_validator("PDF_PAGE_IMAGE_CACHE_PAGES")
+    @classmethod
+    def _validate_pdf_page_image_cache_pages(cls, v: int) -> int:
+        return max(0, min(256, v))
+
+    @field_validator("PDF_PAGE_TEXT_BLOCK_CACHE_PAGES")
+    @classmethod
+    def _validate_pdf_page_text_block_cache_pages(cls, v: int) -> int:
+        return max(0, min(512, v))
 
     # 匿名化配置
     DEFAULT_REPLACEMENT_MODE: Literal["smart", "mask", "custom"] = "smart"
@@ -263,14 +423,18 @@ settings = get_settings()
 
 def get_has_chat_base_url() -> str:
     """NER 使用的 OpenAI 兼容 API 根路径（…/v1）。"""
+    s = get_settings()
+    if s.HAS_TEXT_RUNTIME.strip().lower() == "vllm":
+        return s.HAS_TEXT_VLLM_BASE_URL.rstrip("/")
+    if s.HAS_BASE_URL:
+        return s.HAS_BASE_URL.rstrip("/")
+    if s.HAS_LLAMACPP_BASE_URL:
+        return s.HAS_LLAMACPP_BASE_URL.rstrip("/")
     from app.core.ner_runtime import load_ner_runtime
     rt = load_ner_runtime()
     if rt is not None:
         return rt.llamacpp_base_url.rstrip("/")
-    s = get_settings()
-    if s.HAS_BASE_URL:
-        return s.HAS_BASE_URL.rstrip("/")
-    return s.HAS_LLAMACPP_BASE_URL.rstrip("/")
+    return "http://127.0.0.1:8080/v1"
 
 
 def get_has_health_check_url() -> str:
@@ -284,4 +448,7 @@ def get_has_display_name() -> str:
     custom = (os.environ.get("HAS_NER_DISPLAY_NAME") or "").strip()
     if custom:
         return custom
+    s = get_settings()
+    if s.HAS_TEXT_MODEL_NAME:
+        return s.HAS_TEXT_MODEL_NAME
     return "HaS-Text-0209-Q4"

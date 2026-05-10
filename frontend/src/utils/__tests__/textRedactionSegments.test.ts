@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  buildEntityCoverageMap,
   buildTextSegments,
   buildFallbackPreviewEntityMap,
   mergePreviewMapWithDocumentSlices,
@@ -67,6 +68,39 @@ describe('buildTextSegments', () => {
   });
 });
 
+describe('buildEntityCoverageMap', () => {
+  it('keeps unique selected entity texts so coverage follows backend longest-match redaction', () => {
+    const map = buildEntityCoverageMap([
+      { text: 'Alice works at Acme', type: 'ORG' },
+      { text: 'Alice', type: 'PERSON' },
+      { text: 'Acme', type: 'ORG' },
+      { text: 'Acme', type: 'ORG' },
+      { text: 'Bob', type: 'PERSON', selected: false },
+    ]);
+
+    expect(Array.from(map.keys())).toEqual(['Alice works at Acme', 'Alice', 'Acme', 'Bob']);
+  });
+
+  it('lets buildTextSegments resolve overlapping coverage keys by longest match', () => {
+    const map = Object.fromEntries(
+      Array.from(buildEntityCoverageMap([
+        { text: 'Alice works at Acme', type: 'ORG' },
+        { text: 'Alice', type: 'PERSON' },
+        { text: 'Acme', type: 'ORG' },
+      ]).keys()).map((key) => [key, key]),
+    );
+    const matches = buildTextSegments('Alice works at Acme. Alice called Acme.', map).filter(
+      (segment) => segment.isMatch,
+    );
+
+    expect(matches.map((segment) => segment.text)).toEqual([
+      'Alice works at Acme',
+      'Alice',
+      'Acme',
+    ]);
+  });
+});
+
 describe('buildFallbackPreviewEntityMap', () => {
   const entities = [
     { text: '张三', type: 'PERSON', selected: true },
@@ -111,6 +145,21 @@ describe('buildFallbackPreviewEntityMap', () => {
       'structured',
     );
     expect(map['张三']).toBe('<人物[001].个人.姓名>');
+  });
+
+  it('normalizes legacy date/time and money aliases in fallback placeholders', () => {
+    const map = buildFallbackPreviewEntityMap(
+      [
+        { text: '08:30', type: 'TIME', selected: true },
+        { text: '2024-01-15 08:30', type: 'DATETIME', selected: true },
+        { text: '500元', type: 'MONEY', selected: true },
+      ],
+      'structured',
+    );
+
+    expect(map['08:30']).toBe('<日期/时间[001].具体日期.年月日>');
+    expect(map['2024-01-15 08:30']).toBe('<日期/时间[002].具体日期.年月日>');
+    expect(map['500元']).toBe('<金额[001].合同金额.数值>');
   });
 
   it('filters out entities with empty text', () => {

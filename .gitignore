@@ -1,6 +1,9 @@
-# Claude Code / AI assistant
+# AI assistant workspaces
+.agents/
 .claude/
 CLAUDE.md
+.mcp.json
+OPTIMIZATION_PLAN.md
 
 # Python
 __pycache__/
@@ -9,7 +12,9 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.docker.example
 .venv/
+.venv-vllm/
 venv/
 *.egg-info/
 dist/
@@ -20,18 +25,25 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+frontend/.vite/
 
-# Build & cache
+# Build and cache
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 *.log
 
-# Local data & outputs（运行时生成，不提交）
+# Runtime data and generated outputs
 backend/uploads/
 backend/outputs/
 backend/models/
 backend/data/
+data/*.json
+data/*.sqlite3
+data/*.migrated
+tmp/
+output/
+frontend/output/
 
 # OS
 .DS_Store
@@ -45,66 +57,41 @@ desktop.ini
 *.swp
 *.swo
 
-# 本地模型文件（用户自行下载）
+# Local model files
 *.gguf
 *.bin
 *.safetensors
 
-# 调试日志
-debug.log
-logs/
-
-# 本地宣传材料与生成脚本（不入库）
+# Local drafts and one-off cleanup helpers
 generate_qingjing_docx.py
 qingjing-dataset-platform-intro.docx
 wechat_article.md
-
-# 一次性历史清洗规则（勿提交）
 _filter_repo_replacements.txt
 
-# Playwright test results & screenshots
+# Playwright and browser artifacts
+test-results/
 frontend/test-results/
-frontend/*.png
-frontend/test-doc*.docx
-frontend/test-img.png
-
-# Vite cache
-frontend/.vite/
-
-# Playwright CLI artifacts
+frontend/playwright-report/
+frontend/e2e/.auth/
 .playwright-cli/
 frontend/.playwright-cli/
 backend/.playwright-cli/
 frontend/frontend-preview.log
-*.log
+frontend/*.png
+frontend/test-doc*.docx
+frontend/test-img.png
 
-# Temp data & fixtures
-tmp/
-data/*.json
-data/*.sqlite3
-data/*.migrated
-
-# Claude review-loop plugin
+# Review-loop local artifacts
 .claude/review-loop.local.md
 .claude/review-loop-run-codex.sh
 .claude/review-loop-prompt.md
 .claude/review-loop.log
 reviews/
 
-# Claude Code / AI assistant artifacts
-.claude/skills/
-.mcp.json
-OPTIMIZATION_PLAN.md
-
-# Playwright screenshots and test artifacts
-output/
-frontend/output/
-frontend/playwright-report/
-
-# Temporary test scripts
+# Temporary root/backend scripts created during manual debugging
 backend/test_*.py
 
-# Runtime data
+# Runtime databases
 *.db
 *.db-journal
 *.db-wal

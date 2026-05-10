@@ -34,22 +34,28 @@ export function JobsPagination({
 }: JobsPaginationProps) {
   const t = useT();
 
-  if (total <= 0) return null;
-
   return (
     <PaginationRail
       page={page}
       pageSize={pageSize}
       totalItems={total}
       totalPages={totalPages}
-      onPageChange={onGoPage}
+      onPageChange={(nextPage) => {
+        if (tableBusy) return;
+        onGoPage(nextPage);
+      }}
       onPageSizeChange={(size) => {
         if (tableBusy) return;
         onChangePageSize(size);
       }}
       pageSizeOptions={PAGE_SIZE_OPTIONS}
+      rangeLabel={t('jobs.showRange')}
       perPageLabel={t('jobs.perPage')}
       itemsUnitLabel={t('jobs.itemsUnit')}
+      compact
+      disabled={tableBusy}
+      reserveWhenEmpty
+      className="jobs-pagination-rail !min-h-10 !rounded-xl border-border/70 bg-muted/40"
     />
   );
 }

@@ -1,161 +1,268 @@
-"""
-模型预热脚本 - 在服务启动时预热所有模型
-避免首次推理时的冷启动延迟
-"""
-import httpx
-import time
-import sys
+"""Warm up local model services before the first real recognition request.
 
-# 配置
+This script is intentionally conservative: it only calls already-running
+services and never starts or stops model processes.
+"""
+
+from __future__ import annotations
+
+import base64
+import os
+import sys
+import time
+from io import BytesIO
+
+import httpx
+from PIL import Image, ImageDraw
+
 HAS_URL = "http://127.0.0.1:8080/v1/chat/completions"
+HAS_MODEL = os.environ.get("HAS_TEXT_MODEL_NAME", "HaS_4.0_0.6B")
 HAS_IMAGE_HEALTH = "http://127.0.0.1:8081/health"
 HAS_IMAGE_DETECT = "http://127.0.0.1:8081/detect"
 OCR_URL = "http://127.0.0.1:8082/ocr"
-TIMEOUT = 180.0  # 首次推理可能需要较长时间
+OCR_STRUCTURE_URL = "http://127.0.0.1:8082/structure"
+VLM_URL = os.environ.get("VLM_WARMUP_URL", "http://127.0.0.1:8090/v1/chat/completions")
+VLM_MODEL = os.environ.get("VLM_MODEL_NAME", "GLM-4.6V-Flash-Q4")
+TIMEOUT = 180.0
+DEFAULT_MAX_WAIT = int(os.environ.get("WARMUP_MAX_WAIT_SECONDS", "90"))
 
-# 1x1 白色 PNG
-_TEST_IMAGE_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+
+def _png_base64(image: Image.Image) -> str:
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def warmup_has_model():
-    """预热HaS NER模型"""
-    print("[预热] 正在预热 HaS NER 模型...")
+def _white_pixel_png_base64() -> str:
+    return _png_base64(Image.new("RGB", (1, 1), "white"))
 
-    test_text = "张三的身份证号是110101199003071234，电话13812345678。"
 
+def _table_png_base64() -> str:
+    image = Image.new("RGB", (640, 420), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((48, 72, 592, 340), outline="black", width=3)
+    for y in (150, 230):
+        draw.line((48, y, 592, y), fill="black", width=2)
+    for x in (228, 410):
+        draw.line((x, 72, x, 340), fill="black", width=2)
+    draw.text((84, 104), "Name", fill="black")
+    draw.text((264, 104), "Amount", fill="black")
+    draw.text((446, 104), "Date", fill="black")
+    draw.text((84, 184), "Alice", fill="black")
+    draw.text((264, 184), "12345", fill="black")
+    draw.text((446, 184), "2026-05-06", fill="black")
+    return _png_base64(image)
+
+
+def _post_json(url: str, payload: dict, *, timeout: float = TIMEOUT) -> httpx.Response:
+    response = httpx.post(url, json=payload, timeout=timeout)
+    response.raise_for_status()
+    return response
+
+
+def warmup_has_model() -> bool:
+    print("[warmup] HaS Text ...")
     try:
         start = time.perf_counter()
-        resp = httpx.post(
+        _post_json(
             HAS_URL,
-            json={
-                "model": "has",
+            {
+                "model": HAS_MODEL,
                 "messages": [
-                    {"role": "system", "content": "你是一个NER识别助手。"},
-                    {"role": "user", "content": f"请识别以下文本中的实体：{test_text}"},
+                    {
+                        "role": "user",
+                        "content": (
+                            'Recognize the following entity types in the text.\n'
+                            'Specified types:["姓名","电话"]\n'
+                            'Return strict JSON only. Include only entity types that have matches in the text.\n'
+                            'Never output empty arrays. Do not explain.\n'
+                            '<text>张三 电话 13812345678</text>'
+                        ),
+                    },
                 ],
-                "max_tokens": 256,
-                "temperature": 0.1,
+                "max_tokens": 128,
+                "temperature": 0.0,
             },
-            timeout=TIMEOUT,
         )
-        resp.raise_for_status()
-        elapsed = time.perf_counter() - start
-        print(f"[预热] [OK] HaS 模型预热完成，耗时 {elapsed:.2f}s")
+        print(f"[warmup] [OK] HaS Text done in {time.perf_counter() - start:.2f}s")
         return True
-    except Exception as e:
-        print(f"[预热] [FAIL] HaS 模型预热失败: {e}")
+    except Exception as exc:
+        print(f"[warmup] [FAIL] HaS Text failed: {exc}")
         return False
 
 
-def warmup_has_image_model():
-    """预热 HaS Image（YOLO）微服务"""
-    print("[预热] 正在预热 HaS Image (YOLO) ...")
+def warmup_has_image_model() -> bool:
+    print("[warmup] HaS Image ...")
     try:
         start = time.perf_counter()
-        resp = httpx.post(
-            HAS_IMAGE_DETECT,
-            json={"image_base64": _TEST_IMAGE_B64, "conf": 0.25},
-            timeout=TIMEOUT,
-        )
-        resp.raise_for_status()
-        elapsed = time.perf_counter() - start
-        print(f"[预热] [OK] HaS Image 预热完成，耗时 {elapsed:.2f}s")
+        _post_json(HAS_IMAGE_DETECT, {"image_base64": _white_pixel_png_base64(), "conf": 0.25})
+        print(f"[warmup] [OK] HaS Image done in {time.perf_counter() - start:.2f}s")
         return True
-    except Exception as e:
-        print(f"[预热] [FAIL] HaS Image 预热失败: {e}")
+    except Exception as exc:
+        print(f"[warmup] [FAIL] HaS Image failed: {exc}")
         return False
 
 
-def warmup_ocr():
-    """预热PaddleOCR-VL微服务"""
+def warmup_ocr_vl() -> bool:
     print("[warmup] PaddleOCR-VL ...")
     try:
         start = time.perf_counter()
-        resp = httpx.post(
-            OCR_URL, json={"image": _TEST_IMAGE_B64, "max_new_tokens": 64}, timeout=TIMEOUT
-        )
-        resp.raise_for_status()
-        elapsed = time.perf_counter() - start
-        print(f"[warmup] [OK] PaddleOCR-VL warmup done in {elapsed:.2f}s")
+        _post_json(OCR_URL, {"image": _white_pixel_png_base64(), "max_new_tokens": 64})
+        print(f"[warmup] [OK] PaddleOCR-VL done in {time.perf_counter() - start:.2f}s")
         return True
-    except Exception as e:
-        print(f"[warmup] [FAIL] PaddleOCR-VL warmup failed: {e}")
+    except Exception as exc:
+        print(f"[warmup] [FAIL] PaddleOCR-VL failed: {exc}")
         return False
 
 
-def check_service(url: str, name: str) -> bool:
-    """检查 llama 类服务是否可用"""
+def warmup_ocr_structure() -> bool:
+    print("[warmup] PP-StructureV3 ...")
     try:
-        resp = httpx.get(url.replace("/v1/chat/completions", "/health"), timeout=5.0)
-        return resp.status_code == 200
+        start = time.perf_counter()
+        _post_json(
+            OCR_STRUCTURE_URL,
+            {
+                "image": _table_png_base64(),
+                "use_ocr_results_with_table_cells": True,
+                "use_table_orientation_classify": False,
+            },
+        )
+        print(f"[warmup] [OK] PP-StructureV3 done in {time.perf_counter() - start:.2f}s")
+        return True
+    except Exception as exc:
+        print(f"[warmup] [FAIL] PP-StructureV3 failed: {exc}")
+        return False
+
+
+def warmup_vlm() -> bool:
+    print("[warmup] GLM VLM ...")
+    try:
+        start = time.perf_counter()
+        _post_json(
+            VLM_URL,
+            {
+                "model": VLM_MODEL,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{_white_pixel_png_base64()}"},
+                            },
+                            {
+                                "type": "text",
+                                "text": 'Return compact JSON only: {"objects":[]}',
+                            },
+                        ],
+                    },
+                ],
+                "max_tokens": 256,
+                "temperature": 0.0,
+                "top_p": 0.6,
+                "stream": False,
+                "chat_template_kwargs": {"enable_thinking": False},
+                "thinking": {"type": "disabled"},
+                "enable_thinking": False,
+            },
+            timeout=float(os.environ.get("VLM_WARMUP_TIMEOUT", "120")),
+        )
+        print(f"[warmup] [OK] GLM VLM done in {time.perf_counter() - start:.2f}s")
+        return True
+    except Exception as exc:
+        print(f"[warmup] [FAIL] GLM VLM failed: {exc}")
+        return False
+
+
+def check_service(url: str) -> bool:
+    try:
+        response = httpx.get(url.replace("/v1/chat/completions", "/health"), timeout=5.0)
+        if response.status_code == 200:
+            return True
     except Exception:
-        try:
-            resp = httpx.get(url.replace("/v1/chat/completions", "/v1/models"), timeout=5.0)
-            return resp.status_code == 200
-        except Exception:
+        pass
+    try:
+        response = httpx.get(url.replace("/v1/chat/completions", "/v1/models"), timeout=5.0)
+        return response.status_code == 200
+    except Exception:
             return False
 
 
-def probe_has_image() -> tuple[str, bool]:
-    """
-    返回 ("ready" | "unavailable" | "down", loaded: bool)
-    loaded 表示权重已加载可跑 /detect
-    """
+def check_vlm_service() -> bool:
     try:
-        resp = httpx.get(HAS_IMAGE_HEALTH, timeout=5.0)
-        if resp.status_code != 200:
+        base = VLM_URL.rsplit("/chat/completions", 1)[0]
+        response = httpx.get(f"{base}/models", timeout=5.0)
+        return response.status_code == 200
+    except Exception:
+        return False
+
+
+def probe_has_image() -> tuple[str, bool]:
+    try:
+        response = httpx.get(HAS_IMAGE_HEALTH, timeout=5.0)
+        if response.status_code != 200:
             return "down", False
-        j = resp.json()
-        if j.get("ready"):
+        payload = response.json()
+        if payload.get("ready"):
             return "ready", True
         return "unavailable", False
     except Exception:
         return "down", False
 
 
-def wait_for_services(max_wait: int = 90):
-    """等待 HaS NER、OCR；8081 若已监听则探测一次 HaS Image，未启动则 15s 后不再阻塞"""
-    print("[start] waiting for services...")
-
+def wait_for_services(max_wait: int = DEFAULT_MAX_WAIT) -> bool:
+    print("[start] waiting for model services...")
     has_ready = False
     ocr_ready = False
+    vlm_ready = False
 
-    for i in range(max_wait):
+    for second in range(max_wait):
         if not has_ready:
-            has_ready = check_service(HAS_URL, "HaS")
+            has_ready = check_service(HAS_URL)
             if has_ready:
-                print("[start] [OK] HaS ready")
+                print("[start] [OK] HaS Text ready")
 
         if not ocr_ready:
             try:
-                resp = httpx.get("http://127.0.0.1:8082/health", timeout=3.0)
-                if resp.status_code == 200 and resp.json().get("ready"):
+                response = httpx.get("http://127.0.0.1:8082/health", timeout=3.0)
+                if response.status_code == 200 and response.json().get("ready"):
                     ocr_ready = True
                     print("[start] [OK] OCR ready")
             except Exception:
                 pass
 
+        if not vlm_ready:
+            vlm_ready = check_vlm_service()
+            if vlm_ready:
+                print("[start] [OK] GLM VLM ready")
+
         state, loaded = probe_has_image()
-        if state == "ready" and loaded and i % 15 == 0:
-            print("[start] [OK] HaS Image ready (weights loaded)")
-        elif state == "unavailable" and i % 20 == 0:
-            print("[start] [WARN] HaS Image 已启动但无权重 (ready=false)")
+        if state == "ready" and loaded and second % 15 == 0:
+            print("[start] [OK] HaS Image ready")
+        elif state == "unavailable" and second % 20 == 0:
+            print("[start] [WARN] HaS Image is reachable but not ready")
 
-        # HaS + OCR 就绪后：8081 已响应或已等待足够时间即继续
-        if has_ready and ocr_ready:
-            if state != "down" or i >= 15:
-                return True
+        if has_ready and ocr_ready and (state != "down" or second >= 15):
+            return True
 
-        if i % 5 == 0:
-            hi = "OK" if loaded else ("up" if state == "unavailable" else "...")
-            status = f"HaS={'OK' if has_ready else '...'} HaS-Img={hi} OCR={'OK' if ocr_ready else '...'}"
-            print(f"[start] waiting ({i}s) {status}")
+        if second % 5 == 0:
+            image_state = "OK" if loaded else ("up" if state == "unavailable" else "...")
+            print(
+                f"[start] waiting ({second}s) "
+                f"HaS={'OK' if has_ready else '...'} "
+                f"HaS-Image={image_state} OCR={'OK' if ocr_ready else '...'} "
+                f"VLM={'OK' if vlm_ready else '...'}"
+            )
         time.sleep(1)
 
+    print(
+        "[start] services are not reachable from this shell. "
+        "If /health/services is online, run this script inside the same WSL/container network as the model services."
+    )
     return has_ready and ocr_ready
 
 
-def main():
+def main() -> None:
     print("=" * 50)
     print("Model Warmup Script")
     print("=" * 50)
@@ -170,17 +277,21 @@ def main():
 
     has_ok = warmup_has_model()
     print()
-    _, img_loaded = probe_has_image()
-    if img_loaded:
-        img_ok = warmup_has_image_model()
+    _, image_loaded = probe_has_image()
+    if image_loaded:
+        image_ok = warmup_has_image_model()
     else:
-        print("[预热] [SKIP] HaS Image 未加载权重，跳过 /detect 预热")
-        img_ok = True
+        print("[warmup] [SKIP] HaS Image weights are not loaded")
+        image_ok = True
     print()
-    ocr_ok = warmup_ocr()
+    ocr_ok = warmup_ocr_vl()
+    print()
+    structure_ok = warmup_ocr_structure()
+    print()
+    vlm_ok = warmup_vlm()
 
     print("\n" + "=" * 50)
-    all_ok = has_ok and img_ok and ocr_ok
+    all_ok = has_ok and image_ok and ocr_ok and structure_ok and vlm_ok
     if all_ok:
         print("[OK] All models warmed up!")
     else:

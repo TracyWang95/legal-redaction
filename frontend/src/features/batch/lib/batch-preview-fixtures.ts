@@ -3,7 +3,7 @@
 
 import type { BoundingBox as EditorBox } from '@/components/ImageBBoxEditor';
 import type { RecognitionPreset } from '@/services/presetsApi';
-import type { BatchWizardPersistedConfig, BatchWizardMode } from '@/services/batchPipeline';
+import type { BatchWizardMode, BatchWizardPersistedConfig } from '@/services/batchPipeline';
 import { FileType } from '@/types';
 import type { BatchRow, PipelineCfg, ReviewEntity, Step, TextEntityType } from '../types';
 
@@ -175,7 +175,7 @@ const regexPreviewTemplates = [
   {
     id: 'CASE_CODE',
     name: '案件编号',
-    pattern: '[（(]?20\\d{2}[）)]?[\\u4e00-\\u9fa5A-Za-z]{1,8}\\d{2,6}号',
+    pattern: '(?:\\(|（)20\\d{2}(?:\\)|）)[\\u4e00-\\u9fa5A-Za-z]{1,8}\\d{2,6}号?',
   },
   { id: 'PASSPORT', name: '护照号码', pattern: '[A-Z0-9]{8,17}' },
   { id: 'PLATE', name: '车牌号码', pattern: '[\\u4e00-\\u9fa5][A-Z][A-Z0-9]{5,6}' },
@@ -224,8 +224,8 @@ export const previewTextTypes: TextEntityType[] = Array.from({ length: 120 }, (_
   };
 });
 
-const previewOcrNames = ['公章文字', '手写姓名', '边注文字', '回单抬头'] as const;
-const previewImageNames = ['签名区域', '印章区域', '人脸区域', '车牌区域'] as const;
+const previewOcrNames = ['公章文字', '手写文字', '边注文字', '回单抬头'] as const;
+const previewImageNames = ['二维码区域', '印章区域', '人脸区域', '车牌区域'] as const;
 
 export const previewPipelines: PipelineCfg[] = [
   {
@@ -281,6 +281,7 @@ export const previewPresets: RecognitionPreset[] = [
     selectedEntityTypeIds: allPreviewTextIds,
     ocrHasTypes: [],
     hasImageTypes: [],
+    vlmTypes: [],
     replacementMode: 'structured',
     created_at: previewNow,
     updated_at: previewNow,
@@ -292,6 +293,7 @@ export const previewPresets: RecognitionPreset[] = [
     selectedEntityTypeIds: [],
     ocrHasTypes: allPreviewOcrIds,
     hasImageTypes: allPreviewImageIds,
+    vlmTypes: [],
     replacementMode: 'structured',
     created_at: previewNow,
     updated_at: previewNow,
@@ -302,6 +304,7 @@ export const previewBatchConfig: BatchWizardPersistedConfig = {
   selectedEntityTypeIds: allPreviewTextIds,
   ocrHasTypes: allPreviewOcrIds,
   hasImageTypes: allPreviewImageIds,
+  vlmTypes: [],
   replacementMode: 'structured',
   imageRedactionMethod: 'mosaic',
   imageRedactionStrength: 25,
@@ -316,8 +319,8 @@ const previewTextEntities: ReviewEntity[] = [
     id: 'preview-entity-person',
     text: '张宁',
     type: 'SEM_1',
-    start: 7,
-    end: 9,
+    start: 4,
+    end: 6,
     selected: true,
     page: 1,
     confidence: 0.98,
@@ -327,8 +330,8 @@ const previewTextEntities: ReviewEntity[] = [
     id: 'preview-entity-id',
     text: '310101199201013422',
     type: 'ID_CARD',
-    start: 19,
-    end: 37,
+    start: 12,
+    end: 30,
     selected: true,
     page: 1,
     confidence: 0.99,
@@ -336,10 +339,10 @@ const previewTextEntities: ReviewEntity[] = [
   },
   {
     id: 'preview-entity-case',
-    text: '（2026）民终083号',
+    text: '（2026）民终83号',
     type: 'CASE_CODE',
-    start: 47,
-    end: 60,
+    start: 37,
+    end: 48,
     selected: true,
     page: 1,
     confidence: 0.95,
@@ -352,8 +355,8 @@ const previewCaseEntities: ReviewEntity[] = [
     id: 'preview-entity-bank',
     text: '6214850200123456789',
     type: 'BANK_CARD',
-    start: 28,
-    end: 47,
+    start: 4,
+    end: 23,
     selected: true,
     page: 1,
     confidence: 0.97,
@@ -363,8 +366,8 @@ const previewCaseEntities: ReviewEntity[] = [
     id: 'preview-entity-person-2',
     text: '王敏',
     type: 'SEM_1',
-    start: 58,
-    end: 60,
+    start: 34,
+    end: 36,
     selected: true,
     page: 1,
     confidence: 0.92,
@@ -374,13 +377,13 @@ const previewCaseEntities: ReviewEntity[] = [
 
 const previewImageBoxes: EditorBox[] = [
   {
-    id: 'preview-box-signature',
+    id: 'preview-box-qr',
     x: 0.125,
     y: 0.46,
     width: 0.2,
     height: 0.095,
     type: 'image_type_1',
-    text: '签名',
+    text: '二维码',
     selected: true,
     source: 'has_image',
     confidence: 0.96,
@@ -460,7 +463,7 @@ export function getPreviewReviewPayload(fileId: string): {
   if (fileId === 'preview-file-contract') {
     return {
       content:
-        '合同主体张宁，身份证号为310101199201013422，关联案件编号为（2026）民终083号，需在导出前统一处理。',
+        '合同主体张宁，身份证号为310101199201013422，关联案件编号为（2026）民终83号，需要在导出前统一处理。',
       entities: previewTextEntities,
       boxes: [],
       imageSrc: '',

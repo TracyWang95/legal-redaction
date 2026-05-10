@@ -52,7 +52,10 @@ export interface BoundingBox {
   text?: string;
   selected: boolean;
   confidence?: number;
-  source?: 'ocr_has' | 'has_image' | 'manual';
+  source?: 'ocr_has' | 'has_image' | 'vlm' | 'manual';
+  evidence_source?: 'ocr_has' | 'has_image_model' | 'vlm_model' | 'local_fallback' | 'manual';
+  source_detail?: string;
+  warnings?: string[];
 }
 
 export interface EntityTypeConfig {
@@ -73,10 +76,13 @@ export interface VisionTypeConfig {
   description?: string;
   enabled?: boolean;
   order?: number;
+  rules?: string[];
+  negative_prompt_enabled?: boolean;
+  negative_prompt?: string | null;
 }
 
 export interface PipelineConfig {
-  mode: 'ocr_has' | 'has_image';
+  mode: 'ocr_has' | 'has_image' | 'vlm';
   name: string;
   description: string;
   enabled: boolean;

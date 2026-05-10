@@ -109,7 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return request;
   }, []);
 
-  const refresh = useCallback(async (): Promise<AuthStatus | null> => runRefresh(false), [runRefresh]);
+  const refresh = useCallback(
+    async (): Promise<AuthStatus | null> => runRefresh(false),
+    [runRefresh],
+  );
 
   useEffect(() => {
     void runRefresh(false);
@@ -145,27 +148,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [runRefresh]);
 
-  const login = useCallback(async (password: string) => {
-    const res = await authFetch('/api/v1/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    await ensureOk<TokenResponse>(res);
-    setError(null);
-    await confirmAuthenticated();
-  }, [confirmAuthenticated]);
+  const login = useCallback(
+    async (password: string) => {
+      const res = await authFetch('/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      await ensureOk<TokenResponse>(res);
+      setError(null);
+      await confirmAuthenticated();
+    },
+    [confirmAuthenticated],
+  );
 
-  const setup = useCallback(async (password: string) => {
-    const res = await authFetch('/api/v1/auth/setup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
-    });
-    await ensureOk<TokenResponse>(res);
-    setError(null);
-    await confirmAuthenticated();
-  }, [confirmAuthenticated]);
+  const setup = useCallback(
+    async (password: string) => {
+      const res = await authFetch('/api/v1/auth/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      await ensureOk<TokenResponse>(res);
+      setError(null);
+      await confirmAuthenticated();
+    },
+    [confirmAuthenticated],
+  );
 
   const logout = useCallback(async () => {
     let shouldRefresh = false;

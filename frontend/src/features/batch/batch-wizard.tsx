@@ -41,10 +41,10 @@ export function BatchWizard() {
           className={cn(
             'flex min-h-0 min-w-0 flex-1 flex-col',
             w.step === 1
-              ? 'page-shell-narrow !max-w-[108rem] 2xl:!max-w-[118rem] overflow-hidden'
+              ? 'page-shell-narrow !max-w-[108rem] !pt-2 2xl:!max-w-[118rem] 2xl:!pt-3 overflow-hidden'
               : w.step === 4
-                ? 'page-shell overflow-hidden'
-                : 'page-shell-narrow !max-w-[112rem] 2xl:!max-w-[122rem] overflow-hidden',
+                ? 'page-shell !pt-2 2xl:!pt-3 overflow-hidden'
+                : 'page-shell-narrow !max-w-[112rem] !pt-2 2xl:!max-w-[122rem] 2xl:!pt-3 overflow-hidden',
           )}
         >
           {w.previewMode && (
@@ -54,12 +54,12 @@ export function BatchWizard() {
           )}
 
           {w.step !== 4 && (
-            <p className="mb-0.5 shrink-0 text-xs leading-tight text-muted-foreground">
+            <p className="mb-0.5 shrink-0 text-[11px] leading-tight text-muted-foreground">
               {t('batchWizard.stepsOverview')}
             </p>
           )}
 
-          <BatchStepProgress currentStep={w.step} canGoStep={w.canGoStep} />
+          <BatchStepProgress currentStep={w.step} canGoStep={w.canGoStep} goStep={w.goStep} />
 
           {w.msg && (
             <Alert variant={msgVariant} className="mb-2">
@@ -78,6 +78,9 @@ export function BatchWizard() {
               isDragActive={w.isDragActive}
               getRootProps={w.getRootProps}
               getInputProps={w.getInputProps}
+              uploadIssues={w.uploadIssues}
+              uploadProgress={w.uploadProgress}
+              clearUploadIssues={w.clearUploadIssues}
               goStep={w.goStep}
               removeRow={w.removeRow}
               clearRows={w.clearRows}
@@ -86,6 +89,7 @@ export function BatchWizard() {
 
           {w.step === 3 && (
             <BatchStep3Recognize
+              mode={w.mode}
               rows={w.rows}
               activeJobId={w.activeJobId}
               failedRows={w.failedRows}
@@ -99,11 +103,14 @@ export function BatchWizard() {
 
           {w.step === 5 && (
             <BatchStep5Export
+              activeJobId={w.activeJobId}
               rows={w.rows}
               selected={w.selected}
               selectedIds={w.selectedIds}
               zipLoading={w.zipLoading}
               toggle={w.toggle}
+              selectReadyForDelivery={w.selectReadyForDelivery}
+              resolveExportIssue={w.resolveExportIssue}
               goStep={w.goStep}
               downloadZip={w.downloadZip}
             />

@@ -10,7 +10,6 @@ from app.services.vision.image_pipeline import (
     match_ocr_to_vlm,
 )
 from app.services.vision.ocr_pipeline import (
-    apply_regex_rules,
     expand_table_blocks,
     extract_table_cells,
     match_entities_to_ocr,
@@ -32,7 +31,6 @@ __all__ = [
     "expand_table_blocks",
     "run_has_text_analysis",
     "match_entities_to_ocr",
-    "apply_regex_rules",
     # image_pipeline
     "match_ocr_to_vlm",
     "draw_regions_on_image",

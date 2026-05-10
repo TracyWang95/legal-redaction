@@ -49,6 +49,7 @@ vi.mock('@/utils/textRedactionSegments', () => ({
 }));
 
 import type { BatchWizardPersistedConfig } from '@/services/batchPipeline';
+import { putItemReviewDraft } from '@/services/jobsApi';
 import { FileType } from '@/types';
 import type { BatchRow, ReviewEntity, TextEntityType, Step } from '../../types';
 import { useBatchReview } from '../use-batch-review';
@@ -609,8 +610,21 @@ describe('useBatchReview', () => {
       expect(result.current.reviewFileReadOnly).toBe(false);
     });
 
-    it('is true for completed status', () => {
+    it('is false for unconfirmed completed status without output', () => {
       const rows = [{ ...makeDoneRow('file-1'), analyzeStatus: 'completed' as const }];
+      const { result } = renderUseBatchReview({ rows });
+      expect(result.current.reviewFileReadOnly).toBe(false);
+    });
+
+    it('is true for completed status with redacted output', () => {
+      const rows = [
+        {
+          ...makeDoneRow('file-1'),
+          analyzeStatus: 'completed' as const,
+          has_output: true,
+          reviewConfirmed: true,
+        },
+      ];
       const { result } = renderUseBatchReview({ rows });
       expect(result.current.reviewFileReadOnly).toBe(true);
     });
@@ -694,6 +708,28 @@ describe('useBatchReview', () => {
 
       expect(result.current.reviewIndex).toBe(0);
     });
+
+    it('blocks navigation when saving the current draft fails', async () => {
+      vi.mocked(putItemReviewDraft).mockRejectedValueOnce(new Error('save failed'));
+      const rows = [makeDoneRow('file-1'), makeDoneRow('file-2')];
+      const { result, setMsg } = renderUseBatchReview({ rows });
+
+      act(() => {
+        result.current.reviewLastSavedJsonRef.current = JSON.stringify({ stale: true });
+        result.current.reviewDraftDirtyRef.current = true;
+        result.current.applyReviewEntities([makeEntity('ent-1', 'Alice')]);
+      });
+
+      await act(async () => {
+        await result.current.navigateReviewIndex(1);
+      });
+
+      expect(result.current.reviewIndex).toBe(0);
+      expect(setMsg).toHaveBeenCalledWith({
+        text: 'batchWizard.reviewSaveBeforeNavigateFailed',
+        tone: 'err',
+      });
+    });
   });
 
   // ── reviewedOutputCount ──
@@ -721,13 +757,23 @@ describe('useBatchReview', () => {
   describe('buildCurrentReviewDraftPayload (with boxes)', () => {
     it('includes bounding boxes in payload', () => {
       const { result } = renderUseBatchReview();
-      const box = { id: 'b1', x: 0, y: 0, width: 50, height: 50, type: 'FACE', selected: true };
+      const box = {
+        id: 'b1',
+        x: 0,
+        y: 0,
+        width: 50,
+        height: 50,
+        type: 'FACE',
+        selected: true,
+        evidence_source: 'has_image_model' as const,
+      };
 
       act(() => result.current.handleReviewBoxesCommit([], [box]));
 
       const payload = result.current.buildCurrentReviewDraftPayload();
       expect(payload.bounding_boxes).toHaveLength(1);
       expect(payload.bounding_boxes[0]).toHaveProperty('id', 'b1');
+      expect(payload.bounding_boxes[0]).toHaveProperty('evidence_source', 'has_image_model');
     });
 
     it('includes both entities and boxes', () => {

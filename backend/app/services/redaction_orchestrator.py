@@ -10,12 +10,16 @@
 from __future__ import annotations
 
 import base64
+import time
 import logging
+import os
 from datetime import UTC, datetime
 from typing import Any
 
+from app.core.has_image_categories import has_only_ocr_fallback_visual_slugs
 from app.core.persistence import to_jsonable
 from app.models.schemas import (
+    BoundingBox,
     CompareData,
     EntityType,
     PreviewEntityMapResponse,
@@ -28,9 +32,14 @@ from app.models.schemas import (
     VisionResult,
 )
 from app.services.redactor import Redactor, build_preview_entity_map
+from app.services.redaction.image_redactor import prepare_image_redaction
 from app.services.vision_service import VisionService
 
 logger = logging.getLogger(__name__)
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((time.perf_counter() - started) * 1000))
 
 
 def _get_file_store():
@@ -49,6 +58,98 @@ def _group_boxes_by_page(boxes: list[Any]) -> dict[int, list[dict[str, Any]]]:
         page = int(getattr(box, "page", 1) or 1)
         grouped.setdefault(page, []).append(to_jsonable(box))
     return grouped
+
+
+def _request_item_selected(item: Any) -> bool:
+    if isinstance(item, dict):
+        return item.get("selected") is not False
+    return getattr(item, "selected", True) is not False
+
+
+def _selected_request_item_count(entities: list[Any], boxes: list[Any]) -> int:
+    return sum(1 for item in entities if _request_item_selected(item)) + sum(
+        1 for item in boxes if _request_item_selected(item)
+    )
+
+
+def _default_has_image_types(types: list[Any]) -> list[Any]:
+    from app.core.has_image_categories import DEFAULT_EXCLUDED_HAS_IMAGE_SLUGS
+
+    return [t for t in types if getattr(t, "id", None) not in DEFAULT_EXCLUDED_HAS_IMAGE_SLUGS]
+
+
+def _vision_type_ids(types: list[Any] | None) -> list[str]:
+    return sorted(str(getattr(t, "id", t)) for t in (types or []))
+
+
+def _vision_signature(
+    page: int,
+    ocr_has_types: list[Any] | None,
+    has_image_types: list[Any] | None,
+    vlm_types: list[Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "version": 2,
+        "page": int(page),
+        "ocr_has_types": _vision_type_ids(ocr_has_types),
+        "has_image_types": _vision_type_ids(has_image_types),
+        "vlm_types": _vision_type_ids(vlm_types),
+    }
+
+
+def _page_value(mapping: Any, page: int) -> Any:
+    if not isinstance(mapping, dict):
+        return None
+    if page in mapping:
+        return mapping[page]
+    return mapping.get(str(page))
+
+
+def _cached_vision_result(
+    file_id: str,
+    page: int,
+    snapshot: dict[str, Any],
+    signature: dict[str, Any],
+    started: float,
+) -> VisionResult | None:
+    stored_signature = _page_value(snapshot.get("vision_detection_signature"), page)
+    if stored_signature != signature:
+        return None
+    raw_boxes = _page_value(snapshot.get("bounding_boxes"), page)
+    if not isinstance(raw_boxes, list):
+        return None
+    boxes = [
+        box if isinstance(box, BoundingBox) else BoundingBox.model_validate({**box, "page": box.get("page", page)})
+        for box in raw_boxes
+        if isinstance(box, (dict, BoundingBox))
+    ]
+    quality = _page_value(snapshot.get("vision_quality"), page) or {}
+    duration_ms = dict(quality.get("duration_ms") or {}) if isinstance(quality, dict) else {}
+    duration_ms["request_total_ms"] = _elapsed_ms(started)
+    return VisionResult(
+        file_id=file_id,
+        page=page,
+        bounding_boxes=boxes,
+        result_image=None,
+        warnings=list(quality.get("warnings") or []) if isinstance(quality, dict) else [],
+        pipeline_status=dict(quality.get("pipeline_status") or {}) if isinstance(quality, dict) else {},
+        duration_ms=duration_ms,
+        cache_status={
+            "vision_result": "hit",
+            "force": False,
+            "signature_version": signature.get("version"),
+        },
+    )
+
+
+def _boxes_from_page(raw_boxes: Any, page: int) -> list[BoundingBox]:
+    if not isinstance(raw_boxes, list):
+        return []
+    return [
+        box if isinstance(box, BoundingBox) else BoundingBox.model_validate({**box, "page": box.get("page", page)})
+        for box in raw_boxes
+        if isinstance(box, (dict, BoundingBox))
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +180,7 @@ async def execute_redaction(request: RedactionRequest) -> RedactionResult:
         bounding_boxes=request.bounding_boxes,
         config=request.config,
     )
+    selected_item_count = _selected_request_item_count(request.entities, request.bounding_boxes)
 
     # 更新文件存储
     async with lock:
@@ -89,16 +191,15 @@ async def execute_redaction(request: RedactionRequest) -> RedactionResult:
             info["output_path"] = result.get("output_path")
             info["entity_map"] = result.get("entity_map", {})
             info["redacted_count"] = int(result.get("redacted_count", 0))
-            if request.bounding_boxes:
-                info["bounding_boxes"] = _group_boxes_by_page(request.bounding_boxes)
-            if request.entities:
-                info["entities"] = to_jsonable(request.entities)
+            info["bounding_boxes"] = _group_boxes_by_page(request.bounding_boxes)
+            info["entities"] = to_jsonable(request.entities)
             # 版本历史追踪
             version_entry = {
                 "version": len(info.get("redaction_history", [])) + 1,
                 "output_file_id": result["output_file_id"],
                 "output_path": result.get("output_path"),
-                "redacted_count": result["redacted_count"],
+                "redacted_count": selected_item_count,
+                "replacement_count": result["redacted_count"],
                 "entity_map": result.get("entity_map", {}),
                 "mode": request.config.replacement_mode.value if hasattr(request.config.replacement_mode, 'value') else str(request.config.replacement_mode),
                 "created_at": datetime.now(UTC).isoformat(),
@@ -150,15 +251,19 @@ async def preview_image(
         raise ValueError("file not found")
 
     file_info = file_store[file_id]
+    file_path = file_info.get("file_path")
+    if not isinstance(file_path, str) or not os.path.isfile(file_path):
+        raise ValueError("original file not found")
     vision_service = VisionService()
+    safe_boxes, image_method, strength, fill_color = prepare_image_redaction(bounding_boxes, config)
     image_bytes = await vision_service.preview_redaction(
-        file_path=file_info["file_path"],
+        file_path=file_path,
         file_type=file_info["file_type"],
-        bounding_boxes=bounding_boxes,
+        bounding_boxes=safe_boxes,
         page=page,
-        image_method=config.image_redaction_method or "fill",
-        strength=int(config.image_redaction_strength or 25),
-        fill_color=config.image_fill_color or "#000000",
+        image_method=image_method,
+        strength=strength,
+        fill_color=fill_color,
     )
     return PreviewImageResponse(
         file_id=file_id,
@@ -214,12 +319,20 @@ async def detect_vision(
     page: int = 1,
     selected_ocr_has_types: list[str] | None = None,
     selected_has_image_types: list[str] | None = None,
+    selected_vlm_types: list[str] | None = None,
     has_request: bool = True,
+    force: bool = False,
+    include_result_image: bool = True,
+    merge_existing: bool = False,
+    signature_selected_ocr_has_types: list[str] | None = None,
+    signature_selected_has_image_types: list[str] | None = None,
+    signature_selected_vlm_types: list[str] | None = None,
 ) -> VisionResult:
     """
     Run dual-pipeline vision detection. Raises ValueError if file not found.
     `has_request` indicates whether a request body was provided (affects defaults).
     """
+    started = time.perf_counter()
     file_store = _get_file_store()
     lock = _get_file_store_lock()
 
@@ -233,31 +346,24 @@ async def detect_vision(
     from app.services.pipeline_service import get_pipeline_types_for_mode, pipelines_db
 
     all_ocr_has_types = get_pipeline_types_for_mode("ocr_has")
-    all_has_image_types = get_pipeline_types_for_mode("has_image")
+    default_has_image_types = _default_has_image_types(get_pipeline_types_for_mode("has_image"))
+    selectable_has_image_types = get_pipeline_types_for_mode("has_image", enabled_only=False)
+    selectable_vlm_types = get_pipeline_types_for_mode("vlm", enabled_only=False)
 
     sel_ocr_ids: set[str] | None = None
     sel_img_ids: set[str] | None = None
+    sel_vlm_ids: set[str] | None = None
 
     if not has_request:
         sel_img_ids = set()
+        sel_vlm_ids = set()
     else:
-        if (
-            selected_ocr_has_types is not None
-            and selected_has_image_types is not None
-            and len(selected_ocr_has_types) == 0
-            and len(selected_has_image_types) == 0
-        ):
-            logger.warning(
-                "Both selected_ocr_has_types and selected_has_image_types are empty; "
-                "fallback to default enabled vision types."
-            )
-            selected_ocr_has_types = None
-            selected_has_image_types = None
-
         if selected_ocr_has_types is not None:
             sel_ocr_ids = set(selected_ocr_has_types or [])
         if selected_has_image_types is not None:
             sel_img_ids = set(selected_has_image_types or [])
+        if selected_vlm_types is not None:
+            sel_vlm_ids = set(selected_vlm_types or [])
 
     if sel_ocr_ids is not None:
         ocr_has_types = [t for t in all_ocr_has_types if t.id in sel_ocr_ids]
@@ -265,9 +371,14 @@ async def detect_vision(
         ocr_has_types = all_ocr_has_types
 
     if sel_img_ids is not None:
-        has_image_types = [t for t in all_has_image_types if t.id in sel_img_ids]
+        has_image_types = [t for t in selectable_has_image_types if t.id in sel_img_ids]
     else:
-        has_image_types = all_has_image_types
+        has_image_types = default_has_image_types
+
+    if sel_vlm_ids is not None:
+        vlm_types = [t for t in selectable_vlm_types if t.id in sel_vlm_ids]
+    else:
+        vlm_types = []
 
     if (
         selected_ocr_has_types is not None
@@ -284,18 +395,29 @@ async def detect_vision(
         selected_has_image_types is not None
         and len(selected_has_image_types) > 0
         and len(has_image_types) == 0
-        and len(all_has_image_types) > 0
+        and len(default_has_image_types) > 0
     ):
-        logger.warning(
-            "selected_has_image_types contains no valid IDs; fallback to default enabled HaS Image types."
-        )
-        has_image_types = all_has_image_types
+        if has_only_ocr_fallback_visual_slugs(selected_has_image_types):
+            logger.info(
+                "selected_has_image_types contains OCR/local-fallback-only visual IDs; "
+                "HaS Image model will not run for these IDs."
+            )
+        else:
+            logger.warning(
+                "selected_has_image_types contains no valid IDs; fallback to default enabled HaS Image types."
+            )
+            has_image_types = default_has_image_types
 
     ocr_has_enabled = pipelines_db.get("ocr_has", None) and pipelines_db["ocr_has"].enabled and len(ocr_has_types) > 0
     has_image_enabled = (
         pipelines_db.get("has_image", None)
         and pipelines_db["has_image"].enabled
         and len(has_image_types) > 0
+    )
+    vlm_enabled = (
+        pipelines_db.get("vlm", None)
+        and pipelines_db["vlm"].enabled
+        and len(vlm_types) > 0
     )
 
     if pipelines_db.get("ocr_has") and pipelines_db["ocr_has"].enabled and len(ocr_has_types) == 0:
@@ -306,15 +428,90 @@ async def detect_vision(
 
     logger.info("OCR+HaS selected: %s", [t.id for t in ocr_has_types] if ocr_has_types else [])
     logger.info("HaS Image selected: %s", [t.id for t in has_image_types] if has_image_types else [])
+    logger.info("VLM selected: %s", [t.id for t in vlm_types] if vlm_types else [])
+
+    effective_ocr_types = ocr_has_types if ocr_has_enabled else None
+    effective_has_image_types = has_image_types if has_image_enabled else None
+    effective_vlm_types = vlm_types if vlm_enabled else None
+
+    signature_ocr_types = effective_ocr_types
+    signature_has_image_types = effective_has_image_types
+    signature_vlm_types = effective_vlm_types
+    if signature_selected_ocr_has_types is not None:
+        sig_ocr_ids = set(signature_selected_ocr_has_types or [])
+        signature_ocr_types = [t for t in all_ocr_has_types if t.id in sig_ocr_ids] if sig_ocr_ids else None
+    if signature_selected_has_image_types is not None:
+        sig_img_ids = set(signature_selected_has_image_types or [])
+        signature_has_image_types = [t for t in selectable_has_image_types if t.id in sig_img_ids] if sig_img_ids else None
+    if signature_selected_vlm_types is not None:
+        sig_vlm_ids = set(signature_selected_vlm_types or [])
+        signature_vlm_types = [t for t in selectable_vlm_types if t.id in sig_vlm_ids] if sig_vlm_ids else None
+
+    signature = _vision_signature(page, signature_ocr_types, signature_has_image_types, signature_vlm_types)
+    if not force:
+        cached = _cached_vision_result(file_id, page, snapshot, signature, started)
+        if cached is not None:
+            logger.info(
+                "Vision cache hit file=%s page=%d boxes=%d elapsed=%.2fs",
+                file_id[:8],
+                page,
+                len(cached.bounding_boxes),
+                time.perf_counter() - started,
+            )
+            return cached
+    else:
+        logger.info("Vision force refresh file=%s page=%d", file_id[:8], page)
 
     vision_service = VisionService()
     bounding_boxes, result_image = await vision_service.detect_with_dual_pipeline(
         file_path=snapshot["file_path"],
         file_type=snapshot["file_type"],
         page=page,
-        ocr_has_types=ocr_has_types if ocr_has_enabled else None,
-        has_image_types=has_image_types if has_image_enabled else None,
+        ocr_has_types=effective_ocr_types,
+        has_image_types=effective_has_image_types,
+        vlm_types=effective_vlm_types,
+        include_result_image=include_result_image,
     )
+    warnings = list(getattr(vision_service, "last_warnings", []) or [])
+    pipeline_status = dict(getattr(vision_service, "last_pipeline_status", {}) or {})
+    duration_ms = dict(getattr(vision_service, "last_duration_ms", {}) or {})
+    if merge_existing:
+        existing_boxes = _boxes_from_page(_page_value(snapshot.get("bounding_boxes"), page), page)
+        if existing_boxes:
+            merged_boxes = [*existing_boxes, *bounding_boxes]
+            bounding_boxes = VisionService()._deduplicate_boxes(merged_boxes)
+        existing_quality = _page_value(snapshot.get("vision_quality"), page) or {}
+        if isinstance(existing_quality, dict):
+            existing_status = dict(existing_quality.get("pipeline_status") or {})
+            existing_duration = dict(existing_quality.get("duration_ms") or {})
+            pipeline_status = {**existing_status, **pipeline_status}
+            duration_ms = {**existing_duration, **duration_ms}
+            succeeded_labels = {
+                label
+                for label, status in pipeline_status.items()
+                if isinstance(status, dict) and status.get("ran") and not status.get("failed")
+            }
+            stale_prefixes = tuple(f"{label} failed:" for label in sorted(succeeded_labels))
+            existing_warnings = [
+                warning
+                for warning in list(existing_quality.get("warnings") or [])
+                if not str(warning).startswith(stale_prefixes)
+            ]
+            warnings = [
+                *existing_warnings,
+                *warnings,
+            ]
+    duration_ms["request_total_ms"] = _elapsed_ms(started)
+    cache_status = {
+        "vision_result": "force_refresh" if force else "miss",
+        "force": bool(force),
+        "signature_version": signature.get("version"),
+    }
+    vision_quality = {
+        "warnings": warnings,
+        "pipeline_status": pipeline_status,
+        "duration_ms": duration_ms,
+    }
 
     # Write back under lock
     async with lock:
@@ -323,13 +520,30 @@ async def detect_vision(
             if "bounding_boxes" not in info:
                 info["bounding_boxes"] = {}
             info["bounding_boxes"][page] = bounding_boxes
+            if "vision_quality" not in info or not isinstance(info.get("vision_quality"), dict):
+                info["vision_quality"] = {}
+            info["vision_quality"][page] = vision_quality
+            if "vision_detection_signature" not in info or not isinstance(info.get("vision_detection_signature"), dict):
+                info["vision_detection_signature"] = {}
+            info["vision_detection_signature"][page] = signature
             file_store.set(file_id, info)
 
+    logger.info(
+        "Vision detect stored file=%s page=%d boxes=%d elapsed=%.2fs",
+        file_id[:8],
+        page,
+        len(bounding_boxes),
+        time.perf_counter() - started,
+    )
     return VisionResult(
         file_id=file_id,
         page=page,
         bounding_boxes=bounding_boxes,
         result_image=result_image,
+        warnings=warnings,
+        pipeline_status=pipeline_status,
+        duration_ms=duration_ms,
+        cache_status=cache_status,
     )
 
 
@@ -380,25 +594,36 @@ def get_report(file_id: str) -> RedactionReport:
         if sel:
             selected += 1
 
+    def _is_selected_box(box: Any) -> bool:
+        return not isinstance(box, dict) or box.get("selected", True) is not False
+
     # Also count bounding boxes
     bb_total = 0
+    bb_selected = 0
     bbs = file_info.get("bounding_boxes", {})
     if isinstance(bbs, dict):
         for page_bbs in bbs.values():
             if isinstance(page_bbs, list):
                 bb_total += len(page_bbs)
+                bb_selected += sum(1 for box in page_bbs if _is_selected_box(box))
     elif isinstance(bbs, list):
         bb_total = len(bbs)
+        bb_selected = sum(1 for box in bbs if _is_selected_box(box))
 
     redacted_count = file_info.get("redacted_count", 0)
     total_detected = total + bb_total
-    coverage = (redacted_count / total_detected * 100) if total_detected > 0 else 0.0
+    selected_detected = selected + bb_selected
+    if total_detected == 0 and isinstance(redacted_count, int) and redacted_count > 0:
+        total_detected = redacted_count
+        selected_detected = redacted_count
+    redacted_entities = selected_detected if file_info.get("output_path") else 0
+    coverage = (redacted_entities / total_detected * 100) if total_detected > 0 else 0.0
 
     return RedactionReport(
         file_id=file_id,
         filename=file_info.get("original_filename", ""),
         total_entities=total_detected,
-        redacted_entities=redacted_count,
+        redacted_entities=redacted_entities,
         entity_type_distribution=type_dist,
         confidence_distribution=confidence_dist,
         source_distribution=source_dist,

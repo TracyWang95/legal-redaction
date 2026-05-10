@@ -17,6 +17,7 @@ export const TextResultView: FC<{
   content: string;
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
+  matchCounts: Map<string, number>;
   scrollToMatch: (orig: string) => void;
   mobileTab: string;
   versionHistory: VersionHistoryEntry[];
@@ -31,6 +32,7 @@ export const TextResultView: FC<{
   content,
   entityMap,
   origToTypeId,
+  matchCounts,
   scrollToMatch,
   mobileTab,
   versionHistory,
@@ -59,52 +61,53 @@ export const TextResultView: FC<{
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {paginationRail}
-      <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background',
-          mobileTab === 'original' ? '' : 'hidden',
-          'md:flex',
-        )}
-      >
-        <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-          <span className="text-xs font-semibold">{t('playground.originalDoc')}</span>
-        </div>
-        <ScrollArea className="flex-1 p-4">
-          <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">
-            {renderOriginal()}
+      <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
+        <div
+          className={cn(
+            'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-sm)]',
+            mobileTab === 'original' ? '' : 'hidden',
+            'md:flex',
+          )}
+        >
+          <div className="flex h-10 flex-shrink-0 items-center border-b border-border/60 bg-muted/30 px-4">
+            <span className="truncate text-xs font-semibold">{t('playground.originalDoc')}</span>
           </div>
-        </ScrollArea>
-      </div>
-
-      <div
-        className={cn(
-          'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background',
-          mobileTab === 'redacted' ? '' : 'hidden',
-          'md:flex',
-        )}
-      >
-        <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-          <span className="text-xs font-semibold">{t('playground.redactedResult')}</span>
+          <ScrollArea className="flex-1 p-4">
+            <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">
+              {renderOriginal()}
+            </div>
+          </ScrollArea>
         </div>
-        <ScrollArea className="flex-1 p-4">
-          <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">
-            {renderRedacted()}
-          </div>
-        </ScrollArea>
-      </div>
 
-      <MappingColumn
-        entityMap={entityMap}
-        origToTypeId={origToTypeId}
-        scrollToMatch={scrollToMatch}
-        content={content}
-        className="w-full md:w-64 md:flex-shrink-0"
-        mobileTab={mobileTab}
-        versionHistory={versionHistory}
-        versionHistoryOpen={versionHistoryOpen}
-        setVersionHistoryOpen={setVersionHistoryOpen}
-      />
+        <div
+          className={cn(
+            'flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-sm)]',
+            mobileTab === 'redacted' ? '' : 'hidden',
+            'md:flex',
+          )}
+        >
+          <div className="flex h-10 flex-shrink-0 items-center border-b border-border/60 bg-muted/30 px-4">
+            <span className="truncate text-xs font-semibold">{t('playground.redactedResult')}</span>
+          </div>
+          <ScrollArea className="flex-1 p-4">
+            <div className="font-[system-ui] text-sm leading-relaxed whitespace-pre-wrap">
+              {renderRedacted()}
+            </div>
+          </ScrollArea>
+        </div>
+
+        <MappingColumn
+          entityMap={entityMap}
+          origToTypeId={origToTypeId}
+          matchCounts={matchCounts}
+          scrollToMatch={scrollToMatch}
+          content={content}
+          className="w-full shadow-[var(--shadow-sm)] md:w-64 md:flex-shrink-0 xl:w-72"
+          mobileTab={mobileTab}
+          versionHistory={versionHistory}
+          versionHistoryOpen={versionHistoryOpen}
+          setVersionHistoryOpen={setVersionHistoryOpen}
+        />
       </div>
     </div>
   );
@@ -114,6 +117,7 @@ export const ImageResultView: FC<{
   fileInfo: FileInfo | null;
   imageUrl: string;
   redactedImageUrl?: string;
+  redactedImageError?: string | null;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -122,6 +126,7 @@ export const ImageResultView: FC<{
   getVisionTypeConfig: (typeId: string) => { name: string; color: string };
   entityMap: Record<string, string>;
   origToTypeId: Map<string, string>;
+  matchCounts: Map<string, number>;
   scrollToMatch: (orig: string) => void;
   mobileTab: string;
   versionHistory: VersionHistoryEntry[];
@@ -131,6 +136,7 @@ export const ImageResultView: FC<{
   fileInfo,
   imageUrl,
   redactedImageUrl,
+  redactedImageError,
   currentPage,
   totalPages,
   onPageChange,
@@ -139,6 +145,7 @@ export const ImageResultView: FC<{
   getVisionTypeConfig,
   entityMap,
   origToTypeId,
+  matchCounts,
   scrollToMatch,
   mobileTab,
   versionHistory,
@@ -148,16 +155,16 @@ export const ImageResultView: FC<{
   const t = useT();
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 gap-2 px-3 pb-3 sm:gap-3 sm:px-4 sm:pb-4">
+    <div className="flex min-h-0 min-w-0 flex-1 gap-3 overflow-hidden">
       <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background',
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-sm)]',
           mobileTab === 'original' ? '' : 'hidden',
           'md:flex',
         )}
       >
-        <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-          <span className="text-xs font-semibold">{t('playground.originalImage')}</span>
+        <div className="flex h-10 flex-shrink-0 items-center border-b border-border/60 bg-muted/30 px-4">
+          <span className="truncate text-xs font-semibold">{t('playground.originalImage')}</span>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {fileInfo && (
@@ -194,30 +201,48 @@ export const ImageResultView: FC<{
 
       <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background',
+          'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-background shadow-[var(--shadow-sm)]',
           mobileTab === 'redacted' ? '' : 'hidden',
           'md:flex',
         )}
       >
-        <div className="flex-shrink-0 border-b border-border/60 bg-muted/30 px-4 py-3">
-          <span className="text-xs font-semibold">{t('playground.redactedResult')}</span>
+        <div className="flex h-10 flex-shrink-0 items-center border-b border-border/60 bg-muted/30 px-4">
+          <span className="truncate text-xs font-semibold">{t('playground.redactedResult')}</span>
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-muted/20">
-          {fileInfo && (
+          {redactedImageError ? (
+            <div
+              className="mx-6 max-w-md rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-[var(--shadow-sm)]"
+              role="alert"
+              data-testid="redacted-preview-error"
+            >
+              <p className="line-clamp-2 font-semibold">{redactedImageError}</p>
+              <p className="mt-1 text-xs text-destructive/80">
+                {t('playground.redactedPreviewFailedDesc')}
+              </p>
+            </div>
+          ) : redactedImageUrl ? (
             <img
-              src={redactedImageUrl || `/api/v1/files/${fileInfo.file_id}/download?redacted=true`}
+              src={redactedImageUrl}
               alt={t('playground.redactedResult')}
               className="block h-auto max-h-full w-auto max-w-full select-none object-contain"
             />
-          )}
+          ) : fileInfo ? (
+            <div className="mx-6 rounded-2xl border border-dashed border-border/70 bg-background px-5 py-4 text-center shadow-[var(--shadow-sm)]">
+              <p className="text-sm font-medium text-foreground">
+                {t('playground.redactedPreviewPreparing')}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
 
       <MappingColumn
         entityMap={entityMap}
         origToTypeId={origToTypeId}
+        matchCounts={matchCounts}
         scrollToMatch={scrollToMatch}
-        className="w-full md:w-52 md:flex-shrink-0"
+        className="w-full shadow-[var(--shadow-sm)] md:w-56 md:flex-shrink-0 xl:w-64"
         mobileTab={mobileTab}
         versionHistory={versionHistory}
         versionHistoryOpen={versionHistoryOpen}

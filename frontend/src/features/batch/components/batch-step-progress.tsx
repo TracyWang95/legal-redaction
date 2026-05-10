@@ -8,9 +8,10 @@ import { type Step } from '../types';
 interface BatchStepProgressProps {
   currentStep: Step;
   canGoStep: (s: Step) => boolean;
+  goStep: (s: Step) => void;
 }
 
-export function BatchStepProgress({ currentStep, canGoStep }: BatchStepProgressProps) {
+export function BatchStepProgress({ currentStep, canGoStep, goStep }: BatchStepProgressProps) {
   const t = useT();
   const stepOrder: Step[] = [1, 2, 3, 4, 5];
 
@@ -25,35 +26,45 @@ export function BatchStepProgress({ currentStep, canGoStep }: BatchStepProgressP
   return (
     <nav
       className={cn(
-        'flex flex-wrap items-center gap-1.5 shrink-0',
+        'flex shrink-0 flex-nowrap items-center gap-1 overflow-x-auto pb-1',
         currentStep === 4 ? 'mb-0.5' : 'mb-1',
       )}
       aria-label={t('batchWizard.stepsOverview')}
       data-testid="batch-step-progress"
     >
       {stepOrder.map((stepNumber, i) => {
-        const isCompleted = canGoStep(stepNumber) && stepNumber < currentStep;
+        const canVisit = canGoStep(stepNumber);
+        const isCompleted = canVisit && stepNumber < currentStep;
         const isCurrent = currentStep === stepNumber;
-        const isUpcoming = !isCurrent && !isCompleted;
+        const isLocked = !canVisit;
+        const isIdle = canVisit && !isCurrent && !isCompleted;
+        const title = isLocked ? t('batchWizard.stepLocked') : labels[stepNumber];
         return (
-          <div key={stepNumber} className="flex items-center gap-1.5">
-            <span
+          <div key={stepNumber} className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
               className={cn(
-                'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-medium select-none',
-                'transition-colors duration-200',
+                'inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium whitespace-nowrap select-none',
+                'transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 isCurrent && 'bg-primary text-primary-foreground shadow-sm',
-                isCompleted && 'border border-border/70 bg-background text-foreground',
-                isUpcoming && 'bg-muted/40 text-muted-foreground opacity-40',
+                isCompleted &&
+                  'border border-border/70 bg-background text-foreground hover:border-primary/50 hover:text-primary',
+                isIdle &&
+                  'border border-border/70 bg-background text-foreground hover:border-primary/50 hover:text-primary',
+                isLocked && 'cursor-not-allowed bg-muted/40 text-muted-foreground opacity-40',
               )}
-              aria-label={`${labels[stepNumber]} (${stepNumber}/${stepOrder.length})`}
+              aria-label={`${labels[stepNumber]} (${stepNumber}/${stepOrder.length})${isLocked ? ` - ${t('batchWizard.stepLocked')}` : ''}`}
               aria-current={isCurrent ? 'step' : undefined}
+              disabled={isCurrent || isLocked}
+              title={title}
+              onClick={() => goStep(stepNumber)}
               data-testid={`batch-step-${stepNumber}`}
             >
               <span className="tabular-nums mr-1">{stepNumber}</span>
               {labels[stepNumber]}
-            </span>
+            </button>
             {i < stepOrder.length - 1 && (
-              <span className="text-muted-foreground hidden sm:inline" aria-hidden>
+              <span className="hidden text-[11px] text-muted-foreground sm:inline" aria-hidden>
                 &rarr;
               </span>
             )}

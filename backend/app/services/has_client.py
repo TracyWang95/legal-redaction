@@ -12,9 +12,13 @@ NER / Hide / Pair / Seek 的 user 提示须与模型卡模板逐字一致（勿�
 4. seek - 标签还原
 """
 
+import hashlib
 import json
 import logging
 import re
+import threading
+import time
+from collections import OrderedDict
 
 import httpx
 
@@ -24,6 +28,7 @@ from typing import Any
 
 from app.core.circuit_breaker import ner_breaker
 from app.core.retry import RETRYABLE_HTTPX, retry_sync
+from app.models.type_mapping import canonical_type_id, cn_to_id
 
 
 @dataclass
@@ -47,10 +52,18 @@ class HaSClient:
     """HaS本地模型客户端"""
 
     # 法律文档常用实体类型
+    _SHARED_NER_CACHE: OrderedDict[
+        tuple[str, tuple[str, ...], str, str],
+        tuple[float, dict[str, list[str]]],
+    ] = OrderedDict()
+    _SHARED_NER_INFLIGHT: dict[tuple[str, tuple[str, ...], str, str], threading.Event] = {}
+    _SHARED_NER_LOCK = threading.Lock()
+
     LEGAL_ENTITY_TYPES = [
-        "人名", "组织", "地址", "职务",
-        "联系方式", "身份证号", "银行卡号",
-        "案件编号", "金额", "日期", "合同编号"
+        "姓名", "公司名称", "机构名称", "机关单位", "工作单位",
+        "部门名称", "地址", "电话", "邮箱",
+        "身份证号", "银行卡号", "银行账号", "金额", "日期",
+        "业务编号", "编号", "统一社会信用代码", "税号"
     ]
 
     def __init__(
@@ -61,8 +74,15 @@ class HaSClient:
         from app.core.config import settings
         self._base_url_override = base_url.rstrip("/") if base_url else None
         self.timeout = httpx.Timeout(timeout or settings.HAS_TIMEOUT)
+        self._ner_cache_ttl_sec = settings.HAS_NER_CACHE_TTL_SEC
+        self._ner_cache_max_items = settings.HAS_NER_CACHE_MAX_ITEMS
+        self._ner_cache = self._SHARED_NER_CACHE
+        self._ner_inflight = self._SHARED_NER_INFLIGHT
+        self._ner_lock = self._SHARED_NER_LOCK
         # 复用 httpx 连接池，避免每次请求创建新连接
         self._http_client = httpx.Client(timeout=self.timeout, trust_env=False)
+        self._health_checked_at = 0.0
+        self._health_ready = False
 
     def _effective_base_url(self) -> str:
         from app.core.config import get_has_chat_base_url
@@ -78,15 +98,28 @@ class HaSClient:
             return resp
         return ner_breaker.call_sync(_request)
 
-    def _call_model(self, messages: list[dict]) -> str:
+    def _call_model(self, messages: list[dict], *, max_tokens: int | None = None) -> str:
         """调用 OpenAI 兼容接口（llama.cpp HaS）。"""
+        from app.core.config import settings
         base = self._effective_base_url()
-        payload: dict[str, Any] = {"messages": messages}
+        payload: dict[str, Any] = {
+            "messages": messages,
+            "temperature": 0.0,
+            "top_p": 0.6,
+            "stream": False,
+        }
+        if max_tokens is not None:
+            payload["max_tokens"] = max(32, int(max_tokens))
+        if settings.HAS_TEXT_MODEL_NAME:
+            payload["model"] = settings.HAS_TEXT_MODEL_NAME
+        started = time.perf_counter()
         response = retry_sync(
             self._do_chat_request, base, payload,
             max_retries=2, base_delay=1.0,
             retryable_exceptions=RETRYABLE_HTTPX,
         )
+        elapsed_ms = round((time.perf_counter() - started) * 1000)
+        logger.info("HaS model request finished in %dms", elapsed_ms)
         data = response.json()
         # 安全访问嵌套结构，避免 KeyError/IndexError
         choices = data.get("choices")
@@ -95,6 +128,122 @@ class HaSClient:
             return ""
         message = choices[0].get("message", {})
         return message.get("content", "")
+
+    @staticmethod
+    def _copy_ner_result(result: dict[str, list[str]]) -> dict[str, list[str]]:
+        return {
+            key: list(value) if isinstance(value, list) else value
+            for key, value in result.items()
+        }
+
+    @classmethod
+    def clear_shared_ner_cache(cls) -> None:
+        """Clear process-local NER cache and in-flight state."""
+        with cls._SHARED_NER_LOCK:
+            cls._SHARED_NER_CACHE.clear()
+            cls._SHARED_NER_INFLIGHT.clear()
+
+    @staticmethod
+    def _normalize_ner_type_name(type_name: str) -> str:
+        value = str(type_name or "").strip()
+        if not value:
+            return ""
+        if value.isascii():
+            return canonical_type_id(value.upper())
+
+        return value
+
+    @classmethod
+    def _normalize_ner_types(cls, entity_types: list[str] | None) -> list[str]:
+        raw_types = entity_types or cls.LEGAL_ENTITY_TYPES
+        return list(dict.fromkeys(
+            normalized
+            for type_name in raw_types
+            if (normalized := cls._normalize_ner_type_name(type_name))
+        ))
+
+    def _ner_cache_key(
+        self,
+        text: str,
+        entity_types: list[str],
+        guidance_key: str = "",
+    ) -> tuple[str, tuple[str, ...], str, str]:
+        digest = hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()
+        return (self._effective_base_url(), tuple(sorted(entity_types)), digest, guidance_key)
+
+    def _get_cached_ner(
+        self,
+        key: tuple[str, tuple[str, ...], str, str],
+    ) -> dict[str, list[str]] | None:
+        if self._ner_cache_ttl_sec <= 0 or self._ner_cache_max_items <= 0:
+            return None
+        now = time.monotonic()
+        with self._ner_lock:
+            cached = self._ner_cache.get(key)
+            if not cached:
+                return None
+            stored_at, result = cached
+            if now - stored_at > self._ner_cache_ttl_sec:
+                self._ner_cache.pop(key, None)
+                return None
+            self._ner_cache.move_to_end(key)
+            logger.info("HaS NER cache hit")
+            return self._copy_ner_result(result)
+
+    def get_cached_ner(
+        self,
+        text: str,
+        entity_types: list[str] | None = None,
+    ) -> dict[str, list[str]] | None:
+        """Return a cached NER result without starting a model request.
+
+        Vision recognition uses a process-level HaS Text lock to avoid sending
+        multiple expensive llama.cpp requests at once. Cache reads are local
+        memory operations, so callers can use this method before waiting on
+        that lock and avoid a stale duplicate page blocking behind an unrelated
+        slow request.
+        """
+        types = self._normalize_ner_types(entity_types)
+        return self._get_cached_ner(self._ner_cache_key(text, types))
+
+    def _set_cached_ner(
+        self,
+        key: tuple[str, tuple[str, ...], str, str],
+        result: dict[str, list[str]],
+    ) -> None:
+        if self._ner_cache_ttl_sec <= 0 or self._ner_cache_max_items <= 0:
+            return
+        with self._ner_lock:
+            self._ner_cache[key] = (time.monotonic(), self._copy_ner_result(result))
+            self._ner_cache.move_to_end(key)
+            while len(self._ner_cache) > self._ner_cache_max_items:
+                self._ner_cache.popitem(last=False)
+
+    def _begin_ner_request(
+        self,
+        key: tuple[str, tuple[str, ...], str, str],
+    ) -> tuple[bool, threading.Event | None]:
+        if self._ner_cache_ttl_sec <= 0 or self._ner_cache_max_items <= 0:
+            return True, None
+        with self._ner_lock:
+            event = self._ner_inflight.get(key)
+            if event is not None:
+                logger.info("HaS NER joined in-flight duplicate request")
+                return False, event
+            event = threading.Event()
+            self._ner_inflight[key] = event
+            return True, event
+
+    def _finish_ner_request(
+        self,
+        key: tuple[str, tuple[str, ...], str, str],
+        event: threading.Event | None,
+    ) -> None:
+        if event is None:
+            return
+        with self._ner_lock:
+            self._ner_inflight.pop(key, None)
+            event.set()
 
     def create_session_mapping(self) -> dict[str, list[str]]:
         """创建一个独立的会话映射（用于并发安全的批处理）。
@@ -107,7 +256,8 @@ class HaSClient:
     def ner(
         self,
         text: str,
-        entity_types: list[str] | None = None
+        entity_types: list[str] | None = None,
+        type_guidance: list[dict[str, Any]] | None = None,
     ) -> dict[str, list[str]]:
         """
         使用NER能力进行敏感实体识别
@@ -119,13 +269,43 @@ class HaSClient:
         Returns:
             {类型: [实体列表]}
         """
-        types = entity_types or self.LEGAL_ENTITY_TYPES
-        types_str = json.dumps(types, ensure_ascii=False)
+        types = self._normalize_ner_types(entity_types)
+        guidance = self._normalize_type_guidance(types, type_guidance)
+        guidance_text = json.dumps(guidance, ensure_ascii=False, separators=(",", ":")) if guidance else ""
+        guidance_key = hashlib.sha256(guidance_text.encode("utf-8", errors="ignore")).hexdigest() if guidance_text else ""
+        cache_key = self._ner_cache_key(text, types, guidance_key)
+        cached = self._get_cached_ner(cache_key)
+        if cached is not None:
+            return cached
+
+        owns_request, request_event = self._begin_ner_request(cache_key)
+        if not owns_request:
+            if request_event is not None:
+                request_event.wait(timeout=self.timeout.read or None)
+            cached = self._get_cached_ner(cache_key)
+            if cached is not None:
+                return cached
+            logger.warning("HaS NER duplicate request finished without cacheable result")
+            return {}
+        types_str = json.dumps(types, ensure_ascii=False, separators=(",", ":"))
+        from app.core.config import settings
+        guidance_block = f"\nType guidance:{guidance_text}" if guidance_text else ""
 
         # 与 HaS_Text_0209 模型卡 NER 模板一致（Specified types: 与 JSON 数组之间无空格）
         prompt = f"""Recognize the following entity types in the text.
 Specified types:{types_str}
+{guidance_block}
+Return strict JSON only. Include only entity types that have matches in the text.
+Never output empty arrays. Do not return requested types with no matches. Do not explain.
+If nothing matches, return {{}}.
 <text>{text}</text>"""
+        configured_max_tokens = int(settings.HAS_NER_MAX_TOKENS)
+        desired_max_tokens = max(256, len(types) * 32 + len(text) // 4)
+        # Keep the completion budget inside the locally served HaS context
+        # window. The default dev profile serves HaS Text with 8K context.
+        prompt_token_estimate = max(1, len(prompt) // 2)
+        context_room = int(settings.HAS_NER_CONTEXT_TOKENS) - prompt_token_estimate - 96
+        max_tokens = min(configured_max_tokens, desired_max_tokens, max(256, context_room))
 
         messages = [
             {
@@ -135,12 +315,19 @@ Specified types:{types_str}
         ]
 
         try:
-            response = self._call_model(messages)
+            started = time.perf_counter()
+            response = self._call_model(messages, max_tokens=max_tokens)
             # 解析JSON响应
             result = json.loads(response)
             if not isinstance(result, dict):
                 logger.warning("HaS NER 返回非字典类型: %s", type(result).__name__)
                 return {}
+            logger.info(
+                "HaS NER parsed %d type buckets in %dms",
+                len(result),
+                round((time.perf_counter() - started) * 1000),
+            )
+            self._set_cached_ner(cache_key, result)
             return result
         except json.JSONDecodeError:
             # 尝试从响应中提取JSON
@@ -149,6 +336,7 @@ Specified types:{types_str}
                 try:
                     parsed = json.loads(match.group())
                     if isinstance(parsed, dict):
+                        self._set_cached_ner(cache_key, parsed)
                         return parsed
                 except json.JSONDecodeError:
                     pass
@@ -157,6 +345,28 @@ Specified types:{types_str}
         except Exception as e:
             logger.error("HaS NER 失败: %s", e)
             return {}
+        finally:
+            self._finish_ner_request(cache_key, request_event)
+
+    @staticmethod
+    def _normalize_type_guidance(
+        types: list[str],
+        type_guidance: list[dict[str, Any]] | None,
+    ) -> list[dict[str, Any]]:
+        if not type_guidance:
+            return []
+        allowed = set(types)
+        normalized: list[dict[str, Any]] = []
+        for item in type_guidance:
+            type_name = str(item.get("type") or "").strip()
+            if not type_name or type_name not in allowed:
+                continue
+            description = re.sub(r"\s+", " ", str(item.get("description") or "").strip())
+            entry: dict[str, Any] = {"type": type_name}
+            if description:
+                entry["description"] = description[:96]
+            normalized.append(entry)
+        return normalized
 
     def hide(
         self,
@@ -182,8 +392,8 @@ Specified types:{types_str}
         Returns:
             (匿名化后文本, 映射表)
         """
-        types = entity_types or self.LEGAL_ENTITY_TYPES
-        types_str = json.dumps(types, ensure_ascii=False)
+        types = self._normalize_ner_types(entity_types)
+        types_str = json.dumps(types, ensure_ascii=False, separators=(",", ":"))
 
         # 使用调用方传入的映射，或创建一个请求局部的空映射
         session_mapping: dict[str, list[str]] = mapping if mapping is not None else {}
@@ -367,15 +577,45 @@ Restore the original text based on the above mapping:
         from app.models.type_mapping import cn_to_id
         return cn_to_id(chinese_type)
 
+    @staticmethod
+    def _is_live_health_payload(data: dict[str, Any]) -> bool:
+        status = str(data.get("status", "")).strip().lower()
+        if status in {"busy", "running", "processing", "inferencing", "loading", "starting", "warming_up", "warming-up"}:
+            return True
+        if status in {"unavailable", "offline", "degraded", "error", "failed"}:
+            return False
+        return bool(data["ready"]) if "ready" in data else True
+
     def is_available(self) -> bool:
         """检查 NER 后端是否可用（llama.cpp /v1/models）。"""
         from app.core.config import get_has_health_check_url
+        from app.core.health_checks import _tcp_port_open
         url = get_has_health_check_url()
-        import httpx
+        now = time.monotonic()
+        if now - self._health_checked_at < 5.0:
+            return self._health_ready
         try:
-            response = httpx.get(url, timeout=5.0)
-            return response.status_code == 200
+            response = self._http_client.get(url, timeout=5.0)
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                except Exception:
+                    data = {}
+                self._health_ready = self._is_live_health_payload(data) if isinstance(data, dict) else True
+            elif response.status_code == 503 and _tcp_port_open(url):
+                self._health_ready = True
+            else:
+                self._health_ready = False
+            self._health_checked_at = now
+            return self._health_ready
+        except httpx.TimeoutException:
+            if _tcp_port_open(url):
+                self._health_ready = True
+                self._health_checked_at = now
+                return True
         except Exception:
+            self._health_ready = False
+            self._health_checked_at = now
             return False
 
 

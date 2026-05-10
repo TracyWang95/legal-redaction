@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.core.persistence import load_json, save_json
+from app.models.type_mapping import TYPE_ID_ALIASES, canonical_type_id
 
 # ── 数据模型 ──────────────────────────────────────────────
 
@@ -94,8 +95,22 @@ _PRESET_JSON_PATH = _os.path.join(
 )
 _raw_presets = load_json(_PRESET_JSON_PATH, default={})
 PRESET_ENTITY_TYPES: dict[str, EntityTypeConfig] = {
-    k: EntityTypeConfig(**v) for k, v in _raw_presets.items()
+    k: EntityTypeConfig(**v) for k, v in _raw_presets.items() if k not in TYPE_ID_ALIASES
 }
+
+DEFAULT_EXCLUDED_ENTITY_TYPE_IDS = {
+    "ORG",
+    "WORK_UNIT",
+}
+DEFAULT_EXCLUDED_ENTITY_TYPE_PREFIXES = ("LEGAL_", "FIN_", "MED_")
+
+
+def is_default_generic_entity_type_id(type_id: str) -> bool:
+    """Return whether a type belongs to the generic default schema."""
+    normalized = canonical_type_id(type_id)
+    if normalized in DEFAULT_EXCLUDED_ENTITY_TYPE_IDS:
+        return False
+    return not normalized.startswith(DEFAULT_EXCLUDED_ENTITY_TYPE_PREFIXES)
 
 
 # ── 持久化 ────────────────────────────────────────────────
@@ -109,12 +124,18 @@ def _load_entity_types() -> dict[str, EntityTypeConfig]:
     for key, preset in PRESET_ENTITY_TYPES.items():
         if key in raw:
             try:
-                merged[key] = EntityTypeConfig(**raw[key]) if isinstance(raw[key], dict) else preset
+                loaded = EntityTypeConfig(**raw[key]) if isinstance(raw[key], dict) else preset
+                # Built-in definitions are source-controlled. Preserve only the
+                # user's enabled/disabled choice, so corrected regex/LLM/default
+                # boundaries are not kept stale by old runtime snapshots.
+                merged[key] = preset.model_copy(update={"enabled": loaded.enabled})
             except Exception:
                 merged[key] = preset
         else:
             merged[key] = preset
     for key, val in raw.items():
+        if key in TYPE_ID_ALIASES:
+            continue
         if key not in merged:
             try:
                 merged[key] = EntityTypeConfig(**val) if isinstance(val, dict) else val
@@ -139,6 +160,15 @@ def get_enabled_types() -> list[EntityTypeConfig]:
     return [t for t in entity_types_db.values() if t.enabled]
 
 
+def get_default_generic_types() -> list[EntityTypeConfig]:
+    """获取通用默认配置中的启用实体类型。"""
+    return [
+        t
+        for t in entity_types_db.values()
+        if t.enabled and is_default_generic_entity_type_id(t.id)
+    ]
+
+
 def get_regex_types() -> list[EntityTypeConfig]:
     """获取使用正则识别的类型"""
     return [t for t in entity_types_db.values() if t.enabled and t.regex_pattern]
@@ -147,6 +177,33 @@ def get_regex_types() -> list[EntityTypeConfig]:
 def get_llm_types() -> list[EntityTypeConfig]:
     """获取使用LLM识别的类型"""
     return [t for t in entity_types_db.values() if t.enabled and t.use_llm]
+
+
+def resolve_requested_entity_types(entity_type_ids: list[str]) -> list[EntityTypeConfig]:
+    """Resolve selected IDs exactly; custom items remain first-class NER tags."""
+    resolved: list[EntityTypeConfig] = []
+    seen: set[str] = set()
+
+    def add(type_config: EntityTypeConfig) -> None:
+        final_id = type_config.id
+        if final_id in seen:
+            return
+        seen.add(final_id)
+        resolved.append(type_config)
+
+    for raw_id in entity_type_ids:
+        direct_id = str(raw_id or "").strip()
+        if not direct_id:
+            continue
+
+        type_config = entity_types_db.get(direct_id)
+        if type_config is None:
+            type_config = entity_types_db.get(canonical_type_id(direct_id))
+        if type_config is None:
+            continue
+
+        add(type_config)
+    return resolved
 
 
 # ── 业务方法 ──────────────────────────────────────────────

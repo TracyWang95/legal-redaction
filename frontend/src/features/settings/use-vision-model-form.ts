@@ -8,7 +8,7 @@ interface ConfirmState {
   title: string;
   message: string;
   danger?: boolean;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }
 
 export function useVisionModelForm(
