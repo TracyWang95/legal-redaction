@@ -171,8 +171,7 @@ describe('AuthProvider', () => {
     const refreshPromise = new Promise<Response>((resolve) => {
       resolveRefresh = resolve;
     });
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -245,15 +244,12 @@ describe('AuthProvider', () => {
       window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
     });
 
-    await waitFor(() => {
-      expect(result.current.status?.authenticated).toBe(false);
-      expect(result.current.error).toBe('status unavailable');
-    });
+    await waitFor(() => expect(result.current.status?.authenticated).toBe(false));
+    expect(result.current.error).toBe('status unavailable');
   });
 
   it('does not refresh status after logout when logout request fails', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({

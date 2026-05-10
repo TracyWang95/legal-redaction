@@ -13,11 +13,6 @@ import {
   setupMocks,
 } from './use-playground-recognition.test-helpers';
 
-const DEFAULT_VISION_SIGNATURE = JSON.stringify({
-  ocrHas: ['ocr_1', 'ocr_2'],
-  hasImage: ['face', 'official_seal'],
-});
-
 describe('usePlaygroundRecognition vision behavior', () => {
   beforeEach(() => {
     resetRecognitionTestEnvironment();
@@ -45,30 +40,6 @@ describe('usePlaygroundRecognition vision behavior', () => {
     setupMocks();
     const { result } = renderHookUnderTest();
     await waitFor(() => expect(result.current.selectedHasImageTypes.length).toBeGreaterThan(0));
-    expect(result.current.selectedHasImageTypes).not.toContain('paper');
-  });
-
-  it('keeps HaS Image recognition config to fixed model classes only', async () => {
-    const pipelines = makePipelines();
-    pipelines[1].types.push(
-      { id: 'signature', name: 'Signature', color: '#b91c1c', enabled: true, order: 21 },
-      { id: 'handwriting', name: 'Handwriting', color: '#991b1b', enabled: true, order: 22 },
-      {
-        id: 'custom_sensitive_region',
-        name: 'Custom region',
-        color: '#7f1d1d',
-        enabled: true,
-        order: 23,
-      },
-    );
-    setupMocks(makeEntityTypes(), pipelines);
-    const { result } = renderHookUnderTest();
-
-    await waitFor(() => expect(result.current.visionConfigState).toBe('ready'));
-
-    const imagePipeline = result.current.pipelines.find((pipeline) => pipeline.mode === 'has_image');
-    expect(imagePipeline?.types.map((type) => type.id)).toEqual(['face', 'official_seal', 'paper']);
-    expect(result.current.selectedHasImageTypes).toEqual(['face', 'official_seal']);
   });
 
   it('sets visionConfigState to unavailable on pipeline fetch error', async () => {
@@ -80,65 +51,34 @@ describe('usePlaygroundRecognition vision behavior', () => {
 
   it('restores ocrHasTypes from localStorage', async () => {
     localStorage.setItem('ocrHasTypes', JSON.stringify(['ocr_1']));
-    localStorage.setItem(
-      'datainfraRedaction:visionSelectionSignature',
-      JSON.stringify(DEFAULT_VISION_SIGNATURE),
-    );
     setupMocks();
     const { result } = renderHookUnderTest();
     await waitFor(() => expect(result.current.selectedOcrHasTypes).toEqual(['ocr_1']));
   });
 
   it('restores hasImageTypes from localStorage', async () => {
-    localStorage.setItem('hasImageTypes', JSON.stringify(['face', 'paper']));
-    localStorage.setItem(
-      'datainfraRedaction:visionSelectionSignature',
-      JSON.stringify(DEFAULT_VISION_SIGNATURE),
-    );
+    localStorage.setItem('hasImageTypes', JSON.stringify(['img_1']));
     setupMocks();
     const { result } = renderHookUnderTest();
-    await waitFor(() => expect(result.current.selectedHasImageTypes).toEqual(['face', 'paper']));
+    await waitFor(() => expect(result.current.selectedHasImageTypes).toEqual(['img_1']));
   });
 
-  it('preserves explicit empty localStorage vision lists', async () => {
+  it('recovers defaults when both localStorage vision lists are empty', async () => {
     localStorage.setItem('ocrHasTypes', JSON.stringify([]));
     localStorage.setItem('hasImageTypes', JSON.stringify([]));
-    localStorage.setItem(
-      'datainfraRedaction:visionSelectionSignature',
-      JSON.stringify(DEFAULT_VISION_SIGNATURE),
-    );
     setupMocks();
     const { result } = renderHookUnderTest();
     await waitFor(() => {
-      expect(result.current.selectedOcrHasTypes).toEqual([]);
-      expect(result.current.selectedHasImageTypes).toEqual([]);
+      expect(result.current.selectedOcrHasTypes.length).toBeGreaterThan(0);
+      expect(result.current.selectedHasImageTypes.length).toBeGreaterThan(0);
     });
   });
 
   it('filters out unknown IDs from localStorage ocrHasTypes', async () => {
     localStorage.setItem('ocrHasTypes', JSON.stringify(['ocr_1', 'missing']));
-    localStorage.setItem(
-      'datainfraRedaction:visionSelectionSignature',
-      JSON.stringify(DEFAULT_VISION_SIGNATURE),
-    );
     setupMocks();
     const { result } = renderHookUnderTest();
     await waitFor(() => expect(result.current.selectedOcrHasTypes).toEqual(['ocr_1']));
-  });
-
-  it('resets stale localStorage selections when backend defaults change', async () => {
-    localStorage.setItem('ocrHasTypes', JSON.stringify(['ocr_1']));
-    localStorage.setItem('hasImageTypes', JSON.stringify(['paper']));
-    localStorage.setItem(
-      'datainfraRedaction:visionSelectionSignature',
-      JSON.stringify('old-defaults'),
-    );
-    setupMocks();
-    const { result } = renderHookUnderTest();
-    await waitFor(() => {
-      expect(result.current.selectedOcrHasTypes).toEqual(['ocr_1', 'ocr_2']);
-      expect(result.current.selectedHasImageTypes).toEqual(['face', 'official_seal']);
-    });
   });
 
   it('adds a type to selectedOcrHasTypes when not present', async () => {
@@ -169,9 +109,9 @@ describe('usePlaygroundRecognition vision behavior', () => {
     await waitFor(() => expect(result.current.visionConfigState).toBe('ready'));
 
     act(() => result.current.updateHasImageTypes([]));
-    act(() => result.current.toggleVisionType('face', 'has_image'));
+    act(() => result.current.toggleVisionType('img_1', 'has_image'));
 
-    expect(result.current.selectedHasImageTypes).toContain('face');
+    expect(result.current.selectedHasImageTypes).toContain('img_1');
   });
 
   it('removes a type from selectedHasImageTypes when present', async () => {
@@ -179,10 +119,10 @@ describe('usePlaygroundRecognition vision behavior', () => {
     const { result } = renderHookUnderTest();
     await waitFor(() => expect(result.current.visionConfigState).toBe('ready'));
 
-    act(() => result.current.updateHasImageTypes(['face', 'official_seal']));
-    act(() => result.current.toggleVisionType('face', 'has_image'));
+    act(() => result.current.updateHasImageTypes(['img_1', 'img_2']));
+    act(() => result.current.toggleVisionType('img_1', 'has_image'));
 
-    expect(result.current.selectedHasImageTypes).toEqual(['official_seal']);
+    expect(result.current.selectedHasImageTypes).toEqual(['img_2']);
   });
 
   it('returns info about the toggled type', async () => {

@@ -13,13 +13,13 @@ from dataclasses import dataclass
 from PIL import Image, ImageOps
 
 try:
-    import cv2 as _CV2
-    import numpy as _NP
+    import cv2
+    import numpy as np
 
     _VISION_DEPS_MISSING = False
 except Exception:
-    _CV2 = None
-    _NP = None
+    cv2 = None
+    np = None
     _VISION_DEPS_MISSING = True
 _PREPARED_IMAGE_CACHE: list[tuple[weakref.ReferenceType[Image.Image], tuple[int, int], object, object]] = []
 _RED_WORK_MAX_SIDE = 1800
@@ -36,19 +36,17 @@ class SealRegion:
 
 
 def _vision_deps():
-    global _CV2, _NP, _VISION_DEPS_MISSING
+    global cv2, np, _VISION_DEPS_MISSING
     if _VISION_DEPS_MISSING:
         return None
-    if _CV2 is not None and _NP is not None:
-        return _CV2, _NP
+    if cv2 is not None and np is not None:
+        return cv2, np
     try:
         import cv2
         import numpy as np
     except Exception:
         _VISION_DEPS_MISSING = True
         return None
-    _CV2 = cv2
-    _NP = np
     return cv2, np
 
 

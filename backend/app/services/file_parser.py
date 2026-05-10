@@ -7,6 +7,7 @@ import os
 import sys
 from collections import OrderedDict
 from threading import Lock
+from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ from PIL import Image
 from app.core.config import settings
 from app.core.file_validation import safe_path_in_dir
 from app.models.schemas import FileType, ParseResult
+
+if TYPE_CHECKING:
+    from app.services.hybrid_vision_service import OCRTextBlock
 
 
 def _validate_path(file_path: str) -> None:

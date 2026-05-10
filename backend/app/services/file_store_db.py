@@ -12,9 +12,8 @@ import os
 import sqlite3
 import threading
 import time
+from collections.abc import Callable, Iterator
 from copy import deepcopy
-from collections.abc import Iterator
-from collections.abc import Callable
 from typing import Any
 
 from app.core.persistence import to_jsonable

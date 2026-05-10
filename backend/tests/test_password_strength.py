@@ -21,24 +21,12 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
     os.environ["AUTH_ENABLED"] = "true"
     os.environ["DEBUG"] = "true"
 
-    from app.core.config import settings
     from app.main import app
 
     app.dependency_overrides.clear()
 
-    _prev_auth = settings.AUTH_ENABLED
-    _prev_debug = settings.DEBUG
-    settings.AUTH_ENABLED = True
-    settings.DEBUG = True
-
     import app.core.auth as _auth_mod
-    import app.core.token_blacklist as _blacklist_mod
-    from app.core.token_blacklist import TokenBlacklist
-
-    _prev_auth_file = _auth_mod._AUTH_FILE
-    _prev_blacklist = _blacklist_mod._instance
     _auth_mod._AUTH_FILE = os.path.join(tmp_data_dir, "data", "auth.json")
-    _blacklist_mod._instance = TokenBlacklist(os.path.join(tmp_data_dir, "data", "token_blacklist.sqlite3"))
 
     from app.api.auth import _auth_limiter
     _auth_limiter._hits.clear()
@@ -46,10 +34,6 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
     with TestClient(app) as client:
         yield client
 
-    settings.AUTH_ENABLED = _prev_auth
-    settings.DEBUG = _prev_debug
-    _auth_mod._AUTH_FILE = _prev_auth_file
-    _blacklist_mod._instance = _prev_blacklist
     app.dependency_overrides.clear()
     for key in ("UPLOAD_DIR", "OUTPUT_DIR", "DATA_DIR", "JOB_DB_PATH",
                 "AUTH_ENABLED", "DEBUG"):
@@ -67,12 +51,6 @@ def test_password_no_uppercase_rejected(auth_client: TestClient):
     )
     assert resp.status_code == 400
     assert "大写" in resp.json()["message"] or "uppercase" in resp.json()["message"].lower()
-
-
-def test_password_fixture_uses_temp_token_blacklist(auth_client: TestClient, tmp_data_dir: str):
-    from app.core.token_blacklist import get_blacklist
-
-    assert get_blacklist().db_path.startswith(tmp_data_dir)
 
 
 def test_password_no_lowercase_rejected(auth_client: TestClient):

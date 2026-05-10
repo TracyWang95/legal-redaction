@@ -188,8 +188,6 @@ class HaSService:
         if not content.strip():
             return []
 
-        # 转换实体类型为中文
-        chinese_types = self._convert_entity_types_to_chinese(entity_types)
         (
             requested_type_ids,
             requested_type_by_name,

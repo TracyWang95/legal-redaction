@@ -433,8 +433,9 @@ async def services_health():
     import asyncio
     import time
     from datetime import datetime
-    from app.services import model_config_service
+
     from app.core.health_checks import get_vlm_runtime_detail
+    from app.services import model_config_service
 
     services = {}
 

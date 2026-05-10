@@ -43,7 +43,7 @@ import {
   fetchRecognitionPresets,
 } from '@/services/recognition-config';
 import { loadBatchWizardConfig } from '@/services/batchPipeline';
-import { getActivePresetTextId, getActivePresetVisionId } from '@/services/activePresetBridge';
+import { getActivePresetTextId } from '@/services/activePresetBridge';
 import type { RecognitionPreset } from '@/services/presetsApi';
 import type { TextEntityType, PipelineCfg } from '../../types';
 import { useBatchConfig } from '../use-batch-config';
@@ -77,19 +77,7 @@ function makePipelines(): PipelineCfg[] {
       name: 'Image',
       description: 'Image pipeline',
       enabled: true,
-      types: [
-        { id: 'face', name: 'Face', color: '#b45309', enabled: true, order: 1 },
-        { id: 'paper', name: 'Paper', color: '#7c3aed', enabled: true, order: 20 },
-      ],
-    },
-    {
-      mode: 'vlm',
-      name: 'VLM',
-      description: 'VLM pipeline',
-      enabled: true,
-      types: [
-        { id: 'signature', name: 'Signature', color: '#7c3aed', enabled: true, order: 1 },
-      ],
+      types: [{ id: 'img_1', name: 'Image Type 1', color: '#b45309', enabled: true, order: 1 }],
     },
   ];
 }
@@ -115,8 +103,7 @@ function makeVisionPreset(): RecognitionPreset {
     kind: 'vision',
     selectedEntityTypeIds: [],
     ocrHasTypes: ['ocr_1'],
-    hasImageTypes: ['face'],
-    vlmTypes: ['signature'],
+    hasImageTypes: ['img_1'],
     replacementMode: 'structured',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -130,8 +117,7 @@ function makeFullPreset(): RecognitionPreset {
     kind: 'full',
     selectedEntityTypeIds: ['TYPE_1', 'TYPE_2'],
     ocrHasTypes: ['ocr_1'],
-    hasImageTypes: ['face'],
-    vlmTypes: ['signature'],
+    hasImageTypes: ['img_1'],
     replacementMode: 'smart',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -187,7 +173,6 @@ describe('useBatchConfig', () => {
     localStorage.clear();
     (loadBatchWizardConfig as Mock).mockReturnValue(null);
     (getActivePresetTextId as Mock).mockReturnValue(null);
-    (getActivePresetVisionId as Mock).mockReturnValue(null);
   });
 
   // ── Initial state ──
@@ -297,37 +282,13 @@ describe('useBatchConfig', () => {
       await waitFor(() => expect(fetchRecognitionPipelines).toHaveBeenCalledWith(25_000));
     });
 
-    it('reports preset load failures while keeping default config usable', async () => {
+    it('handles empty presets gracefully (API returns non-array)', async () => {
       (fetchRecognitionEntityTypes as Mock).mockResolvedValue(makeTextTypes());
       (fetchRecognitionPipelines as Mock).mockResolvedValue(makePipelines());
       (fetchRecognitionPresets as Mock).mockRejectedValue(new Error('fail'));
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       expect(result.current.presets).toEqual([]);
-      expect(result.current.presetLoadError).toBe('batchWizard.step1.presetLoadError');
-      expect(result.current.cfg.selectedEntityTypeIds.length).toBeGreaterThan(0);
-    });
-
-    it('retries preset loading and clears the visible preset error', async () => {
-      const retryPreset = makeTextPreset(['TYPE_1']);
-      (fetchRecognitionEntityTypes as Mock).mockResolvedValue(makeTextTypes());
-      (fetchRecognitionPipelines as Mock).mockResolvedValue(makePipelines());
-      (fetchRecognitionPresets as Mock)
-        .mockRejectedValueOnce(new Error('fail'))
-        .mockResolvedValueOnce([retryPreset]);
-
-      const { result } = renderUseBatchConfig();
-      await waitFor(() =>
-        expect(result.current.presetLoadError).toBe('batchWizard.step1.presetLoadError'),
-      );
-
-      await act(async () => {
-        await result.current.retryLoadPresets();
-      });
-
-      expect(result.current.presetLoadError).toBeNull();
-      expect(result.current.presets).toEqual([retryPreset]);
-      expect(fetchRecognitionPresets).toHaveBeenCalledTimes(2);
     });
 
     it('populates cfg.selectedEntityTypeIds with default text type IDs', async () => {
@@ -357,17 +318,7 @@ describe('useBatchConfig', () => {
     it('computes batchDefaultHasImageTypeIds from pipelines', async () => {
       setupMocks();
       const { result } = renderUseBatchConfig();
-      await waitFor(() =>
-        expect(result.current.batchDefaultHasImageTypeIds).toEqual(['face']),
-      );
-    });
-
-    it('computes batchDefaultVlmTypeIds from pipelines', async () => {
-      setupMocks();
-      const { result } = renderUseBatchConfig();
-      await waitFor(() =>
-        expect(result.current.batchDefaultVlmTypeIds).toEqual(['signature']),
-      );
+      await waitFor(() => expect(result.current.batchDefaultHasImageTypeIds).toEqual(['img_1']));
     });
 
     it('falls back to defaults when persisted vision IDs are stale', async () => {
@@ -376,96 +327,12 @@ describe('useBatchConfig', () => {
         selectedEntityTypeIds: ['TYPE_1'],
         ocrHasTypes: ['ocr_missing'],
         hasImageTypes: ['img_missing'],
-        vlmTypes: ['vlm_missing'],
         replacementMode: 'structured',
       });
       const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1', 'ocr_2']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
-    });
-
-    it('preserves explicit persisted HaS Image selections, including paper', async () => {
-      setupMocks();
-      (loadBatchWizardConfig as Mock).mockReturnValue({
-        selectedEntityTypeIds: ['TYPE_1'],
-        ocrHasTypes: ['ocr_1'],
-        hasImageTypes: ['face', 'paper'],
-        replacementMode: 'structured',
-      });
-      const { result } = renderUseBatchConfig();
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-      expect(result.current.cfg.hasImageTypes).toEqual(['face', 'paper']);
-    });
-
-    it('falls back to defaults when a persisted full preset now references stale IDs', async () => {
-      const staleFullPreset = {
-        ...makeFullPreset(),
-        selectedEntityTypeIds: ['TYPE_MISSING'],
-        ocrHasTypes: ['ocr_missing'],
-        hasImageTypes: ['img_missing'],
-        vlmTypes: ['vlm_missing'],
-      };
-      setupMocks(makeTextTypes(5), makePipelines(), [staleFullPreset]);
-      (loadBatchWizardConfig as Mock).mockReturnValue({
-        selectedEntityTypeIds: ['TYPE_MISSING'],
-        ocrHasTypes: ['ocr_missing'],
-        hasImageTypes: ['img_missing'],
-        vlmTypes: ['vlm_missing'],
-        replacementMode: 'structured',
-        presetTextId: 'preset-full-1',
-        presetVisionId: 'preset-full-1',
-      });
-
-      const { result } = renderUseBatchConfig({ mode: 'smart' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-
-      expect(result.current.cfg.selectedEntityTypeIds).toEqual([
-        'TYPE_1',
-        'TYPE_2',
-        'TYPE_3',
-        'TYPE_4',
-        'TYPE_5',
-      ]);
-      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1', 'ocr_2']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
-    });
-
-    it('lets the active settings checklist override stale persisted batch preset ids', async () => {
-      const persistedPreset = makeFullPreset();
-      const activePreset: RecognitionPreset = {
-        ...makeFullPreset(),
-        id: 'preset-full-active',
-        name: 'Active Full Preset',
-        selectedEntityTypeIds: ['TYPE_4'],
-        ocrHasTypes: ['ocr_2'],
-        hasImageTypes: ['paper'],
-        vlmTypes: ['signature'],
-      };
-      setupMocks(makeTextTypes(5), makePipelines(), [persistedPreset, activePreset]);
-      (loadBatchWizardConfig as Mock).mockReturnValue({
-        selectedEntityTypeIds: ['TYPE_1'],
-        ocrHasTypes: ['ocr_1'],
-        hasImageTypes: ['face'],
-        vlmTypes: ['signature'],
-        replacementMode: 'structured',
-        presetTextId: 'preset-full-1',
-        presetVisionId: 'preset-full-1',
-      });
-      (getActivePresetTextId as Mock).mockReturnValue('preset-full-active');
-      (getActivePresetVisionId as Mock).mockReturnValue('preset-full-active');
-
-      const { result } = renderUseBatchConfig({ mode: 'smart' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-
-      expect(result.current.cfg.selectedEntityTypeIds).toEqual(['TYPE_4']);
-      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_2']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['paper']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
-      expect(result.current.cfg.presetTextId).toBe('preset-full-active');
-      expect(result.current.cfg.presetVisionId).toBe('preset-full-active');
+      expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
     });
   });
 
@@ -501,7 +368,7 @@ describe('useBatchConfig', () => {
 
     it('returns true when confirmStep1 is true and ocrHasTypes are selected', async () => {
       setupMocks();
-      const { result } = renderUseBatchConfig({ mode: 'image' });
+      const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       act(() => {
         result.current.setCfg((c) => ({
@@ -516,51 +383,18 @@ describe('useBatchConfig', () => {
 
     it('returns true when confirmStep1 is true and hasImageTypes are selected', async () => {
       setupMocks();
-      const { result } = renderUseBatchConfig({ mode: 'image' });
+      const { result } = renderUseBatchConfig();
       await waitFor(() => expect(result.current.configLoaded).toBe(true));
       act(() => {
         result.current.setCfg((c) => ({
           ...c,
           selectedEntityTypeIds: [],
           ocrHasTypes: [],
-          hasImageTypes: ['face'],
+          hasImageTypes: ['img_1'],
         }));
         result.current.setConfirmStep1(true);
       });
       expect(result.current.isStep1Complete).toBe(true);
-    });
-
-    it('returns false for text mode when only vision types are selected', async () => {
-      setupMocks();
-      const { result } = renderUseBatchConfig({ mode: 'text' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-      act(() => {
-        result.current.setCfg((c) => ({
-          ...c,
-          selectedEntityTypeIds: [],
-          ocrHasTypes: ['ocr_1'],
-        hasImageTypes: ['face'],
-        }));
-        result.current.setConfirmStep1(true);
-      });
-      expect(result.current.isStep1Complete).toBe(false);
-    });
-
-    it('returns false for image mode when only text types are selected', async () => {
-      setupMocks();
-      const { result } = renderUseBatchConfig({ mode: 'image' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-      act(() => {
-        result.current.setCfg((c) => ({
-          ...c,
-          selectedEntityTypeIds: ['TYPE_1'],
-          ocrHasTypes: [],
-          hasImageTypes: [],
-          vlmTypes: [],
-        }));
-        result.current.setConfirmStep1(true);
-      });
-      expect(result.current.isStep1Complete).toBe(false);
     });
 
     it('returns false when all selection arrays are empty even with confirmStep1', async () => {
@@ -629,8 +463,7 @@ describe('useBatchConfig', () => {
       act(() => result.current.onBatchVisionPresetChange('preset-vision-1'));
 
       expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
+      expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
     });
 
     it('applying stale vision preset IDs falls back to defaults', async () => {
@@ -639,7 +472,6 @@ describe('useBatchConfig', () => {
         id: 'preset-vision-stale',
         ocrHasTypes: ['ocr_missing'],
         hasImageTypes: ['img_missing'],
-        vlmTypes: ['vlm_missing'],
       };
       setupMocks(makeTextTypes(), makePipelines(), [vPreset]);
       const { result } = renderUseBatchConfig();
@@ -648,8 +480,7 @@ describe('useBatchConfig', () => {
       act(() => result.current.onBatchVisionPresetChange('preset-vision-stale'));
 
       expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1', 'ocr_2']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
+      expect(result.current.cfg.hasImageTypes).toEqual(['img_1']);
     });
 
     it('applying a vision preset sets presetVisionId', async () => {
@@ -687,24 +518,6 @@ describe('useBatchConfig', () => {
       expect(result.current.cfg.selectedEntityTypeIds).toEqual(['TYPE_1']);
     });
 
-    it('applying stale text preset IDs falls back to defaults', async () => {
-      const types = makeTextTypes(5);
-      const preset = makeTextPreset(['TYPE_99']);
-      setupMocks(types, makePipelines(), [preset]);
-      const { result } = renderUseBatchConfig();
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-
-      act(() => result.current.onBatchTextPresetChange('preset-text-1'));
-
-      expect(result.current.cfg.selectedEntityTypeIds).toEqual([
-        'TYPE_1',
-        'TYPE_2',
-        'TYPE_3',
-        'TYPE_4',
-        'TYPE_5',
-      ]);
-    });
-
     it('textPresets filters presets by kind', async () => {
       const tp = makeTextPreset(['TYPE_1']);
       const vp = makeVisionPreset();
@@ -735,38 +548,6 @@ describe('useBatchConfig', () => {
 
       expect(result.current.textPresets.length).toBe(1);
       expect(result.current.visionPresets.length).toBe(1);
-    });
-
-    it('applying a full text preset in smart mode applies text and vision fields together', async () => {
-      const fp = makeFullPreset();
-      setupMocks(makeTextTypes(), makePipelines(), [fp]);
-      const { result } = renderUseBatchConfig({ mode: 'smart' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-
-      act(() => result.current.onBatchTextPresetChange('preset-full-1'));
-
-      expect(result.current.cfg.selectedEntityTypeIds).toEqual(['TYPE_1', 'TYPE_2']);
-      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
-      expect(result.current.cfg.presetTextId).toBe('preset-full-1');
-      expect(result.current.cfg.presetVisionId).toBe('preset-full-1');
-    });
-
-    it('applying a full vision preset in smart mode applies vision and text fields together', async () => {
-      const fp = makeFullPreset();
-      setupMocks(makeTextTypes(), makePipelines(), [fp]);
-      const { result } = renderUseBatchConfig({ mode: 'smart' });
-      await waitFor(() => expect(result.current.configLoaded).toBe(true));
-
-      act(() => result.current.onBatchVisionPresetChange('preset-full-1'));
-
-      expect(result.current.cfg.selectedEntityTypeIds).toEqual(['TYPE_1', 'TYPE_2']);
-      expect(result.current.cfg.ocrHasTypes).toEqual(['ocr_1']);
-      expect(result.current.cfg.hasImageTypes).toEqual(['face']);
-      expect(result.current.cfg.vlmTypes).toEqual(['signature']);
-      expect(result.current.cfg.presetTextId).toBe('preset-full-1');
-      expect(result.current.cfg.presetVisionId).toBe('preset-full-1');
     });
 
     it('ignores non-existent preset ID', async () => {

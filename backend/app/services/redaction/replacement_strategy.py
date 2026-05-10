@@ -5,13 +5,13 @@
 """
 import logging
 
-from app.models.type_mapping import canonical_type_id, cn_to_id
 from app.models.schemas import (
     Entity,
     EntityType,
     RedactionConfig,
     ReplacementMode,
 )
+from app.models.type_mapping import canonical_type_id, cn_to_id
 
 logger = logging.getLogger(__name__)
 

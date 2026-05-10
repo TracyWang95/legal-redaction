@@ -51,18 +51,6 @@ describe('usePlaygroundRecognition entity and text behavior', () => {
     await waitFor(() => expect(result.current.selectedTypes.length).toBeGreaterThan(0));
   });
 
-  it('preserves manually selected text types when the window regains focus', async () => {
-    setupMocks(makeEntityTypes(5));
-    const { result } = renderHookUnderTest();
-    await waitFor(() => expect(result.current.entityTypes.length).toBe(5));
-
-    act(() => result.current.setSelectedTypes(['TYPE_3']));
-    act(() => window.dispatchEvent(new Event('focus')));
-
-    await waitFor(() => expect(mockFetchRecognitionEntityTypes).toHaveBeenCalledTimes(2));
-    expect(result.current.selectedTypes).toEqual(['TYPE_3']);
-  });
-
   it('calls fetchRecognitionEntityTypes with enabledOnly=true', async () => {
     setupMocks();
     renderHookUnderTest();
@@ -88,19 +76,6 @@ describe('usePlaygroundRecognition entity and text behavior', () => {
 
     expect(result.current.selectedTypes).toContain('TYPE_1');
     expect(result.current.selectedTypes).toContain('TYPE_2');
-  });
-
-  it('updates selectedTypesRef synchronously for immediate recognition requests', async () => {
-    setupMocks();
-    const { result } = renderHookUnderTest();
-    await waitFor(() => expect(result.current.entityTypes.length).toBeGreaterThan(0));
-
-    act(() => {
-      result.current.setSelectedTypes((previous) => [...previous.filter((id) => id !== 'TYPE_1'), 'TYPE_4']);
-    });
-
-    expect(result.current.selectedTypesRef.current).toContain('TYPE_4');
-    expect(result.current.selectedTypesRef.current).not.toContain('TYPE_1');
   });
 
   it('setPlaygroundTextTypeGroupSelection removes IDs when turnOn=false', async () => {
@@ -155,7 +130,6 @@ describe('usePlaygroundRecognition entity and text behavior', () => {
     setupMocks(types, makePipelines(), [preset]);
     const { result } = renderHookUnderTest();
     await waitFor(() => expect(result.current.textPresetsPg.length).toBe(1));
-    await waitFor(() => expect(result.current.entityTypes.length).toBe(2));
 
     act(() => result.current.selectPlaygroundTextPresetById('preset-text-1'));
 

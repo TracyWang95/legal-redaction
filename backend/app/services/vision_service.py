@@ -5,8 +5,8 @@
 """
 import asyncio
 import base64
-import io
 import inspect
+import io
 import logging
 import os
 import time
@@ -31,13 +31,13 @@ from app.core.has_image_client import detect_privacy_regions
 from app.models.schemas import BoundingBox, FileType
 from app.services.file_parser import FileParser
 from app.services.hybrid_vision_service import get_hybrid_vision_service
-from app.services.vision.seal_detector import (
-    detect_dark_seal_regions,
-    detect_red_seal_regions,
-)
 from app.services.vision.ocr_artifact_filter import (
     is_page_edge_ocr_artifact,
     region_has_visible_ink,
+)
+from app.services.vision.seal_detector import (
+    detect_dark_seal_regions,
+    detect_red_seal_regions,
 )
 from app.services.vlm_vision_service import VlmVisionService
 
@@ -995,7 +995,6 @@ class VisionService:
             bounding_boxes.append(bbox)
 
         wants_official_seal = slugs is None or "official_seal" in slugs
-        wants_fingerprint = slugs is None or "fingerprint" in slugs
         fallback_start = time.perf_counter()
         if wants_official_seal:
             fallback_regions = [

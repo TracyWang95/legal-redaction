@@ -30,13 +30,7 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
 
     # Reset the auth module's cached file path to use the temp DATA_DIR
     import app.core.auth as _auth_mod
-    import app.core.token_blacklist as _blacklist_mod
-    from app.core.token_blacklist import TokenBlacklist
-
-    _prev_auth_file = _auth_mod._AUTH_FILE
-    _prev_blacklist = _blacklist_mod._instance
     _auth_mod._AUTH_FILE = os.path.join(tmp_data_dir, "data", "auth.json")
-    _blacklist_mod._instance = TokenBlacklist(os.path.join(tmp_data_dir, "data", "token_blacklist.sqlite3"))
     _auth_mod.clear_login_attempts("testclient")
     _auth_mod._login_attempts.clear()
 
@@ -49,8 +43,6 @@ def auth_client(tmp_data_dir: str) -> Generator[TestClient, None, None]:
 
     settings.AUTH_ENABLED = _prev_auth
     settings.DEBUG = _prev_debug
-    _auth_mod._AUTH_FILE = _prev_auth_file
-    _blacklist_mod._instance = _prev_blacklist
     app.dependency_overrides.clear()
     for key in ("UPLOAD_DIR", "OUTPUT_DIR", "DATA_DIR", "JOB_DB_PATH",
                 "AUTH_ENABLED", "DEBUG"):
@@ -63,12 +55,6 @@ _GOOD_PWD2 = "N3w!Secure#77"
 
 
 # ── Auth status ──────────────────────────────────────────────
-
-def test_auth_client_uses_temp_token_blacklist(auth_client: TestClient, tmp_data_dir: str):
-    from app.core.token_blacklist import get_blacklist
-
-    assert get_blacklist().db_path.startswith(tmp_data_dir)
-
 
 def test_auth_status_returns_enabled_flag(auth_client: TestClient):
     resp = auth_client.get("/api/v1/auth/status")

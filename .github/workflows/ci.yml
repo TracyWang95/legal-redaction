@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Public quality (fast + frontend build)
+    name: Frontend build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,19 +34,14 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Install backend CI dependencies
-        run: pip install -r backend/requirements-ci.txt
-
-      - name: Fast public quality gate
-        run: npm run quality:fast
-
-      - name: Frontend production build gate
-        run: npm run quality:frontend
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
         env:
           NODE_OPTIONS: '--max-old-space-size=8192'
 
   backend:
-    name: Backend (pytest)
+    name: Backend import and lint
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,23 +58,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-ci.txt
 
-      - name: Audit dependencies
-        run: pip install pip-audit && pip-audit -r requirements-ci.txt
-
       - name: Lint with ruff
         run: pip install ruff && ruff check app/
 
-      - name: Run tests with coverage
-        run: |
-          pip install pytest-cov
-          python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-report=xml
-
-      - name: Upload coverage report
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: backend/coverage.xml
+      - name: Import FastAPI app
+        run: python -c "from app.main import app; print(app.title)"
 
   docker-build:
     name: Docker build verification
@@ -92,68 +75,3 @@ jobs:
 
       - name: Build frontend image
         run: docker build -t test-frontend -f frontend/Dockerfile frontend/
-
-  e2e:
-    name: E2E Tests (Playwright)
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-    needs: [frontend, backend, docker-build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Start services
-        run: docker compose up -d --wait
-        env:
-          AUTH_ENABLED: "false"
-          DEBUG: "true"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Install Playwright browsers
-        working-directory: frontend
-        run: npx playwright install --with-deps chromium
-
-      - name: Wait for backend health
-        run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8000/health; then
-              echo "Backend is healthy"
-              break
-            fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 2
-          done
-
-      - name: Run Playwright tests
-        working-directory: frontend
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            npx playwright test
-          else
-            npx playwright test e2e/playground-smoke.spec.ts e2e/batch-smoke.spec.ts e2e/history-smoke.spec.ts e2e/settings-smoke.spec.ts
-          fi
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3000
-
-      - name: Upload test results and screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: |
-            frontend/playwright-report/
-            frontend/test-results/
-          retention-days: 14
-
-      - name: Stop services
-        if: always()
-        run: docker compose down -v

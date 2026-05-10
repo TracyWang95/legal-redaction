@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import base64
-import time
 import logging
 import os
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,8 +31,8 @@ from app.models.schemas import (
     ReplacementMode,
     VisionResult,
 )
-from app.services.redactor import Redactor, build_preview_entity_map
 from app.services.redaction.image_redactor import prepare_image_redaction
+from app.services.redactor import Redactor, build_preview_entity_map
 from app.services.vision_service import VisionService
 
 logger = logging.getLogger(__name__)

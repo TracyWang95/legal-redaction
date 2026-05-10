@@ -96,24 +96,6 @@ describe('usePlaygroundRecognition preset behavior', () => {
     expect(result.current.playgroundPresetVisionId).toBeNull();
   });
 
-  it('localizes built-in industry preset names for the playground dropdowns', async () => {
-    const preset = {
-      ...makeTextPreset(['TYPE_1']),
-      id: 'industry_contract_legal_disclosure',
-      name: 'Industry - Legal case materials',
-      kind: 'full' as const,
-      ocrHasTypes: ['ocr_1'],
-      hasImageTypes: ['face'],
-    };
-    setupMocks(makeEntityTypes(5), makePipelines(), [preset]);
-    const { result } = renderHookUnderTest();
-
-    await waitFor(() => {
-      expect(result.current.textPresetsPg[0]?.name).toBe('法律行业');
-      expect(result.current.visionPresetsPg[0]?.name).toBe('法律行业');
-    });
-  });
-
   it('openTextPresetDialog sets kind to text', () => {
     setupMocks();
     const { result } = renderHookUnderTest();

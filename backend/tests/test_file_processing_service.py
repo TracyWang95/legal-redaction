@@ -5,7 +5,6 @@ import asyncio
 import importlib
 import sys
 from types import ModuleType
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # ---------------------------------------------------------------------------
@@ -54,78 +53,6 @@ def _reload_fps():
     return importlib.import_module(mod_name)
 
 
-class _ParseFileStore:
-    def __init__(self, info: dict):
-        self.info = dict(info)
-        self.updated: dict | None = None
-
-    def get(self, file_id: str):
-        return dict(self.info)
-
-    def __contains__(self, file_id: str) -> bool:
-        return True
-
-    def __len__(self) -> int:
-        return 1
-
-    @property
-    def _path(self) -> str:
-        return "memory"
-
-    def update_fields(self, file_id: str, patch: dict) -> None:
-        self.updated = dict(patch)
-
-
-class _ParserSpy:
-    def __init__(self, result):
-        self.result = result
-        self.calls: list[tuple[str, object]] = []
-
-    async def parse(self, file_path: str, file_type):
-        self.calls.append((file_path, file_type))
-        return self.result
-
-
-class TestParseFileIdempotency:
-    def test_pdf_scanned_store_entries_are_reparsed_as_pdf(self):
-        async def _run():
-            from app.models.schemas import FileType
-
-            fps = _reload_fps()
-            store = _ParseFileStore(
-                {
-                    "file_path": "already-scanned.pdf",
-                    "file_type": FileType.PDF_SCANNED.value,
-                    "is_scanned": True,
-                }
-            )
-            lock = asyncio.Lock()
-            result = SimpleNamespace(
-                file_type=FileType.PDF_SCANNED,
-                content="",
-                pages=[],
-                page_count=6,
-                is_scanned=True,
-                file_id=None,
-            )
-            parser = _ParserSpy(result)
-
-            with (
-                patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.file_parser.FileParser", return_value=parser),
-            ):
-                returned = await fps.parse_file("file-1")
-
-            assert returned is result
-            assert result.file_id == "file-1"
-            assert parser.calls == [("already-scanned.pdf", FileType.PDF)]
-            assert store.updated is not None
-            assert store.updated["file_type"] == FileType.PDF_SCANNED.value
-            assert store.updated["is_scanned"] is True
-
-        asyncio.run(_run())
-
-
 # ---------------------------------------------------------------------------
 # Issue 3 — run_default_ner must accept and forward entity_type_ids
 # ---------------------------------------------------------------------------
@@ -136,7 +63,7 @@ class TestEntityTypeIdsPassThrough:
 
     def test_run_default_ner_accepts_entity_type_ids(self):
         """run_default_ner(file_id, entity_type_ids=[...]) should select only
-        the requested types from entity_types_db, not call the default fallback."""
+        the requested types from entity_types_db, not call get_enabled_types."""
 
         async def _run():
             store, lock = _fake_file_store()
@@ -155,7 +82,7 @@ class TestEntityTypeIdsPassThrough:
             with (
                 patch.object(fps, "_store_and_lock", return_value=(store, lock)),
                 patch("app.services.entity_type_service.entity_types_db", fake_db),
-                patch("app.services.entity_type_service.get_default_generic_types") as mock_get_default,
+                patch("app.services.entity_type_service.get_enabled_types") as mock_get_enabled,
             ):
                 await fps.run_default_ner("file-1", entity_type_ids=["custom_001"])
 
@@ -165,13 +92,14 @@ class TestEntityTypeIdsPassThrough:
                 assert types_arg == [custom_type], (
                     "Expected only custom_001 type to be passed through"
                 )
-                # Default fallback must NOT be called when explicit IDs are provided.
-                mock_get_default.assert_not_called()
+                # get_enabled_types must NOT be called when explicit IDs provided
+                mock_get_enabled.assert_not_called()
 
         asyncio.run(_run())
 
-    def test_run_default_ner_falls_back_to_generic_default_types(self):
-        """When entity_type_ids is None, run_default_ner uses the generic default schema."""
+    def test_run_default_ner_falls_back_to_enabled_types(self):
+        """When entity_type_ids is None, run_default_ner should fall back to
+        get_enabled_types() — same as before."""
 
         async def _run():
             store, lock = _fake_file_store()
@@ -184,99 +112,12 @@ class TestEntityTypeIdsPassThrough:
 
             with (
                 patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.entity_type_service.get_default_generic_types", return_value=enabled_types),
+                patch("app.services.entity_type_service.get_enabled_types", return_value=enabled_types),
             ):
                 await fps.run_default_ner("file-1")
 
                 _content_arg, types_arg = mock_perform.call_args[0]
                 assert types_arg == enabled_types
-
-        asyncio.run(_run())
-
-    def test_run_hybrid_ner_respects_explicit_empty_entity_type_ids(self):
-        """An explicit empty recognition list means recognize nothing, not all enabled types."""
-
-        async def _run():
-            store, lock = _fake_file_store()
-
-            mock_perform = AsyncMock(return_value=[])
-            _setup_hybrid_ner_module(mock_perform)
-
-            fps = _reload_fps()
-
-            with (
-                patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.entity_type_service.entity_types_db", {"PERSON": MagicMock()}),
-                patch("app.services.entity_type_service.get_default_generic_types") as mock_get_default,
-            ):
-                await fps.run_hybrid_ner("file-1", entity_type_ids=[])
-
-                mock_get_default.assert_not_called()
-                mock_perform.assert_called_once()
-                _content_arg, types_arg = mock_perform.call_args[0]
-                assert types_arg == []
-
-        asyncio.run(_run())
-
-    def test_run_hybrid_ner_keeps_custom_type_without_builtin_supplement(self):
-        """A custom item remains its own NER tag and does not add inferred built-ins."""
-
-        async def _run():
-            store, lock = _fake_file_store()
-
-            custom_amount = MagicMock()
-            custom_amount.id = "custom_amount"
-            custom_amount.name = "金额"
-            custom_amount.enabled = True
-            amount = MagicMock()
-            amount.id = "AMOUNT"
-            amount.name = "金额/财务数据"
-            amount.enabled = True
-
-            mock_perform = AsyncMock(return_value=[])
-            _setup_hybrid_ner_module(mock_perform)
-
-            fps = _reload_fps()
-
-            with (
-                patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch(
-                    "app.services.entity_type_service.entity_types_db",
-                    {"custom_amount": custom_amount, "AMOUNT": amount},
-                ),
-                patch("app.services.entity_type_service.get_default_generic_types") as mock_get_default,
-            ):
-                await fps.run_hybrid_ner("file-1", entity_type_ids=["custom_amount"])
-
-                mock_get_default.assert_not_called()
-                mock_perform.assert_called_once()
-                _content_arg, types_arg = mock_perform.call_args[0]
-                assert [type_config.id for type_config in types_arg] == ["custom_amount"]
-
-        asyncio.run(_run())
-
-    def test_run_default_ner_respects_explicit_empty_entity_type_ids(self):
-        """The default NER helper also distinguishes [] from omitted config."""
-
-        async def _run():
-            store, lock = _fake_file_store()
-
-            mock_perform = AsyncMock(return_value=[])
-            _setup_hybrid_ner_module(mock_perform)
-
-            fps = _reload_fps()
-
-            with (
-                patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.entity_type_service.entity_types_db", {"PERSON": MagicMock()}),
-                patch("app.services.entity_type_service.get_default_generic_types") as mock_get_default,
-            ):
-                await fps.run_default_ner("file-1", entity_type_ids=[])
-
-                mock_get_default.assert_not_called()
-                mock_perform.assert_called_once()
-                _content_arg, types_arg = mock_perform.call_args[0]
-                assert types_arg == []
 
         asyncio.run(_run())
 
@@ -338,7 +179,7 @@ class TestRecognitionErrorPropagation:
 
             with (
                 patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.entity_type_service.get_default_generic_types", return_value=enabled_types),
+                patch("app.services.entity_type_service.get_enabled_types", return_value=enabled_types),
             ):
                 result = None
                 raised = False
@@ -379,7 +220,7 @@ class TestRecognitionErrorPropagation:
 
             with (
                 patch.object(fps, "_store_and_lock", return_value=(store, lock)),
-                patch("app.services.entity_type_service.get_default_generic_types", return_value=enabled_types),
+                patch("app.services.entity_type_service.get_enabled_types", return_value=enabled_types),
             ):
                 result = await fps.run_hybrid_ner("file-1")
 

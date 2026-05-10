@@ -64,7 +64,8 @@ def _log_wsl_drvfs_wal_disabled_once(db_path: str) -> None:
 
 
 def _log_sqlite_journal_fallback_once(db_path: str, mode: str, exc: BaseException) -> None:
-    log_key = f"{mode}:{os.path.realpath(db_path).replace('\\', '/')}"
+    normalized_db_path = os.path.realpath(db_path).replace("\\", "/")
+    log_key = f"{mode}:{normalized_db_path}"
     with _sqlite_journal_fallback_log_lock:
         if log_key in _sqlite_journal_fallback_logged_paths:
             return

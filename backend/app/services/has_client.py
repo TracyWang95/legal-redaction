@@ -574,7 +574,6 @@ Restore the original text based on the above mapping:
 
     def _map_type_to_english(self, chinese_type: str) -> str:
         """中文类型映射到英文（使用统一数据源）"""
-        from app.models.type_mapping import cn_to_id
         return cn_to_id(chinese_type)
 
     @staticmethod

@@ -68,7 +68,7 @@ _OCR_TEXT_BLOCK_CACHE: OrderedDict[
     tuple[float, list[OCRTextBlock], list[SensitiveRegion]],
 ] = OrderedDict()
 _OCR_TEXT_BLOCK_INFLIGHT_LOCK = threading.Lock()
-_OCR_TEXT_BLOCK_INFLIGHT: dict[tuple[Any, ...], "_OcrOutputInflight"] = {}
+_OCR_TEXT_BLOCK_INFLIGHT: dict[tuple[Any, ...], _OcrOutputInflight] = {}
 _HAS_TEXT_NER_LOCK: asyncio.Lock | None = None
 _HAS_TEXT_NER_LOCK_LOOP: asyncio.AbstractEventLoop | None = None
 _HAS_TEXT_NER_INFLIGHT: dict[tuple[Any, ...], asyncio.Future] = {}
@@ -1522,7 +1522,6 @@ async def run_has_text_analysis(
         )
 
         # ----- type ID <-> Chinese name mappings -----
-        from app.models.type_mapping import cn_to_id
 
         if vision_types:
             chinese_types = _build_has_text_type_names(vision_types)

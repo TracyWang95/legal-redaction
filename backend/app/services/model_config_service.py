@@ -170,6 +170,7 @@ async def _probe_local_http_health(
     timeout: float,
 ) -> dict:
     import httpx
+
     from app.core.health_checks import _tcp_port_open
 
     base = base_url.rstrip("/")
@@ -177,7 +178,7 @@ async def _probe_local_http_health(
     try:
         async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
             resp = await client.get(health_url)
-    except httpx.TimeoutException as e:
+    except httpx.TimeoutException:
         if _tcp_port_open(health_url):
             return _preflight_result(
                 success=True,
@@ -197,15 +198,16 @@ async def _probe_local_http_health(
         return _preflight_result(
             success=False,
             status="offline",
-            message=f"Cannot connect to {default_model} service ({base}): {e}",
+            message=f"Cannot connect to {default_model} service ({base}).",
             provider=provider,
             base_url=base,
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("Local model health probe failed for %s at %s", default_model, base)
         return _preflight_result(
             success=False,
             status="offline",
-            message=f"Cannot connect to {default_model} service ({base}): {e}",
+            message=f"Cannot connect to {default_model} service ({base}).",
             provider=provider,
             base_url=base,
         )
@@ -584,11 +586,12 @@ async def test_config(config_id: str) -> tuple[dict | None, str]:
             base_url=(config.base_url or "").rstrip("/"),
         ), ""
 
-    except Exception as e:
+    except Exception:
+        logger.exception("Model config health check failed for %s", getattr(config, "id", "unknown"))
         return _preflight_result(
             success=False,
             status="offline",
-            message=str(e),
+            message="Model service health check failed.",
             provider=getattr(config, "provider", "unknown"),
             base_url=(getattr(config, "base_url", "") or "").rstrip("/"),
         ), ""

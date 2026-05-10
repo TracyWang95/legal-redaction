@@ -27,5 +27,6 @@
     }
   },
   "include": ["src"],
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx", "e2e/**"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

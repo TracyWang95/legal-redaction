@@ -10,13 +10,12 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 import numpy as np
 import os
-from pathlib import Path
 
 # ── 全局设置 ──
 matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei']
 matplotlib.rcParams['axes.unicode_minus'] = False
 
-OUTPUT_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = r"D:\DataInfra-RedactionEverything\docs\patent"
 DPI = 300
 FIG_WIDTH_CM = 18
 FIG_HEIGHT_CM = 24

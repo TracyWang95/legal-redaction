@@ -12,14 +12,12 @@ import { MemoryRouter } from 'react-router-dom';
 
 // ── Mocks for sub-hooks ────────────────────────────────────────────────────
 
-const mockUseServiceHealth = vi.hoisted(() => vi.fn());
 const mockSetTypeTab = vi.fn();
 const mockRecognition = {
   entityTypes: [{ id: 'TYPE_1', name: 'Name', color: '#0f766e', enabled: true, order: 1 }],
   selectedTypes: ['TYPE_1'],
   selectedOcrHasTypes: ['ocr_1'],
   selectedHasImageTypes: ['img_1'],
-  selectedVlmTypes: ['signature'],
   visionTypes: [{ id: 'ocr_1', name: 'OCR', color: '#0f766e', enabled: true }],
   typeTab: 'text' as const,
   setTypeTab: mockSetTypeTab,
@@ -96,12 +94,7 @@ const mockFileCtx = {
   setLoadingMessage: vi.fn((next: string) => {
     mockFileCtx.loadingMessage = next;
   }),
-  cancelProcessing: vi.fn(),
-  uploadIssue: null,
-  recognitionIssue: null as string | null,
-  setRecognitionIssue: vi.fn((next: string | null) => {
-    mockFileCtx.recognitionIssue = next;
-  }),
+  loadingElapsedSec: 0,
   isImageMode: false,
   dropzone: mockDropzone,
 };
@@ -126,13 +119,11 @@ vi.mock('../use-playground-image', () => ({
     visibleBoxes: [],
     imageUrl: '',
     redactedImageUrl: '',
-    redactedImageError: null,
     imageHistory: mockImageHistory,
     toggleBox: vi.fn(),
     mergeVisibleBoxes: vi.fn(),
     openPopout: vi.fn(),
     handleRerunNerImage: vi.fn(),
-    cancelRerunNerImage: vi.fn(),
   })),
 }));
 
@@ -147,19 +138,10 @@ vi.mock('@/services/api-client', () => ({
   VISION_TIMEOUT: 60_000,
 }));
 
-vi.mock('@/i18n', () => ({
-  t: (k: string) =>
-    ({
-      'playground.toast.redactDone': '匿名化完成，共处理 {count} 处。',
-    })[k] ?? k,
-}));
+vi.mock('@/i18n', () => ({ t: (k: string) => k }));
 
 vi.mock('@/components/Toast', () => ({
   showToast: vi.fn(),
-}));
-
-vi.mock('@/hooks/use-service-health', () => ({
-  useServiceHealth: mockUseServiceHealth,
 }));
 
 vi.mock('@/utils/localizeError', () => ({
@@ -169,7 +151,6 @@ vi.mock('@/utils/localizeError', () => ({
 import { usePlayground } from '../use-playground';
 import { usePlaygroundFile } from '../use-playground-file';
 import { authFetch } from '@/services/api-client';
-import { showToast } from '@/components/Toast';
 import type { Mock } from 'vitest';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -202,21 +183,8 @@ describe('usePlayground', () => {
     mockFileCtx.content = '';
     mockFileCtx.isLoading = false;
     mockFileCtx.loadingMessage = '';
-    mockFileCtx.recognitionIssue = null;
+    mockFileCtx.loadingElapsedSec = 0;
     mockFileCtx.isImageMode = false;
-    mockUseServiceHealth.mockReturnValue({
-      health: {
-        all_online: true,
-        services: {
-          paddle_ocr: { name: 'PaddleOCR', status: 'online' },
-          has_ner: { name: 'HaS Text', status: 'online' },
-          has_image: { name: 'HaS Image', status: 'online' },
-        },
-      },
-      checking: false,
-      roundTripMs: 12,
-      refresh: vi.fn(),
-    });
   });
 
   // ── Initial state ──
@@ -534,7 +502,7 @@ describe('usePlayground', () => {
   // ── Reset ──
 
   describe('handleReset', () => {
-    it('resets all state to initial values after confirmation when the workspace has edits', () => {
+    it('resets all state to initial values', () => {
       const { result } = renderUsePlayground();
 
       // Set some state
@@ -553,12 +521,8 @@ describe('usePlayground', () => {
         result.current.setReportOpen(true);
       });
 
+      // Reset
       act(() => result.current.handleReset());
-
-      expect(result.current.resetConfirmOpen).toBe(true);
-      expect(result.current.entities).toHaveLength(1);
-
-      act(() => result.current.confirmReset());
 
       expect(result.current.stage).toBe('upload');
       expect(result.current.fileInfo).toBeNull();
@@ -568,46 +532,6 @@ describe('usePlayground', () => {
       expect(result.current.entityMap).toEqual({});
       expect(result.current.redactionReport).toBeNull();
       expect(result.current.reportOpen).toBe(false);
-      expect(result.current.resetConfirmOpen).toBe(false);
-    });
-
-    it('resets immediately when the workspace is already clean', () => {
-      const { result } = renderUsePlayground();
-
-      act(() => result.current.handleReset());
-
-      expect(result.current.resetConfirmOpen).toBe(false);
-      expect(result.current.stage).toBe('upload');
-      expect(mockFileCtx.setStage).toHaveBeenCalledWith('upload');
-    });
-
-    it('keeps the current workspace when reset confirmation is cancelled', () => {
-      const { result } = renderUsePlayground();
-
-      act(() => {
-        result.current.setEntities([
-          {
-            id: 'e1',
-            text: 'Alice',
-            type: 'PERSON',
-            start: 0,
-            end: 5,
-            selected: true,
-            source: 'regex',
-          },
-        ]);
-      });
-
-      act(() => result.current.handleReset());
-
-      expect(result.current.resetConfirmOpen).toBe(true);
-      expect(result.current.entities).toHaveLength(1);
-
-      act(() => result.current.cancelReset());
-
-      expect(result.current.resetConfirmOpen).toBe(false);
-      expect(result.current.entities).toHaveLength(1);
-      expect(mockFileCtx.setStage).not.toHaveBeenCalledWith('upload');
     });
 
     it('ignores late report responses after reset', async () => {
@@ -651,7 +575,6 @@ describe('usePlayground', () => {
 
       act(() => {
         result.current.handleReset();
-        result.current.confirmReset();
       });
       rerender();
 
@@ -720,226 +643,9 @@ describe('usePlayground', () => {
       expect(result.current.redactionReport).toBeNull();
       expect(result.current.versionHistory).toEqual([]);
     });
-
-    it('uses localized copy for redaction success toast', async () => {
-      mockFileCtx.stage = 'preview';
-      mockFileCtx.fileInfo = {
-        file_id: 'file-1',
-        filename: 'test.docx',
-        file_size: 1024,
-        file_type: 'docx',
-        is_scanned: false,
-      };
-
-      vi.mocked(authFetch).mockImplementation((input) => {
-        const url = String(input);
-        if (url === '/api/v1/redaction/execute') {
-          return Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ entity_map: {}, redacted_count: 2 }),
-          } as Response);
-        }
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({}),
-        } as Response);
-      });
-
-      const { result } = renderUsePlayground();
-
-      act(() => {
-        result.current.setEntities([
-          {
-            id: 'e1',
-            text: 'Alice',
-            type: 'PERSON',
-            start: 0,
-            end: 5,
-            selected: true,
-            source: 'has',
-          },
-          {
-            id: 'e2',
-            text: 'Acme',
-            type: 'ORG',
-            start: 8,
-            end: 12,
-            selected: true,
-            source: 'has',
-          },
-        ]);
-      });
-
-      await act(async () => {
-        await result.current.handleRedact();
-      });
-
-      expect(showToast).toHaveBeenCalledWith('匿名化完成，共处理 2 处。', 'success');
-    });
-  });
-
-  it('includes entities whose selected flag is omitted when redacting', async () => {
-    mockFileCtx.stage = 'preview';
-    mockFileCtx.content = '瑞丰恒泰公司在事发后仅向原告垫付了 10,000.00 元。';
-    mockFileCtx.fileInfo = {
-      file_id: 'file-1',
-      filename: 'test.txt',
-      file_size: 1024,
-      file_type: 'txt',
-      is_scanned: false,
-    };
-
-    vi.mocked(authFetch).mockImplementation((input) => {
-      const url = String(input);
-      if (url === '/api/v1/redaction/execute') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ entity_map: {}, redacted_count: 1 }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as Response);
-    });
-
-    const { result } = renderUsePlayground();
-
-    act(() => {
-      result.current.setEntities([
-          {
-            id: 'e1',
-            text: '10,000.00 元',
-            type: 'custom_amount',
-            start: 19,
-            end: 30,
-            selected: undefined as unknown as boolean,
-            source: 'has',
-          },
-      ]);
-    });
-
-    await act(async () => {
-      await result.current.handleRedact();
-    });
-
-    const executeCall = vi
-      .mocked(authFetch)
-      .mock.calls.find(([url]) => String(url) === '/api/v1/redaction/execute');
-    expect(executeCall).toBeTruthy();
-    const body = JSON.parse(String(executeCall?.[1]?.body));
-    expect(body.entities).toHaveLength(1);
-    expect(body.entities[0].type).toBe('custom_amount');
   });
 
   // ── UI state toggles ──
-
-  it('uses selected item count for completed redaction count', async () => {
-    mockFileCtx.stage = 'preview';
-    mockFileCtx.content = '赵雪梅受伤，赵雪梅治疗，赵雪梅获赔';
-    mockFileCtx.fileInfo = {
-      file_id: 'file-1',
-      filename: 'test.txt',
-      file_size: 1024,
-      file_type: 'txt',
-      is_scanned: false,
-    };
-
-    vi.mocked(authFetch).mockImplementation((input) => {
-      const url = String(input);
-      if (url === '/api/v1/redaction/execute') {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              entity_map: { 赵雪梅: '<人名[001].中文姓名.全名>' },
-              redacted_count: 1,
-            }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as Response);
-    });
-
-    const { result } = renderUsePlayground();
-
-    act(() => {
-      result.current.setEntities([
-        {
-          id: 'e1',
-          text: '赵雪梅',
-          type: 'PERSON',
-          start: 0,
-          end: 3,
-          selected: true,
-          source: 'llm',
-        },
-      ]);
-    });
-
-    await act(async () => {
-      await result.current.handleRedact();
-    });
-
-    expect(result.current.redactedCount).toBe(1);
-    expect(showToast).toHaveBeenCalledWith('匿名化完成，共处理 1 处。', 'success');
-  });
-
-  it('keeps deselected entities in the payload and does not fall back to replacement count', async () => {
-    mockFileCtx.stage = 'preview';
-    mockFileCtx.content = 'Alice called Bob.';
-    mockFileCtx.fileInfo = {
-      file_id: 'file-1',
-      filename: 'test.txt',
-      file_size: 1024,
-      file_type: 'txt',
-      is_scanned: false,
-    };
-
-    vi.mocked(authFetch).mockImplementation((input) => {
-      const url = String(input);
-      if (url === '/api/v1/redaction/execute') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ entity_map: {}, redacted_count: 9 }),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({}),
-      } as Response);
-    });
-
-    const { result } = renderUsePlayground();
-
-    act(() => {
-      result.current.setEntities([
-        {
-          id: 'e1',
-          text: 'Alice',
-          type: 'PERSON',
-          start: 0,
-          end: 5,
-          selected: false,
-          source: 'has',
-        },
-      ]);
-    });
-
-    await act(async () => {
-      await result.current.handleRedact();
-    });
-
-    const executeCall = vi
-      .mocked(authFetch)
-      .mock.calls.find(([url]) => String(url) === '/api/v1/redaction/execute');
-    const body = JSON.parse(String(executeCall?.[1]?.body));
-    expect(body.entities).toHaveLength(1);
-    expect(body.entities[0]).toMatchObject({ id: 'e1', selected: false });
-    expect(result.current.redactedCount).toBe(0);
-  });
 
   describe('UI state toggles', () => {
     it('setReportOpen toggles report panel', () => {

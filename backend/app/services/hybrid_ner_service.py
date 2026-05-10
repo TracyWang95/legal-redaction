@@ -18,8 +18,8 @@ from types import SimpleNamespace
 from typing import Any
 
 from app.core.safe_regex import RegexTimeoutError, safe_compile, safe_finditer
-from app.models.type_mapping import canonical_type_id
 from app.models.schemas import Entity
+from app.models.type_mapping import canonical_type_id
 from app.services.has_service import HaSService, has_service
 
 # 绫诲瀷鍒悕锛屽吋瀹?EntityTypeConfig 鍜?CustomEntityType
@@ -204,7 +204,6 @@ class HybridNERService:
         if semantic_entity_types and not has_available:
             logger.warning("  HaS service unavailable; semantic regex fallback will be limited")
 
-        has_failed = False
         if has_available:
             try:
                 has_entities: list[Entity] = []
@@ -223,7 +222,6 @@ class HybridNERService:
                 all_entities.extend(has_entities)
                 logger.info("  HaS NER found %d entities", len(has_entities))
             except Exception as e:
-                has_failed = True
                 logger.error("  HaS recognition failed: %s", e)
 
         custom_regex_types = self._select_custom_regex_types(entity_types)

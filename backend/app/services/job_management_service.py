@@ -22,6 +22,7 @@ from app.models.schemas import (
     BoundingBox,
     RedactionConfig,
 )
+from app.services.batch_mode_validation import validate_file_allowed_for_job_type
 from app.services.job_store import (
     InvalidStatusTransition,
     JobItemStatus,
@@ -29,7 +30,6 @@ from app.services.job_store import (
     JobStore,
     JobType,
 )
-from app.services.batch_mode_validation import validate_file_allowed_for_job_type
 from app.services.wizard_furthest import coerce_wizard_furthest_step, infer_batch_step1_configured
 
 logger = logging.getLogger(__name__)
