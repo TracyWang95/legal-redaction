@@ -174,6 +174,7 @@ class VlmVisionService:
                     "- Printed text has regular font strokes and a straight baseline, such as 公司名称、法定代表人/授权代表（签字）：、日期.",
                     "- A signature is irregular freehand ink, often larger, cursive, slanted, and may overlap the edge of a red seal.",
                     "- In signature blocks, the target is the freehand name AFTER the printed label, not the printed label itself.",
+                    "- Box only the handwritten ink strokes. Do not include the printed label before it.",
                     "Ignore red seals, printed labels, company names, dates, QR codes, table lines, blank fields, and explanatory text.",
                     "Find every visible freehand signer name/signature. Return JSON only, no prose.",
                     '{"objects":[{"type_id":"signature","label":"signature","box_2d":[xmin,ymin,xmax,ymax],"confidence":0.8,"text":""}]}',
@@ -570,9 +571,99 @@ class VlmVisionService:
         y2 = min(height, int(round((box.y + box.height) * height)))
         box_w = max(1, x2 - x1)
         box_h = max(1, y2 - y1)
-        pad_x = max(64, int(box_w * 1.15))
-        pad_top = max(8, int(box_h * 0.55))
-        pad_bottom = max(48, int(box_h * 3.2))
+
+        sx1 = max(0, x1 - max(36, int(box_w * 0.7)))
+        sx2 = min(width, x2 + max(120, int(box_w * 2.2)))
+        anchor_page_center = (x1 + x2) / 2
+        if anchor_page_center < width * 0.48:
+            sx2 = min(sx2, int(width * 0.50))
+        elif anchor_page_center > width * 0.52:
+            sx1 = max(sx1, int(width * 0.50))
+        sy1 = max(0, y2 - max(6, int(box_h * 0.25)))
+        sy2 = min(height, y2 + max(130, int(box_h * 3.4)))
+        crop = np.asarray(image.crop((sx1, sy1, sx2, sy2)).convert("RGB"))
+        mask = VlmVisionService._signature_stroke_mask(crop)
+        if int(mask.sum()) >= max(18, int(mask.size * 0.0008)):
+            col_counts = mask.sum(axis=0)
+            min_col_pixels = max(2, int(mask.shape[0] * 0.025))
+            active_cols = np.where(col_counts >= min_col_pixels)[0]
+            clusters: list[tuple[int, int, int, int]] = []
+            if len(active_cols):
+                start = int(active_cols[0])
+                prev = int(active_cols[0])
+                for raw_col in active_cols[1:]:
+                    col = int(raw_col)
+                    if col - prev <= 10:
+                        prev = col
+                        continue
+                    submask = mask[:, start:prev + 1]
+                    rows = np.where(submask)[0]
+                    if len(rows):
+                        clusters.append((start, prev, int(rows.min()), int(rows.max())))
+                    start = col
+                    prev = col
+                submask = mask[:, start:prev + 1]
+                rows = np.where(submask)[0]
+                if len(rows):
+                    clusters.append((start, prev, int(rows.min()), int(rows.max())))
+
+            if clusters:
+                anchor_center = ((x1 + x2) / 2) - sx1
+                anchor_right = x2 - sx1
+
+                def score(cluster: tuple[int, int, int, int]) -> float:
+                    c1, c2, r1, r2 = cluster
+                    cluster_mask = mask[r1:r2 + 1, c1:c2 + 1]
+                    pixels = float(cluster_mask.sum())
+                    center = (c1 + c2) / 2
+                    vertical_span = max(1, r2 - r1 + 1)
+                    right_bias = 18.0 if anchor_center <= center <= anchor_right + 140 else 0.0
+                    distance_penalty = min(abs(center - anchor_right), abs(center - anchor_center)) * 0.85
+                    return pixels + vertical_span * 6.0 + right_bias - distance_penalty
+
+                right_side_clusters = [
+                    cluster for cluster in clusters if ((cluster[0] + cluster[1]) / 2) >= anchor_right + 24
+                ]
+                if right_side_clusters:
+                    selected = max(right_side_clusters, key=score)
+                else:
+                    selected = max(
+                        clusters,
+                        key=lambda cluster: score(cluster) - abs(((cluster[0] + cluster[1]) / 2) - anchor_center),
+                    )
+                selected_clusters = [selected]
+                for cluster in clusters:
+                    if cluster == selected:
+                        continue
+                    horizontal_gap = max(cluster[0] - selected[1], selected[0] - cluster[1], 0)
+                    row_overlap = min(cluster[3], selected[3]) - max(cluster[2], selected[2])
+                    if horizontal_gap <= 28 and row_overlap >= -18:
+                        selected_clusters.append(cluster)
+                c1 = min(cluster[0] for cluster in selected_clusters)
+                c2 = max(cluster[1] for cluster in selected_clusters)
+                r1 = min(cluster[2] for cluster in selected_clusters)
+                r2 = max(cluster[3] for cluster in selected_clusters)
+                selected_mask = mask[r1:r2 + 1, c1:c2 + 1]
+                ys, xs = np.where(selected_mask)
+                if len(xs) and len(ys):
+                    nx1 = max(0, sx1 + c1 + int(xs.min()) - 8)
+                    ny1 = max(0, sy1 + r1 + int(ys.min()) - 8)
+                    nx2 = min(width, sx1 + c1 + int(xs.max()) + 12)
+                    ny2 = min(height, sy1 + r1 + int(ys.max()) + 12)
+                    if nx2 > nx1 and ny2 > ny1:
+                        return box.model_copy(
+                            update={
+                                "x": nx1 / width,
+                                "y": ny1 / height,
+                                "width": (nx2 - nx1) / width,
+                                "height": (ny2 - ny1) / height,
+                                "source_detail": f"{box.source_detail}:signature_stroke_adjusted",
+                            }
+                        )
+
+        pad_x = max(28, int(box_w * 0.45))
+        pad_top = max(8, int(box_h * 0.45))
+        pad_bottom = max(54, int(box_h * 1.4))
         nx1 = max(0, x1 - pad_x)
         ny1 = max(0, y1 - pad_top)
         nx2 = min(width, x2 + pad_x)
@@ -583,7 +674,7 @@ class VlmVisionService:
                 "y": ny1 / height,
                 "width": (nx2 - nx1) / width,
                 "height": (ny2 - ny1) / height,
-                "source_detail": f"{box.source_detail}:coverage_expanded",
+                "source_detail": f"{box.source_detail}:coverage_adjusted",
             }
         )
 
