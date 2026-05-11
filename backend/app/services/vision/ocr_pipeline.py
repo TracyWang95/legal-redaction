@@ -461,6 +461,20 @@ def _is_probable_table_amount_token(text: str) -> bool:
     return 5 <= digits <= 9 and bool(_iter_probable_amount_tokens(compact))
 
 
+def _is_standalone_amount_ocr_block(text: str) -> bool:
+    """Return True when an OCR block is essentially one amount value."""
+    compact = _compact_amount_candidate(text)
+    if not compact:
+        return False
+    allowed = set("0123456789.,，．。¥￥$€£+-()（）[] ")
+    if any(ch not in allowed for ch in compact):
+        return False
+    digits = _amount_digit_count(compact)
+    if digits < 4 or digits > 14:
+        return False
+    return bool(_amount_value_signature(compact))
+
+
 def _augment_amount_entities_from_ocr(
     entities: list[dict[str, str]],
     ocr_blocks: list[OCRTextBlock],
@@ -1954,7 +1968,96 @@ def _dedupe_ocr_regions(regions: list[SensitiveRegion]) -> list[SensitiveRegion]
         )
         if not duplicate:
             deduped.append(region)
-    return deduped
+    return _filter_amount_coordinate_conflicts(deduped)
+
+
+def _amount_region_value(region: SensitiveRegion) -> int:
+    signature = _amount_value_signature(region.text)
+    try:
+        return int(signature or "0")
+    except ValueError:
+        return 0
+
+
+def _filter_amount_coordinate_conflicts(regions: list[SensitiveRegion]) -> list[SensitiveRegion]:
+    amounts = [region for region in regions if region.entity_type == "AMOUNT"]
+    if len(amounts) < 3:
+        return regions
+
+    numeric_amounts = [region for region in amounts if _amount_region_value(region) > 0]
+    if len(numeric_amounts) < 3:
+        return regions
+
+    centers = sorted(
+        ((region.left + region.width / 2, index, region) for index, region in enumerate(numeric_amounts)),
+        key=lambda item: (item[0], item[1]),
+    )
+    column_clusters: list[list[SensitiveRegion]] = []
+    for center, _index, region in centers:
+        if not column_clusters:
+            column_clusters.append([region])
+            continue
+        cluster_center = sum(item.left + item.width / 2 for item in column_clusters[-1]) / len(column_clusters[-1])
+        if abs(center - cluster_center) <= 70:
+            column_clusters[-1].append(region)
+        else:
+            column_clusters.append([region])
+    dominant_columns = [
+        sum(item.left + item.width / 2 for item in cluster) / len(cluster)
+        for cluster in column_clusters
+        if len(cluster) >= 3
+    ]
+
+    def near_dominant_column(region: SensitiveRegion) -> bool:
+        center = region.left + region.width / 2
+        return any(abs(center - column) <= 70 for column in dominant_columns)
+
+    keep_ids = {id(region) for region in regions}
+    by_value: dict[str, list[SensitiveRegion]] = {}
+    for region in numeric_amounts:
+        signature = _amount_value_signature(region.text)
+        if signature:
+            by_value.setdefault(signature, []).append(region)
+    for same_value_regions in by_value.values():
+        if len(same_value_regions) <= 1:
+            continue
+        aligned = [region for region in same_value_regions if near_dominant_column(region)]
+        if aligned:
+            aligned_ids = {id(region) for region in aligned}
+            for region in same_value_regions:
+                if id(region) not in aligned_ids:
+                    keep_ids.discard(id(region))
+
+    def smaller_overlap(a: SensitiveRegion, b: SensitiveRegion) -> float:
+        x1 = max(a.left, b.left)
+        y1 = max(a.top, b.top)
+        x2 = min(a.left + a.width, b.left + b.width)
+        y2 = min(a.top + a.height, b.top + b.height)
+        if x2 <= x1 or y2 <= y1:
+            return 0.0
+        inter = (x2 - x1) * (y2 - y1)
+        return inter / max(1, min(a.width * a.height, b.width * b.height))
+
+    remaining_amounts = [region for region in numeric_amounts if id(region) in keep_ids]
+    for index, region in enumerate(remaining_amounts):
+        if id(region) not in keep_ids:
+            continue
+        conflicts = [
+            other
+            for other in remaining_amounts[index + 1 :]
+            if id(other) in keep_ids
+            and _amount_value_signature(other.text) != _amount_value_signature(region.text)
+            and smaller_overlap(region, other) >= 0.85
+        ]
+        if not conflicts:
+            continue
+        cluster = [region, *conflicts]
+        winner = max(cluster, key=lambda item: (_amount_region_value(item), item.confidence))
+        for item in cluster:
+            if item is not winner:
+                keep_ids.discard(id(item))
+
+    return [region for region in regions if id(region) in keep_ids]
 
 
 def match_entities_to_ocr(
@@ -1983,6 +2086,13 @@ def match_entities_to_ocr(
         else:
             expanded_blocks.append(block)
     typical_line_height = _infer_typical_textline_height(expanded_blocks)
+    standalone_amount_signatures = {
+        signature
+        for block in expanded_blocks
+        if id(block) not in table_virtual_block_ids and _is_standalone_amount_ocr_block(block.text)
+        for signature in [_amount_value_signature(block.text)]
+        if signature
+    }
 
     for entity in entities:
         entity_text = entity.get("text", "").strip()
@@ -2034,6 +2144,12 @@ def match_entities_to_ocr(
                     is_table_virtual = id(block) in table_virtual_block_ids
                     if contextual_type == "AMOUNT":
                         amount_signature = _amount_value_signature(visual_text)
+                        if (
+                            amount_signature in standalone_amount_signatures
+                            and not _is_standalone_amount_ocr_block(block_text)
+                        ):
+                            search_from = occurrence_start + max(1, len(entity_text))
+                            continue
                         if is_table_virtual and amount_signature in direct_amount_signatures:
                             search_from = occurrence_start + max(1, len(entity_text))
                             continue
