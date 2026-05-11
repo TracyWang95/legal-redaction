@@ -83,22 +83,7 @@ PRESET_HAS_IMAGE_TYPES: list[PipelineTypeConfig] = [
     PipelineTypeConfig(**item) for item in _raw_pipeline.get("has_image", [])
 ]
 PRESET_VLM_TYPES: list[PipelineTypeConfig] = [
-    PipelineTypeConfig(
-        id="signature",
-        name="签字",
-        description="用视觉语言模型识别手写签名、签字笔迹和签署区域。",
-        examples=["合同末页签字", "手写姓名", "签署栏笔迹"],
-        color="#2563EB",
-        enabled=True,
-        order=10,
-        rules=[
-            "识别手写签名、签字笔迹、签署栏中的手写姓名。",
-            "只框住实际手写笔迹，不要框整行空白、表格背景或印刷标题。",
-            "同一处签字只输出一个紧贴边缘的框。",
-        ],
-        negative_prompt_enabled=True,
-        negative_prompt="打印体姓名、空白签署栏、仅有横线或表格边框时不要输出。",
-    )
+    PipelineTypeConfig(**item) for item in _raw_pipeline.get("vlm", [])
 ]
 
 PRESET_PIPELINES: dict[str, PipelineConfig] = {

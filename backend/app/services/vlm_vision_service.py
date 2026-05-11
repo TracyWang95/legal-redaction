@@ -163,8 +163,9 @@ class VlmVisionService:
     def build_prompt(self, type_configs: list[Any]) -> str:
         coord_mode = int(settings.VLM_COORD_MODE)
         lines: list[str] = [
-            "Detect only these visual features. Return compact JSON only.",
-            "No explanation. No markdown.",
+            "只检测清单中明确要求的视觉目标。只返回紧凑 JSON，不要解释，不要 markdown。",
+            "必须同时满足正向规则，并避开负向规则；不确定时不要输出候选框。",
+            "不要根据文字标签、空白栏位或上下文推测目标存在，必须能在图像中看到实际目标笔迹。",
             "Checklist:",
         ]
         for item in type_configs:
@@ -188,8 +189,9 @@ class VlmVisionService:
                 'Schema: {"objects":[{"type_id":"signature","label":"signature","box_2d":[xmin,ymin,xmax,ymax],"confidence":0.8,"rule_matched":"signature#1","text":""}]}',
                 f"Allowed type_id: {allowed_ids}",
                 f"Coordinates are integers in 0..{coord_mode}, origin top-left.",
-                "Use one tight box per visible instance. Include faint, partial, occluded, and repeated instances.",
-                "Do not merge separate instances into one box. Do not box nearby text, lines, or blank background.",
+                "Use one tight box per visible instance, around the ink/stroke pixels only.",
+                "Do not merge separate instances into one box. Do not box nearby printed text, guide lines, table borders, seals, fingerprints, or blank background.",
+                "If the visual evidence is ambiguous or only a form field label is visible, return no object for that area.",
                 "Max 40 objects.",
                 'If none, return {"objects":[]}.',
             ],
