@@ -11,6 +11,23 @@ const frontendDir = path.join(repoRoot, 'frontend');
 const logsDir = path.join(repoRoot, 'logs');
 mkdirSync(logsDir, { recursive: true });
 
+class PublicStartupError extends Error {
+  constructor(code) {
+    super('startup failed');
+    this.code = code;
+  }
+}
+
+const PUBLIC_STARTUP_MESSAGES = {
+  config: 'Missing required local configuration. Check .env and .env.example.',
+  wsl: 'Could not resolve WSL IP. Start from Windows with WSL available.',
+  service: 'A required local service was not ready before timeout. Inspect logs/dev-session.log.',
+  warmup: 'Model warmup failed. Inspect logs/warmup.log and service logs.',
+  venv: 'Missing Windows project venv. Create the project .venv once, then run npm run dev again.',
+  platform: 'This local hybrid profile must be started from Windows.',
+  generic: 'startup failed; inspect logs/dev-session.log and per-service logs for details.',
+};
+
 function parseEnv(filePath) {
   if (!existsSync(filePath)) return {};
   const values = {};
@@ -52,7 +69,7 @@ function shellQuote(value) {
 
 function required(name) {
   const value = env[name];
-  if (!value) throw new Error(`Missing ${name}. Put it in .env.`);
+  if (!value) throw new PublicStartupError('config');
   return value;
 }
 
@@ -62,7 +79,7 @@ function getWslHost() {
   });
   const match = (result.stdout || '').match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/);
   if (!match) {
-    throw new Error(`Could not resolve WSL IP. stderr=${(result.stderr || '').trim()}`);
+    throw new PublicStartupError('wsl');
   }
   return match[0];
 }
@@ -158,8 +175,8 @@ function spawnLogged(name, command, args, options = {}) {
     process.stdout.write(message);
     out.write(message);
   });
-  child.on('error', (error) => {
-    const msg = `[dev] ${name} failed to start: ${error.message}\n`;
+  child.on('error', () => {
+    const msg = `[dev] ${name} failed to start\n`;
     process.stdout.write(msg);
     out.write(msg);
   });
@@ -189,7 +206,7 @@ async function waitPort(port, label, timeoutMs = 240000) {
     if (ok) return;
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
-  throw new Error(`${label} did not listen on ${port}`);
+  throw new PublicStartupError('service');
 }
 
 async function waitJson(url, predicate, label, timeoutMs = 240000) {
@@ -205,12 +222,12 @@ async function waitJson(url, predicate, label, timeoutMs = 240000) {
       } else {
         last = `${response.status} ${response.statusText}`;
       }
-    } catch (error) {
-      last = error instanceof Error ? error.message : String(error);
+    } catch {
+      last = 'request failed';
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  throw new Error(`${label} not ready: ${last}`);
+  throw new PublicStartupError('service');
 }
 
 async function startVllmServices() {
@@ -274,22 +291,21 @@ async function runWarmup() {
   console.log('[dev] running warmup');
   const child = spawnLogged('warmup', windowsPython, ['scripts/warmup_models.py'], { cwd: backendDir, env: winEnv });
   await new Promise((resolve, reject) => {
-    child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`warmup failed with exit code ${code}`))));
+    child.on('exit', (code) =>
+      code === 0 ? resolve() : reject(new PublicStartupError('warmup')),
+    );
   });
 }
 
 function ensureWindowsVenv() {
   if (!existsSync(windowsPython)) {
-    throw new Error(
-      `Missing Windows project venv: ${windowsPython}\n` +
-        'Create it once, then run npm run dev again. Do not use global Anaconda for the app services.',
-    );
+    throw new PublicStartupError('venv');
   }
 }
 
 async function main() {
   if (process.platform !== 'win32') {
-    throw new Error('This local hybrid profile is started from Windows. WSL hosts the vLLM/OCR model helpers.');
+    throw new PublicStartupError('platform');
   }
   ensureWindowsVenv();
 
@@ -376,7 +392,7 @@ function shutdown(code = 0) {
 process.on('SIGINT', () => shutdown(0));
 process.on('SIGTERM', () => shutdown(0));
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+main().catch(() => {
+  console.error(`[dev] ${PUBLIC_STARTUP_MESSAGES.generic}`);
   shutdown(1);
 });
