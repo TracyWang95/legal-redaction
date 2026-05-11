@@ -53,7 +53,7 @@ DEFAULT_CONFIGS = ModelConfigList(
             model_name=settings.VLM_MODEL_NAME,
             temperature=0.1,
             top_p=0.6,
-            max_tokens=256,
+            max_tokens=1024,
             enable_thinking=False,
             description="OpenAI 兼容视觉语言模型，用规则清单识别签字等自定义视觉特征。",
         ),

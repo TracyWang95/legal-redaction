@@ -1949,7 +1949,7 @@ def _dedupe_ocr_regions(regions: list[SensitiveRegion]) -> list[SensitiveRegion]
     ):
         duplicate = any(
             _compact_text(region.text) == _compact_text(existing.text)
-            and overlap_ratio(region, existing) >= 0.7
+            and overlap_ratio(region, existing) >= (0.35 if region.entity_type == "AMOUNT" else 0.7)
             for existing in deduped
         )
         if not duplicate:
@@ -1970,11 +1970,13 @@ def match_entities_to_ocr(
 
     # Expand HTML tables into virtual cell blocks
     expanded_blocks: list[OCRTextBlock] = []
+    table_virtual_block_ids: set[int] = set()
     for block in ocr_blocks:
         if block.text.startswith("<table") and "</table>" in block.text:
             cell_blocks = extract_table_cells(block.text, block)
             if cell_blocks:
                 expanded_blocks.extend(cell_blocks)
+                table_virtual_block_ids.update(id(cell) for cell in cell_blocks)
                 logger.debug("Expanded table into %d cells", len(cell_blocks))
             else:
                 expanded_blocks.append(block)
@@ -2005,7 +2007,9 @@ def match_entities_to_ocr(
 
         matched = False
 
-        for block in expanded_blocks:
+        direct_amount_signatures: set[str] = set()
+        ordered_blocks = sorted(expanded_blocks, key=lambda item: id(item) in table_virtual_block_ids)
+        for block in ordered_blocks:
             block_text = block.text
 
             if block_text.startswith("<table"):
@@ -2027,6 +2031,14 @@ def match_entities_to_ocr(
                         entity_text,
                         occurrence_start,
                     )
+                    is_table_virtual = id(block) in table_virtual_block_ids
+                    if contextual_type == "AMOUNT":
+                        amount_signature = _amount_value_signature(visual_text)
+                        if is_table_virtual and amount_signature in direct_amount_signatures:
+                            search_from = occurrence_start + max(1, len(entity_text))
+                            continue
+                        if not is_table_virtual and amount_signature:
+                            direct_amount_signatures.add(amount_signature)
                     sub_left, sub_top, sub_width, sub_height = _estimate_entity_region(
                         block,
                         visual_text,
@@ -2049,7 +2061,7 @@ def match_entities_to_ocr(
                         width=sub_width,
                         height=sub_height,
                         confidence=1.0,
-                        source="text_match",
+                        source="table_cell_match" if is_table_virtual else "text_match",
                     ))
                     logger.debug(
                         "MATCH '%s' in '%s...' @ (%d, %d, %d, %d)",

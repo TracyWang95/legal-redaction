@@ -130,9 +130,9 @@ class Settings(BaseSettings):
     # OpenAI-compatible VLM service for checklist-driven visual features.
     VLM_BASE_URL: str = "http://127.0.0.1:8090"
     VLM_MODEL_NAME: str = "GLM-4.6V-Flash-Q4"
-    VLM_TIMEOUT: float = 35.0
+    VLM_TIMEOUT: float = 60.0
     VLM_COORD_MODE: int = 1000
-    VLM_MAX_IMAGE_SIDE: int = 896
+    VLM_MAX_IMAGE_SIDE: int = 1024
     VLM_CONCURRENCY: int = 1
     # For multi-page PDFs, VLM runs on every page by default so checklist
     # features are not missed. Operators can still override this to "tail" or

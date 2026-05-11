@@ -57,6 +57,8 @@ def _extract_json_payload(text: str) -> dict[str, Any]:
         if not match:
             return {"objects": [], "raw_response": text}
         data = json.loads(match.group(1))
+    if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict) and isinstance(data[0].get("objects"), list):
+        return data[0]
     if isinstance(data, list):
         return {"objects": data}
     if isinstance(data, dict):
@@ -163,6 +165,21 @@ class VlmVisionService:
 
     def build_prompt(self, type_configs: list[Any]) -> str:
         coord_mode = int(settings.VLM_COORD_MODE)
+        selected_ids = {str(getattr(item, "id", "")).strip().lower() for item in type_configs}
+        if selected_ids == {"signature"}:
+            return "\n".join(
+                [
+                    "Task: detect handwritten signer names/signatures only.",
+                    "Important visual distinction:",
+                    "- Printed text has regular font strokes and a straight baseline, such as 公司名称、法定代表人/授权代表（签字）：、日期.",
+                    "- A signature is irregular freehand ink, often larger, cursive, slanted, and may overlap the edge of a red seal.",
+                    "- In signature blocks, the target is the freehand name AFTER the printed label, not the printed label itself.",
+                    "Ignore red seals, printed labels, company names, dates, QR codes, table lines, blank fields, and explanatory text.",
+                    "Find every visible freehand signer name/signature. Return JSON only, no prose.",
+                    '{"objects":[{"type_id":"signature","label":"signature","box_2d":[xmin,ymin,xmax,ymax],"confidence":0.8,"text":""}]}',
+                    f"Coordinates are 0..{coord_mode} relative to this image.",
+                ]
+            )
         lines: list[str] = [
             "只检测清单中明确要求的视觉目标。只返回紧凑 JSON，不要解释，不要 markdown。",
             "必须同时满足正向规则，并避开负向规则；不确定时不要输出候选框。",
@@ -230,10 +247,10 @@ class VlmVisionService:
             original_height=original_height,
         )
 
-    def _detection_views(self, image: Image.Image) -> list[_DetectionView]:
+    def _detection_views(self, image: Image.Image, type_configs: list[Any]) -> list[_DetectionView]:
         original_width, original_height = image.size
         full_max_side = max(256, int(getattr(settings, "VLM_MAX_IMAGE_SIDE", 640) or 640))
-        return [
+        views = [
             self._encode_view(
                 image,
                 name="full",
@@ -246,6 +263,24 @@ class VlmVisionService:
                 max_side=full_max_side,
             )
         ]
+        selected_ids = {str(getattr(item, "id", "")).strip().lower() for item in type_configs}
+        if "signature" in selected_ids and original_height >= 900:
+            crop_y = int(original_height * 0.75)
+            crop_height = original_height - crop_y
+            views.append(
+                self._encode_view(
+                    image,
+                    name="signature_bottom",
+                    crop_x=0,
+                    crop_y=crop_y,
+                    crop_width=original_width,
+                    crop_height=crop_height,
+                    original_width=original_width,
+                    original_height=original_height,
+                    max_side=full_max_side,
+                )
+            )
+        return views
 
     async def detect(
         self,
@@ -261,13 +296,13 @@ class VlmVisionService:
             return []
 
         img = ImageOps.exif_transpose(Image.open(BytesIO(image_data))).convert("RGB")
-        views = self._detection_views(img)
+        views = self._detection_views(img, type_configs)
         prompt = self.build_prompt(type_configs)
         headers = {"Content-Type": "application/json"}
         if config.api_key:
             headers["Authorization"] = f"Bearer {config.api_key}"
-        max_tokens = int(config.max_tokens or 256)
-        max_tokens = max(256, min(max_tokens, 512))
+        max_tokens = int(config.max_tokens or 1024)
+        max_tokens = max(384, min(max_tokens, 1536))
         base_payload: dict[str, Any] = {
             "model": config.model_name or settings.VLM_MODEL_NAME,
             "messages": [],
@@ -331,9 +366,22 @@ class VlmVisionService:
                         page,
                     )
                     for bbox in view_boxes:
+                        if str(view.name).startswith("signature_") and str(bbox.type).lower() == "signature":
+                            boxes = [existing for existing in boxes if not self._is_duplicate(bbox, existing)]
                         if not any(self._is_duplicate(bbox, existing) for existing in boxes):
                             boxes.append(bbox)
         boxes = self._refine_signature_boxes(img, boxes)
+        detail_signature_boxes = [
+            box
+            for box in boxes
+            if str(box.type).lower() == "signature" and ":signature_" in str(box.source_detail or "")
+        ]
+        if detail_signature_boxes:
+            boxes = [
+                box
+                for box in boxes
+                if str(box.type).lower() != "signature" or ":signature_" in str(box.source_detail or "")
+            ]
         self.last_raw_response = "\n".join(raw_responses)
         logger.info("VLM request parsed %d boxes", len(boxes))
         return boxes
@@ -368,10 +416,21 @@ class VlmVisionService:
             if normalized is None:
                 continue
             x, y, box_width, box_height = normalized
-            abs_x = view.crop_x + x * view.crop_width
-            abs_y = view.crop_y + y * view.crop_height
-            abs_width = box_width * view.crop_width
-            abs_height = box_height * view.crop_height
+            uses_original_page_coords = (
+                str(view.name).startswith("signature_")
+                and view.crop_y > 0
+                and y >= max(0.0, (view.crop_y / max(1, view.original_height)) - 0.08)
+            )
+            if uses_original_page_coords:
+                abs_x = x * view.original_width
+                abs_y = y * view.original_height
+                abs_width = box_width * view.original_width
+                abs_height = box_height * view.original_height
+            else:
+                abs_x = view.crop_x + x * view.crop_width
+                abs_y = view.crop_y + y * view.crop_height
+                abs_width = box_width * view.crop_width
+                abs_height = box_height * view.crop_height
             type_config = by_id[type_id]
             label = str(getattr(type_config, "name", "") or obj.get("label") or type_id)
             text = str(obj.get("text") or label).strip() or label
@@ -442,6 +501,8 @@ class VlmVisionService:
         box_h = y2 - y1
         if box_w < 2 or box_h < 2:
             return box
+        if ":signature_bottom" in str(box.source_detail or ""):
+            return self._expand_signature_box(image, box)
 
         line_like = (box_w / max(1, box_h)) >= 3.2
         if line_like:
@@ -498,6 +559,32 @@ class VlmVisionService:
                 "height": new_h / height,
                 "source_detail": f"{box.source_detail}:stroke_refined",
             },
+        )
+
+    @staticmethod
+    def _expand_signature_box(image: Image.Image, box: BoundingBox) -> BoundingBox:
+        width, height = image.size
+        x1 = max(0, int(round(box.x * width)))
+        y1 = max(0, int(round(box.y * height)))
+        x2 = min(width, int(round((box.x + box.width) * width)))
+        y2 = min(height, int(round((box.y + box.height) * height)))
+        box_w = max(1, x2 - x1)
+        box_h = max(1, y2 - y1)
+        pad_x = max(64, int(box_w * 1.15))
+        pad_top = max(8, int(box_h * 0.55))
+        pad_bottom = max(48, int(box_h * 3.2))
+        nx1 = max(0, x1 - pad_x)
+        ny1 = max(0, y1 - pad_top)
+        nx2 = min(width, x2 + pad_x)
+        ny2 = min(height, y2 + pad_bottom)
+        return box.model_copy(
+            update={
+                "x": nx1 / width,
+                "y": ny1 / height,
+                "width": (nx2 - nx1) / width,
+                "height": (ny2 - ny1) / height,
+                "source_detail": f"{box.source_detail}:coverage_expanded",
+            }
         )
 
     @staticmethod
@@ -589,8 +676,24 @@ class VlmVisionService:
             center = (target_x1 + target_x2) / 2
             overlapping = [min(clusters, key=lambda item: min(abs(item[0] - center), abs(item[1] - center)))]
 
-        left = max(0, min(cluster[0] for cluster in overlapping) - 8)
-        right = min(mask.shape[1], max(cluster[1] for cluster in overlapping) + 9)
+        target_center = (target_x1 + target_x2) / 2
+
+        def cluster_score(cluster: tuple[int, int, int]) -> tuple[float, int]:
+            center = (cluster[0] + cluster[1]) / 2
+            overlap = max(0, min(cluster[1], target_x2) - max(cluster[0], target_x1))
+            return (overlap - abs(center - target_center) * 0.25, cluster[2])
+
+        selected = max(overlapping, key=cluster_score)
+        selected_clusters = [selected]
+        for cluster in overlapping:
+            if cluster == selected:
+                continue
+            gap = max(cluster[0] - selected[1], selected[0] - cluster[1], 0)
+            if gap <= 24:
+                selected_clusters.append(cluster)
+
+        left = max(0, min(cluster[0] for cluster in selected_clusters) - 8)
+        right = min(mask.shape[1], max(cluster[1] for cluster in selected_clusters) + 9)
         next_mask = np.zeros_like(mask)
         next_mask[:, left:right] = mask[:, left:right]
         return next_mask
