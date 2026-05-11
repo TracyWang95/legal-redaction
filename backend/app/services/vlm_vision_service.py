@@ -427,10 +427,12 @@ class VlmVisionService:
             if str(box.type).lower() != "signature":
                 refined.append(box)
                 continue
-            refined.append(self._refine_signature_box(image, box))
+            signature_box = self._refine_signature_box(image, box)
+            if signature_box is not None:
+                refined.append(signature_box)
         return refined
 
-    def _refine_signature_box(self, image: Image.Image, box: BoundingBox) -> BoundingBox:
+    def _refine_signature_box(self, image: Image.Image, box: BoundingBox) -> BoundingBox | None:
         width, height = image.size
         x1 = max(0, min(width - 1, int(round(box.x * width))))
         y1 = max(0, min(height - 1, int(round(box.y * height))))
@@ -461,10 +463,12 @@ class VlmVisionService:
         crop = np.asarray(image.crop((sx1, sy1, sx2, sy2)).convert("RGB"))
         mask = self._signature_stroke_mask(crop)
         if int(mask.sum()) < max(18, int(mask.size * 0.0008)):
-            return box
+            return None
         mask = self._select_signature_row_cluster(mask, y1 - sy1, y2 - sy1)
+        if line_like:
+            mask = self._select_signature_column_cluster(mask, x1 - sx1, x2 - sx1)
         if int(mask.sum()) < max(18, int(mask.size * 0.0008)):
-            return box
+            return None
 
         ys, xs = np.where(mask)
         if len(xs) == 0 or len(ys) == 0:
@@ -481,6 +485,8 @@ class VlmVisionService:
         new_h = ny2 - ny1
         if new_w < 4 or new_h < 4:
             return box
+        if line_like and (new_w / max(1, new_h)) > 5.5 and (new_w / max(1, width)) > 0.28:
+            return None
         if not line_like and (new_w * new_h) > (box_w * box_h * 3.5):
             return box
 
@@ -546,6 +552,47 @@ class VlmVisionService:
         top = max(0, selected[0] - 3)
         bottom = min(mask.shape[0], selected[1] + 4)
         next_mask[top:bottom, :] = mask[top:bottom, :]
+        return next_mask
+
+    @staticmethod
+    def _select_signature_column_cluster(mask: np.ndarray, target_x1: int, target_x2: int) -> np.ndarray:
+        """For line-shaped VLM boxes, keep ink near the VLM horizontal anchor."""
+        col_counts = mask.sum(axis=0)
+        min_col_pixels = max(2, int(mask.shape[0] * 0.03))
+        active_cols = np.where(col_counts >= min_col_pixels)[0]
+        if len(active_cols) == 0:
+            return mask
+
+        clusters: list[tuple[int, int, int]] = []
+        start = int(active_cols[0])
+        prev = int(active_cols[0])
+        for raw_col in active_cols[1:]:
+            col = int(raw_col)
+            if col - prev <= 8:
+                prev = col
+                continue
+            clusters.append((start, prev, int(col_counts[start:prev + 1].sum())))
+            start = col
+            prev = col
+        clusters.append((start, prev, int(col_counts[start:prev + 1].sum())))
+
+        target_width = max(1, target_x2 - target_x1)
+        margin = max(18, int(target_width * 0.35))
+        anchor_left = max(0, target_x1 - margin)
+        anchor_right = min(mask.shape[1] - 1, target_x2 + margin)
+        overlapping = [
+            cluster
+            for cluster in clusters
+            if cluster[1] >= anchor_left and cluster[0] <= anchor_right
+        ]
+        if not overlapping:
+            center = (target_x1 + target_x2) / 2
+            overlapping = [min(clusters, key=lambda item: min(abs(item[0] - center), abs(item[1] - center)))]
+
+        left = max(0, min(cluster[0] for cluster in overlapping) - 8)
+        right = min(mask.shape[1], max(cluster[1] for cluster in overlapping) + 9)
+        next_mask = np.zeros_like(mask)
+        next_mask[:, left:right] = mask[:, left:right]
         return next_mask
 
     @staticmethod
