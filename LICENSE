@@ -1,9 +1,10 @@
-DataInfra RedactionEverything Personal Commercial License 1.0
+DataInfra RedactionEverything Personal Use License 1.0
 
 Copyright (c) TracyWang95. All rights reserved except as expressly granted below.
 
-This license is designed for a source-available project with free personal
-commercial use and separate commercial licensing for organizations.
+This license is designed for a source-available project with free personal use
+and separate commercial licensing for commercial, organizational, and
+production use.
 
 1. Definitions
 
@@ -16,10 +17,10 @@ of an employer, company, institution, government agency, or other organization.
 "Organization" means any company, partnership, institution, government agency,
 non-profit, team, department, or other legal entity, whether commercial or not.
 
-"Personal Commercial Use" means use by an Individual for their own commercial
-work, freelance work, consulting work, research, learning, demonstrations,
-or personal product experiments, provided the Project itself is not offered as
-a hosted service, sold as software, sublicensed, or deployed for an
+"Personal Use" means use by an Individual for their own non-commercial personal
+projects, learning, research, demonstrations, evaluation, or private experiments,
+provided the Project itself is not used for paid work, consulting delivery,
+freelance services, hosted services, commercial products, sublicensing, or an
 Organization's production use without a separate commercial agreement.
 
 "Production Use" means use in live business operations, internal operations,
@@ -30,7 +31,7 @@ or institutional data.
 2. Individual License Grant
 
 If you are an Individual, you may use, copy, run, modify, and create derivative
-works of the Project for Personal Commercial Use at no charge.
+works of the Project for Personal Use at no charge.
 
 You may publish patches, forks, or pull requests for the purpose of discussion,
 review, or contribution, provided that you preserve copyright notices and this
@@ -51,6 +52,7 @@ integration into commercial or institutional products or services.
 A separate written commercial license is required for:
 
 - use by or for an Organization in production;
+- paid consulting, freelance, or commercial service delivery;
 - deployment inside a company, institution, government agency, or team;
 - use in customer-facing, regulated, or revenue-generating workflows;
 - providing the Project as a hosted service, managed service, API, appliance,
