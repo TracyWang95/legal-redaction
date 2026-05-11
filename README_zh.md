@@ -24,6 +24,7 @@
   <a href="#快速开始">快速开始</a> &middot;
   <a href="#系统架构">系统架构</a> &middot;
   <a href="#模型服务">模型服务</a> &middot;
+  <a href="#模型与致谢">模型与致谢</a> &middot;
   <a href="#技术栈">技术栈</a> &middot;
   <a href="#安全与部署">安全与部署</a> &middot;
   <a href="#许可证">许可证</a>
@@ -206,6 +207,24 @@ VLM_MODEL_NAME=GLM-4.6V-Flash-Q4
 ```
 
 显存紧张时，优先调整上下文、最大生成长度、并发和图像尺寸；不要让关键模型静默回退到 CPU，否则网页会表现为长时间无结果或服务探测离线。
+
+---
+
+## 模型与致谢
+
+RedactionEverything 是编排层和产品层，不声明拥有第三方模型权重。本仓库不重新分发这些权重；部署前请从官方仓库下载模型，阅读对应 model card，并遵守各模型、权重和运行时项目的许可证与使用条款。
+
+| 组件 | 上游模型或项目 | 用途 |
+|---|---|---|
+| PaddleOCR-VL | [PaddlePaddle/PaddleOCR-VL](https://huggingface.co/PaddlePaddle/PaddleOCR-VL) | 文档 OCR、版面理解、文字框和页面结构抽取 |
+| HaS Text | [xuanwulab/HaS_4.0_0.6B](https://huggingface.co/xuanwulab/HaS_4.0_0.6B)，可选 [xuanwulab/HaS_4.0_0.6B_GGUF](https://huggingface.co/xuanwulab/HaS_4.0_0.6B_GGUF) | 文本和 OCR 文本块的语义 NER |
+| HaS Image | [xuanwulab/HaS_Image_0209_FP32](https://huggingface.co/xuanwulab/HaS_Image_0209_FP32) | 基于 YOLO11 的视觉隐私区域分割 |
+| GLM VLM | [zai-org/GLM-4.6V-Flash](https://huggingface.co/zai-org/GLM-4.6V-Flash)，本地 llama.cpp 部署可使用兼容 GGUF 量化版本，例如 [unsloth/GLM-4.6V-Flash-GGUF](https://huggingface.co/unsloth/GLM-4.6V-Flash-GGUF) | 通过 rubric/checklist 做视觉语义识别，当前默认聚焦签字 |
+| YOLO 运行时 | [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) | HaS Image 实例分割运行框架 |
+| llama.cpp 运行时 | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | GGUF 权重的本地 OpenAI 兼容 VLM 服务 |
+| vLLM 运行时 | [vLLM](https://github.com/vllm-project/vllm) | HaS Text 和 PaddleOCR-VL 的本地 OpenAI 兼容服务 |
+
+感谢 PaddlePaddle、腾讯玄武实验室、Z.ai、Unsloth、Ultralytics、llama.cpp、vLLM 以及开源模型社区。正是这些模型和运行时项目，让本地优先的文档匿名化能够在消费级 GPU 上落地。
 
 ---
 

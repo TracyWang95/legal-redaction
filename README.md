@@ -24,6 +24,7 @@ RedactionEverything is a local-first redaction workbench for sensitive informati
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#architecture">Architecture</a> &middot;
   <a href="#model-services">Model Services</a> &middot;
+  <a href="#model-credits">Model Credits</a> &middot;
   <a href="#limitations-and-gpu-memory">Limitations</a> &middot;
   <a href="#security-and-deployment">Security</a> &middot;
   <a href="#license">License</a>
@@ -206,6 +207,24 @@ VLM_MODEL_NAME=GLM-4.6V-Flash-Q4
 ```
 
 When VRAM is tight, adjust context length, maximum generation tokens, concurrency, and image size before allowing any critical model to silently fall back to CPU. CPU fallback typically appears in the UI as long waits, missing results, or offline service probes.
+
+---
+
+## Model Credits
+
+RedactionEverything is an orchestration and product layer. It does not claim ownership of third-party model weights, and this repository does not redistribute those weights. Please download models from their official repositories, review each model card, and comply with the corresponding license and terms before deployment.
+
+| Component | Upstream model or project | Used for |
+|---|---|---|
+| PaddleOCR-VL | [PaddlePaddle/PaddleOCR-VL](https://huggingface.co/PaddlePaddle/PaddleOCR-VL) | Document OCR, layout understanding, text boxes, and page structure extraction |
+| HaS Text | [xuanwulab/HaS_4.0_0.6B](https://huggingface.co/xuanwulab/HaS_4.0_0.6B), optionally [xuanwulab/HaS_4.0_0.6B_GGUF](https://huggingface.co/xuanwulab/HaS_4.0_0.6B_GGUF) | Semantic NER for text and OCR text blocks |
+| HaS Image | [xuanwulab/HaS_Image_0209_FP32](https://huggingface.co/xuanwulab/HaS_Image_0209_FP32) | YOLO11-based visual privacy region segmentation |
+| GLM VLM | [zai-org/GLM-4.6V-Flash](https://huggingface.co/zai-org/GLM-4.6V-Flash), with local llama.cpp deployment through a compatible GGUF quant such as [unsloth/GLM-4.6V-Flash-GGUF](https://huggingface.co/unsloth/GLM-4.6V-Flash-GGUF) | Rubric/checklist-based visual-semantic detection, currently focused on signatures |
+| YOLO runtime | [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) | Runtime framework for HaS Image instance segmentation |
+| llama.cpp runtime | [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) | Local OpenAI-compatible VLM serving for GGUF weights |
+| vLLM runtime | [vLLM](https://github.com/vllm-project/vllm) | Local OpenAI-compatible serving for HaS Text and PaddleOCR-VL |
+
+Thanks to PaddlePaddle, Tencent Xuanwu Lab, Z.ai, Unsloth, Ultralytics, llama.cpp, vLLM, and the broader open-source model community. Their work makes local-first document redaction possible on commodity GPUs.
 
 ---
 
