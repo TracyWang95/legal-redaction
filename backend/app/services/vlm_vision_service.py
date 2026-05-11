@@ -11,6 +11,7 @@ from io import BytesIO
 from typing import Any
 
 import httpx
+import numpy as np
 from PIL import Image, ImageOps
 
 from app.core.config import settings
@@ -332,6 +333,7 @@ class VlmVisionService:
                     for bbox in view_boxes:
                         if not any(self._is_duplicate(bbox, existing) for existing in boxes):
                             boxes.append(bbox)
+        boxes = self._refine_signature_boxes(img, boxes)
         self.last_raw_response = "\n".join(raw_responses)
         logger.info("VLM request parsed %d boxes", len(boxes))
         return boxes
@@ -418,6 +420,133 @@ class VlmVisionService:
         if ((x2 - x1) * (y2 - y1)) / max(1.0, width * height) > 0.85:
             return None
         return x1 / width, y1 / height, (x2 - x1) / width, (y2 - y1) / height
+
+    def _refine_signature_boxes(self, image: Image.Image, boxes: list[BoundingBox]) -> list[BoundingBox]:
+        refined: list[BoundingBox] = []
+        for box in boxes:
+            if str(box.type).lower() != "signature":
+                refined.append(box)
+                continue
+            refined.append(self._refine_signature_box(image, box))
+        return refined
+
+    def _refine_signature_box(self, image: Image.Image, box: BoundingBox) -> BoundingBox:
+        width, height = image.size
+        x1 = max(0, min(width - 1, int(round(box.x * width))))
+        y1 = max(0, min(height - 1, int(round(box.y * height))))
+        x2 = max(x1 + 1, min(width, int(round((box.x + box.width) * width))))
+        y2 = max(y1 + 1, min(height, int(round((box.y + box.height) * height))))
+        box_w = x2 - x1
+        box_h = y2 - y1
+        if box_w < 2 or box_h < 2:
+            return box
+
+        line_like = (box_w / max(1, box_h)) >= 3.2
+        if line_like:
+            pad_x = max(int(box_w * 2.6), int(width * 0.18))
+            pad_top = max(int(box_h * 0.55), 24)
+            pad_bottom = max(int(box_h * 1.3), 48)
+        else:
+            pad_x = max(int(box_w * 0.35), 24)
+            pad_top = max(int(box_h * 0.35), 20)
+            pad_bottom = max(int(box_h * 0.35), 20)
+
+        sx1 = max(0, x1 - pad_x)
+        sx2 = min(width, x2 + pad_x)
+        sy1 = max(0, y1 - pad_top)
+        sy2 = min(height, y2 + pad_bottom)
+        if sx2 <= sx1 or sy2 <= sy1:
+            return box
+
+        crop = np.asarray(image.crop((sx1, sy1, sx2, sy2)).convert("RGB"))
+        mask = self._signature_stroke_mask(crop)
+        if int(mask.sum()) < max(18, int(mask.size * 0.0008)):
+            return box
+        mask = self._select_signature_row_cluster(mask, y1 - sy1, y2 - sy1)
+        if int(mask.sum()) < max(18, int(mask.size * 0.0008)):
+            return box
+
+        ys, xs = np.where(mask)
+        if len(xs) == 0 or len(ys) == 0:
+            return box
+
+        nx1 = max(0, sx1 + int(xs.min()) - 5)
+        ny1 = max(0, sy1 + int(ys.min()) - 5)
+        nx2 = min(width, sx1 + int(xs.max()) + 6)
+        ny2 = min(height, sy1 + int(ys.max()) + 6)
+        if nx2 <= nx1 or ny2 <= ny1:
+            return box
+
+        new_w = nx2 - nx1
+        new_h = ny2 - ny1
+        if new_w < 4 or new_h < 4:
+            return box
+        if not line_like and (new_w * new_h) > (box_w * box_h * 3.5):
+            return box
+
+        return box.model_copy(
+            update={
+                "x": nx1 / width,
+                "y": ny1 / height,
+                "width": new_w / width,
+                "height": new_h / height,
+                "source_detail": f"{box.source_detail}:stroke_refined",
+            },
+        )
+
+    @staticmethod
+    def _signature_stroke_mask(rgb: np.ndarray) -> np.ndarray:
+        arr = rgb.astype(np.int16, copy=False)
+        red = arr[:, :, 0]
+        green = arr[:, :, 1]
+        blue = arr[:, :, 2]
+        gray = (red * 30 + green * 59 + blue * 11) / 100
+        span = arr.max(axis=2) - arr.min(axis=2)
+        red_mark = (red > 120) & (red > green * 1.22) & (red > blue * 1.22)
+        dark_ink = (gray < 120) | ((gray < 158) & (span < 48))
+        mask = dark_ink & ~red_mark
+
+        crop_width = mask.shape[1]
+        if crop_width > 0:
+            row_counts = mask.sum(axis=1)
+            rule_rows = np.where(row_counts > max(80, crop_width * 0.32))[0]
+            for row in rule_rows:
+                mask[max(0, row - 2): min(mask.shape[0], row + 3), :] = False
+        return mask
+
+    @staticmethod
+    def _select_signature_row_cluster(mask: np.ndarray, target_y1: int, target_y2: int) -> np.ndarray:
+        row_counts = mask.sum(axis=1)
+        min_row_pixels = max(2, int(mask.shape[1] * 0.003))
+        active_rows = np.where(row_counts >= min_row_pixels)[0]
+        if len(active_rows) == 0:
+            return mask
+
+        clusters: list[tuple[int, int, int]] = []
+        start = int(active_rows[0])
+        prev = int(active_rows[0])
+        for raw_row in active_rows[1:]:
+            row = int(raw_row)
+            if row - prev <= 4:
+                prev = row
+                continue
+            clusters.append((start, prev, int(row_counts[start:prev + 1].sum())))
+            start = row
+            prev = row
+        clusters.append((start, prev, int(row_counts[start:prev + 1].sum())))
+
+        overlap_margin = 5
+        overlapping = [
+            cluster
+            for cluster in clusters
+            if cluster[1] >= target_y1 - overlap_margin and cluster[0] <= target_y2 + overlap_margin
+        ]
+        selected = max(overlapping or clusters, key=lambda item: item[2])
+        next_mask = np.zeros_like(mask)
+        top = max(0, selected[0] - 3)
+        bottom = min(mask.shape[0], selected[1] + 4)
+        next_mask[top:bottom, :] = mask[top:bottom, :]
+        return next_mask
 
     @staticmethod
     def _is_duplicate(candidate: BoundingBox, existing: BoundingBox) -> bool:

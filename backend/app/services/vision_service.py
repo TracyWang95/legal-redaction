@@ -653,6 +653,63 @@ class VisionService:
         hi_boxes = [b for b in boxes if b.source == "has_image"]
         other_boxes = [b for b in boxes if b.source not in ("ocr_has", "has_image")]
 
+        def _norm_type(value: str | None) -> str:
+            normalized = str(value or "").strip().lower()
+            return normalized.replace("-", "_").replace(" ", "_")
+
+        def _is_signature_box(box: BoundingBox) -> bool:
+            return _norm_type(box.type) in {"signature", "handwriting", "approval_mark"}
+
+        def _is_ocr_name_like(box: BoundingBox) -> bool:
+            box_type = _norm_type(box.type)
+            return box.source == "ocr_has" and box_type in {
+                "person",
+                "name",
+                "姓名",
+                "人名",
+                "signer",
+                "legal_representative",
+                "representative",
+            }
+
+        def _compact_text(value: str | None) -> str:
+            return "".join(str(value or "").split())
+
+        signature_boxes = [b for b in other_boxes if _is_signature_box(b)]
+        suppressed_ocr_ids: set[str] = set()
+        enhanced_signatures: dict[str, BoundingBox] = {}
+
+        for sig in signature_boxes:
+            evidence: list[str] = []
+            for ocr in ocr_boxes:
+                if not _is_ocr_name_like(ocr):
+                    continue
+                if (
+                    self._calculate_iou(sig, ocr) > 0.05
+                    or self._calculate_smaller_overlap(sig, ocr) >= 0.35
+                ):
+                    suppressed_ocr_ids.add(ocr.id)
+                    text = _compact_text(ocr.text)
+                    if text and text not in evidence:
+                        evidence.append(text)
+            if evidence:
+                base_text = _compact_text(sig.text)
+                merged_text = base_text if base_text and base_text != _compact_text(sig.type) else "签字"
+                enhanced_signatures[sig.id] = sig.model_copy(
+                    update={
+                        "text": f"{merged_text}（OCR: {'、'.join(evidence[:3])}）",
+                        "source_detail": f"{sig.source_detail}:ocr_name_suppressed",
+                    },
+                )
+
+        if suppressed_ocr_ids:
+            logger.info(
+                "DEDUP suppressed %d OCR name boxes covered by VLM signature",
+                len(suppressed_ocr_ids),
+            )
+
+        ocr_boxes = [b for b in ocr_boxes if b.id not in suppressed_ocr_ids]
+        other_boxes = [enhanced_signatures.get(b.id, b) for b in other_boxes]
         result = list(ocr_boxes)
 
         target_families = {
@@ -686,10 +743,6 @@ class VisionService:
             "handwriting": "handwritten_mark",
             "approval_mark": "handwritten_mark",
         }
-
-        def _norm_type(value: str | None) -> str:
-            normalized = str(value or "").strip().lower()
-            return normalized.replace("-", "_").replace(" ", "_")
 
         def _target_family(box: BoundingBox) -> str:
             box_type = _norm_type(box.type)

@@ -23,6 +23,7 @@ pydantic-settings>=2.7.0
 python-docx==1.2.0
 PyMuPDF==1.27.2.2
 Pillow>=12.2.0
+numpy>=2.0.0
 opencv-python-headless>=4.12.0
 # pdf2image excluded: requires system poppler
 # pywin32 excluded: Windows-only
