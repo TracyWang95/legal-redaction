@@ -9,7 +9,6 @@ RedactionEverything is a local-first redaction workbench for sensitive informati
 [![License](https://img.shields.io/badge/license-Personal%20Use-blue.svg)](./LICENSE)
 [![CI](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml/badge.svg)](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
-[![GitHub Stars](https://img.shields.io/github/stars/TracyWang95/DataInfra-RedactionEverything?style=social)](https://github.com/TracyWang95/DataInfra-RedactionEverything)
 
 **Language:** English | [中文](./README_zh.md)
 
@@ -321,9 +320,3 @@ This project uses a custom [Personal Use License](./LICENSE):
 - Model weights, third-party dependencies, and datasets are governed by their own licenses.
 
 Commercial licensing: **wwang11@alumni.nd.edu**
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=TracyWang95/DataInfra-RedactionEverything&type=Date)](https://star-history.com/#TracyWang95/DataInfra-RedactionEverything&Date)

@@ -9,7 +9,6 @@
 [![License](https://img.shields.io/badge/license-Personal%20Use-blue.svg)](./LICENSE)
 [![CI](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml/badge.svg)](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#贡献)
-[![GitHub Stars](https://img.shields.io/github/stars/TracyWang95/DataInfra-RedactionEverything?style=social)](https://github.com/TracyWang95/DataInfra-RedactionEverything)
 
 **语言：** [English](./README.md) | 中文
 
@@ -317,9 +316,3 @@ npm run build
 - 模型权重、第三方依赖和数据集遵循其各自许可证。
 
 商业授权联系：**wwang11@alumni.nd.edu**。
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=TracyWang95/DataInfra-RedactionEverything&type=Date)](https://star-history.com/#TracyWang95/DataInfra-RedactionEverything&Date)
