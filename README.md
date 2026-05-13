@@ -10,6 +10,11 @@ RedactionEverything is a local-first redaction workbench for sensitive informati
 [![CI](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml/badge.svg)](https://github.com/TracyWang95/DataInfra-RedactionEverything/actions/workflows/ci.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
+[![GitHub stars](https://img.shields.io/github/stars/TracyWang95/legal-prompts-for-gpt?style=social)](https://github.com/TracyWang95/legal-prompts-for-gpt)
+
+[![GitHub stars](https://img.shields.io/github/stars/TracyWang95/DataInfra-RedactionEverything)](https://github.com/TracyWang95/DataInfra-RedactionEverything)
+
+
 **Language:** English | [中文](./README_zh.md)
 
 > This project uses a custom [Personal Use License](./LICENSE). Individuals may use it for free personal, non-commercial purposes. Paid work, consulting delivery, companies, institutions, government agencies, teams, hosted services, production deployments, OEM redistribution, and commercial integrations require a separate commercial license.
