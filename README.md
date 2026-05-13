@@ -320,3 +320,9 @@ This project uses a custom [Personal Use License](./LICENSE):
 - Model weights, third-party dependencies, and datasets are governed by their own licenses.
 
 Commercial licensing: **wwang11@alumni.nd.edu**
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=TracyWang95/DataInfra-RedactionEverything&type=Date)](https://star-history.com/#TracyWang95/DataInfra-RedactionEverything&Date)
