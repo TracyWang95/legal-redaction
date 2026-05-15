@@ -133,12 +133,8 @@ class Settings(BaseSettings):
     VLM_TIMEOUT: float = 60.0
     VLM_COORD_MODE: int = 1000
     VLM_MAX_IMAGE_SIDE: int = 1024
+    VLM_SIGNATURE_MAX_IMAGE_SIDE: int = 640
     VLM_CONCURRENCY: int = 1
-    # For multi-page PDFs, VLM runs on every page by default so checklist
-    # features are not missed. Operators can still override this to "tail" or
-    # "off" in constrained deployments.
-    VLM_PDF_PAGE_POLICY: str = "all"
-    VLM_PDF_TAIL_PAGES: int = 2
 
     # 本地持久化（空串 = 跟随 DATA_DIR 自动派生，见 model_validator）
     FILE_STORE_PATH: str = ""
