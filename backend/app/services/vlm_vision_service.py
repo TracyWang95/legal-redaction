@@ -28,6 +28,8 @@ class _DetectionView:
     image_data: bytes
     width: int
     height: int
+    max_side: int
+    encoded_bytes: int
     crop_x: int
     crop_y: int
     crop_width: int
@@ -103,6 +105,14 @@ def _type_checklist(type_config: Any) -> list[dict[str, str]]:
     return [{"rule": rule, "positive_prompt": "", "negative_prompt": ""} for rule in _type_rules(type_config)]
 
 
+def _selected_type_ids(type_configs: list[Any]) -> set[str]:
+    return {str(getattr(item, "id", "")).strip().lower() for item in type_configs}
+
+
+def _is_signature_only(type_configs: list[Any]) -> bool:
+    return _selected_type_ids(type_configs) == {"signature"}
+
+
 def _few_shot_messages(type_configs: list[Any]) -> list[dict[str, Any]]:
     messages: list[dict[str, Any]] = []
     remaining = 5
@@ -165,8 +175,7 @@ class VlmVisionService:
 
     def build_prompt(self, type_configs: list[Any]) -> str:
         coord_mode = int(settings.VLM_COORD_MODE)
-        selected_ids = {str(getattr(item, "id", "")).strip().lower() for item in type_configs}
-        if selected_ids == {"signature"}:
+        if _is_signature_only(type_configs):
             return "\n".join(
                 [
                     "Task: detect handwritten signer names/signatures only.",
@@ -175,7 +184,8 @@ class VlmVisionService:
                     "- A signature is irregular freehand ink, often larger, cursive, slanted, and may overlap the edge of a red seal.",
                     "- In signature blocks, the target is the freehand name AFTER the printed label, not the printed label itself.",
                     "- Box only the handwritten ink strokes. Do not include the printed label before it.",
-                    "Ignore red seals, printed labels, company names, dates, QR codes, table lines, blank fields, and explanatory text.",
+                    "- Do not detect circular or semicircular seals/stamps, including black stamp fragments.",
+                    "Ignore red seals, black seals, printed labels, company names, dates, QR codes, table lines, blank fields, and explanatory text.",
                     "Find every visible freehand signer name/signature. Return JSON only, no prose.",
                     '{"objects":[{"type_id":"signature","label":"signature","box_2d":[xmin,ymin,xmax,ymax],"confidence":0.8,"text":""}]}',
                     f"Coordinates are 0..{coord_mode} relative to this image.",
@@ -235,11 +245,14 @@ class VlmVisionService:
             view.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
         encoded = BytesIO()
         view.save(encoded, format="JPEG", quality=90, optimize=True)
+        image_bytes = encoded.getvalue()
         return _DetectionView(
             name=name,
-            image_data=encoded.getvalue(),
+            image_data=image_bytes,
             width=view.width,
             height=view.height,
+            max_side=max_side,
+            encoded_bytes=len(image_bytes),
             crop_x=crop_x,
             crop_y=crop_y,
             crop_width=crop_width,
@@ -248,9 +261,19 @@ class VlmVisionService:
             original_height=original_height,
         )
 
+    def _max_image_side(self, type_configs: list[Any]) -> int:
+        full_max_side = max(256, int(getattr(settings, "VLM_MAX_IMAGE_SIDE", 640) or 640))
+        if not _is_signature_only(type_configs):
+            return full_max_side
+        signature_max_side = max(
+            256,
+            int(getattr(settings, "VLM_SIGNATURE_MAX_IMAGE_SIDE", full_max_side) or full_max_side),
+        )
+        return min(full_max_side, signature_max_side)
+
     def _detection_views(self, image: Image.Image, type_configs: list[Any]) -> list[_DetectionView]:
         original_width, original_height = image.size
-        full_max_side = max(256, int(getattr(settings, "VLM_MAX_IMAGE_SIDE", 640) or 640))
+        max_side = self._max_image_side(type_configs)
         return [
             self._encode_view(
                 image,
@@ -261,7 +284,7 @@ class VlmVisionService:
                 crop_height=original_height,
                 original_width=original_width,
                 original_height=original_height,
-                max_side=full_max_side,
+                max_side=max_side,
             )
         ]
 
@@ -300,14 +323,19 @@ class VlmVisionService:
             base_payload["enable_thinking"] = False
 
         url = _json_endpoint(config.base_url or settings.VLM_BASE_URL, "chat/completions")
+        view_meta = ",".join(
+            f"{view.name}:{view.width}x{view.height}/max{view.max_side}/{max(1, view.encoded_bytes // 1024)}KB"
+            for view in views
+        )
         logger.info(
-            "VLM request started: model=%s url=%s types=%d image=%dx%d views=%d timeout=%.1fs",
+            "VLM request started: model=%s url=%s types=%d image=%dx%d views=%d view_meta=%s timeout=%.1fs",
             base_payload["model"],
             url,
             len(type_configs),
             img.width,
             img.height,
             len(views),
+            view_meta,
             float(settings.VLM_TIMEOUT),
         )
         boxes: list[BoundingBox] = []

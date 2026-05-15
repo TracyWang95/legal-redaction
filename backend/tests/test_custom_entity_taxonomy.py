@@ -1,7 +1,9 @@
-import unittest
 import json
+import unittest
 from pathlib import Path
 
+from app.models.schemas import Entity
+from app.models.type_mapping import canonical_type_id, cn_to_id, id_to_cn, linkage_groups_for_type
 from app.services.entity_type_service import (
     EntityTypeConfig,
     build_tag_template,
@@ -10,8 +12,6 @@ from app.services.entity_type_service import (
     infer_linkage_groups,
     normalize_custom_entity_type,
 )
-from app.models.type_mapping import canonical_type_id, cn_to_id, id_to_cn, linkage_groups_for_type
-from app.models.schemas import Entity
 from app.services.has_service import HaSService
 from app.services.hybrid_ner_service import HybridNERService, _HaSChunk
 from app.services.preset_service import _load_builtin_presets
