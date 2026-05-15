@@ -1,4 +1,4 @@
-"""
+﻿"""
 Preset (batch-wizard configuration template) schemas.
 """
 from typing import Literal
@@ -57,6 +57,21 @@ class PresetPayload(BaseModel):
         description="VLM checklist visual feature ids enabled for visual recognition.",
         examples=[["signature"]],
     )
+    dataDomains: list[str] = Field(
+        default_factory=list,
+        description="L1 data domains covered by the preset.",
+        examples=[["pii", "organization_subject"]],
+    )
+    genericTargets: list[str] = Field(
+        default_factory=list,
+        description="L2 generic targets covered by the preset.",
+        examples=[["GEN_NAME", "GEN_NUMBER_CODE"]],
+    )
+    linkageGroups: list[str] = Field(
+        default_factory=list,
+        description="Coreference/linkage groups covered by the preset.",
+        examples=[["organization_like", "person_like"]],
+    )
     replacementMode: Literal["structured", "smart", "mask"] = Field(
         default="structured",
         description="How detected content is replaced in redacted output.",
@@ -100,6 +115,21 @@ class PresetUpdate(BaseModel):
         default=None,
         description="Replacement VLM checklist visual feature ids. Omit to keep the current value.",
         examples=[["signature"]],
+    )
+    dataDomains: list[str] | None = Field(
+        default=None,
+        description="Replacement L1 data domains. Omit to keep the current value.",
+        examples=[["pii", "organization_subject"]],
+    )
+    genericTargets: list[str] | None = Field(
+        default=None,
+        description="Replacement L2 generic targets. Omit to keep the current value.",
+        examples=[["GEN_NAME", "GEN_NUMBER_CODE"]],
+    )
+    linkageGroups: list[str] | None = Field(
+        default=None,
+        description="Replacement linkage groups. Omit to keep the current value.",
+        examples=[["organization_like", "person_like"]],
     )
     replacementMode: Literal["structured", "smart", "mask"] | None = Field(
         default=None,
@@ -225,3 +255,4 @@ class PresetImportRequest(BaseModel):
         description="True merges new user presets with existing ones; false replaces the user preset store.",
         examples=[False],
     )
+

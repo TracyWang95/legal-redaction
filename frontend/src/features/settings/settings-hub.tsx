@@ -19,10 +19,10 @@ export function SettingsHub() {
     'surface-subtle flex min-h-10 items-center px-4 py-2.5 text-xs leading-5 text-muted-foreground';
   const {
     entityTypes: _entityTypes,
+    textTaxonomy,
     pipelines,
     loading,
     pipelinesLoading,
-    regexTypes,
     llmTypes,
     loadError,
     importFileRef,
@@ -39,7 +39,6 @@ export function SettingsHub() {
   } = useEntityTypes();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogUseLlm, setDialogUseLlm] = useState(true);
   const [confirmState, setConfirmState] = useState<{
     title: string;
     message: string;
@@ -60,15 +59,13 @@ export function SettingsHub() {
     }
   };
 
-  const openAdd = (useLlm: boolean) => {
+  const openAdd = () => {
     setEditingType(null);
-    setDialogUseLlm(useLlm);
     setDialogOpen(true);
   };
 
   const openEdit = (tp: (typeof _entityTypes)[number]) => {
     setEditingType(tp);
-    setDialogUseLlm(!!tp.use_llm);
     setDialogOpen(true);
   };
 
@@ -80,6 +77,9 @@ export function SettingsHub() {
     regex_pattern: string;
     use_llm: boolean;
     tag_template: string;
+    data_domain: string;
+    generic_target: string;
+    coref_enabled: boolean;
   }) => {
     setSaving(true);
     try {
@@ -95,8 +95,11 @@ export function SettingsHub() {
         name: form.name,
         description: form.description,
         regex_pattern: form.regex_pattern,
-        use_llm: form.use_llm,
+        use_llm: true,
         tag_template: form.tag_template,
+        data_domain: form.data_domain,
+        generic_target: form.generic_target,
+        coref_enabled: form.coref_enabled,
       });
       if (ok) setDialogOpen(false);
     } finally {
@@ -177,32 +180,7 @@ export function SettingsHub() {
                 <EntityTypeList
                   types={llmTypes}
                   variant="llm"
-                  onAdd={() => openAdd(true)}
-                  onEdit={openEdit}
-                  onDelete={(id) =>
-                    setConfirmState({
-                      title: t('common.delete'),
-                      message: t('settings.confirmDeleteType'),
-                      danger: true,
-                      onConfirm: () => deleteType(id),
-                    })
-                  }
-                  onReset={() =>
-                    setConfirmState({
-                      title: t('settings.resetTextRules'),
-                      message: t('settings.confirmReset'),
-                      danger: true,
-                      onConfirm: () => resetToDefault(),
-                    })
-                  }
-                />
-              </div>
-              <div className="flex shrink-0 overflow-hidden">
-                <EntityTypeList
-                  types={regexTypes}
-                  variant="regex"
-                  compact
-                  onAdd={() => openAdd(false)}
+                  onAdd={openAdd}
                   onEdit={openEdit}
                   onDelete={(id) =>
                     setConfirmState({
@@ -272,9 +250,14 @@ export function SettingsHub() {
                 regex_pattern: editingType.regex_pattern ?? '',
                 use_llm: !!editingType.use_llm,
                 tag_template: editingType.tag_template ?? '',
+                data_domain: editingType.data_domain ?? 'custom_extension',
+                generic_target: editingType.generic_target ?? 'GEN_DOCUMENT_RECORD',
+                coref_enabled: Boolean(editingType.coref_enabled),
               }
-            : { use_llm: dialogUseLlm }
+            : { use_llm: true, coref_enabled: true }
         }
+        taxonomy={textTaxonomy}
+        taxonomyLocked={Boolean(editingType && !editingType.id.startsWith('custom_'))}
         onSave={(form) => void handleSave(form)}
       />
       {confirmState && (

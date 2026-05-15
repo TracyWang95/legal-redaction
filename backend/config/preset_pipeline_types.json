@@ -11,7 +11,15 @@
       ],
       "color": "#2563EB",
       "enabled": true,
-      "order": 10
+      "order": 10,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "ID_CARD",
@@ -23,7 +31,16 @@
       ],
       "color": "#DC2626",
       "enabled": true,
-      "order": 20
+      "order": 20,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like",
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "PASSPORT",
@@ -35,7 +52,16 @@
       ],
       "color": "#B91C1C",
       "enabled": true,
-      "order": 30
+      "order": 30,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like",
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "SOCIAL_SECURITY",
@@ -47,7 +73,16 @@
       ],
       "color": "#BE123C",
       "enabled": true,
-      "order": 40
+      "order": 40,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like",
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "BIOMETRIC",
@@ -61,7 +96,13 @@
       ],
       "color": "#BE123C",
       "enabled": true,
-      "order": 50
+      "order": 50,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "PHONE",
@@ -74,7 +115,13 @@
       ],
       "color": "#059669",
       "enabled": true,
-      "order": 60
+      "order": 60,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CONTACT"
     },
     {
       "id": "EMAIL",
@@ -86,7 +133,13 @@
       ],
       "color": "#0891B2",
       "enabled": true,
-      "order": 70
+      "order": 70,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CONTACT"
     },
     {
       "id": "ADDRESS",
@@ -98,19 +151,36 @@
       ],
       "color": "#EA580C",
       "enabled": true,
-      "order": 80
+      "order": 80,
+      "data_domain": "address_location",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "address_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ADDRESS_LOCATION"
     },
     {
       "id": "GPS_LOCATION",
-      "name": "位置",
-      "description": "经纬度、定位点、签到地点、轨迹、行踪记录。只表示位置或行踪。",
+      "name": "定位位置",
+      "description": "经纬度、定位点、签到定位、轨迹点、行踪记录等定位类位置。只表示明确定位或轨迹位置，不表示模板占位城市/区县。",
       "examples": [
+        "定位点：116.397,39.908",
         "31.2304,121.4737",
-        "定位点：116.397,39.908"
+        "签到定位：深圳市南山区科技园"
       ],
       "color": "#F97316",
       "enabled": true,
-      "order": 90
+      "order": 90,
+      "data_domain": "address_location",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "address_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ADDRESS_LOCATION"
     },
     {
       "id": "USERNAME_PASSWORD",
@@ -123,7 +193,15 @@
       ],
       "color": "#7C3AED",
       "enabled": true,
-      "order": 100
+      "order": 100,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [
+        "credential_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CREDENTIAL_ACCESS"
     },
     {
       "id": "AUTH_SECRET",
@@ -136,7 +214,15 @@
       ],
       "color": "#9333EA",
       "enabled": true,
-      "order": 110
+      "order": 110,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [
+        "credential_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CREDENTIAL_ACCESS"
     },
     {
       "id": "BANK_CARD",
@@ -148,7 +234,15 @@
       ],
       "color": "#DB2777",
       "enabled": true,
-      "order": 120
+      "order": 120,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
     },
     {
       "id": "BANK_ACCOUNT",
@@ -160,7 +254,37 @@
       ],
       "color": "#C026D3",
       "enabled": true,
-      "order": 130
+      "order": 130,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
+    },
+    {
+      "id": "BANK_NAME",
+      "name": "开户行",
+      "description": "开户行、开户银行、收款银行、银行网点或支行名称等与银行账号、收款账户或付款账户绑定的开户机构名称。只表示账户开户银行或支行，不把普通叙述中的银行机构泛称、合同主体银行或金融机构名称全部当作开户行。",
+      "examples": [
+        "开户行：中国工商银行上海南京东路支行",
+        "开户银行：中国建设银行北京朝阳支行",
+        "收款银行：招商银行深圳分行营业部"
+      ],
+      "color": "#7C3AED",
+      "enabled": true,
+      "order": 135,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "account_like",
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "AMOUNT",
@@ -173,7 +297,15 @@
       ],
       "color": "#CA8A04",
       "enabled": true,
-      "order": 140
+      "order": 140,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_AMOUNT_VALUE"
     },
     {
       "id": "DEVICE_ID",
@@ -186,7 +318,15 @@
       ],
       "color": "#0F766E",
       "enabled": true,
-      "order": 150
+      "order": 150,
+      "data_domain": "credential_access",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "credential_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CREDENTIAL_ACCESS"
     },
     {
       "id": "IP_ADDRESS",
@@ -198,7 +338,15 @@
       ],
       "color": "#0D9488",
       "enabled": true,
-      "order": 160
+      "order": 160,
+      "data_domain": "credential_access",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "credential_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CREDENTIAL_ACCESS"
     },
     {
       "id": "URL_WEBSITE",
@@ -210,12 +358,20 @@
       ],
       "color": "#0284C7",
       "enabled": true,
-      "order": 170
+      "order": 170,
+      "data_domain": "credential_access",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "credential_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_CREDENTIAL_ACCESS"
     },
     {
       "id": "ORG",
       "name": "组织机构",
-      "description": "兜底型组织机构名称。通用默认清单优先使用公司名称、机构名称、机关单位、部门名称、项目名称等原子项；本项用于用户需要宽泛组织识别时手动选择。",
+      "description": "兜底型组织机构名称。通用默认清单优先使用公司名称、机构名称、机关单位、部门名称、项目名称等原子项；本项用于用户需要宽泛组织识别时手动选择。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "某某科技有限公司",
         "上海市第一人民医院",
@@ -225,12 +381,20 @@
       ],
       "color": "#4F46E5",
       "enabled": true,
-      "order": 180
+      "order": 180,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "COMPANY_NAME",
       "name": "公司名称",
-      "description": "公司、企业、法人主体、个体工商户等经营主体名称。只表示主体名称，不包含统一社会信用代码、税号、地址、账号或联系人。",
+      "description": "公司、企业、法人主体、个体工商户等经营主体名称。只表示主体名称，不包含统一社会信用代码、税号、地址、账号或联系人。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "某某科技有限公司",
         "某某股份有限公司",
@@ -238,12 +402,20 @@
       ],
       "color": "#2563EB",
       "enabled": true,
-      "order": 181
+      "order": 181,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "INSTITUTION_NAME",
       "name": "机构名称",
-      "description": "医院、学校、银行、协会、基金会、研究机构、检测机构、服务机构等非自然人机构名称。只表示机构名称，不包含部门、地址或编号。",
+      "description": "医院、学校、银行、协会、基金会、研究机构、检测机构、服务机构等非自然人机构名称。只表示机构名称，不包含部门、地址或编号。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "上海市第一人民医院",
         "某某大学",
@@ -252,12 +424,20 @@
       ],
       "color": "#0284C7",
       "enabled": true,
-      "order": 182
+      "order": 182,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "GOVERNMENT_AGENCY",
       "name": "机关单位",
-      "description": "政府机关、监管部门、公安机关、检察机关、法院、行政事业单位等机关单位名称。只表示机关单位名称，不包含案号、地址或经办人。",
+      "description": "政府机关、监管部门、公安机关、检察机关、法院、行政事业单位等机关单位名称。只表示机关单位名称，不包含案号、地址或经办人。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "北京市市场监督管理局",
         "上海市公安局浦东分局",
@@ -265,12 +445,20 @@
       ],
       "color": "#0369A1",
       "enabled": true,
-      "order": 183
+      "order": 183,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "WORK_UNIT",
       "name": "工作单位",
-      "description": "个人所属、任职、就职、服务或派驻的单位名称。强调“某人的单位”，不包含职务、岗位或部门名称。",
+      "description": "个人所属、任职、就职、服务或派驻的单位名称。强调“某人的单位”，不包含职务、岗位或部门名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "工作单位：某某科技有限公司",
         "任职单位：某某医院",
@@ -278,12 +466,20 @@
       ],
       "color": "#0F766E",
       "enabled": true,
-      "order": 184
+      "order": 184,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "DEPARTMENT_NAME",
       "name": "部门名称",
-      "description": "组织内部的部门、科室、处室、分支机构、项目组、团队名称。只表示内部组织单元名称，不包含上级公司或机构名称。",
+      "description": "组织内部的部门、科室、处室、分支机构、项目组、团队名称。只表示内部组织单元名称，不包含上级公司或机构名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "法务部",
         "心内科",
@@ -292,7 +488,15 @@
       ],
       "color": "#0891B2",
       "enabled": true,
-      "order": 185
+      "order": 185,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "PROJECT_NAME",
@@ -305,7 +509,13 @@
       ],
       "color": "#4F46E5",
       "enabled": true,
-      "order": 186
+      "order": 186,
+      "data_domain": "asset_resource",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NAME"
     },
     {
       "id": "CREDIT_CODE",
@@ -317,7 +527,16 @@
       ],
       "color": "#B91C1C",
       "enabled": true,
-      "order": 187
+      "order": 187,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like",
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "TAX_ID",
@@ -329,7 +548,16 @@
       ],
       "color": "#BE123C",
       "enabled": true,
-      "order": 188
+      "order": 188,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like",
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "DATE",
@@ -342,7 +570,36 @@
       ],
       "color": "#64748B",
       "enabled": true,
-      "order": 200
+      "order": 200,
+      "data_domain": "time_event",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [
+        "date_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DATE_TIME"
+    },
+    {
+      "id": "BIRTH_DATE",
+      "name": "出生日期",
+      "description": "自然人的出生日期或生日。只表示出生日期，不包含普通业务日期、签署日期、立案日期或付款日期。",
+      "examples": [
+        "1992年10月5日出生",
+        "出生日期：1992-10-05",
+        "生日1992/10/05"
+      ],
+      "color": "#64748B",
+      "enabled": true,
+      "order": 205,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [
+        "date_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DATE_TIME"
     },
     {
       "id": "TIME",
@@ -355,7 +612,15 @@
       ],
       "color": "#6B7280",
       "enabled": true,
-      "order": 210
+      "order": 210,
+      "data_domain": "time_event",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [
+        "date_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DATE_TIME"
     },
     {
       "id": "AGE",
@@ -368,7 +633,13 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 220
+      "order": 220,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "GENDER",
@@ -381,7 +652,13 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 230
+      "order": 230,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "NATIONALITY",
@@ -393,7 +670,13 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 240
+      "order": 240,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "ETHNICITY",
@@ -406,7 +689,13 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 250
+      "order": 250,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "MARITAL_STATUS",
@@ -419,20 +708,32 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 260
+      "order": 260,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": true,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "HEALTH_INFO",
       "name": "健康信息",
-      "description": "疾病、诊断、病史、处方、检查结果、病历号、就诊记录、医保记录。",
+      "description": "已停用的宽泛健康信息标签。请使用诊断、用药、检查结果、病历号等原子级医疗 L3。",
       "examples": [
         "糖尿病史",
         "门诊号MZ20260509",
         "检查结果阳性"
       ],
       "color": "#DB2777",
-      "enabled": true,
-      "order": 270
+      "enabled": false,
+      "order": 270,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "RELIGION",
@@ -445,7 +746,13 @@
       ],
       "color": "#BE185D",
       "enabled": true,
-      "order": 280
+      "order": 280,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "POLITICAL",
@@ -458,7 +765,13 @@
       ],
       "color": "#BE185D",
       "enabled": true,
-      "order": 290
+      "order": 290,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "SEXUAL_ORIENTATION",
@@ -471,7 +784,13 @@
       ],
       "color": "#BE185D",
       "enabled": true,
-      "order": 300
+      "order": 300,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "CASE_NUMBER",
@@ -486,7 +805,36 @@
       ],
       "color": "#A855F7",
       "enabled": true,
-      "order": 310
+      "order": 310,
+      "data_domain": "custom_extension",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
+    },
+    {
+      "id": "DOCUMENT_NUMBER",
+      "name": "文书编号",
+      "description": "判决书、裁定书、决定书、通知书、函件、报告等正式文书的编号或字号。只表示文书编号本身，不包含文书标题。",
+      "examples": [
+        "（2025）粤0305民初12345号",
+        "沪公刑立字〔2026〕12号",
+        "文书编号WS-2026-0001"
+      ],
+      "color": "#A855F7",
+      "enabled": true,
+      "order": 312,
+      "data_domain": "document_record",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "LICENSE_PLATE",
@@ -498,7 +846,15 @@
       ],
       "color": "#F59E0B",
       "enabled": true,
-      "order": 320
+      "order": 320,
+      "data_domain": "asset_resource",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "VIN",
@@ -509,7 +865,15 @@
       ],
       "color": "#D97706",
       "enabled": true,
-      "order": 330
+      "order": 330,
+      "data_domain": "asset_resource",
+      "coref_enabled": true,
+      "default_enabled": true,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "CRIMINAL_RECORD",
@@ -522,7 +886,13 @@
       ],
       "color": "#B91C1C",
       "enabled": true,
-      "order": 340
+      "order": 340,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "LEGAL_PLAINTIFF",
@@ -535,7 +905,15 @@
       ],
       "color": "#7C3AED",
       "enabled": true,
-      "order": 410
+      "order": 410,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "LEGAL_DEFENDANT",
@@ -548,7 +926,15 @@
       ],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 420
+      "order": 420,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "LEGAL_THIRD_PARTY",
@@ -561,12 +947,20 @@
       ],
       "color": "#A78BFA",
       "enabled": true,
-      "order": 430
+      "order": 430,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "LEGAL_COURT",
       "name": "法院",
-      "description": "法院、仲裁机构、调解组织等法律程序机构名称。只表示机构名称。",
+      "description": "法院、仲裁机构、调解组织等法律程序机构名称。只表示机构名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "上海市浦东新区人民法院",
         "北京市第一中级人民法院",
@@ -574,7 +968,15 @@
       ],
       "color": "#6D28D9",
       "enabled": true,
-      "order": 440
+      "order": 440,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "LEGAL_CASE_ID",
@@ -587,7 +989,15 @@
       ],
       "color": "#9333EA",
       "enabled": true,
-      "order": 450
+      "order": 450,
+      "data_domain": "document_record",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "LEGAL_ATTORNEY",
@@ -600,12 +1010,20 @@
       ],
       "color": "#5B21B6",
       "enabled": true,
-      "order": 460
+      "order": 460,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "LEGAL_LAW_FIRM",
       "name": "律所",
-      "description": "律师事务所、法律服务所、公证处等法律服务机构名称。",
+      "description": "律师事务所、法律服务所、公证处等法律服务机构名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "北京市某某律师事务所",
         "上海某法律服务所",
@@ -613,7 +1031,15 @@
       ],
       "color": "#7E22CE",
       "enabled": true,
-      "order": 470
+      "order": 470,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "LEGAL_CLAIM",
@@ -626,7 +1052,13 @@
       ],
       "color": "#C084FC",
       "enabled": true,
-      "order": 480
+      "order": 480,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
     },
     {
       "id": "FIN_CUSTOMER_ID",
@@ -639,7 +1071,15 @@
       ],
       "color": "#0E7490",
       "enabled": true,
-      "order": 510
+      "order": 510,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
     },
     {
       "id": "FIN_ACCOUNT_NAME",
@@ -652,12 +1092,20 @@
       ],
       "color": "#0891B2",
       "enabled": true,
-      "order": 520
+      "order": 520,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
     },
     {
       "id": "FIN_INSTITUTION",
       "name": "金融机构",
-      "description": "银行、证券公司、保险公司、基金公司、支付机构等金融机构名称。",
+      "description": "银行、证券公司、保险公司、基金公司、支付机构等金融机构名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "中国某银行",
         "某某证券股份有限公司",
@@ -665,7 +1113,16 @@
       ],
       "color": "#0284C7",
       "enabled": true,
-      "order": 530
+      "order": 530,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "account_like",
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "FIN_TRANSACTION_ID",
@@ -678,7 +1135,15 @@
       ],
       "color": "#0369A1",
       "enabled": true,
-      "order": 540
+      "order": 540,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
     },
     {
       "id": "FIN_MERCHANT_ID",
@@ -691,7 +1156,15 @@
       ],
       "color": "#0F766E",
       "enabled": true,
-      "order": 550
+      "order": 550,
+      "data_domain": "account_transaction",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ACCOUNT_TRANSACTION"
     },
     {
       "id": "FIN_RISK_RATING",
@@ -704,7 +1177,13 @@
       ],
       "color": "#CA8A04",
       "enabled": true,
-      "order": 570
+      "order": 570,
+      "data_domain": "account_transaction",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ATTRIBUTE_STATUS"
     },
     {
       "id": "MED_PATIENT",
@@ -717,7 +1196,15 @@
       ],
       "color": "#DB2777",
       "enabled": true,
-      "order": 610
+      "order": 610,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "MED_CLINICIAN",
@@ -730,12 +1217,20 @@
       ],
       "color": "#C026D3",
       "enabled": true,
-      "order": 620
+      "order": 620,
+      "data_domain": "pii",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "person_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_PERSON_SUBJECT"
     },
     {
       "id": "MED_INSTITUTION",
       "name": "医疗机构",
-      "description": "医院、诊所、检验中心、体检机构、药房等医疗健康机构名称。",
+      "description": "医院、诊所、检验中心、体检机构、药房等医疗健康机构名称。不包含文书标题、表单标题、章节标题或文件类型名称。",
       "examples": [
         "某某人民医院",
         "某医学检验所",
@@ -743,7 +1238,15 @@
       ],
       "color": "#BE185D",
       "enabled": true,
-      "order": 630
+      "order": 630,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "MED_DEPARTMENT",
@@ -756,7 +1259,15 @@
       ],
       "color": "#E11D48",
       "enabled": true,
-      "order": 640
+      "order": 640,
+      "data_domain": "organization_subject",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "organization_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_ORGANIZATION_SUBJECT"
     },
     {
       "id": "MED_RECORD_ID",
@@ -769,7 +1280,15 @@
       ],
       "color": "#F43F5E",
       "enabled": true,
-      "order": 650
+      "order": 650,
+      "data_domain": "document_record",
+      "coref_enabled": true,
+      "default_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "entity_type_ids": [],
+      "generic_target": "GEN_NUMBER_CODE"
     },
     {
       "id": "MED_DIAGNOSIS",
@@ -782,7 +1301,13 @@
       ],
       "color": "#BE123C",
       "enabled": true,
-      "order": 660
+      "order": 660,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
     },
     {
       "id": "MED_MEDICATION",
@@ -795,7 +1320,13 @@
       ],
       "color": "#9F1239",
       "enabled": true,
-      "order": 670
+      "order": 670,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
     },
     {
       "id": "MED_EXAM_RESULT",
@@ -808,7 +1339,142 @@
       ],
       "color": "#881337",
       "enabled": true,
-      "order": 680
+      "order": 680,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_CHIEF_COMPLAINT",
+      "name": "主诉",
+      "description": "患者就诊时陈述的主要症状、持续时间或就诊原因。",
+      "examples": [
+        "主诉：头痛3天",
+        "反复咳嗽2周"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1510,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_PRESENT_ILLNESS",
+      "name": "现病史",
+      "description": "本次疾病发生、发展、诊疗经过等现病史内容。",
+      "examples": [
+        "现病史：三天前无明显诱因出现发热",
+        "入院前一周咳嗽加重"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1520,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_PAST_HISTORY",
+      "name": "既往史",
+      "description": "既往疾病史、手术史、外伤史、输血史等既往健康相关记录。",
+      "examples": [
+        "既往史：高血压10年",
+        "否认手术外伤史"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1530,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_ALLERGY_HISTORY",
+      "name": "过敏史",
+      "description": "药物、食物或其他过敏史。",
+      "examples": [
+        "青霉素过敏",
+        "过敏史：无"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1540,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_PROCEDURE",
+      "name": "医疗操作",
+      "description": "手术、治疗、处置、检查项目、护理操作等医疗操作或项目名称。",
+      "examples": [
+        "阑尾切除术",
+        "胸部CT检查",
+        "静脉输液"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1550,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_ORDER",
+      "name": "医嘱",
+      "description": "长期医嘱、临时医嘱、护理级别、治疗安排等医嘱内容。",
+      "examples": [
+        "一级护理",
+        "低盐低脂饮食",
+        "临时医嘱：复查血常规"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1560,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
+    },
+    {
+      "id": "MED_VITAL_SIGN",
+      "name": "生命体征",
+      "description": "体温、血压、心率、脉搏、呼吸、血氧等生命体征数值或记录。",
+      "examples": [
+        "体温38.5℃",
+        "血压120/80mmHg",
+        "心率88次/分"
+      ],
+      "color": "#DB2777",
+      "enabled": true,
+      "order": 1570,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "default_enabled": false,
+      "linkage_groups": [],
+      "entity_type_ids": [],
+      "generic_target": "GEN_DOCUMENT_RECORD"
     }
   ],
   "has_image": [
@@ -819,7 +1485,15 @@
       "examples": [],
       "color": "#EF4444",
       "enabled": true,
-      "order": 0
+      "order": 0,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "fingerprint",
@@ -828,7 +1502,15 @@
       "examples": [],
       "color": "#F97316",
       "enabled": true,
-      "order": 1
+      "order": 1,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "palmprint",
@@ -837,7 +1519,15 @@
       "examples": [],
       "color": "#F59E0B",
       "enabled": true,
-      "order": 2
+      "order": 2,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "id_card",
@@ -846,7 +1536,15 @@
       "examples": [],
       "color": "#EAB308",
       "enabled": true,
-      "order": 3
+      "order": 3,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "hk_macau_permit",
@@ -855,7 +1553,15 @@
       "examples": [],
       "color": "#84CC16",
       "enabled": true,
-      "order": 4
+      "order": 4,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "passport",
@@ -864,7 +1570,15 @@
       "examples": [],
       "color": "#22C55E",
       "enabled": true,
-      "order": 5
+      "order": 5,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "employee_badge",
@@ -873,7 +1587,15 @@
       "examples": [],
       "color": "#14B8A6",
       "enabled": true,
-      "order": 6
+      "order": 6,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "license_plate",
@@ -882,7 +1604,13 @@
       "examples": [],
       "color": "#06B6D4",
       "enabled": true,
-      "order": 7
+      "order": 7,
+      "data_domain": "asset_resource",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "bank_card",
@@ -891,7 +1619,15 @@
       "examples": [],
       "color": "#0EA5E9",
       "enabled": true,
-      "order": 8
+      "order": 8,
+      "data_domain": "account_transaction",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "physical_key",
@@ -900,7 +1636,13 @@
       "examples": [],
       "color": "#3B82F6",
       "enabled": true,
-      "order": 9
+      "order": 9,
+      "data_domain": "asset_resource",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "receipt",
@@ -909,7 +1651,15 @@
       "examples": [],
       "color": "#6366F1",
       "enabled": true,
-      "order": 10
+      "order": 10,
+      "data_domain": "account_transaction",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "account_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "shipping_label",
@@ -918,7 +1668,15 @@
       "examples": [],
       "color": "#8B5CF6",
       "enabled": true,
-      "order": 11
+      "order": 11,
+      "data_domain": "address_location",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "address_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "official_seal",
@@ -927,7 +1685,15 @@
       "examples": [],
       "color": "#A855F7",
       "enabled": true,
-      "order": 9
+      "order": 9,
+      "data_domain": "visual_mark",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "whiteboard",
@@ -936,7 +1702,13 @@
       "examples": [],
       "color": "#D946EF",
       "enabled": true,
-      "order": 13
+      "order": 13,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "sticky_note",
@@ -945,7 +1717,13 @@
       "examples": [],
       "color": "#EC4899",
       "enabled": true,
-      "order": 14
+      "order": 14,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "mobile_screen",
@@ -954,7 +1732,13 @@
       "examples": [],
       "color": "#F43F5E",
       "enabled": true,
-      "order": 15
+      "order": 15,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "monitor_screen",
@@ -963,7 +1747,13 @@
       "examples": [],
       "color": "#64748B",
       "enabled": true,
-      "order": 16
+      "order": 16,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "medical_wristband",
@@ -972,7 +1762,15 @@
       "examples": [],
       "color": "#78716C",
       "enabled": true,
-      "order": 10
+      "order": 10,
+      "data_domain": "pii",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "identifier_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "qr_code",
@@ -981,7 +1779,15 @@
       "examples": [],
       "color": "#0D9488",
       "enabled": true,
-      "order": 11
+      "order": 11,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "barcode",
@@ -990,7 +1796,15 @@
       "examples": [],
       "color": "#059669",
       "enabled": true,
-      "order": 12
+      "order": 12,
+      "data_domain": "credential_access",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     },
     {
       "id": "paper",
@@ -999,7 +1813,13 @@
       "examples": [],
       "color": "#7C3AED",
       "enabled": false,
-      "order": 120
+      "order": 120,
+      "data_domain": "document_record",
+      "coref_enabled": false,
+      "linkage_groups": [],
+      "generic_target": null,
+      "entity_type_ids": [],
+      "default_enabled": false
     }
   ],
   "vlm": [
@@ -1040,7 +1860,15 @@
       "negative_prompt_enabled": true,
       "negative_prompt": "没有实际手写笔迹时不要输出；打印体、公司名、机构名、印章文字、印章图形、指纹、红色手印、空白签署栏、仅有横线或表格边框、仅有字段标签、整句手写说明、整段正文和整块签署区域都不是签字。",
       "few_shot_enabled": false,
-      "few_shot_samples": []
+      "few_shot_samples": [],
+      "data_domain": "visual_mark",
+      "coref_enabled": false,
+      "linkage_groups": [
+        "visual_mark_like"
+      ],
+      "generic_target": "GEN_VISUAL_SEMANTIC",
+      "entity_type_ids": [],
+      "default_enabled": true
     }
   ]
 }

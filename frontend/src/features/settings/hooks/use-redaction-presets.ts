@@ -60,6 +60,9 @@ export function useRedactionPresets() {
     ocrHasTypes: [],
     hasImageTypes: [],
     vlmTypes: [],
+    dataDomains: [],
+    genericTargets: [],
+    linkageGroups: [],
     replacementMode: 'structured',
   });
   const [saving, setSaving] = useState(false);

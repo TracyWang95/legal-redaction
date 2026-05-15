@@ -15,8 +15,8 @@
 //    `page`, `confidence`, and `replacement` which are managed elsewhere.
 //  - BoundingBox: `page` is optional (single-page playground default);
 //    adds `confidence` — differs from the required `page` in the shared type.
-//  - EntityTypeConfig: lighter shape without `category`, `examples`,
-//    `tag_template`, or `risk_level` used only in settings/admin views.
+//  - EntityTypeConfig: lighter shape without full taxonomy metadata,
+//    `examples`, or `tag_template` used only in settings/admin views.
 // ---------------------------------------------------------------------------
 
 export interface FileInfo {
@@ -61,6 +61,12 @@ export interface BoundingBox {
 export interface EntityTypeConfig {
   id: string;
   name: string;
+  data_domain?: string;
+  generic_target?: string | null;
+  entity_type_ids?: string[];
+  linkage_groups?: string[];
+  coref_enabled?: boolean;
+  default_enabled?: boolean;
   color: string;
   description?: string;
   regex_pattern?: string | null;

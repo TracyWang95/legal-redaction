@@ -183,11 +183,12 @@ TYPE_ID_TO_LABEL.update({
     "PHONE": "电话",
     "EMAIL": "邮箱",
     "ADDRESS": "地址",
-    "GPS_LOCATION": "位置",
+    "GPS_LOCATION": "定位位置",
     "USERNAME_PASSWORD": "登录账号",
     "AUTH_SECRET": "密码",
     "BANK_CARD": "银行卡号",
     "BANK_ACCOUNT": "银行账号",
+    "BANK_NAME": "开户行",
     "AMOUNT": "金额",
     "DEVICE_ID": "设备号",
     "IP_ADDRESS": "IP地址",
@@ -231,6 +232,13 @@ TYPE_ID_TO_LABEL.update({
     "MED_DIAGNOSIS": "诊断",
     "MED_MEDICATION": "用药",
     "MED_EXAM_RESULT": "检查结果",
+    "MED_CHIEF_COMPLAINT": "主诉",
+    "MED_PRESENT_ILLNESS": "现病史",
+    "MED_PAST_HISTORY": "既往史",
+    "MED_ALLERGY_HISTORY": "过敏史",
+    "MED_PROCEDURE": "医疗操作",
+    "MED_ORDER": "医嘱",
+    "MED_VITAL_SIGN": "生命体征",
 })
 
 for _type_id in (
@@ -259,7 +267,6 @@ TYPE_ID_ALIASES.update({
     "PAYMENT_ID": "BANK_ACCOUNT",
     "WALLET_ADDRESS": "BANK_ACCOUNT",
     "MONEY": "AMOUNT",
-    "BANK_NAME": "ORG",
     "COMPANY": "ORG",
     "ORG_NAME": "ORG",
     "ORGANIZATION": "ORG",
@@ -315,7 +322,6 @@ for _type_id in (
     TYPE_ID_ALIASES.pop(_type_id, None)
 
 TYPE_ID_ALIASES.update({
-    "BIRTH_DATE": "DATE",
     "RACE_ETHNICITY": "ETHNICITY",
     "GENETIC": "BIOMETRIC",
 })
@@ -343,7 +349,7 @@ TYPE_CN_TO_ID.update({
     "住址": "ADDRESS",
     "收货地址": "ADDRESS",
     "通信地址": "ADDRESS",
-    "位置": "GPS_LOCATION",
+    "定位位置": "GPS_LOCATION",
     "定位": "GPS_LOCATION",
     "经纬度": "GPS_LOCATION",
     "GPS坐标": "GPS_LOCATION",
@@ -397,8 +403,8 @@ TYPE_CN_TO_ID.update({
     "所在单位": "ORG",
     "任职单位": "ORG",
     "日期": "DATE",
-    "出生日期": "DATE",
-    "生日": "DATE",
+    "出生日期": "BIRTH_DATE",
+    "生日": "BIRTH_DATE",
     "时间": "TIME",
     "时刻": "TIME",
     "年龄": "AGE",
@@ -490,6 +496,16 @@ TYPE_CN_TO_ID.update({
     "药品": "MED_MEDICATION",
     "检查结果": "MED_EXAM_RESULT",
     "检验结果": "MED_EXAM_RESULT",
+    "主诉": "MED_CHIEF_COMPLAINT",
+    "现病史": "MED_PRESENT_ILLNESS",
+    "既往史": "MED_PAST_HISTORY",
+    "过敏史": "MED_ALLERGY_HISTORY",
+    "医疗操作": "MED_PROCEDURE",
+    "手术": "MED_PROCEDURE",
+    "医嘱": "MED_ORDER",
+    "生命体征": "MED_VITAL_SIGN",
+    "血压": "MED_VITAL_SIGN",
+    "体温": "MED_VITAL_SIGN",
     "政治面貌": "POLITICAL",
     "政治观点": "POLITICAL",
     "宗教信仰": "RELIGION",
@@ -525,11 +541,12 @@ TYPE_ID_TO_CN.update({
     "PHONE": "电话",
     "EMAIL": "邮箱",
     "ADDRESS": "地址",
-    "GPS_LOCATION": "位置",
+    "GPS_LOCATION": "定位位置",
     "USERNAME_PASSWORD": "登录账号",
     "AUTH_SECRET": "密码",
     "BANK_CARD": "银行卡号",
     "BANK_ACCOUNT": "银行账号",
+    "BANK_NAME": "开户行",
     "AMOUNT": "金额",
     "DEVICE_ID": "设备号",
     "IP_ADDRESS": "IP地址",
@@ -573,6 +590,13 @@ TYPE_ID_TO_CN.update({
     "MED_DIAGNOSIS": "诊断",
     "MED_MEDICATION": "用药",
     "MED_EXAM_RESULT": "检查结果",
+    "MED_CHIEF_COMPLAINT": "主诉",
+    "MED_PRESENT_ILLNESS": "现病史",
+    "MED_PAST_HISTORY": "既往史",
+    "MED_ALLERGY_HISTORY": "过敏史",
+    "MED_PROCEDURE": "医疗操作",
+    "MED_ORDER": "医嘱",
+    "MED_VITAL_SIGN": "生命体征",
 })
 
 # Final public schema corrections.
@@ -683,6 +707,227 @@ TYPE_ID_TO_CN.update({
     "TAX_ID": "税号",
     "CASE_NUMBER": "编号",
 })
+
+# Maintained taxonomy corrections. Business labels must not collapse into broad
+# buckets for linkage; linkage uses semantic groups below.
+for _type_id in (
+    "COMPANY",
+    "INSTITUTION",
+    "AGENCY",
+    "UNIT",
+    "EMPLOYER",
+    "WORKPLACE",
+    "BANK_NAME",
+    "MEDICAL_RECORD",
+    "LAWYER",
+    "JUDGE",
+    "WITNESS",
+):
+    TYPE_ID_ALIASES.pop(_type_id, None)
+
+TYPE_ID_ALIASES.update({
+    "HEALTH_INFO": "MED_DIAGNOSIS",
+    "MEDICAL_INFO": "MED_DIAGNOSIS",
+    "COMPANY": "COMPANY_NAME",
+    "INSTITUTION": "INSTITUTION_NAME",
+    "EMPLOYER": "WORK_UNIT",
+    "WORKPLACE": "WORK_UNIT",
+    "MEDICAL_RECORD": "MED_RECORD_ID",
+    "LAWYER": "LEGAL_ATTORNEY",
+})
+
+TYPE_CN_TO_ID.update({
+    "健康信息": "MED_DIAGNOSIS",
+    "医疗信息": "MED_DIAGNOSIS",
+    "病历号": "MED_RECORD_ID",
+    "名称": "GEN_NAME",
+    "通用名称": "GEN_NAME",
+    "号码": "GEN_NUMBER_CODE",
+    "编号": "GEN_NUMBER_CODE",
+    "代码": "GEN_NUMBER_CODE",
+    "号码/编号/代码": "GEN_NUMBER_CODE",
+    "联系方式": "GEN_CONTACT",
+    "地址位置": "GEN_ADDRESS_LOCATION",
+    "日期时间": "GEN_DATE_TIME",
+    "账户与交易": "GEN_ACCOUNT_TRANSACTION",
+    "金额数值": "GEN_AMOUNT_VALUE",
+    "凭证密钥与访问控制": "GEN_CREDENTIAL_ACCESS",
+    "人员主体": "GEN_PERSON_SUBJECT",
+    "组织主体": "GEN_ORGANIZATION_SUBJECT",
+    "属性状态": "GEN_ATTRIBUTE_STATUS",
+    "文档内容与业务记录": "GEN_DOCUMENT_RECORD",
+    "资产资源与标的物": "GEN_ASSET_RESOURCE",
+    "视觉语义补充": "GEN_VISUAL_SEMANTIC",
+    "开户行": "BANK_NAME",
+    "开户银行": "BANK_NAME",
+    "收款银行": "BANK_NAME",
+    "银行名称": "BANK_NAME",
+    "公司": "COMPANY_NAME",
+    "公司名": "COMPANY_NAME",
+    "公司名称": "COMPANY_NAME",
+    "企业": "COMPANY_NAME",
+    "企业名": "COMPANY_NAME",
+    "企业名称": "COMPANY_NAME",
+    "甲方": "COMPANY_NAME",
+    "乙方": "COMPANY_NAME",
+    "丙方": "COMPANY_NAME",
+    "供应商": "COMPANY_NAME",
+    "客户单位": "COMPANY_NAME",
+    "机构": "INSTITUTION_NAME",
+    "机构名称": "INSTITUTION_NAME",
+    "单位": "INSTITUTION_NAME",
+    "单位名称": "INSTITUTION_NAME",
+    "工作单位": "WORK_UNIT",
+    "所在单位": "WORK_UNIT",
+    "任职单位": "WORK_UNIT",
+    "就职单位": "WORK_UNIT",
+    "就诊号": "MED_RECORD_ID",
+    "律师": "LEGAL_ATTORNEY",
+    "代理律师": "LEGAL_ATTORNEY",
+})
+
+TYPE_ID_TO_LABEL.update({
+    "GEN_NAME": "名称",
+    "GEN_NUMBER_CODE": "号码/编号/代码",
+    "GEN_CONTACT": "联系方式",
+    "GEN_ADDRESS_LOCATION": "地址位置",
+    "GEN_DATE_TIME": "日期时间",
+    "GEN_ACCOUNT_TRANSACTION": "账户与交易",
+    "GEN_AMOUNT_VALUE": "金额数值",
+    "GEN_CREDENTIAL_ACCESS": "凭证密钥与访问控制",
+    "GEN_PERSON_SUBJECT": "人员主体",
+    "GEN_ORGANIZATION_SUBJECT": "组织主体",
+    "GEN_ATTRIBUTE_STATUS": "属性状态",
+    "GEN_DOCUMENT_RECORD": "文档内容与业务记录",
+    "GEN_ASSET_RESOURCE": "资产资源与标的物",
+    "GEN_VISUAL_SEMANTIC": "视觉语义补充",
+})
+
+TYPE_ID_TO_CN.update({
+    "GEN_NAME": "名称",
+    "GEN_NUMBER_CODE": "号码/编号/代码",
+    "GEN_CONTACT": "联系方式",
+    "GEN_ADDRESS_LOCATION": "地址位置",
+    "GEN_DATE_TIME": "日期时间",
+    "GEN_ACCOUNT_TRANSACTION": "账户与交易",
+    "GEN_AMOUNT_VALUE": "金额数值",
+    "GEN_CREDENTIAL_ACCESS": "凭证密钥与访问控制",
+    "GEN_PERSON_SUBJECT": "人员主体",
+    "GEN_ORGANIZATION_SUBJECT": "组织主体",
+    "GEN_ATTRIBUTE_STATUS": "属性状态",
+    "GEN_DOCUMENT_RECORD": "文档内容与业务记录",
+    "GEN_ASSET_RESOURCE": "资产资源与标的物",
+    "GEN_VISUAL_SEMANTIC": "视觉语义补充",
+})
+
+TYPE_ID_ALIASES.pop("BIRTH_DATE", None)
+TYPE_ID_ALIASES.update({
+    "LEGAL_CASE_ID": "DOCUMENT_NUMBER",
+    "LEGAL_DOC_NO": "DOCUMENT_NUMBER",
+})
+
+TYPE_ID_TO_LABEL.update({
+    "BIRTH_DATE": "出生日期",
+    "DOCUMENT_NUMBER": "文书编号",
+})
+
+TYPE_ID_TO_CN.update({
+    "BIRTH_DATE": "出生日期",
+    "DOCUMENT_NUMBER": "文书编号",
+})
+
+TYPE_CN_TO_ID.update({
+    "出生日期": "BIRTH_DATE",
+    "生日": "BIRTH_DATE",
+    "文书编号": "DOCUMENT_NUMBER",
+    "文书号": "DOCUMENT_NUMBER",
+    "法律文书号": "DOCUMENT_NUMBER",
+    "裁判文书编号": "DOCUMENT_NUMBER",
+    "案号": "DOCUMENT_NUMBER",
+    "案件号": "DOCUMENT_NUMBER",
+    "执行案号": "DOCUMENT_NUMBER",
+})
+
+LINKAGE_GROUP_BY_TYPE_ID: dict[str, set[str]] = {
+    "GEN_ORGANIZATION_SUBJECT": {"organization_like"},
+    "ORG": {"organization_like"},
+    "COMPANY_NAME": {"organization_like"},
+    "INSTITUTION_NAME": {"organization_like"},
+    "GOVERNMENT_AGENCY": {"organization_like"},
+    "WORK_UNIT": {"organization_like"},
+    "DEPARTMENT_NAME": {"organization_like"},
+    "PROJECT_NAME": {"organization_like"},
+    "FIN_INSTITUTION": {"organization_like"},
+    "BANK_NAME": {"organization_like", "account_like"},
+    "MED_INSTITUTION": {"organization_like"},
+    "MED_DEPARTMENT": {"organization_like"},
+    "LEGAL_COURT": {"organization_like"},
+    "LEGAL_LAW_FIRM": {"organization_like"},
+    "GEN_PERSON_SUBJECT": {"person_like"},
+    "PERSON": {"person_like"},
+    "ID_CARD": {"identifier_like", "person_like"},
+    "PASSPORT": {"identifier_like", "person_like"},
+    "SOCIAL_SECURITY": {"identifier_like", "person_like"},
+    "PHONE": {"person_like"},
+    "EMAIL": {"person_like"},
+    "AGE": {"person_like"},
+    "GENDER": {"person_like"},
+    "NATIONALITY": {"person_like"},
+    "ETHNICITY": {"person_like"},
+    "MARITAL_STATUS": {"person_like"},
+    "RELIGION": {"person_like"},
+    "POLITICAL": {"person_like"},
+    "SEXUAL_ORIENTATION": {"person_like"},
+    "CRIMINAL_RECORD": {"person_like"},
+    "LEGAL_PLAINTIFF": {"person_like", "organization_like"},
+    "LEGAL_DEFENDANT": {"person_like", "organization_like"},
+    "LEGAL_THIRD_PARTY": {"person_like", "organization_like"},
+    "LEGAL_ATTORNEY": {"person_like"},
+    "MED_PATIENT": {"person_like"},
+    "MED_CLINICIAN": {"person_like"},
+    "GEN_ACCOUNT_TRANSACTION": {"account_like"},
+    "GEN_AMOUNT_VALUE": {"account_like"},
+    "BANK_CARD": {"account_like"},
+    "BANK_ACCOUNT": {"account_like"},
+    "FIN_ACCOUNT_NAME": {"account_like"},
+    "FIN_CUSTOMER_ID": {"account_like"},
+    "FIN_TRANSACTION_ID": {"account_like"},
+    "FIN_MERCHANT_ID": {"account_like"},
+    "AMOUNT": {"account_like"},
+    "GEN_NUMBER_CODE": {"identifier_like"},
+    "CASE_NUMBER": {"identifier_like"},
+    "DOCUMENT_NUMBER": {"identifier_like"},
+    "MED_RECORD_ID": {"identifier_like"},
+    "CREDIT_CODE": {"identifier_like", "organization_like"},
+    "TAX_ID": {"identifier_like", "organization_like"},
+    "LICENSE_PLATE": {"identifier_like"},
+    "VIN": {"identifier_like"},
+    "GEN_ADDRESS_LOCATION": {"address_like"},
+    "ADDRESS": {"address_like"},
+    "GPS_LOCATION": {"address_like"},
+    "GEN_DATE_TIME": {"date_like"},
+    "BIRTH_DATE": {"date_like", "person_like"},
+    "DATE": {"date_like"},
+    "TIME": {"date_like"},
+    "GEN_CREDENTIAL_ACCESS": {"credential_like"},
+    "USERNAME_PASSWORD": {"credential_like"},
+    "AUTH_SECRET": {"credential_like"},
+    "DEVICE_ID": {"credential_like", "identifier_like"},
+    "IP_ADDRESS": {"credential_like", "identifier_like"},
+    "URL_WEBSITE": {"credential_like", "identifier_like"},
+}
+
+
+def linkage_groups_for_type(type_id: str) -> set[str]:
+    """Return internal linkage groups without changing the public type id."""
+    canonical = canonical_type_id(type_id)
+    return set(LINKAGE_GROUP_BY_TYPE_ID.get(canonical, set()))
+
+
+def linkage_group_for_type(type_id: str) -> str:
+    """Return a stable primary linkage group for legacy single-group callers."""
+    groups = linkage_groups_for_type(type_id)
+    return sorted(groups)[0] if groups else ""
 
 
 def cn_to_id(chinese_type: str) -> str:

@@ -2103,11 +2103,11 @@ def match_entities_to_ocr(
 
         type_mapping = {
             "人名": "PERSON", "姓名": "PERSON", "昵称": "NICKNAME",
-            "实验室名称": "LAB_NAME", "实验室": "LAB_NAME", "机构": "ORG",
+            "实验室名称": "LAB_NAME", "实验室": "LAB_NAME", "机构": "INSTITUTION_NAME",
             "电话": "PHONE", "手机号": "PHONE", "电话号码": "PHONE",
             "身份证": "ID_CARD", "身份证号": "ID_CARD",
             "银行卡": "BANK_CARD", "银行卡号": "BANK_CARD",
-            "地址": "ADDRESS", "公司": "ORG", "公司名称": "ORG",
+            "地址": "ADDRESS", "公司": "COMPANY_NAME", "公司名称": "COMPANY_NAME",
         }
         normalized_type = _canonical_image_text_type(type_mapping.get(entity_type, entity_type.upper()))
 

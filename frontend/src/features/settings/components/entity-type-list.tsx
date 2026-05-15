@@ -120,26 +120,35 @@ export function EntityTypeList({
                   : 'h-full min-h-0 flex-1 grid-cols-1 grid-rows-3 sm:grid-cols-2 xl:grid-cols-3',
               )}
             >
-              {visibleTypes.map((type) => (
-                <article
-                  key={type.id}
-                  className={cn(
-                    'flex overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border',
-                    compact ? 'h-[112px]' : 'h-full min-h-0',
-                  )}
-                >
+              {visibleTypes.map((type) => {
+                const systemManaged = !type.id.startsWith('custom_');
+                return (
+                  <article
+                    key={type.id}
+                    className={cn(
+                      'flex overflow-hidden rounded-2xl border border-border/70 bg-[var(--surface-control)] px-3.5 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-border',
+                      systemManaged && 'opacity-75',
+                      compact ? 'h-[112px]' : 'h-full min-h-0',
+                    )}
+                  >
                   <div className="flex min-w-0 flex-1 flex-col gap-2.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <span className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">
                           {type.name}
                         </span>
+                        {systemManaged && (
+                          <span className="mt-1 inline-flex rounded border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                            系统配置
+                          </span>
+                        )}
                       </div>
                       <div className="flex shrink-0 items-center gap-0.5">
                         <Button
                           size="icon"
                           variant="ghost"
                           className="size-6"
+                          disabled={systemManaged}
                           onClick={() => onEdit(type)}
                           aria-label={t('common.edit')}
                           data-testid={`edit-type-${type.id}`}
@@ -150,6 +159,7 @@ export function EntityTypeList({
                           size="icon"
                           variant="ghost"
                           className="size-6 text-destructive hover:text-destructive"
+                          disabled={systemManaged}
                           onClick={() => onDelete(type.id)}
                           aria-label={t('common.delete')}
                           data-testid={`delete-type-${type.id}`}
@@ -174,8 +184,9 @@ export function EntityTypeList({
                       )}
                     </div>
                   </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>

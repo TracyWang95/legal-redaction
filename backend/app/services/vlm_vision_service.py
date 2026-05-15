@@ -251,7 +251,7 @@ class VlmVisionService:
     def _detection_views(self, image: Image.Image, type_configs: list[Any]) -> list[_DetectionView]:
         original_width, original_height = image.size
         full_max_side = max(256, int(getattr(settings, "VLM_MAX_IMAGE_SIDE", 640) or 640))
-        views = [
+        return [
             self._encode_view(
                 image,
                 name="full",
@@ -264,24 +264,6 @@ class VlmVisionService:
                 max_side=full_max_side,
             )
         ]
-        selected_ids = {str(getattr(item, "id", "")).strip().lower() for item in type_configs}
-        if "signature" in selected_ids and original_height >= 900:
-            crop_y = int(original_height * 0.75)
-            crop_height = original_height - crop_y
-            views.append(
-                self._encode_view(
-                    image,
-                    name="signature_bottom",
-                    crop_x=0,
-                    crop_y=crop_y,
-                    crop_width=original_width,
-                    crop_height=crop_height,
-                    original_width=original_width,
-                    original_height=original_height,
-                    max_side=full_max_side,
-                )
-            )
-        return views
 
     async def detect(
         self,
@@ -417,21 +399,10 @@ class VlmVisionService:
             if normalized is None:
                 continue
             x, y, box_width, box_height = normalized
-            uses_original_page_coords = (
-                str(view.name).startswith("signature_")
-                and view.crop_y > 0
-                and y >= max(0.0, (view.crop_y / max(1, view.original_height)) - 0.08)
-            )
-            if uses_original_page_coords:
-                abs_x = x * view.original_width
-                abs_y = y * view.original_height
-                abs_width = box_width * view.original_width
-                abs_height = box_height * view.original_height
-            else:
-                abs_x = view.crop_x + x * view.crop_width
-                abs_y = view.crop_y + y * view.crop_height
-                abs_width = box_width * view.crop_width
-                abs_height = box_height * view.crop_height
+            abs_x = view.crop_x + x * view.crop_width
+            abs_y = view.crop_y + y * view.crop_height
+            abs_width = box_width * view.crop_width
+            abs_height = box_height * view.crop_height
             type_config = by_id[type_id]
             label = str(getattr(type_config, "name", "") or obj.get("label") or type_id)
             text = str(obj.get("text") or label).strip() or label
@@ -502,9 +473,6 @@ class VlmVisionService:
         box_h = y2 - y1
         if box_w < 2 or box_h < 2:
             return box
-        if ":signature_bottom" in str(box.source_detail or ""):
-            return self._expand_signature_box(image, box)
-
         line_like = (box_w / max(1, box_h)) >= 3.2
         if line_like:
             pad_x = max(int(box_w * 2.6), int(width * 0.18))

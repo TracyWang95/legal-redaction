@@ -19,7 +19,7 @@ from typing import Any
 
 from app.core.safe_regex import RegexTimeoutError, safe_compile, safe_finditer
 from app.models.schemas import Entity
-from app.models.type_mapping import canonical_type_id
+from app.models.type_mapping import canonical_type_id, linkage_groups_for_type
 from app.services.has_service import HaSService, has_service
 
 # 绫诲瀷鍒悕锛屽吋瀹?EntityTypeConfig 鍜?CustomEntityType
@@ -61,9 +61,8 @@ class HybridNERService:
     # NER 鏂囨湰闀垮害涓婇檺锛岃秴杩囨鍊兼埅鏂互闃叉鍐呭瓨/鏃堕棿鐖嗙偢
     MAX_TEXT_LENGTH = 500_000
 
-    # HaS Text owns semantic text entities by default. Organization-like
-    # generic schema entries must participate in propagation/coreference too;
-    # otherwise a confirmed full company name will not protect later mentions.
+    # HaS Text owns L3 semantic text entities by default. L1/L2 metadata is
+    # used for disambiguation only and must not be requested as NER output.
     HAS_SEMANTIC_TYPE_IDS = {
         "PERSON",
         "ORG",
@@ -87,6 +86,7 @@ class HybridNERService:
         "LEGAL_SERVICE_ORG",
         "FIN_INSTITUTION",
         "MED_INSTITUTION",
+        "BANK_NAME",
     }
     ORG_ROLE_SUFFIXES = (
         "法定代表人", "委托诉讼代理人", "诉讼代理人", "负责人", "代表人",
@@ -106,9 +106,15 @@ class HybridNERService:
         r"^(?:中国|中华|广东省|深圳市|北京市|上海市|广州市|天津市|重庆市|"
         r"[一-龥]{2,8}(?:省|市|自治区|自治州|地区|盟|区|县))"
     )
+
+    @staticmethod
+    def _is_org_like_type(type_id: str) -> bool:
+        canonical = canonical_type_id(type_id)
+        return canonical in HybridNERService.ORG_LIKE_TYPE_IDS or "organization_like" in linkage_groups_for_type(canonical)
     ORG_GENERIC_STEM_RE = re.compile(
         r"(?:贸易|科技|技术|实业|资产|控股|股份|有限责任|有限|集团|公司|分公司)$"
     )
+    ENTITY_EDGE_PUNCTUATION = " \t\r\n，。；：、,.!?！？;:()（）[]【】"
     MAX_HAS_TEXT_CHARS = 1_600
     MAX_HAS_CHUNKS = 12
     MAX_HAS_LINE_CHARS = 320
@@ -344,11 +350,12 @@ class HybridNERService:
             semantic_entity_types,
         )
         relocated = self._relocate_has_entities(chunk_entities, full_text, chunk)
-        return [
+        filtered = [
             entity
             for entity in relocated
             if canonical_type_id(getattr(entity, "type", None)) in enabled_type_ids
         ]
+        return filtered
 
     def _build_has_candidate_chunks(self, text: str) -> list[_HaSChunk]:
         """Build short semantic candidate chunks for HaS Text.
@@ -381,9 +388,7 @@ class HybridNERService:
             line = raw_line.strip()
             if not line:
                 continue
-            score = self._semantic_line_score(line)
-            if score > 0:
-                add_line(line)
+            add_line(line)
 
         chunks: list[_HaSChunk] = []
         current: list[str] = []
@@ -424,13 +429,37 @@ class HybridNERService:
         chunk: _HaSChunk,
     ) -> list[Entity]:
         """Move HaS chunk-local offsets back to original document offsets."""
+        line_starts = [0]
+        for index, char in enumerate(chunk.text):
+            if char == "\n":
+                line_starts.append(index + 1)
+
         relocated: list[Entity] = []
         for entity in entities:
             text = str(entity.text or "")
             if not text:
                 continue
             found = -1
+            local_start = int(getattr(entity, "start", -1) or -1)
+            if 0 <= local_start < len(chunk.text):
+                line_index = 0
+                for idx, line_start in enumerate(line_starts):
+                    if line_start > local_start:
+                        break
+                    line_index = idx
+                if line_index < len(chunk.line_offsets):
+                    line_offset = chunk.line_offsets[line_index]
+                    local_line_start = line_starts[line_index]
+                    candidate = line_offset + (local_start - local_line_start)
+                    if (
+                        line_offset >= 0
+                        and 0 <= candidate <= len(full_text) - len(text)
+                        and full_text[candidate:candidate + len(text)] == text
+                    ):
+                        found = candidate
             for line_offset in chunk.line_offsets:
+                if found >= 0:
+                    break
                 if line_offset < 0:
                     continue
                 found = full_text.find(text, line_offset, min(len(full_text), line_offset + self.MAX_HAS_LINE_CHARS + len(text)))
@@ -513,6 +542,8 @@ class HybridNERService:
             if 0 <= entity.start < entity.end <= len(text):
                 actual_text = text[entity.start:entity.end]
                 if actual_text == entity.text:
+                    self._trim_entity_edge_punctuation(entity)
+                    self._expand_entity_boundary_context(entity, text)
                     validated.append(entity)
                     used_positions.add((entity.start, entity.end))
                     continue
@@ -528,8 +559,10 @@ class HybridNERService:
                 if not overlaps:
                     entity.start = found
                     entity.end = end
+                    self._trim_entity_edge_punctuation(entity)
+                    self._expand_entity_boundary_context(entity, text)
                     validated.append(entity)
-                    used_positions.add((found, end))
+                    used_positions.add((entity.start, entity.end))
                     break
                 start_index = found + len(entity.text)
 
@@ -539,18 +572,32 @@ class HybridNERService:
             return order.get(source or "", 0)
 
         def type_priority(entity_type: str | None) -> int:
-            if str(entity_type or "").lower().startswith("custom_"):
+            canonical = canonical_type_id(str(entity_type or ""))
+            if canonical.lower().startswith("custom_"):
                 return 4
-            # 鍦板潃浼樺厛锛岄伩鍏嶁€滃湴鐐硅瘝鈥濊璇瘑鍒负鏈烘瀯
+            # Prefer the most specific L3 label when HaS returns multiple
+            # labels for the same span. L1/L2 metadata is not sent as NER tags,
+            # so this is the final schema-boundary arbitration point.
             priority = {
+                "BIRTH_DATE": 4,
+                "GENDER": 4,
+                "ETHNICITY": 4,
+                "DOCUMENT_NUMBER": 4,
+                "LICENSE_PLATE": 4,
                 "ADDRESS": 3,
                 "ORG": 2,
                 "PERSON": 2,
                 "LEGAL_PARTY": 2,
                 "LAWYER": 2,
                 "JUDGE": 2,
+                "DATE": 1,
+                "AGE": 1,
+                "TIME": 1,
+                "MARITAL_STATUS": 1,
+                "NATIONALITY": 1,
+                "VIN": 1,
             }
-            return priority.get(entity_type or "", 1)
+            return priority.get(canonical, 1)
 
         entity_map: dict[tuple, Entity] = {}
         for entity in validated:
@@ -579,7 +626,7 @@ class HybridNERService:
                     if type_priority(entity.type) > type_priority(existing.type):
                         entity_map[key] = entity
 
-        deduped = list(entity_map.values())
+        deduped = self._dedupe_conflicting_entities(list(entity_map.values()), type_priority, source_rank)
 
         self._normalize_overbroad_org_role_entities(deduped, text, enabled_type_ids)
         deduped.extend(self._propagate_confirmed_semantic_mentions(deduped, text))
@@ -605,6 +652,80 @@ class HybridNERService:
             entity.id = f"entity_{i}"
 
         return deduped
+
+    @classmethod
+    def _trim_entity_edge_punctuation(cls, entity: Entity) -> None:
+        value = str(entity.text or "")
+        if not value:
+            return
+        leading = len(value) - len(value.lstrip(cls.ENTITY_EDGE_PUNCTUATION))
+        trailing = len(value.rstrip(cls.ENTITY_EDGE_PUNCTUATION))
+        if leading:
+            entity.start += leading
+        if trailing < len(value):
+            entity.end -= len(value) - trailing
+        entity.text = value.strip(cls.ENTITY_EDGE_PUNCTUATION)
+
+    @staticmethod
+    def _expand_entity_boundary_context(entity: Entity, text: str) -> None:
+        """Keep paired document/case-number brackets inside the L3 entity."""
+        entity_type = canonical_type_id(str(entity.type or ""))
+        if entity_type not in {"DOCUMENT_NUMBER", "CASE_NUMBER"}:
+            return
+        if entity.start <= 0:
+            return
+        previous = text[entity.start - 1]
+        if previous not in "（(":
+            return
+        value = str(entity.text or "")
+        if "）" not in value and ")" not in value:
+            return
+        entity.start -= 1
+        entity.text = previous + value
+
+    @staticmethod
+    def _dedupe_conflicting_entities(
+        entities: list[Entity],
+        type_priority,
+        source_rank,
+    ) -> list[Entity]:
+        """Resolve model multi-label conflicts over the same or overlapping span."""
+        if len(entities) <= 1:
+            return entities
+
+        def rank(entity: Entity) -> tuple:
+            length = max(0, int(entity.end or 0) - int(entity.start or 0))
+            return (
+                type_priority(entity.type),
+                source_rank(entity.source),
+                float(entity.confidence or 0.0),
+                -length,
+            )
+
+        sorted_entities = sorted(entities, key=lambda item: (item.start, item.end))
+        clusters: list[list[Entity]] = []
+        current: list[Entity] = []
+        current_end = -1
+        for entity in sorted_entities:
+            if not current or entity.start < current_end:
+                current.append(entity)
+                current_end = max(current_end, entity.end)
+                continue
+            clusters.append(current)
+            current = [entity]
+            current_end = entity.end
+        if current:
+            clusters.append(current)
+
+        selected: list[Entity] = []
+        for cluster in clusters:
+            if len(cluster) == 1:
+                selected.extend(cluster)
+                continue
+            # If two model buckets describe the same characters (or one wraps
+            # the other, e.g. birth date vs age phrase), keep the strongest L3.
+            selected.append(max(cluster, key=rank))
+        return selected
 
     def _propagate_confirmed_semantic_mentions(self, entities: list[Entity], text: str) -> list[Entity]:
         """Mark every exact occurrence of semantic values already confirmed by HaS."""
@@ -657,7 +778,7 @@ class HybridNERService:
         """
         for entity in entities:
             current_type = canonical_type_id(getattr(entity, "type", ""))
-            if current_type not in self.ORG_LIKE_TYPE_IDS:
+            if not self._is_org_like_type(current_type):
                 continue
             if entity.source not in {"has", "llm"}:
                 continue
@@ -715,7 +836,7 @@ class HybridNERService:
 
         for canonical in entities:
             canonical_type = canonical_type_id(getattr(canonical, "type", ""))
-            if canonical_type not in self.ORG_LIKE_TYPE_IDS or canonical.source not in {"has", "llm"}:
+            if not self._is_org_like_type(canonical_type) or canonical.source not in {"has", "llm"}:
                 continue
             if canonical_type not in enabled_type_ids:
                 continue
@@ -775,15 +896,13 @@ class HybridNERService:
     def _link_org_alias_corefs(self, entities: list[Entity]) -> None:
         orgs = [
             entity for entity in entities
-            if canonical_type_id(getattr(entity, "type", "")) in self.ORG_LIKE_TYPE_IDS and entity.text
+            if self._is_org_like_type(getattr(entity, "type", "")) and entity.text
         ]
         if len(orgs) < 2:
             return
 
         canonical_orgs = sorted(orgs, key=lambda entity: len(entity.text), reverse=True)
         for alias in sorted(orgs, key=lambda entity: len(entity.text)):
-            if alias.coref_id and alias.coref_id.startswith("<") and alias.coref_id.endswith(">"):
-                continue
             alias_key = self._org_alias_key(alias.text)
             if not alias_key:
                 continue

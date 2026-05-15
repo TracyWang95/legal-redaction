@@ -13,6 +13,7 @@ from app.services.entity_type_service import (
     EntityTypesResponse,
     RegexTestRequest,
     RegexTestResult,
+    TextTaxonomyResponse,
     UpdateEntityTypeRequest,
 )
 
@@ -35,6 +36,12 @@ async def get_entity_types(
     return entity_type_service.list_types(enabled_only, page, page_size)
 
 
+@router.get("/custom-types/taxonomy", response_model=TextTaxonomyResponse)
+async def get_text_taxonomy():
+    """获取文本自定义识别项的 L1/L2 元数据分类树。"""
+    return entity_type_service.get_text_taxonomy()
+
+
 @router.get("/custom-types/{type_id}", response_model=EntityTypeConfig)
 async def get_entity_type(type_id: str):
     """获取单个实体类型配置"""
@@ -53,7 +60,10 @@ async def create_entity_type(request: CreateEntityTypeRequest):
 @router.put("/custom-types/{type_id}", response_model=EntityTypeConfig)
 async def update_entity_type(type_id: str, request: UpdateEntityTypeRequest):
     """更新实体类型配置"""
-    result = entity_type_service.update_type(type_id, request)
+    try:
+        result = entity_type_service.update_type(type_id, request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="实体类型不存在")
     return result

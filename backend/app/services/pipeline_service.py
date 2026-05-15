@@ -46,6 +46,12 @@ class PipelineTypeConfig(BaseModel):
     """Pipeline 下的类型配置"""
     id: str = Field(..., description="唯一ID")
     name: str = Field(..., description="显示名称")
+    data_domain: str = Field(default="custom_extension", description="L1 data domain")
+    generic_target: str | None = Field(default=None, description="L2 generic target for L3 types")
+    entity_type_ids: list[str] = Field(default_factory=list, description="L3 entity types covered by a L2 generic target")
+    linkage_groups: list[str] = Field(default_factory=list, description="Coreference/linkage capability groups")
+    coref_enabled: bool = Field(default=False, description="Whether group-based coreference is enabled")
+    default_enabled: bool = Field(default=False, description="Whether selected by the generic default")
     description: str | None = Field(None, description="语义描述/视觉提示")
     examples: list[str] = Field(default_factory=list, description="示例文本")
     color: str = Field(default="#6B7280", description="前端显示颜色")
