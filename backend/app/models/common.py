@@ -7,7 +7,6 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 __all__ = [
-    "IdentifierCategory",
     "EntityType",
     "FileType",
     "ReplacementMode",
@@ -20,16 +19,6 @@ __all__ = [
     "TokenResponse",
     "AuthStatusResponse",
 ]
-
-
-class IdentifierCategory(str, Enum):
-    """
-    标识符类别 - 基于 GB/T 37964-2019《信息安全技术 个人信息去标识化指南》
-    """
-    DIRECT = "direct"           # 直接标识符：能够单独识别个人信息主体
-    QUASI = "quasi"             # 准标识符：与其他信息结合可识别个人信息主体
-    SENSITIVE = "sensitive"     # 敏感属性：涉及敏感信息的属性
-    OTHER = "other"             # 其他一般属性
 
 
 class EntityType(str, Enum):
@@ -51,6 +40,7 @@ class EntityType(str, Enum):
     EMAIL = "EMAIL"                     # [D] 电子邮箱
     BANK_CARD = "BANK_CARD"             # [D] 银行卡号
     BANK_ACCOUNT = "BANK_ACCOUNT"       # [D] 银行账号
+    BANK_NAME = "BANK_NAME"             # [S] 开户行
     WECHAT_ALIPAY = "WECHAT_ALIPAY"     # [D] 微信/支付宝账号
     USERNAME_PASSWORD = "USERNAME_PASSWORD"  # [D] 账号
     AUTH_SECRET = "AUTH_SECRET"         # [D] 密码/密钥

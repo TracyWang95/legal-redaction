@@ -159,6 +159,9 @@ def _to_out(p: dict[str, Any]) -> PresetOut:
         ocrHasTypes=p.get("ocrHasTypes") or [],
         hasImageTypes=p.get("hasImageTypes") or [],
         vlmTypes=p.get("vlmTypes") or [],
+        dataDomains=p.get("dataDomains") or [],
+        genericTargets=p.get("genericTargets") or [],
+        linkageGroups=p.get("linkageGroups") or [],
         replacementMode=p.get("replacementMode") or "structured",
         created_at=p.get("created_at") or _now_iso(),
         updated_at=p.get("updated_at") or _now_iso(),
@@ -186,6 +189,9 @@ def _import_item_to_row(preset: PresetImportItem) -> dict[str, Any]:
         "ocrHasTypes": preset.ocrHasTypes,
         "hasImageTypes": preset.hasImageTypes,
         "vlmTypes": preset.vlmTypes,
+        "dataDomains": preset.dataDomains,
+        "genericTargets": preset.genericTargets,
+        "linkageGroups": preset.linkageGroups,
         "replacementMode": preset.replacementMode,
         "created_at": created_at,
         "updated_at": preset.updated_at or created_at,
@@ -220,6 +226,9 @@ def create(payload: PresetCreate) -> PresetOut:
         "ocrHasTypes": payload.ocrHasTypes,
         "hasImageTypes": payload.hasImageTypes,
         "vlmTypes": payload.vlmTypes,
+        "dataDomains": payload.dataDomains,
+        "genericTargets": payload.genericTargets,
+        "linkageGroups": payload.linkageGroups,
         "replacementMode": payload.replacementMode,
         "created_at": ts,
         "updated_at": ts,
@@ -249,6 +258,12 @@ def update(preset_id: str, patch: PresetUpdate) -> PresetOut | None:
             p["hasImageTypes"] = patch.hasImageTypes
         if patch.vlmTypes is not None:
             p["vlmTypes"] = patch.vlmTypes
+        if patch.dataDomains is not None:
+            p["dataDomains"] = patch.dataDomains
+        if patch.genericTargets is not None:
+            p["genericTargets"] = patch.genericTargets
+        if patch.linkageGroups is not None:
+            p["linkageGroups"] = patch.linkageGroups
         if patch.replacementMode is not None:
             p["replacementMode"] = patch.replacementMode
         p["updated_at"] = _now_iso()

@@ -16,6 +16,12 @@ import {
 export interface EntityTypeConfig {
   id: string;
   name: string;
+  data_domain?: string;
+  generic_target?: string | null;
+  entity_type_ids?: string[];
+  linkage_groups?: string[];
+  coref_enabled?: boolean;
+  default_enabled?: boolean;
   description?: string;
   examples?: string[];
   color: string;
@@ -26,9 +32,27 @@ export interface EntityTypeConfig {
   tag_template?: string | null;
 }
 
+export interface TextTaxonomyTarget {
+  value: string;
+  label: string;
+}
+
+export interface TextTaxonomyDomain {
+  value: string;
+  label: string;
+  default_target: string;
+  targets: TextTaxonomyTarget[];
+}
+
 export interface PipelineTypeConfig {
   id: string;
   name: string;
+  data_domain?: string;
+  generic_target?: string | null;
+  entity_type_ids?: string[];
+  linkage_groups?: string[];
+  coref_enabled?: boolean;
+  default_enabled?: boolean;
   description?: string;
   examples?: string[];
   color: string;
@@ -109,6 +133,7 @@ export function buildPipelineTypeId(name: string, mode: PipelineMode) {
 
 export function useEntityTypes() {
   const [entityTypes, setEntityTypes] = useState<EntityTypeConfig[]>([]);
+  const [textTaxonomy, setTextTaxonomy] = useState<TextTaxonomyDomain[]>([]);
   const [pipelines, setPipelines] = useState<PipelineConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [pipelinesLoading, setPipelinesLoading] = useState(true);
@@ -122,11 +147,20 @@ export function useEntityTypes() {
       // Only show full loading spinner on initial load, not on CRUD refreshes
       if (!initialLoadDone.current) setLoading(true);
       setLoadError(null);
-      setEntityTypes((await fetchRecognitionEntityTypes(false, 1_200)) as EntityTypeConfig[]);
+      const [types, taxonomyRes] = await Promise.all([
+        fetchRecognitionEntityTypes(false, 1_200),
+        authFetch('/api/v1/custom-types/taxonomy').then((res) => {
+          if (!res.ok) throw new Error(`taxonomy ${res.status}`);
+          return res.json() as Promise<{ domains: TextTaxonomyDomain[] }>;
+        }),
+      ]);
+      setEntityTypes(types as EntityTypeConfig[]);
+      setTextTaxonomy(Array.isArray(taxonomyRes.domains) ? taxonomyRes.domains : []);
       initialLoadDone.current = true;
     } catch (err) {
       if (import.meta.env.DEV) console.error('fetch entity types failed', err);
       setEntityTypes([]);
+      setTextTaxonomy([]);
       setLoadError(t('settings.loadFailed'));
     } finally {
       setLoading(false);
@@ -193,18 +227,28 @@ export function useEntityTypes() {
       regex_pattern: string;
       use_llm: boolean;
       tag_template?: string;
+      data_domain?: string;
+      generic_target?: string | null;
+      entity_type_ids?: string[];
+      coref_enabled?: boolean;
+      default_enabled?: boolean;
     }) => {
       const res = await authFetch('/api/v1/custom-types', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newType.name.trim(),
-          description: newType.use_llm ? newType.description?.trim() || null : null,
+          description: newType.description?.trim() || null,
           examples: [],
-          color: getToneColor(getEntityTypeTone(newType.use_llm)),
-          regex_pattern: newType.use_llm ? null : newType.regex_pattern || null,
-          use_llm: newType.use_llm,
+          color: getToneColor(getEntityTypeTone(true)),
+          regex_pattern: null,
+          use_llm: true,
           tag_template: newType.tag_template || null,
+          data_domain: newType.data_domain || 'custom_extension',
+          generic_target: newType.generic_target || null,
+          entity_type_ids: newType.entity_type_ids || [],
+          coref_enabled: newType.coref_enabled ?? true,
+          default_enabled: Boolean(newType.default_enabled),
         }),
       });
       if (res.ok) {
@@ -229,6 +273,11 @@ export function useEntityTypes() {
         regex_pattern: string;
         use_llm: boolean;
         tag_template: string;
+        data_domain?: string;
+        generic_target?: string | null;
+        entity_type_ids?: string[];
+        coref_enabled?: boolean;
+        default_enabled?: boolean;
       },
     ) => {
       const res = await authFetch(`/api/v1/custom-types/${id}`, {
@@ -236,11 +285,16 @@ export function useEntityTypes() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: update.name.trim(),
-          description: update.use_llm ? update.description?.trim() || null : null,
-          color: getToneColor(getEntityTypeTone(update.use_llm)),
-          regex_pattern: update.use_llm ? null : update.regex_pattern || null,
-          use_llm: update.use_llm,
+          description: update.description?.trim() || null,
+          color: getToneColor(getEntityTypeTone(true)),
+          regex_pattern: null,
+          use_llm: true,
           tag_template: update.tag_template || null,
+          data_domain: update.data_domain || 'custom_extension',
+          generic_target: update.generic_target || null,
+          entity_type_ids: update.entity_type_ids || [],
+          coref_enabled: update.coref_enabled ?? true,
+          default_enabled: Boolean(update.default_enabled),
         }),
       });
       if (res.ok) {
@@ -402,6 +456,7 @@ export function useEntityTypes() {
 
   return {
     entityTypes,
+    textTaxonomy,
     pipelines,
     loading,
     pipelinesLoading,

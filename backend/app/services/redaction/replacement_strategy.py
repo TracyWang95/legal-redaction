@@ -149,14 +149,6 @@ class RedactionContext:
         """生成结构化语义标签"""
         type_key = _type_key_for_entity(entity)
 
-        if (
-            entity.coref_id
-            and entity.coref_id.startswith("<")
-            and entity.coref_id.endswith(">")
-            and self._is_structured_tag_compatible(type_key, entity.coref_id)
-        ):
-            return entity.coref_id
-
         if entity.text in self.structured_tag_map:
             return self.structured_tag_map[entity.text]
 
@@ -176,6 +168,8 @@ class RedactionContext:
             "ID_CARD": ("编号", "身份证.号码"),
             "BANK_CARD": ("编号", "银行卡.号码"),
             "CASE_NUMBER": ("编号", "案件编号.号码"),
+            "DOCUMENT_NUMBER": ("编号", "文书编号.号码"),
+            "BIRTH_DATE": ("日期/时间", "出生日期.年月日"),
             "DATE": ("日期/时间", "具体日期.年月日"),
             "AMOUNT": ("金额", "合同金额.数值"),
             "EMAIL": ("邮箱", "个人邮箱.地址"),
@@ -252,7 +246,7 @@ class RedactionContext:
         if coref_id.startswith("<") and coref_id.endswith(">"):
             if self._is_structured_tag_compatible(type_key, coref_id):
                 return coref_id
-            return f"{type_key}:{entity.text}"
+            return f"{type_key}:{coref_id}"
         return coref_id
 
     @staticmethod
@@ -266,13 +260,17 @@ class RedactionContext:
             "BANK_CARD": {"银行卡", "金融账户", "编号"},
             "BANK_ACCOUNT": {"金融账户", "银行账号", "账号", "编号"},
             "CASE_NUMBER": {"案件", "案件信息", "案号", "编号"},
+            "DOCUMENT_NUMBER": {"文书编号", "法律文书号", "案号", "编号"},
+            "BIRTH_DATE": {"出生日期", "生日", "日期", "日期/时间"},
             "DATE": {"时间", "时间信息", "日期", "日期/时间"},
             "AMOUNT": {"财务信息", "金额"},
             "LICENSE_PLATE": {"车辆信息", "车牌", "编号"},
             "PHONE": {"电话", "联系方式"},
             "EMAIL": {"邮箱", "邮件"},
         }
-        return tag_head in compatible_heads.get(type_key, {tag_head})
+        if type_key not in compatible_heads:
+            return False
+        return tag_head in compatible_heads[type_key]
 
 
 def build_preview_entity_map(entities: list[Entity], config: RedactionConfig) -> dict[str, str]:

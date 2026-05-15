@@ -4,12 +4,15 @@
 export interface DefaultTextTypeLike {
   id: string;
   enabled?: boolean;
+  default_enabled?: boolean;
+  generic_target?: string | null;
   order?: number;
 }
 
 export interface DefaultPipelineTypeLike {
   id: string;
   enabled?: boolean;
+  default_enabled?: boolean;
   order?: number;
 }
 
@@ -25,11 +28,7 @@ export interface DefaultPipelineCoverage {
   enabledIds: string[];
 }
 
-const DEFAULT_EXCLUDED_TEXT_TYPE_IDS = new Set([
-  'ORG',
-  'WORK_UNIT',
-]);
-const DEFAULT_EXCLUDED_TEXT_TYPE_PREFIXES = ['LEGAL_', 'FIN_', 'MED_'];
+const DEFAULT_EXCLUDED_TEXT_TYPE_IDS = new Set<string>();
 const OCR_FALLBACK_ONLY_VISUAL_TYPE_IDS = new Set([
   'signature',
   'handwritten',
@@ -95,14 +94,15 @@ function normalizeTextTypeId(id: string): string {
 
 export function isDefaultExcludedTextTypeId(id: string): boolean {
   const normalized = normalizeTextTypeId(id);
-  return (
-    DEFAULT_EXCLUDED_TEXT_TYPE_IDS.has(normalized) ||
-    DEFAULT_EXCLUDED_TEXT_TYPE_PREFIXES.some((prefix) => normalized.startsWith(prefix))
-  );
+  return DEFAULT_EXCLUDED_TEXT_TYPE_IDS.has(normalized);
 }
 
 export function isBuiltinDefaultTextType(type: DefaultTextTypeLike): boolean {
-  return type.enabled !== false && !isDefaultExcludedTextTypeId(type.id);
+  return (
+    type.enabled !== false &&
+    type.default_enabled === true &&
+    !isDefaultExcludedTextTypeId(type.id)
+  );
 }
 
 export function buildDefaultTextTypeIds<T extends DefaultTextTypeLike>(types: T[]): string[] {
@@ -110,7 +110,7 @@ export function buildDefaultTextTypeIds<T extends DefaultTextTypeLike>(types: T[
 }
 
 export function isBuiltinDefaultPipelineType(type: DefaultPipelineTypeLike): boolean {
-  return type.enabled !== false;
+  return type.enabled !== false && type.default_enabled === true;
 }
 
 export function isDefaultExcludedPipelineTypeId(

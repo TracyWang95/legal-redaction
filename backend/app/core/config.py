@@ -198,11 +198,12 @@ class Settings(BaseSettings):
     HAS_TEXT_MODEL_NAME: str = ""
     HAS_TIMEOUT: float = 120.0
     HAS_NER_CONTEXT_TOKENS: int = 8192
-    HAS_NER_MAX_TOKENS: int = 3072
-    HAS_NER_MAX_TYPES_PER_REQUEST: int = 128
+    HAS_NER_MAX_TOKENS: int = 4096
+    HAS_NER_MAX_TYPES_PER_REQUEST: int = 12
     HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST: int = 16
-    HAS_NER_SINGLE_PASS_MAX_TYPES: int = 128
-    HAS_NER_MAX_PARALLEL_REQUESTS: int = 3
+    HAS_NER_TYPE_BATCH_TARGET_TOKENS: int = 900
+    HAS_NER_SINGLE_PASS_MAX_TYPES: int = 12
+    HAS_NER_MAX_PARALLEL_REQUESTS: int = 4
     HAS_NER_BUILTIN_GUIDANCE_ENABLED: bool = False
     HAS_NER_CACHE_TTL_SEC: float = 300.0
     HAS_NER_CACHE_MAX_ITEMS: int = 256
@@ -292,6 +293,11 @@ class Settings(BaseSettings):
     @classmethod
     def _validate_has_ner_custom_max_types_per_request(cls, v: int) -> int:
         return max(1, min(16, v))
+
+    @field_validator("HAS_NER_TYPE_BATCH_TARGET_TOKENS")
+    @classmethod
+    def _validate_has_ner_type_batch_target_tokens(cls, v: int) -> int:
+        return max(128, min(4096, v))
 
     @field_validator("HAS_NER_CACHE_MAX_ITEMS")
     @classmethod

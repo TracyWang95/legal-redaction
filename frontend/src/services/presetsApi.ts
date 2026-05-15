@@ -16,6 +16,9 @@ export interface RecognitionPreset {
   ocrHasTypes: string[];
   hasImageTypes: string[];
   vlmTypes?: string[];
+  dataDomains?: string[];
+  genericTargets?: string[];
+  linkageGroups?: string[];
   replacementMode: ReplacementMode;
   created_at: string;
   updated_at: string;
@@ -29,6 +32,9 @@ export interface PresetPayload {
   ocrHasTypes: string[];
   hasImageTypes: string[];
   vlmTypes: string[];
+  dataDomains?: string[];
+  genericTargets?: string[];
+  linkageGroups?: string[];
   replacementMode: ReplacementMode;
 }
 

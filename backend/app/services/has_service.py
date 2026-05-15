@@ -31,6 +31,24 @@ class HaSService:
     # 统一引用 models/type_mapping.py 的单一数据源
     from app.models.type_mapping import TYPE_ID_TO_CN as TYPE_MAPPING_ID_TO_CN
 
+    BUILTIN_TYPE_GUIDANCE: dict[str, dict[str, Any]] = {
+        "ADDRESS": {
+            "description": "具体地点、住所地、道路、路口、交汇处、事故地点、办公地点。",
+            "examples": ["南山区深南大道与科苑路交汇处", "广东省深圳市南山区科技园", "某某路88号"],
+            # Prompt-only aliases improve model recall for roads/intersections.
+            # Returned buckets still resolve to the single selected L3 ADDRESS id.
+            "query_aliases": ["地理位置", "道路地址"],
+        },
+        "BIRTH_DATE": {
+            "description": "自然人的出生日期或生日；带“出生/生日/出生日期”的年月日属于此类，不属于年龄。",
+            "examples": ["1985年7月15日出生", "出生日期：1992-10-05", "生日1992/10/05"],
+        },
+        "AGE": {
+            "description": "年龄或年龄段，只识别多少岁、多少周岁、未满/以上等年龄表达；不要识别出生日期。",
+            "examples": ["35岁", "未满18周岁", "60岁以上"],
+        },
+    }
+
     def __init__(self, base_url: str | None = None):
         self.client = HaSClient(base_url=base_url)
 
@@ -69,20 +87,26 @@ class HaSService:
             raw_type_id = str(getattr(entity_type, "id", "") or "").strip()
             type_id = canonical_type_id(raw_type_id)
             is_custom = self._is_custom_type_id(raw_type_id) or self._is_custom_type_id(type_id)
-            if not is_custom and not settings.HAS_NER_BUILTIN_GUIDANCE_ENABLED:
+            builtin_guidance = self.BUILTIN_TYPE_GUIDANCE.get(type_id)
+            if not is_custom and not builtin_guidance and not settings.HAS_NER_BUILTIN_GUIDANCE_ENABLED:
                 continue
             chinese_types = self._convert_entity_types_to_chinese([entity_type])
             if not chinese_types:
                 continue
-            description = str(getattr(entity_type, "description", "") or "").strip()
-            examples = list(getattr(entity_type, "examples", []) or [])
+            description = str(
+                (builtin_guidance or {}).get("description")
+                or getattr(entity_type, "description", "")
+                or ""
+            ).strip()
+            examples = list((builtin_guidance or {}).get("examples") or getattr(entity_type, "examples", []) or [])
             if not description and not examples:
                 continue
-            guidance.append({
-                "type": chinese_types[0],
-                "description": description,
-                "examples": examples,
-            })
+            for chinese_type in self._expand_query_type_names(type_id, chinese_types):
+                guidance.append({
+                    "type": chinese_type,
+                    "description": description,
+                    "examples": examples,
+                })
         return guidance
 
     def _iter_ner_type_batches(
@@ -113,16 +137,87 @@ class HaSService:
             else:
                 builtin_types.append(entity_type)
 
-        def chunk(items: list[EntityTypeConfig], size: int) -> list[list[EntityTypeConfig]]:
-            return [items[index:index + size] for index in range(0, len(items), size)]
+        if not ordered_types:
+            return []
 
-        if len(ordered_types) <= settings.HAS_NER_SINGLE_PASS_MAX_TYPES:
+        if self._ner_type_batch_cost(ordered_types) <= int(settings.HAS_NER_TYPE_BATCH_TARGET_TOKENS) and len(ordered_types) <= settings.HAS_NER_SINGLE_PASS_MAX_TYPES:
             return [ordered_types]
 
         batches: list[list[EntityTypeConfig]] = []
-        batches.extend(chunk(builtin_types, settings.HAS_NER_MAX_TYPES_PER_REQUEST))
-        batches.extend(chunk(custom_types, settings.HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST))
+        batches.extend(self._pack_ner_type_batches(
+            builtin_types,
+            max_types=int(settings.HAS_NER_MAX_TYPES_PER_REQUEST),
+            target_tokens=int(settings.HAS_NER_TYPE_BATCH_TARGET_TOKENS),
+        ))
+        batches.extend(self._pack_ner_type_batches(
+            custom_types,
+            max_types=int(settings.HAS_NER_CUSTOM_MAX_TYPES_PER_REQUEST),
+            target_tokens=int(settings.HAS_NER_TYPE_BATCH_TARGET_TOKENS),
+        ))
+        logger.info(
+            "HaS NER packed %d requested types into %d adaptive batches",
+            len(ordered_types),
+            len(batches),
+        )
         return batches
+
+    def _pack_ner_type_batches(
+        self,
+        items: list[EntityTypeConfig],
+        max_types: int,
+        target_tokens: int,
+    ) -> list[list[EntityTypeConfig]]:
+        batches: list[list[EntityTypeConfig]] = []
+        current: list[EntityTypeConfig] = []
+        current_cost = 0
+        max_types = max(1, max_types)
+        target_tokens = max(128, target_tokens)
+
+        for item in items:
+            item_cost = self._ner_type_batch_cost([item])
+            should_flush = bool(current) and (
+                len(current) >= max_types
+                or current_cost + item_cost > target_tokens
+            )
+            if should_flush:
+                batches.append(current)
+                current = []
+                current_cost = 0
+            current.append(item)
+            current_cost += item_cost
+
+        if current:
+            batches.append(current)
+        return batches
+
+    def _ner_type_batch_cost(self, entity_types: list[EntityTypeConfig]) -> int:
+        guidance = self._convert_entity_types_to_guidance(entity_types)
+        chinese_types = self._convert_entity_types_to_chinese(entity_types)
+        text = "".join(chinese_types)
+        for item in guidance:
+            text += str(item.get("type") or "")
+            text += str(item.get("description") or "")
+            text += "".join(str(example) for example in item.get("examples") or [])
+        return max(1, len(text) // 2 + len(chinese_types) * 8)
+
+    def _expand_query_type_names(self, type_id: str, chinese_types: list[str]) -> list[str]:
+        """Add prompt-only aliases for a selected L3 type.
+
+        This keeps the user-facing entity schema atomic: aliases only broaden
+        the model query, and result buckets are mapped back to the same L3 id.
+        """
+        names: list[str] = []
+        for name in chinese_types:
+            name_text = str(name or "").strip()
+            if name_text and name_text not in names:
+                names.append(name_text)
+
+        builtin_guidance = self.BUILTIN_TYPE_GUIDANCE.get(canonical_type_id(type_id)) or {}
+        for alias in builtin_guidance.get("query_aliases") or []:
+            alias_text = str(alias or "").strip()
+            if alias_text and alias_text not in names:
+                names.append(alias_text)
+        return names
 
     @staticmethod
     def _is_custom_type_id(type_id: str | None) -> bool:
@@ -149,6 +244,7 @@ class HaSService:
                 type_id,
                 str(getattr(entity_type, "name", "") or "").strip(),
                 *self._convert_entity_types_to_chinese([entity_type]),
+                *self._expand_query_type_names(type_id, self._convert_entity_types_to_chinese([entity_type])),
             }
             for type_name in exact_names:
                 if type_name:
@@ -207,6 +303,11 @@ class HaSService:
 
             async def run_batch(batch: list[EntityTypeConfig]) -> dict[str, list[str]]:
                 batch_chinese_types = self._convert_entity_types_to_chinese(batch)
+                for item in batch:
+                    batch_chinese_types = self._expand_query_type_names(
+                        canonical_type_id(getattr(item, "id", "")),
+                        batch_chinese_types,
+                    )
                 if not batch_chinese_types:
                     return {}
                 async with semaphore:

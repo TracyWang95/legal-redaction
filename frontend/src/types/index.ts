@@ -14,13 +14,6 @@
 // Do NOT blindly merge them: the field differences are intentional.
 // ---------------------------------------------------------------------------
 
-export enum IdentifierCategory {
-  DIRECT = 'direct',
-  QUASI = 'quasi',
-  SENSITIVE = 'sensitive',
-  OTHER = 'other',
-}
-
 export enum EntityType {
   PERSON = 'PERSON',
   ID_CARD = 'ID_CARD',
@@ -31,6 +24,7 @@ export enum EntityType {
   EMAIL = 'EMAIL',
   BANK_CARD = 'BANK_CARD',
   BANK_ACCOUNT = 'BANK_ACCOUNT',
+  BANK_NAME = 'BANK_NAME',
   WECHAT_ALIPAY = 'WECHAT_ALIPAY',
   USERNAME_PASSWORD = 'USERNAME_PASSWORD',
   AUTH_SECRET = 'AUTH_SECRET',
@@ -59,6 +53,7 @@ export enum EntityType {
   LICENSE_PLATE = 'LICENSE_PLATE',
   VIN = 'VIN',
   CASE_NUMBER = 'CASE_NUMBER',
+  DOCUMENT_NUMBER = 'DOCUMENT_NUMBER',
   CONTRACT_NO = 'CONTRACT_NO',
   ORG = 'ORG',
   COMPANY_CODE = 'COMPANY_CODE',
@@ -384,7 +379,12 @@ export interface CompareData {
 export interface EntityTypeConfig {
   id: string;
   name: string;
-  category: IdentifierCategory;
+  data_domain: string;
+  generic_target?: string | null;
+  entity_type_ids?: string[];
+  linkage_groups: string[];
+  coref_enabled: boolean;
+  default_enabled?: boolean;
   description?: string;
   examples?: string[];
   color: string;
@@ -393,7 +393,6 @@ export interface EntityTypeConfig {
   enabled: boolean;
   order: number;
   tag_template?: string;
-  risk_level: number;
 }
 
 export interface EntityTypeConfigSimple {
