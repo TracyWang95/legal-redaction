@@ -781,7 +781,6 @@ TYPE_CN_TO_ID.update({
     "所在单位": "WORK_UNIT",
     "任职单位": "WORK_UNIT",
     "就职单位": "WORK_UNIT",
-    "病历号": "MED_RECORD_ID",
     "就诊号": "MED_RECORD_ID",
     "律师": "LEGAL_ATTORNEY",
     "代理律师": "LEGAL_ATTORNEY",
